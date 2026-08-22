@@ -4,10 +4,13 @@ function normalizeCategory(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function deepFreeze(value) {
+function deepFreeze(value, seen = new WeakSet()) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  if (seen.has(value)) return value;
+  seen.add(value);
+
   Object.freeze(value);
-  for (const child of Object.values(value)) deepFreeze(child);
+  for (const child of Object.values(value)) deepFreeze(child, seen);
   return value;
 }
 
@@ -16,16 +19,25 @@ function normalizeDefinition(definition) {
     throw new TypeError("Rizo Core definitions must be plain objects.");
   }
 
-  const id = String(definition.id || "").trim();
+  // Canonical content is data, not live object identity. Clone before freezing so the
+  // registry never freezes nested arrays/objects owned by the caller's source pack.
+  let source;
+  try {
+    source = structuredClone(definition);
+  } catch (error) {
+    throw new TypeError(`Rizo Core definition must be structured-cloneable data: ${error.message}`);
+  }
+
+  const id = String(source.id || "").trim();
   if (!ID_PATTERN.test(id)) {
     throw new Error(`Invalid Rizo Core id: ${id || "<empty>"}`);
   }
 
-  const tags = Array.isArray(definition.tags)
-    ? [...new Set(definition.tags.map(tag => String(tag).trim().toLowerCase()).filter(Boolean))]
+  const tags = Array.isArray(source.tags)
+    ? [...new Set(source.tags.map(tag => String(tag).trim().toLowerCase()).filter(Boolean))]
     : [];
 
-  return deepFreeze({ ...definition, id, tags });
+  return deepFreeze({ ...source, id, tags });
 }
 
 function readPath(object, path) {
