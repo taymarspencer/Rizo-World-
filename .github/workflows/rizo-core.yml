@@ -11,7 +11,9 @@ on:
       - "src/content/**"
       - "tests/rizo-core-v1.mjs"
       - "tests/rizo-world-bridge.mjs"
+      - "tests/rizo-world-static.mjs"
       - "rizo-config.js"
+      - "sw.js"
       - ".github/workflows/rizo-core.yml"
 
 jobs:
@@ -32,3 +34,6 @@ jobs:
 
       - name: Run Rizo World bridge tests
         run: node --experimental-default-type=module tests/rizo-world-bridge.mjs
+
+      - name: Run Rizo World boot/offline tests
+        run: node --experimental-default-type=module tests/rizo-world-static.mjs
