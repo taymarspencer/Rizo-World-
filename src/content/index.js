@@ -9,6 +9,7 @@ import { UPGRADES } from "./upgrades.js";
 import { WAVES } from "./waves.js";
 import { EVENTS } from "./events.js";
 import { REWARDS } from "./rewards.js";
+import { SYSTEMS } from "./systems.js";
 
 export const RIZO_CONTENT = Object.freeze({
   games: GAMES,
@@ -21,7 +22,8 @@ export const RIZO_CONTENT = Object.freeze({
   upgrades: UPGRADES,
   waves: WAVES,
   events: EVENTS,
-  rewards: REWARDS
+  rewards: REWARDS,
+  systems: SYSTEMS
 });
 
 // Standard reference rules. Add rules here when a category gains a new ID-based relationship.
