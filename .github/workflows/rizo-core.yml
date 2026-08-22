@@ -1,0 +1,28 @@
+name: Rizo Core
+
+on:
+  push:
+    branches:
+      - rizo-core-v1
+  pull_request:
+    paths:
+      - "src/rizo-core/**"
+      - "src/content/**"
+      - "tests/rizo-core-v1.mjs"
+      - ".github/workflows/rizo-core.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run Rizo Core tests
+        run: node --experimental-default-type=module tests/rizo-core-v1.mjs
