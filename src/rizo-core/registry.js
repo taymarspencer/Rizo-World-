@@ -1,5 +1,9 @@
 const ID_PATTERN = /^[a-z0-9][a-z0-9._:-]*$/;
 
+function normalizeCategory(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   Object.freeze(value);
@@ -36,7 +40,7 @@ export class ContentRegistry {
   }
 
   registerCategory(categoryName, definitions = []) {
-    const category = String(categoryName || "").trim().toLowerCase();
+    const category = normalizeCategory(categoryName);
     if (!category) throw new Error("Content category names cannot be empty.");
     if (!Array.isArray(definitions)) throw new TypeError(`${category} must be an array.`);
     if (this._categories.has(category)) throw new Error(`Category already registered: ${category}`);
@@ -59,29 +63,32 @@ export class ContentRegistry {
   }
 
   has(category, id) {
-    return this._categories.get(category)?.has(id) || false;
+    return this._categories.get(normalizeCategory(category))?.has(id) || false;
   }
 
   get(category, id) {
-    const records = this._categories.get(category);
+    const normalizedCategory = normalizeCategory(category);
+    const records = this._categories.get(normalizedCategory);
     if (!records) throw new Error(`Unknown content category: ${category}`);
     const value = records.get(id);
-    if (!value) throw new Error(`Unknown ${category} id: ${id}`);
+    if (!value) throw new Error(`Unknown ${normalizedCategory} id: ${id}`);
     return value;
   }
 
   maybeGet(category, id) {
-    return this._categories.get(category)?.get(id) || null;
+    return this._categories.get(normalizeCategory(category))?.get(id) || null;
   }
 
   all(category) {
-    const records = this._categories.get(category);
+    const normalizedCategory = normalizeCategory(category);
+    const records = this._categories.get(normalizedCategory);
     if (!records) throw new Error(`Unknown content category: ${category}`);
     return [...records.values()];
   }
 
   ids(category) {
-    const records = this._categories.get(category);
+    const normalizedCategory = normalizeCategory(category);
+    const records = this._categories.get(normalizedCategory);
     if (!records) throw new Error(`Unknown content category: ${category}`);
     return [...records.keys()];
   }
@@ -103,13 +110,16 @@ export class ContentRegistry {
     const issues = [];
 
     for (const rule of referenceRules) {
-      const { from, field, to, many = false, optional = false } = rule;
+      const from = normalizeCategory(rule.from);
+      const to = normalizeCategory(rule.to);
+      const { field, many = false, optional = false } = rule;
+
       if (!this._categories.has(from)) {
-        issues.push(`Reference rule uses missing source category: ${from}`);
+        issues.push(`Reference rule uses missing source category: ${rule.from}`);
         continue;
       }
       if (!this._categories.has(to)) {
-        issues.push(`Reference rule uses missing target category: ${to}`);
+        issues.push(`Reference rule uses missing target category: ${rule.to}`);
         continue;
       }
 
