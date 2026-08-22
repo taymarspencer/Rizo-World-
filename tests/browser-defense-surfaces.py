@@ -11,7 +11,7 @@ def scan(page,selector):
     return page.evaluate('''sel=>{const root=document.querySelector(sel);if(!root)return{missing:true};const visible=e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return s.display!=="none"&&s.visibility!=="hidden"&&Number(s.opacity)!==0&&r.width>0&&r.height>0};const r=root.getBoundingClientRect(),tiny=[...root.querySelectorAll("*")].filter(visible).map(e=>({text:(e.textContent||"").trim().replace(/\\s+/g," ").slice(0,60),size:parseFloat(getComputedStyle(e).fontSize),cls:String(e.className||"")})).filter(x=>x.text&&x.size<10.5);const controls=[...root.querySelectorAll("button,a,[role=button]")].filter(visible).map(e=>{const x=e.getBoundingClientRect();return{label:e.getAttribute("aria-label")||e.textContent.trim().slice(0,40),left:x.left,right:x.right,top:x.top,bottom:x.bottom,w:x.width,h:x.height}});return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,w:r.width,h:r.height},tiny,controls};}''',selector)
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
     for vp in [(320,568),(390,844),(844,390),(768,1024)]:
         page=browser.new_page(viewport={'width':vp[0],'height':vp[1]})
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))

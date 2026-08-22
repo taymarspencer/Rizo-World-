@@ -55,6 +55,7 @@ export class ContentRegistry {
   constructor() {
     this._categories = new Map();
     this._aliases = new Map();
+    this._addresses = new Map();
   }
 
   registerCategory(categoryName, definitions = []) {
@@ -69,28 +70,33 @@ export class ContentRegistry {
     for (const rawDefinition of definitions) {
       const definition = normalizeDefinition(rawDefinition, category);
       if (records.has(definition.id)) throw new Error(`Duplicate id in ${category}: ${definition.id}`);
-      for (const existingCategory of this.categories()) {
-        if (this._categories.get(existingCategory).has(definition.id)) {
-          throw new Error(`Duplicate global id in ${category} and ${existingCategory}: ${definition.id}`);
-        }
-      }
       records.set(definition.id, definition);
     }
 
+    const addresses = new Map();
+    const claim = (address, canonicalId, kind) => {
+      const existing = addresses.get(address) || this._addresses.get(address);
+      if (existing) {
+        throw new Error(
+          `Global id/alias collision: ${address} (${category}:${canonicalId} ${kind}) conflicts with ` +
+          `${existing.category}:${existing.canonicalId} ${existing.kind}`
+        );
+      }
+      addresses.set(address, Object.freeze({ category, canonicalId, kind }));
+    };
+
+    for (const definition of records.values()) claim(definition.id, definition.id, "canonical");
+
     for (const definition of records.values()) {
       for (const alias of definition.aliases) {
-        if (records.has(alias)) {
-          throw new Error(`Alias collides with canonical ${category} id: ${alias}`);
-        }
-        if (aliases.has(alias)) {
-          throw new Error(`Duplicate alias in ${category}: ${alias}`);
-        }
+        claim(alias, definition.id, "alias");
         aliases.set(alias, definition.id);
       }
     }
 
     this._categories.set(category, records);
     this._aliases.set(category, aliases);
+    for (const [address, owner] of addresses) this._addresses.set(address, owner);
     return this;
   }
 
@@ -102,22 +108,13 @@ export class ContentRegistry {
     const normalizedId = String(id || "").trim().toLowerCase();
     if (!normalizedId) return null;
 
-    const matches = [];
-    for (const category of this.categories()) {
-      const records = this._categories.get(category);
-      if (records.has(normalizedId)) {
-        matches.push({ category, canonicalId: normalizedId, definition: records.get(normalizedId) });
-        continue;
-      }
-      if (!includeAliases) continue;
-      const canonicalId = this._aliases.get(category)?.get(normalizedId);
-      if (canonicalId) matches.push({ category, canonicalId, definition: records.get(canonicalId) });
-    }
-
-    if (matches.length > 1) {
-      throw new Error(`Ambiguous Rizo Core id or alias: ${id}`);
-    }
-    return matches[0] ? Object.freeze(matches[0]) : null;
+    const owner = this._addresses.get(normalizedId);
+    if (!owner || (!includeAliases && owner.kind === "alias")) return null;
+    return Object.freeze({
+      category: owner.category,
+      canonicalId: owner.canonicalId,
+      definition: this._categories.get(owner.category).get(owner.canonicalId)
+    });
   }
 
   canonicalId(category, id) {

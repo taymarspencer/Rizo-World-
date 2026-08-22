@@ -41,8 +41,13 @@ await test("rizo-config boots World at DOM ready and keeps failure non-fatal", a
 
 await test("service worker cache version changed for the World foundation", async () => {
   const sw = await read("sw.js");
-  assert.match(sw, /rizo-game-v86-launch-hotfix-rizo-world-organizer-v1/);
-  assert.doesNotMatch(sw, /const CACHE = "rizo-game-v86-launch-hotfix"/);
+  assert.match(sw, /const CACHE = "rizo-game-v86-world-organizer"/);
+});
+
+await test("page, runtime, and service worker share one build identity", async () => {
+  const [html, runtime, sw] = await Promise.all([read("index.html"), read("game-v79-defense.js"), read("sw.js")]);
+  for (const source of [html, runtime, sw]) assert.match(source, /v86-world-organizer/);
+  assert.doesNotMatch(`${html}\n${runtime}\n${sw}`, /v86-launch-hotfix/);
 });
 
 await test("legacy runtime publishes one binding surface before boot", async () => {

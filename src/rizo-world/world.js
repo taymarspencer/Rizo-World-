@@ -1,5 +1,6 @@
 import { createDefaultRizoCore } from "../rizo-core/index.js";
 import { LegacyRuntimeAdapter } from "../rizo-core/legacy-runtime.js";
+import { readonlySnapshot } from "../rizo-core/legacy-runtime.js";
 import { SourceResolver } from "../rizo-core/source-resolver.js";
 
 function safeProperty(object, key) {
@@ -15,7 +16,19 @@ export function createRizoWorld({
 } = {}) {
   const resolvedDocument = documentObject === undefined ? safeProperty(globalObject, "document") : documentObject;
   const resolvedStorage = storage === undefined ? safeProperty(globalObject, "localStorage") : storage;
-  const core = createDefaultRizoCore(coreOptions);
+  const playerState = Object.freeze({
+    authority: "legacy",
+    writable: false,
+    snapshot() {
+      const snapshot = safeProperty(safeProperty(globalObject, "RizoLegacyRuntime"), "currentState");
+      if (!snapshot) throw new Error("Authoritative legacy player state is unavailable.");
+      return readonlySnapshot(snapshot);
+    }
+  });
+  const core = createDefaultRizoCore({
+    ...coreOptions,
+    services: { ...(coreOptions.services || {}), playerState }
+  });
   const legacy = new LegacyRuntimeAdapter({
     globalObject,
     documentObject: resolvedDocument,
@@ -39,6 +52,7 @@ export function createRizoWorld({
     version: 1,
     core,
     sources,
+    playerState,
 
     get(category, id) {
       return core.registry.get(category, id);
@@ -98,6 +112,10 @@ export function createRizoWorld({
 
     manifest() {
       return core.registry.snapshot();
+    },
+
+    player() {
+      return playerState.snapshot();
     },
 
     status() {

@@ -20,7 +20,7 @@ export const TOWERS = towerProfiles.map(([legacyKey, name]) => ({
     `ability.defense.${legacyKey}.power`,
     `ability.defense.${legacyKey}.control`
   ],
-  upgradeIds: ["upgrade.defense.power", "upgrade.defense.control"],
+  upgradeIds: ["upgrade.defense.doctrine.power", "upgrade.defense.doctrine.control"],
   tags: ["defense", "tower", "legacy-instance"],
-  binding: { kind: "global-record", path: "RizoLegacyRuntime.content.defenseAbilities", value: legacyKey }
+  binding: { kind: "global-record", path: "RizoLegacyRuntime.content.defenseTowerProfiles", value: legacyKey }
 }));

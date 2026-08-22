@@ -1,22 +1,6 @@
-// Existing globals/state exposed through the World bridge. These entries are
-// references, not copies. Their stable IDs can survive future rewrites.
+// Deliberately exposed legacy services and diagnostic values. Static catalogs
+// resolve through immutable RizoLegacyRuntime snapshots; live services stay live.
 export const SYSTEMS = [
-  {
-    id: "system.world_manifest",
-    aliases: ["world_manifest"],
-    name: "Rizo World Manifest",
-    type: "registry",
-    source: "native",
-    tags: ["world", "content", "manifest"]
-  },
-  {
-    id: "system.core_registry",
-    aliases: ["core_registry"],
-    name: "Rizo Core Registry",
-    type: "registry",
-    source: "native",
-    tags: ["core", "content", "lookup"]
-  },
   {
     id: "system.defense_core",
     aliases: ["defense_core"],
@@ -129,21 +113,6 @@ export const SYSTEMS = [
     tags: ["defense", "simulation", "legacy"],
     binding: { kind: "global-value", path: "RizoLegacyRuntime.systems.defense" }
   },
-  ...[
-    ["grove", "Pine Bend"],
-    ["ember", "Ember Switchback"],
-    ["moon", "Moon Loop"],
-    ["storm", "Storm Circuit"],
-    ["blizzard", "Whiteout Pass"],
-    ["eclipse", "Eclipse Ridge"]
-  ].map(([legacyKey, name]) => ({
-    id: `system.defense_map.${legacyKey}`,
-    name,
-    type: "defense-map",
-    source: "legacy",
-    tags: ["defense", "map", "world"],
-    binding: { kind: "global-record", path: "RizoLegacyRuntime.content.defenseMaps", value: legacyKey }
-  })),
   {
     id: "system.defense_canvas",
     aliases: ["defense_canvas"],
@@ -178,6 +147,6 @@ export const SYSTEMS = [
     type: "visual-catalog",
     source: "legacy",
     tags: ["rizo", "visual", "compatibility"],
-    binding: { kind: "global-value", path: "RIZO_FORMS" }
+    binding: { kind: "global-value", path: "RizoLegacyRuntime.content.rizoForms" }
   }
 ];

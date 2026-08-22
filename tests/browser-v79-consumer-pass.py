@@ -9,7 +9,7 @@ def find_valid(page):
     return page.evaluate('''()=>{for(let y=.1;y<=.9;y+=.04)for(let x=.1;x<=.9;x+=.04){const e=RizoRuntimeQA.defensePlacementEvaluationForQA(x,y);if(e.valid)return{x,y,e};}return null}''')
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
 
     # Consumer-facing world select should behave like a game menu, not a dashboard.
     page=browser.new_page(viewport={'width':390,'height':844}, device_scale_factor=3)

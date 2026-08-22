@@ -1,26 +1,13 @@
 # Rizo.world Working Architecture
 
-## Current runtime
+- Active runtime: `index.html` → `rizo-config.js` → the existing v86 runtime files. `rizo-config.js` boots `src/rizo-world/bootstrap.js` non-fatally after the legacy runtime exists.
+- `src/content/index.js` is authoritative for World identity and metadata. Legacy gameplay values remain authoritative in `game-v79-defense.js` until a component is deliberately rebuilt as native.
+- `src/rizo-core/` owns the only registry, selectors, Core state store, event bus, persistence boundary, source resolver, and native game contract. `src/rizo-world/` owns the public `RizoWorld` facade. Never create parallel infrastructure.
+- Canonical IDs and aliases share one global namespace. Use lowercase namespaced IDs and fix collisions before merge. Registry category is the bucket (`items`); subtype is metadata (`wearable`).
+- `source: "legacy"` bindings must point to a real exposed implementation or immutable definition snapshot. Keep private closure behavior private; do not fake-index it.
+- `RizoWorld.get()` returns identity metadata. `resolve()` returns an available runtime binding or `null`; `available()` is the capability check. No native runtime is registered yet, so native invocation must fail explicitly.
+- The current player authority is the live legacy save. Read it with `RizoWorld.player()` / `playerState.snapshot()`. It is read-only from World/Core; `GameContext.updatePlayer()` must fail until safe legacy write-through exists. Core state is isolated future/native state, not the visible player wallet.
+- Add content by editing the relevant plain array in `src/content/`, giving it a truthful ID, and binding existing behavior where safe. Preserve stable IDs when an implementation later becomes native.
+- `README-V*.md`, `V*-*.md`, `reports/`, `BUILD-MANIFEST-SHA256.txt`, and the short audit/status history notes are historical artifacts, not active architecture or integrity inputs.
 
-- `index.html` loads `rizo-config.js`, install/monetization bridges, `defense-core-v79.js`, `defense-canvas-v79.js`, then `game-v79-defense.js`.
-- `rizo-config.js` imports `src/rizo-world/bootstrap.js` at DOM ready, after the legacy runtime exists.
-- `src/rizo-core/` owns the single registry, query, state, event, persistence, game-contract, and source-resolution primitives.
-- `src/rizo-world/` owns the public `window.RizoWorld` facade.
-- `src/content/index.js` is the authoritative machine-readable world manifest; category arrays live beside it in `src/content/`.
-
-## Stable IDs and bindings
-
-- Use lowercase namespaced IDs: `game.*`, `rizo.*`, `item.*`, `ability.*`, `event.*`, `reward.*`, `system.*`, `trait.*`, `enemy.*`, `tower.*`, `upgrade.*`, or `wave.*`.
-- Never rename a shipped stable ID. Add an alias when an old runtime name must keep working.
-- `source: "legacy"` means the implementation remains in the established runtime. Bind it through the read-only `RizoLegacyRuntime` surface or an existing public global/DOM control.
-- `source: "native"` means Core owns the definition. A legacy entry can become native later without changing its ID.
-- Private closure state stays private. Register only a real, traceable binding; do not invent a migrated implementation.
-
-## Adding content
-
-1. Add one plain definition to the appropriate `src/content/*.js` array.
-2. Give it a globally unique stable ID, name, type, tags, source, and real binding where legacy.
-3. Add ID relationships and a reference rule in `src/content/index.js` when appropriate.
-4. Add/adjust focused Core/World tests and keep the service-worker module graph current.
-
-Do not create another registry, state store, event bus, game manager, content list, or launch map. Preserve working behavior, saves, visuals, and game feel unless a task explicitly asks for a redesign. `README-V*.md`, `V*-*.md`, `reports/`, and older test/report artifacts are historical context, not the active architecture.
+Preserve working gameplay, visuals, saves, balance, and legacy fallback unless a task explicitly changes them.

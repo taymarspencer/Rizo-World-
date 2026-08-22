@@ -22,7 +22,7 @@ def page_for(browser, viewport=(390,844), reduced=False):
     return page,errors
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
 
     page,errors=page_for(browser)
     base=page.evaluate('RizoRuntimeQA.defenseCinematicForQA()')

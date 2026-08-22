@@ -1,15 +1,15 @@
 export const UPGRADES = [
   {
-    id: "upgrade.defense.power",
-    name: "Power Path",
+    id: "upgrade.defense.doctrine.power",
+    name: "Power Doctrine",
     type: "doctrine",
     source: "legacy",
     tags: ["defense", "tower", "power"],
     binding: { kind: "global-record", path: "RizoLegacyRuntime.content.defenseDoctrines", value: "power" }
   },
   {
-    id: "upgrade.defense.control",
-    name: "Control Path",
+    id: "upgrade.defense.doctrine.control",
+    name: "Control Doctrine",
     type: "doctrine",
     source: "legacy",
     tags: ["defense", "tower", "control"],

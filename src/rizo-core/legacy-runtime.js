@@ -39,6 +39,22 @@ function getRecord(root, binding) {
   return null;
 }
 
+export function readonlySnapshot(value, seen = new WeakMap()) {
+  if (value == null || (typeof value !== "object" && typeof value !== "function")) return value;
+  if (seen.has(value)) return seen.get(value);
+
+  if (typeof value === "function") {
+    const wrapped = function (...args) { return Reflect.apply(value, this, args); };
+    seen.set(value, wrapped);
+    return Object.freeze(wrapped);
+  }
+
+  const copy = Array.isArray(value) ? [] : {};
+  seen.set(value, copy);
+  for (const [key, child] of Object.entries(value)) copy[key] = readonlySnapshot(child, seen);
+  return Object.freeze(copy);
+}
+
 export class LegacyRuntimeAdapter {
   constructor({ globalObject = globalThis, documentObject, storage } = {}) {
     this.globalObject = globalObject;
@@ -54,7 +70,7 @@ export class LegacyRuntimeAdapter {
       case "global-value":
         return getPath(this.globalObject, binding.path);
       case "global-record":
-        return getRecord(this.globalObject, binding);
+        return readonlySnapshot(getRecord(this.globalObject, binding));
       case "global-call":
         return getCallable(this.globalObject, binding.path).fn;
       case "dom":
@@ -109,16 +125,16 @@ export class LegacyRuntimeAdapter {
 }
 
 export class NativeRuntimeAdapter {
-  resolve(definition) {
-    return definition;
+  resolve() {
+    return null;
   }
 
   available() {
-    return true;
+    return false;
   }
 
   invoke(definition) {
-    throw new Error(`Native definition ${definition?.id || "<unknown>"} has no runtime invoker yet.`);
+    throw new Error(`Native runtime unavailable for ${definition?.id || "<unknown>"}; no implementation is registered.`);
   }
 }
 

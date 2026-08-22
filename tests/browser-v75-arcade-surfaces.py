@@ -8,7 +8,7 @@ def record(name, passed, detail=''):
 viewports=[(320,568),(390,844),(844,390)]
 modes=['power','spark','forage','rush','memory','glide','breaker']
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True, executable_path='/usr/bin/chromium', args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True, args=['--no-sandbox','--disable-dev-shm-usage'])
     for w,h in viewports:
         page=browser.new_page(viewport={'width':w,'height':h})
         errors=[]; page.on('pageerror',lambda e, errors=errors:errors.append(str(e)))

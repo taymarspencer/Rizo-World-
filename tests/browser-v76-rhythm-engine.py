@@ -22,7 +22,7 @@ def boot(browser):
     return page,errors
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
 
     # Study-driven packet grammar and recovery valleys.
     page,errors=boot(browser)

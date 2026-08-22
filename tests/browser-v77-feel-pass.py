@@ -22,7 +22,7 @@ def boot(browser,map_id='grove',viewport=(390,844),touch=False):
     return page,errors
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
 
     # Every authored map uses an undistorted square field and the visible balloon
     # body (not its decorative knot) sits on the same canonical route as the road.

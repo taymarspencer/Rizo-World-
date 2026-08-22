@@ -16,7 +16,9 @@ export const CORE_CATEGORIES = Object.freeze([
   "waves",
   "events",
   "rewards",
-  "systems"
+  "systems",
+  "achievements",
+  "maps"
 ]);
 
 function normalizeCategory(value) {
