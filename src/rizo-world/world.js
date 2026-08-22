@@ -48,6 +48,11 @@ export function createRizoWorld({
     return { category: located.category, id: located.canonicalId };
   }
 
+  function isCategory(value) {
+    const category = String(value || "").trim().toLowerCase();
+    return core.registry.categories().includes(category);
+  }
+
   const world = {
     version: 1,
     core,
@@ -89,7 +94,7 @@ export function createRizoWorld({
     },
 
     invoke(categoryOrId, id, ...args) {
-      if (arguments.length >= 2 && typeof id === "string" && core.registry.has(categoryOrId, id)) {
+      if (arguments.length >= 2 && isCategory(categoryOrId)) {
         return sources.invoke(categoryOrId, id, ...args);
       }
       const target = address(categoryOrId);
