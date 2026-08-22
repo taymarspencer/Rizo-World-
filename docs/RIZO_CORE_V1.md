@@ -1,15 +1,32 @@
 # Rizo Core v1
 
-Rizo Core is the shared skeleton for Rizo.world. It is intentionally additive: the current v86 runtime is not modified by this branch yet.
+Rizo Core is the shared language underneath Rizo.world. It does **not** require the existing v86 runtime to be rewritten before new work can use the foundation.
 
-## Rule of the system
+## The rule
 
-Content is declared once, identified by stable IDs, indexed by a registry, selected through shared query helpers, and consumed by systems/games through references. Do not duplicate canonical definitions inside gameplay code.
+Old and new code may coexist indefinitely behind stable IDs.
+
+- Existing behavior is referenced through a `legacy` source adapter.
+- New/rebuilt behavior can use `native` definitions.
+- The stable ID stays the same when an implementation changes.
+- Systems ask the World for an ID; they should not care where that implementation lives.
+
+This removes the need for a giant migration phase.
+
+## World flow
+
+```text
+existing runtime ---- legacy adapter ---\
+                                      Rizo World -> stable IDs -> queries/systems/games
+new modules -------- native source -----/
+```
+
+The current arcade is already registered this way. For example both `defense` and `game.defense` resolve to the same canonical game, and `RizoWorld.launch("defense")` clicks the exact existing Defense launch control.
 
 ## Layers
 
 ### `src/content/`
-Authorable content arrays. Each category owns one kind of definition:
+Authorable category arrays and world metadata:
 
 - `games.js`
 - `rizos.js`
@@ -22,26 +39,45 @@ Authorable content arrays. Each category owns one kind of definition:
 - `waves.js`
 - `events.js`
 - `rewards.js`
+- `systems.js`
 
-`src/content/index.js` combines these arrays into the default content pack and declares cross-category reference rules.
+The current eleven arcade games are registered as `source: "legacy"` with stable IDs and aliases. Runtime systems such as `RizoDefenseCore`, `RizoAds`, `RizoCloud`, launch config, boot recovery, build marker, and the existing player save are also addressable through stable system IDs.
 
 ### `src/rizo-core/registry.js`
-Loads arrays into indexed Maps, normalizes tags, rejects malformed/duplicate IDs, supports ID/tag/field lookup, and validates cross-references.
+Indexes canonical definitions, normalizes tags/categories, supports aliases, rejects malformed/duplicate IDs and alias collisions, and validates cross-category references.
 
 ### `src/rizo-core/selectors.js`
-Shared filtering, searching, and sorting. New screens and games should use selectors rather than inventing category-specific sorting code.
+Shared filtering, searching, and sorting. Screens/games should query the World rather than building bespoke sorting logic.
+
+### `src/rizo-core/source-resolver.js`
+Chooses the implementation source for a definition. Today that means `native` or `legacy`; more adapters can be added without changing callers.
+
+### `src/rizo-core/legacy-runtime.js`
+Safely resolves existing globals, DOM controls, and localStorage-backed values. It is the compatibility membrane around the old runtime.
+
+### `src/rizo-world/world.js`
+The public facade. Important calls include:
+
+```js
+RizoWorld.get("games", "game.defense")
+RizoWorld.canonicalId("games", "defense")
+RizoWorld.query("games").tag("arcade")
+RizoWorld.launch("defense")
+RizoWorld.system("defense_core")
+RizoWorld.resolve("systems", "player_save")
+```
 
 ### `src/rizo-core/state-store.js`
-Versioned mutable player/game state with subscriptions, serialization, hydration, and migration support. Saves should store references such as `item.bat_hoodie`, not copied item definitions.
+Versioned Core-owned state for systems that move into the new foundation. Existing player state remains referenceable through the legacy bridge until there is a concrete reason to replace it.
 
 ### `src/rizo-core/persistence.js`
-Persistence boundary. Includes memory and localStorage adapters now; Firebase/Firestore can implement the same `load/save/clear` shape later without changing game code.
+Ordered persistence boundary with recovery after failed writes and final flushing. Local storage is supported now; another provider can implement the same boundary later.
 
 ### `src/rizo-core/event-bus.js`
-Small shared event channel so gameplay, rewards, UI, care, seasonal systems, etc. can react without importing one another directly.
+Shared events so new systems do not need to import one another directly.
 
 ### `src/rizo-core/game-contract.js`
-All future/migrated games expose:
+Native/rebuilt games can implement:
 
 - `initialize(context, mountPoint)`
 - `start()`
@@ -50,25 +86,26 @@ All future/migrated games expose:
 - `destroy()`
 - `getState()`
 
-The supplied context provides registry/selectors/state/services instead of each game owning its own global infrastructure.
+Legacy games do **not** have to adopt this contract before they can exist in Rizo World.
 
-## ID convention
+## Stable IDs and aliases
 
-Use namespaced, lowercase stable IDs:
+Use namespaced lowercase IDs for canonical identity:
 
+- `game.defense`
 - `rizo.scout`
 - `ability.ember_shot`
 - `item.bat_hoodie`
 - `enemy.runner`
 - `event.halloween_2026`
 
-IDs are data contracts. Display names may change; IDs should not change casually.
+Aliases preserve old vocabulary or convenient names. Example: `defense` -> `game.defense`, `pacman` -> `game.rizo_runaway`, `flappy` -> `game.skybound`.
+
+Display names and implementations may change. Canonical IDs should not change casually.
 
 ## Categories vs tags
 
-Use a category for what a thing *is*. Use tags for reusable traits and group membership.
-
-Example:
+Category answers **what is it?** Tags answer **what groups/behaviors does it belong to?**
 
 ```js
 {
@@ -78,24 +115,27 @@ Example:
 }
 ```
 
-Then different systems can query the same content without knowing each other's implementation.
+The same item can then participate in the shop, inventory, Halloween, rewards, and sorting without those systems knowing one another.
 
-## Migration rule
+## Coexistence rule
 
-Do not rewrite the current game all at once. Migrate one seam at a time:
+Do not migrate code merely to make it look clean.
 
-1. Define existing content in the appropriate arrays without changing behavior.
-2. Replace duplicated/hardcoded lookups with registry references.
-3. Move sorting/filtering to selectors.
-4. Route player ownership/progression through shared state.
-5. Only then extract or simplify game-specific logic.
+When old behavior already works, register/reference it. When a piece needs improvement, rebuild that piece behind the **same stable ID**. This means Rizo.world can simultaneously contain old working implementation and new organized implementation without a forced transition period.
 
-Defense should be the first major consumer. Recommended order: abilities/enemies/towers/upgrades/waves, then rewards/state, then the game contract, then renderer/performance cleanup.
+Defense can therefore be improved by replacing only the parts we actually touch. The rest can remain legacy until there is a gameplay reason to change it.
 
-## Safety
+## Boot integration
 
-`main` remains the current playable build. `rizo-core-v1` currently adds infrastructure only and does not load Rizo Core from `index.html`, so it cannot change live gameplay until integration is deliberately performed.
+On `rizo-core-v1`, `rizo-config.js` loads the World bootstrap at `DOMContentLoaded`, after the existing synchronous runtime scripts have executed. If the World bridge fails to load, the legacy runtime remains usable and logs a warning instead of blocking startup.
 
-## Test
+`main` remains untouched until the draft PR is intentionally merged.
 
-Serve the branch and open `tests/rizo-core-v1.html`. It checks stable-ID lookup, tag filtering, sorting, state references, duplicate-ID rejection, and missing-reference rejection.
+## Tests
+
+CI runs both:
+
+- `tests/rizo-core-v1.mjs`
+- `tests/rizo-world-bridge.mjs`
+
+They cover Core state/registry/persistence behavior plus aliasing, legacy source resolution, all eleven existing arcade launch paths, system/global references, player-save reference access, native+legacy coexistence, and unavailable-target failure behavior.
