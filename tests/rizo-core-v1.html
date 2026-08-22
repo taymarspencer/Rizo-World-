@@ -4,7 +4,7 @@
 <pre id="output">Running…</pre>
 <script type="module">
   import { createRizoCore } from "../src/rizo-core/core.js";
-  import { createInitialPlayerState } from "../src/rizo-core/state-store.js";
+  import { createInitialCoreState } from "../src/rizo-core/state-store.js";
 
   const lines = [];
   const test = (name, fn) => {
@@ -36,7 +36,7 @@
     { from: "rizos", field: "abilityIds", to: "abilities", many: true }
   ];
 
-  const core = createRizoCore({ content, referenceRules: refs, initialState: createInitialPlayerState() });
+  const core = createRizoCore({ content, referenceRules: refs, initialState: createInitialCoreState() });
 
   test("lookup by stable ID", () => {
     expect(core.registry.get("abilities", "ability.ember_shot").damage === 8, "lookup returned wrong definition");
@@ -51,9 +51,12 @@
     expect(first.id === "ability.slam", "descending numeric sort failed");
   });
 
-  test("player state updates without content duplication", () => {
-    core.state.update(state => state.player.ownedRizos.push("rizo.scout"));
-    expect(core.state.get().player.ownedRizos[0] === "rizo.scout", "state update failed");
+  test("Core state stays separate from live player state", () => {
+    core.state.update(state => {
+      state.games["game.test"] = { bestWave: 7 };
+    });
+    expect(core.state.get().player === undefined, "Core state recreated a shadow player domain");
+    expect(core.state.get().games["game.test"].bestWave === 7, "Core game state update failed");
   });
 
   test("duplicate IDs fail", () => {
