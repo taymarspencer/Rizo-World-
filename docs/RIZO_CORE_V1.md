@@ -7,13 +7,13 @@ legacy runtime → immutable definitions / explicit services → stable IDs → 
 future native modules → registered implementation (none today) ────────┘
 ```
 
-`src/content/index.js` is authoritative only for World identities, relationships, and metadata. The legacy runtime remains authoritative for gameplay numbers, live player state, saves, and private behavior. `RizoWorld.get(category, id)` reads metadata; `resolve(id)` reads a real exposed binding and may return `null` when no runtime is exposed; `available(id)` reports that distinction.
+`src/content/index.js` is authoritative only for World identities, relationships, and metadata. The legacy runtime remains authoritative for gameplay numbers, live player state, saves, and private behavior. `RizoWorld.get(category, id)` reads metadata; `resolve(id)` reads a real exposed binding and may return `null` when no runtime is exposed. `available(id)` only reports runtime-binding availability; it is not an ownership, unlock, purchase, enablement, or gameplay-usability check.
 
 The registry buckets are games, rizos, traits, items, abilities, enemies, towers, upgrades, waves, events, rewards, systems, achievements, and maps. Item subtypes such as `wearable` remain the `type`, never the category. Canonical IDs and aliases occupy one global namespace.
 
-Legacy content is exposed as immutable snapshots through `RizoLegacyRuntime.content`. Service functions remain deliberate live seams. Defense tower profiles are the exact table used by `defenseTowerStats()`; placement and tower instance state remain private.
+Legacy content is exposed as immutable snapshots through `RizoLegacyRuntime.content`. Only deliberately registered service functions are live World seams; player/save/progression mutators remain metadata-only until an explicit command/write adapter exists. Defense tower profiles are the exact table used by `defenseTowerStats()`; placement and tower instance state remain private.
 
-The live legacy save is the sole current player authority. `RizoWorld.player()` returns its immutable current snapshot. Core’s state store is isolated future/native state and cannot write the visible player; `GameContext.updatePlayer()` fails until an explicit write-through adapter exists.
+The live legacy save is the sole current player authority. `RizoWorld.player()` returns its immutable current snapshot. Core’s state store is isolated future/native state and has no shadow `player` domain; `GameContext.updatePlayer()` fails until an explicit write-through adapter exists.
 
 Native definitions are metadata, not implied capability. No native runtime implementation is currently registered, so native `available()` is false and invocation throws. The existing `GameHost` is only the contract for a future explicit registration path.
 
