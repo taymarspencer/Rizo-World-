@@ -7,8 +7,11 @@ on:
   pull_request:
     paths:
       - "src/rizo-core/**"
+      - "src/rizo-world/**"
       - "src/content/**"
       - "tests/rizo-core-v1.mjs"
+      - "tests/rizo-world-bridge.mjs"
+      - "rizo-config.js"
       - ".github/workflows/rizo-core.yml"
 
 jobs:
@@ -26,3 +29,6 @@ jobs:
 
       - name: Run Rizo Core tests
         run: node --experimental-default-type=module tests/rizo-core-v1.mjs
+
+      - name: Run Rizo World bridge tests
+        run: node --experimental-default-type=module tests/rizo-world-bridge.mjs
