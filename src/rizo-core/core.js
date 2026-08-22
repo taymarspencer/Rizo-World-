@@ -2,6 +2,7 @@ import { ContentRegistry } from "./registry.js";
 import { createSelectors } from "./selectors.js";
 import { StateStore, createInitialPlayerState } from "./state-store.js";
 import { GameHost } from "./game-contract.js";
+import { EventBus } from "./event-bus.js";
 
 export const CORE_CATEGORIES = Object.freeze([
   "games",
@@ -43,15 +44,18 @@ export function createRizoCore({
     migrations
   });
 
+  const events = new EventBus();
+
   const core = {
     version: 1,
     registry,
     select: createSelectors(registry),
     state,
+    events,
     references: Object.freeze([...referenceRules])
   };
 
-  core.games = new GameHost(core, services);
+  core.games = new GameHost(core, { events, ...services });
   return Object.freeze(core);
 }
 
