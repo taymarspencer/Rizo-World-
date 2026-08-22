@@ -1,10 +1,43 @@
 /* Offline shell for Rizo.game. Third-party ad requests are intentionally never cached. */
 const CACHE_PREFIX = "rizo-game-";
-const CACHE = "rizo-game-v86-launch-hotfix";
+const CACHE = "rizo-game-v86-rizo-world-core-v1";
+
+// Rizo World modules are required shell now that rizo-config.js boots the bridge.
+// Keeping the full import graph here means an installed/offline build gets the same
+// stable-ID world layer as an online session instead of silently falling back to a
+// different architecture.
+const RIZO_WORLD_SHELL = [
+  "./src/rizo-world/bootstrap.js",
+  "./src/rizo-world/world.js",
+  "./src/rizo-core/index.js",
+  "./src/rizo-core/core.js",
+  "./src/rizo-core/registry.js",
+  "./src/rizo-core/selectors.js",
+  "./src/rizo-core/state-store.js",
+  "./src/rizo-core/game-contract.js",
+  "./src/rizo-core/event-bus.js",
+  "./src/rizo-core/persistence.js",
+  "./src/rizo-core/legacy-runtime.js",
+  "./src/rizo-core/source-resolver.js",
+  "./src/content/index.js",
+  "./src/content/games.js",
+  "./src/content/rizos.js",
+  "./src/content/traits.js",
+  "./src/content/items.js",
+  "./src/content/abilities.js",
+  "./src/content/enemies.js",
+  "./src/content/towers.js",
+  "./src/content/upgrades.js",
+  "./src/content/waves.js",
+  "./src/content/events.js",
+  "./src/content/rewards.js",
+  "./src/content/systems.js"
+];
+
 const SHELL = [
   "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js",
   "./monetization.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
-  "./privacy.html", "./terms.html", "./support.html", "./assets/icon-192.png",
+  "./privacy.html", "./terms.html", "./support.html", ...RIZO_WORLD_SHELL, "./assets/icon-192.png",
   "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
   "./assets/rizo-ember.png", "./assets/rizo-toxic.png", "./assets/rizo-violet.png",
   "./assets/rizo-bubblegum.png", "./assets/rizo-frost.png", "./assets/rizo-glitch.png",
@@ -39,7 +72,7 @@ const SHELL = [
 const REQUIRED_SHELL = [
   "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css",
   "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js", "./monetization.js",
-  "./game-v79-defense.js", "./manifest.webmanifest", "./assets/icon-192.png",
+  "./game-v79-defense.js", "./manifest.webmanifest", ...RIZO_WORLD_SHELL, "./assets/icon-192.png",
   "./assets/icon-512.png", "./assets/rizo-classic.png"
 ];
 const NETWORK_FIRST_PATHS = new Set(REQUIRED_SHELL.map(path => new URL(path, self.location.href).pathname));

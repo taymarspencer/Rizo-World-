@@ -1,0 +1,107 @@
+function splitPath(path) {
+  return String(path || "").split(".").map(part => part.trim()).filter(Boolean);
+}
+
+function safeProperty(object, key) {
+  try { return object?.[key]; }
+  catch { return null; }
+}
+
+function getPath(root, path) {
+  let value = root;
+  for (const key of splitPath(path)) {
+    if (value == null) return undefined;
+    value = safeProperty(value, key);
+  }
+  return value;
+}
+
+function getCallable(root, path) {
+  const parts = splitPath(path);
+  const method = parts.pop();
+  let owner = root;
+  for (const key of parts) {
+    if (owner == null) return { owner: null, fn: null };
+    owner = safeProperty(owner, key);
+  }
+  const fn = safeProperty(owner, method);
+  return { owner, fn: typeof fn === "function" ? fn : null };
+}
+
+export class LegacyRuntimeAdapter {
+  constructor({ globalObject = globalThis, documentObject, storage } = {}) {
+    this.globalObject = globalObject;
+    this.documentObject = documentObject === undefined ? safeProperty(globalObject, "document") : documentObject;
+    this.storage = storage === undefined ? safeProperty(globalObject, "localStorage") : storage;
+  }
+
+  resolve(definition) {
+    const binding = definition?.binding;
+    if (!binding) return null;
+
+    switch (binding.kind) {
+      case "global-value":
+        return getPath(this.globalObject, binding.path);
+      case "global-call":
+        return getCallable(this.globalObject, binding.path).fn;
+      case "dom":
+      case "dom-click":
+        return this.documentObject?.querySelector?.(binding.selector) || null;
+      case "local-storage": {
+        let raw = null;
+        try { raw = this.storage?.getItem?.(binding.key); }
+        catch { return null; }
+        if (raw == null || binding.parse !== "json") return raw ?? null;
+        try { return JSON.parse(raw); }
+        catch { return null; }
+      }
+      default:
+        throw new Error(`Unknown legacy binding kind: ${binding.kind}`);
+    }
+  }
+
+  available(definition) {
+    return this.resolve(definition) != null;
+  }
+
+  invoke(definition, ...args) {
+    const binding = definition?.binding;
+    if (!binding) throw new Error(`Legacy definition ${definition?.id || "<unknown>"} has no binding.`);
+
+    switch (binding.kind) {
+      case "dom-click": {
+        const element = this.documentObject?.querySelector?.(binding.selector);
+        if (!element || typeof element.click !== "function") {
+          throw new Error(`Legacy DOM target unavailable for ${definition.id}: ${binding.selector}`);
+        }
+        element.click();
+        return true;
+      }
+      case "global-call": {
+        const { owner, fn } = getCallable(this.globalObject, binding.path);
+        if (!fn) throw new Error(`Legacy global function unavailable for ${definition.id}: ${binding.path}`);
+        return fn.apply(owner, args);
+      }
+      default:
+        throw new Error(`Legacy binding ${binding.kind} is readable but not invokable.`);
+    }
+  }
+}
+
+export class NativeRuntimeAdapter {
+  resolve(definition) {
+    return definition;
+  }
+
+  available() {
+    return true;
+  }
+
+  invoke(definition) {
+    throw new Error(`Native definition ${definition?.id || "<unknown>"} has no runtime invoker yet.`);
+  }
+}
+
+export function resolveGlobalPath(root, path) {
+  return getPath(root, path);
+}

@@ -1,4 +1,3 @@
-
 /**
  * RIZO.GAME LAUNCH CONFIG
  * =======================
@@ -65,3 +64,22 @@ window.RIZO_CONFIG = Object.freeze({
   }
 });
 
+// The new World layer waits for DOMContentLoaded because this file is parsed before the
+// existing runtime scripts. That guarantees the legacy scripts have executed, but does not
+// delay the bridge until every image/font finishes loading. Bridge failure stays non-fatal.
+(() => {
+  let started = false;
+  const startWorld = () => {
+    if (started) return;
+    started = true;
+    import("./src/rizo-world/bootstrap.js").catch(error => {
+      console.warn("Rizo World bridge did not start; legacy runtime remains available.", error);
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startWorld, { once: true });
+  } else {
+    queueMicrotask(startWorld);
+  }
+})();
