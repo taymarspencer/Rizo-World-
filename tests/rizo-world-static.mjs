@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { resolve, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SYSTEMS } from "../src/content/systems.js";
+import { EVENTS } from "../src/content/events.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = path => readFile(resolve(ROOT, path), "utf8");
@@ -58,6 +60,18 @@ await test("legacy runtime publishes one binding surface before boot", async () 
   assert.ok(bridgeAt < bootAt, "legacy binding surface must exist before boot completes");
   assert.match(runtime, /rizos:\s*VARIANTS/);
   assert.match(runtime, /wavePlan:\s*defenseWavePlan/);
+});
+
+await test("player-mutating legacy helpers stay metadata-only in World", () => {
+  for (const id of ["system.player_save_engine", "system.arcade", "system.progression", "system.season"]) {
+    const definition = SYSTEMS.find(system => system.id === id);
+    assert.ok(definition, `${id} identity is missing`);
+    assert.equal(definition.binding, undefined, `${id} must not expose a live mutator binding`);
+    assert.equal(definition.implementation, "private-legacy-flow", `${id} must remain explicitly private`);
+  }
+  const seasonEvent = EVENTS.find(event => event.id === "event.rizo_run");
+  assert.ok(seasonEvent, "event.rizo_run identity is missing");
+  assert.equal(seasonEvent.binding, undefined, "season event must not resolve to the mutating season service");
 });
 
 await test("script and World boot order preserves the active runtime", async () => {
