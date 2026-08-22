@@ -2,14 +2,25 @@ import { createDefaultRizoCore } from "../rizo-core/index.js";
 import { LegacyRuntimeAdapter } from "../rizo-core/legacy-runtime.js";
 import { SourceResolver } from "../rizo-core/source-resolver.js";
 
+function safeProperty(object, key) {
+  try { return object?.[key]; }
+  catch { return null; }
+}
+
 export function createRizoWorld({
   globalObject = globalThis,
-  documentObject = globalObject?.document,
-  storage = globalObject?.localStorage,
+  documentObject,
+  storage,
   coreOptions = {}
 } = {}) {
+  const resolvedDocument = documentObject === undefined ? safeProperty(globalObject, "document") : documentObject;
+  const resolvedStorage = storage === undefined ? safeProperty(globalObject, "localStorage") : storage;
   const core = createDefaultRizoCore(coreOptions);
-  const legacy = new LegacyRuntimeAdapter({ globalObject, documentObject, storage });
+  const legacy = new LegacyRuntimeAdapter({
+    globalObject,
+    documentObject: resolvedDocument,
+    storage: resolvedStorage
+  });
   const sources = new SourceResolver(core.registry).register("legacy", legacy);
 
   const world = {
