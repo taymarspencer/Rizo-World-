@@ -18,6 +18,30 @@ export const CORE_CATEGORIES = Object.freeze([
   "rewards"
 ]);
 
+function normalizeCategory(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeContentPack(content) {
+  if (!content || typeof content !== "object" || Array.isArray(content)) {
+    throw new TypeError("Rizo Core content must be an object of category arrays.");
+  }
+
+  const normalized = {};
+
+  for (const [rawCategory, definitions] of Object.entries(content)) {
+    const category = normalizeCategory(rawCategory);
+    if (!category) throw new Error("Content category names cannot be empty.");
+    if (!Array.isArray(definitions)) {
+      throw new TypeError(`Content pack category ${rawCategory} must be an array.`);
+    }
+
+    normalized[category] = [...(normalized[category] || []), ...definitions];
+  }
+
+  return normalized;
+}
+
 export function createRizoCore({
   content = {},
   referenceRules = [],
@@ -27,13 +51,14 @@ export function createRizoCore({
   services = {},
   registerUnknownCategories = true
 } = {}) {
+  const normalizedContent = normalizeContentPack(content);
   const registry = new ContentRegistry();
   const categoryNames = registerUnknownCategories
-    ? [...new Set([...CORE_CATEGORIES, ...Object.keys(content)])]
+    ? [...new Set([...CORE_CATEGORIES, ...Object.keys(normalizedContent)])]
     : CORE_CATEGORIES;
 
   for (const category of categoryNames) {
-    registry.registerCategory(category, content[category] || []);
+    registry.registerCategory(category, normalizedContent[category] || []);
   }
 
   registry.assertHealthy(referenceRules);
@@ -55,7 +80,9 @@ export function createRizoCore({
     references: Object.freeze([...referenceRules])
   };
 
-  core.games = new GameHost(core, { events, ...services });
+  // The core event bus is authoritative. Services may add capabilities, but cannot
+  // silently replace the bus and split system/game communication into two channels.
+  core.games = new GameHost(core, { ...services, events });
   return Object.freeze(core);
 }
 
@@ -63,10 +90,8 @@ export function mergeContentPacks(...packs) {
   const merged = {};
 
   for (const pack of packs.filter(Boolean)) {
-    for (const [category, definitions] of Object.entries(pack)) {
-      if (!Array.isArray(definitions)) {
-        throw new TypeError(`Content pack category ${category} must be an array.`);
-      }
+    const normalized = normalizeContentPack(pack);
+    for (const [category, definitions] of Object.entries(normalized)) {
       merged[category] = [...(merged[category] || []), ...definitions];
     }
   }
