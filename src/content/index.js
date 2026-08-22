@@ -30,11 +30,13 @@ export const RIZO_CONTENT = Object.freeze({
 export const RIZO_REFERENCE_RULES = Object.freeze([
   { from: "rizos", field: "traitIds", to: "traits", many: true, optional: true },
   { from: "rizos", field: "abilityIds", to: "abilities", many: true, optional: true },
+  { from: "abilities", field: "rizoId", to: "rizos", optional: true },
   { from: "items", field: "abilityIds", to: "abilities", many: true, optional: true },
   { from: "towers", field: "rizoId", to: "rizos", optional: true },
   { from: "towers", field: "abilityIds", to: "abilities", many: true, optional: true },
   { from: "towers", field: "upgradeIds", to: "upgrades", many: true, optional: true },
   { from: "events", field: "itemIds", to: "items", many: true, optional: true },
   { from: "events", field: "rewardIds", to: "rewards", many: true, optional: true },
+  { from: "rewards", field: "rewardIds", to: "rewards", many: true, optional: true },
   { from: "games", field: "rewardIds", to: "rewards", many: true, optional: true }
 ]);

@@ -41,8 +41,36 @@ await test("rizo-config boots World at DOM ready and keeps failure non-fatal", a
 
 await test("service worker cache version changed for the World foundation", async () => {
   const sw = await read("sw.js");
-  assert.match(sw, /rizo-game-v86-rizo-world-core-v1/);
+  assert.match(sw, /rizo-game-v86-launch-hotfix-rizo-world-organizer-v1/);
   assert.doesNotMatch(sw, /const CACHE = "rizo-game-v86-launch-hotfix"/);
+});
+
+await test("legacy runtime publishes one binding surface before boot", async () => {
+  const runtime = await read("game-v79-defense.js");
+  const bridgeAt = runtime.indexOf('Object.defineProperty(window, "RizoLegacyRuntime"');
+  const bootAt = runtime.lastIndexOf("boot();");
+  assert.ok(bridgeAt > 0, "RizoLegacyRuntime binding surface is missing");
+  assert.ok(bridgeAt < bootAt, "legacy binding surface must exist before boot completes");
+  assert.match(runtime, /rizos:\s*VARIANTS/);
+  assert.match(runtime, /wavePlan:\s*defenseWavePlan/);
+});
+
+await test("script and World boot order preserves the active runtime", async () => {
+  const html = await read("index.html");
+  const expected = [
+    "rizo-config.js",
+    "install-manager.js",
+    "monetization.js",
+    "defense-core-v79.js",
+    "defense-canvas-v79.js",
+    "game-v79-defense.js"
+  ];
+  const positions = expected.map(file => html.indexOf(`src="./${file}"`));
+  assert.ok(positions.every(position => position >= 0), "active runtime script missing from index.html");
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions);
+  const config = await read("rizo-config.js");
+  assert.match(config, /DOMContentLoaded/);
+  assert.match(config, /src\/rizo-world\/bootstrap\.js/);
 });
 
 await test("every module required by the World bootstrap is present in the offline shell", async () => {

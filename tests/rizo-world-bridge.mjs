@@ -48,7 +48,17 @@ function fakeLegacyRuntime() {
     RizoCloud: { provider: null },
     RIZO_CONFIG: { brand: { siteName: "Rizo.game" } },
     RizoBoot: { expected: "v86-launch-hotfix" },
-    __RIZO_RUNTIME_BUILD__: "v86-launch-hotfix"
+    __RIZO_RUNTIME_BUILD__: "v86-launch-hotfix",
+    RizoLegacyRuntime: {
+      currentState: { wallet: { embers: 100, shards: 3 }, season: { xp: 40 }, meta: { capsules: 2 }, loreUnlocked: ["keeper"] },
+      content: {
+        rizos: [{ id: "classic", name: "CLASSIC BLUE" }],
+        defenseAbilities: { classic: { active: "RALLY" } }
+      },
+      systems: {
+        defense: { wavePlan: wave => ({ wave }) }
+      }
+    }
   };
 
   return { globalObject, documentObject, storage, clicks };
@@ -58,6 +68,26 @@ await test("current arcade is registered as eleven stable games", () => {
   const core = createDefaultRizoCore();
   assert.equal(core.registry.all("games").length, 11);
   assert.equal(core.registry.get("games", "game.defense").mode, "defense");
+});
+
+await test("authoritative manifest covers every active category", () => {
+  const core = createDefaultRizoCore();
+  assert.deepEqual(Object.fromEntries(core.registry.categories().map(category => [category, core.registry.all(category).length])), {
+    games: 11,
+    rizos: 14,
+    traits: 19,
+    items: 61,
+    abilities: 28,
+    enemies: 15,
+    towers: 14,
+    upgrades: 2,
+    waves: 1,
+    events: 11,
+    rewards: 26,
+    systems: 25
+  });
+  assert.equal(core.registry.get("rizos", "rizo.classic").category, "rizos");
+  assert.deepEqual(core.registry.validateReferences(core.references), []);
 });
 
 await test("legacy mode names resolve as aliases instead of duplicate definitions", () => {
@@ -99,6 +129,26 @@ await test("all eleven legacy arcade launches pass through the same world API", 
   for (const mode of modes) assert.equal(runtime.clicks.get(mode), 1, `${mode} did not launch exactly once`);
 });
 
+await test("every registered game launches through its authoritative mode binding", () => {
+  const runtime = fakeLegacyRuntime();
+  const world = createRizoWorld(runtime);
+
+  for (const game of world.query("games").value()) world.launch(game.id);
+  for (const game of world.query("games").value()) {
+    assert.equal(runtime.clicks.get(game.mode), 1, `${game.id} did not launch exactly once`);
+  }
+});
+
+await test("globally unique IDs resolve without repeating their category", () => {
+  const runtime = fakeLegacyRuntime();
+  const world = createRizoWorld(runtime);
+
+  assert.equal(world.resolve("game.defense").click instanceof Function, true);
+  assert.equal(world.describe("game.defense").category, "games");
+  assert.equal(world.resolve("rizo.classic").name, "CLASSIC BLUE");
+  assert.deepEqual(world.invoke("wave.defense.generator", 12), { wave: 12 });
+});
+
 await test("legacy global systems resolve through stable system IDs", () => {
   const runtime = fakeLegacyRuntime();
   const world = createRizoWorld(runtime);
@@ -117,6 +167,12 @@ await test("existing player save can be referenced without copying it into Core"
   assert.equal(save.pet.name, "TEST RIZO");
 });
 
+await test("native systems resolve beside legacy systems", () => {
+  const world = createRizoWorld(fakeLegacyRuntime());
+  assert.equal(world.resolve("system.world_manifest").source, "native");
+  assert.equal(world.resolve("system.defense_core").VERSION, 7);
+});
+
 await test("World selectors sort and filter legacy and future content uniformly", () => {
   const runtime = fakeLegacyRuntime();
   const world = createRizoWorld(runtime);
@@ -124,6 +180,23 @@ await test("World selectors sort and filter legacy and future content uniformly"
   assert.equal(world.query("games").tag("arcade").count(), 11);
   assert.equal(world.query("games").tag("flagship").first().id, "game.defense");
   assert.equal(world.query("games").tag("runner").first().id, "game.rizo_courier");
+  assert.equal(world.query("items").tag("wearable").count(), 25);
+  assert.equal(world.query("enemies").tag("boss").count(), 4);
+});
+
+await test("global-record bindings reference live legacy definitions", () => {
+  const root = { Catalog: { rows: [{ id: "one", value: 7 }] } };
+  const registry = new ContentRegistry().registerCategory("things", [{
+    id: "thing.one",
+    source: "legacy",
+    binding: { kind: "global-record", path: "Catalog.rows", value: "one" }
+  }]);
+  const sources = new SourceResolver(registry).register("legacy", new LegacyRuntimeAdapter({
+    globalObject: root,
+    documentObject: null,
+    storage: null
+  }));
+  assert.equal(sources.resolve("things", "thing.one"), root.Catalog.rows[0]);
 });
 
 await test("missing legacy targets report unavailable and fail explicitly on invoke", () => {

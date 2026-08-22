@@ -63,6 +63,23 @@ await test("duplicate IDs are rejected", () => {
   }), /Duplicate id/);
 });
 
+await test("stable IDs are globally unique across categories", () => {
+  const registry = new ContentRegistry().registerCategory("items", [{ id: "thing.same" }]);
+  assert.throws(
+    () => registry.registerCategory("rewards", [{ id: "thing.same" }]),
+    /Duplicate global id/
+  );
+});
+
+await test("registry locates canonical IDs and aliases without a category", () => {
+  const registry = new ContentRegistry().registerCategory("games", [
+    { id: "game.defense", aliases: ["defense"] }
+  ]);
+  assert.equal(registry.locate("game.defense").category, "games");
+  assert.equal(registry.locate("defense").canonicalId, "game.defense");
+  assert.equal(registry.locate("missing"), null);
+});
+
 await test("invalid IDs are rejected", () => {
   assert.throws(() => createRizoCore({ content: { items: [{ id: "Bad ID" }] } }), /Invalid Rizo Core id/);
 });

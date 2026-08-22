@@ -20,7 +20,7 @@ function deepFreeze(value, seen = new WeakSet()) {
   return value;
 }
 
-function normalizeDefinition(definition) {
+function normalizeDefinition(definition, category) {
   if (!definition || typeof definition !== "object" || Array.isArray(definition)) {
     throw new TypeError("Rizo Core definitions must be plain objects.");
   }
@@ -42,7 +42,7 @@ function normalizeDefinition(definition) {
     ? [...new Set(source.aliases.map(alias => normalizeId(alias, "alias")).filter(alias => alias !== id))]
     : [];
 
-  return deepFreeze({ ...source, id, tags, aliases });
+  return deepFreeze({ ...source, id, category, tags, aliases });
 }
 
 function readPath(object, path) {
@@ -67,8 +67,13 @@ export class ContentRegistry {
     const aliases = new Map();
 
     for (const rawDefinition of definitions) {
-      const definition = normalizeDefinition(rawDefinition);
+      const definition = normalizeDefinition(rawDefinition, category);
       if (records.has(definition.id)) throw new Error(`Duplicate id in ${category}: ${definition.id}`);
+      for (const existingCategory of this.categories()) {
+        if (this._categories.get(existingCategory).has(definition.id)) {
+          throw new Error(`Duplicate global id in ${category} and ${existingCategory}: ${definition.id}`);
+        }
+      }
       records.set(definition.id, definition);
     }
 
@@ -91,6 +96,28 @@ export class ContentRegistry {
 
   categories() {
     return [...this._categories.keys()];
+  }
+
+  locate(id, { includeAliases = true } = {}) {
+    const normalizedId = String(id || "").trim().toLowerCase();
+    if (!normalizedId) return null;
+
+    const matches = [];
+    for (const category of this.categories()) {
+      const records = this._categories.get(category);
+      if (records.has(normalizedId)) {
+        matches.push({ category, canonicalId: normalizedId, definition: records.get(normalizedId) });
+        continue;
+      }
+      if (!includeAliases) continue;
+      const canonicalId = this._aliases.get(category)?.get(normalizedId);
+      if (canonicalId) matches.push({ category, canonicalId, definition: records.get(canonicalId) });
+    }
+
+    if (matches.length > 1) {
+      throw new Error(`Ambiguous Rizo Core id or alias: ${id}`);
+    }
+    return matches[0] ? Object.freeze(matches[0]) : null;
   }
 
   canonicalId(category, id) {

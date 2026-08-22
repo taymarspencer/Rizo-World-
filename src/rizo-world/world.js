@@ -23,6 +23,18 @@ export function createRizoWorld({
   });
   const sources = new SourceResolver(core.registry).register("legacy", legacy);
 
+  function locate(id) {
+    const located = core.registry.locate(id);
+    if (!located) throw new Error(`Unknown Rizo World id: ${id}`);
+    return located;
+  }
+
+  function address(categoryOrId, id) {
+    if (id !== undefined) return { category: categoryOrId, id };
+    const located = locate(categoryOrId);
+    return { category: located.category, id: located.canonicalId };
+  }
+
   const world = {
     version: 1,
     core,
@@ -48,16 +60,28 @@ export function createRizoWorld({
       return core.select.query(category);
     },
 
-    resolve(category, id) {
-      return sources.resolve(category, id);
+    describe(categoryOrId, id) {
+      const target = address(categoryOrId, id);
+      return sources.describe(target.category, target.id);
     },
 
-    available(category, id) {
-      return sources.available(category, id);
+    resolve(categoryOrId, id) {
+      const target = address(categoryOrId, id);
+      return sources.resolve(target.category, target.id);
     },
 
-    invoke(category, id, ...args) {
-      return sources.invoke(category, id, ...args);
+    available(categoryOrId, id) {
+      const target = address(categoryOrId, id);
+      return sources.available(target.category, target.id);
+    },
+
+    invoke(categoryOrId, id, ...args) {
+      if (arguments.length >= 2 && typeof id === "string" && core.registry.has(categoryOrId, id)) {
+        return sources.invoke(categoryOrId, id, ...args);
+      }
+      const target = address(categoryOrId);
+      const invocationArgs = arguments.length > 1 ? [id, ...args] : [];
+      return sources.invoke(target.category, target.id, ...invocationArgs);
     },
 
     launch(gameId) {

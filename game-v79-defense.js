@@ -7900,6 +7900,62 @@ Streak: ${state.player.streak}`;
     registerRizoServiceWorker();
   }
 
+  // Rizo World integration surface. This is deliberately a shallow map of references
+  // to the live legacy definitions and functions above, not a copied content database
+  // or a second runtime. New code should reach it through window.RizoWorld.
+  const legacyRuntime = {
+    version: 1,
+    content: Object.freeze({
+      rizos: VARIANTS,
+      foods: FOODS,
+      wearables: ACCESSORIES,
+      treasures: WALK_TREASURES,
+      rooms: ROOMS,
+      boosts: BOOSTS,
+      skills: SKILLS,
+      mutations: MUTATIONS,
+      evolutionForms: EVOLUTION_FORMS,
+      worldEvents: WORLD_EVENTS,
+      achievements: ACHIEVEMENTS,
+      defenseMaps: DEFENSE_MAPS,
+      defenseEnemies: DEFENSE_ENEMIES,
+      defenseBosses: DEFENSE_BOSSES,
+      defenseAbilities: DEFENSE_ABILITIES,
+      defenseControlAbilities: DEFENSE_CONTROL_ABILITIES,
+      defenseDoctrines: DEFENSE_DOCTRINES
+    }),
+    systems: Object.freeze({
+      save: Object.freeze({
+        key: SAVE_KEY,
+        legacyKey: LEGACY_KEY,
+        version: VERSION,
+        load: loadState,
+        save: saveState,
+        normalize: normalizeStateDetached
+      }),
+      arcade: Object.freeze({ rules: ARCADE_MODE_RULES, start: startMiniGame }),
+      progression: Object.freeze({ achievements: ACHIEVEMENTS, check: checkAchievements, progressQuest }),
+      season: Object.freeze({ earnHeat, keeperRank }),
+      defense: Object.freeze({
+        core: DefenseCore,
+        maps: DEFENSE_MAPS,
+        enemies: DEFENSE_ENEMIES,
+        bosses: DEFENSE_BOSSES,
+        abilities: DEFENSE_ABILITIES,
+        doctrines: DEFENSE_DOCTRINES,
+        wavePlan: defenseWavePlan
+      })
+    })
+  };
+  Object.defineProperty(legacyRuntime, "currentState", {
+    enumerable: true,
+    get: () => JSON.parse(JSON.stringify(state))
+  });
+  Object.defineProperty(window, "RizoLegacyRuntime", {
+    value: Object.freeze(legacyRuntime),
+    configurable: true,
+    enumerable: false
+  });
 
   const IS_QA_BUILD=location.hostname==="localhost"||location.hostname==="127.0.0.1"||new URLSearchParams(location.search).get("qa")==="1";
   function createRizoRuntimeQA(){return Object.freeze({

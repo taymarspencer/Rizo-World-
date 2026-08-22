@@ -1,6 +1,6 @@
 /* Offline shell for Rizo.game. Third-party ad requests are intentionally never cached. */
 const CACHE_PREFIX = "rizo-game-";
-const CACHE = "rizo-game-v86-rizo-world-core-v1";
+const CACHE = "rizo-game-v86-launch-hotfix-rizo-world-organizer-v1";
 
 // Rizo World modules are required shell now that rizo-config.js boots the bridge.
 // Keeping the full import graph here means an installed/offline build gets the same

@@ -28,6 +28,17 @@ function getCallable(root, path) {
   return { owner, fn: typeof fn === "function" ? fn : null };
 }
 
+function getRecord(root, binding) {
+  const collection = getPath(root, binding.path);
+  const value = binding.value;
+  if (Array.isArray(collection)) {
+    const key = binding.key || "id";
+    return collection.find(record => safeProperty(record, key) === value) || null;
+  }
+  if (collection && typeof collection === "object") return safeProperty(collection, value) ?? null;
+  return null;
+}
+
 export class LegacyRuntimeAdapter {
   constructor({ globalObject = globalThis, documentObject, storage } = {}) {
     this.globalObject = globalObject;
@@ -42,6 +53,8 @@ export class LegacyRuntimeAdapter {
     switch (binding.kind) {
       case "global-value":
         return getPath(this.globalObject, binding.path);
+      case "global-record":
+        return getRecord(this.globalObject, binding);
       case "global-call":
         return getCallable(this.globalObject, binding.path).fn;
       case "dom":
@@ -81,6 +94,13 @@ export class LegacyRuntimeAdapter {
         const { owner, fn } = getCallable(this.globalObject, binding.path);
         if (!fn) throw new Error(`Legacy global function unavailable for ${definition.id}: ${binding.path}`);
         return fn.apply(owner, args);
+      }
+      case "global-record": {
+        const record = getRecord(this.globalObject, binding);
+        if (typeof record !== "function") {
+          throw new Error(`Legacy record is not invokable for ${definition.id}: ${binding.path}.${binding.value}`);
+        }
+        return record(...args);
       }
       default:
         throw new Error(`Legacy binding ${binding.kind} is readable but not invokable.`);
