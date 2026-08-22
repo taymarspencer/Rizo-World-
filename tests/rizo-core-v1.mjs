@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { ContentRegistry } from "../src/rizo-core/registry.js";
 import { createSelectors } from "../src/rizo-core/selectors.js";
-import { StateStore, createInitialPlayerState } from "../src/rizo-core/state-store.js";
+import { StateStore, createInitialCoreState } from "../src/rizo-core/state-store.js";
 import { EventBus } from "../src/rizo-core/event-bus.js";
 import { createPersistenceController } from "../src/rizo-core/persistence.js";
 import { createRizoCore, mergeContentPacks } from "../src/rizo-core/core.js";
@@ -129,9 +129,15 @@ await test("query supports search, sortBy, clone and limit", () => {
 });
 
 await test("state update safely supports Array.push", () => {
-  const state = new StateStore({ initialState: createInitialPlayerState() });
-  state.update(current => current.player.ownedRizos.push("rizo.scout"));
-  assert.deepEqual(state.get().player.ownedRizos, ["rizo.scout"]);
+  const state = new StateStore({ initialState: { version: 1, queue: [] } });
+  state.update(current => current.queue.push("rizo.scout"));
+  assert.deepEqual(state.get().queue, ["rizo.scout"]);
+});
+
+await test("default Core state has no shadow player domain", () => {
+  const state = createInitialCoreState();
+  assert.equal(state.player, undefined);
+  assert.deepEqual(state.games, {});
 });
 
 await test("state get returns defensive clones", () => {
@@ -234,7 +240,7 @@ await test("game context cannot write shadow player state", async () => {
   });
 
   await core.games.mount("game.defense", game);
-  assert.equal(core.state.get().player.currency.embers, undefined);
+  assert.equal(core.state.get().player, undefined);
   assert.equal(core.state.get().games["game.defense"].bestWave, 7);
   await core.games.unmount();
 });
