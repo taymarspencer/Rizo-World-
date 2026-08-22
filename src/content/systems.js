@@ -1,5 +1,7 @@
 // Deliberately exposed legacy services and diagnostic values. Static catalogs
 // resolve through immutable RizoLegacyRuntime snapshots; live services stay live.
+// Player-mutating helpers (save load/write, progression, season rewards) and the
+// direct arcade starter remain private until an explicit World command/write boundary exists.
 export const SYSTEMS = [
   {
     id: "system.defense_core",
@@ -55,17 +57,8 @@ export const SYSTEMS = [
     name: "Current Player Save",
     source: "legacy",
     optional: true,
-    tags: ["save", "player", "legacy"],
+    tags: ["save", "player", "legacy", "read-only"],
     binding: { kind: "local-storage", key: "rizo-life-overhaul-v2", parse: "json" }
-  },
-  {
-    id: "system.player_save_engine",
-    aliases: ["player_save_engine"],
-    name: "Player Save and Migration Engine",
-    type: "persistence",
-    source: "legacy",
-    tags: ["save", "migration", "player"],
-    binding: { kind: "global-value", path: "RizoLegacyRuntime.systems.save" }
   },
   {
     id: "system.defense_checkpoint",
@@ -74,35 +67,8 @@ export const SYSTEMS = [
     type: "persistence",
     source: "legacy",
     optional: true,
-    tags: ["save", "defense", "checkpoint"],
+    tags: ["save", "defense", "checkpoint", "read-only"],
     binding: { kind: "local-storage", key: "rizo-life-overhaul-v2:defense-checkpoint-v68", parse: "json" }
-  },
-  {
-    id: "system.arcade",
-    aliases: ["arcade"],
-    name: "Arcade Runtime",
-    type: "game-manager",
-    source: "legacy",
-    tags: ["arcade", "launch", "runtime"],
-    binding: { kind: "global-value", path: "RizoLegacyRuntime.systems.arcade" }
-  },
-  {
-    id: "system.progression",
-    aliases: ["progression"],
-    name: "Player Progression",
-    type: "progression",
-    source: "legacy",
-    tags: ["player", "progression", "achievements"],
-    binding: { kind: "global-value", path: "RizoLegacyRuntime.systems.progression" }
-  },
-  {
-    id: "system.season",
-    aliases: ["season"],
-    name: "Rizo Run Season",
-    type: "progression",
-    source: "legacy",
-    tags: ["season", "heat", "progression"],
-    binding: { kind: "global-value", path: "RizoLegacyRuntime.systems.season" }
   },
   {
     id: "system.defense_runtime",
