@@ -1,6 +1,6 @@
 import { ContentRegistry } from "./registry.js";
 import { createSelectors } from "./selectors.js";
-import { StateStore, createInitialPlayerState } from "./state-store.js";
+import { StateStore, createInitialCoreState } from "./state-store.js";
 import { GameHost } from "./game-contract.js";
 import { EventBus } from "./event-bus.js";
 
@@ -49,7 +49,7 @@ export function createRizoCore({
   content = {},
   referenceRules = [],
   stateVersion = 1,
-  initialState = createInitialPlayerState(),
+  initialState = createInitialCoreState(),
   migrations = {},
   services = {},
   registerUnknownCategories = true
