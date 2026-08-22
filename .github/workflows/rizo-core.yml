@@ -2,6 +2,19 @@ name: Rizo Core
 
 on:
   push:
+    paths:
+      - "src/rizo-core/**"
+      - "src/rizo-world/**"
+      - "src/content/**"
+      - "tests/rizo-core-v1.mjs"
+      - "tests/rizo-world-bridge.mjs"
+      - "tests/rizo-world-static.mjs"
+      - "tests/browser-rizo-world-organizer.py"
+      - "game-v79-defense.js"
+      - "index.html"
+      - "rizo-config.js"
+      - "sw.js"
+      - ".github/workflows/rizo-core.yml"
   pull_request:
     paths:
       - "src/rizo-core/**"
