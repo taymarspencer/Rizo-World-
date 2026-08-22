@@ -4,6 +4,12 @@ function normalizeCategory(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeId(value, label = "id") {
+  const id = String(value || "").trim().toLowerCase();
+  if (!ID_PATTERN.test(id)) throw new Error(`Invalid Rizo Core ${label}: ${id || "<empty>"}`);
+  return id;
+}
+
 function deepFreeze(value, seen = new WeakSet()) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   if (seen.has(value)) return value;
@@ -28,16 +34,15 @@ function normalizeDefinition(definition) {
     throw new TypeError(`Rizo Core definition must be structured-cloneable data: ${error.message}`);
   }
 
-  const id = String(source.id || "").trim();
-  if (!ID_PATTERN.test(id)) {
-    throw new Error(`Invalid Rizo Core id: ${id || "<empty>"}`);
-  }
-
+  const id = normalizeId(source.id);
   const tags = Array.isArray(source.tags)
     ? [...new Set(source.tags.map(tag => String(tag).trim().toLowerCase()).filter(Boolean))]
     : [];
+  const aliases = Array.isArray(source.aliases)
+    ? [...new Set(source.aliases.map(alias => normalizeId(alias, "alias")).filter(alias => alias !== id))]
+    : [];
 
-  return deepFreeze({ ...source, id, tags });
+  return deepFreeze({ ...source, id, tags, aliases });
 }
 
 function readPath(object, path) {
@@ -49,6 +54,7 @@ function readPath(object, path) {
 export class ContentRegistry {
   constructor() {
     this._categories = new Map();
+    this._aliases = new Map();
   }
 
   registerCategory(categoryName, definitions = []) {
@@ -58,15 +64,28 @@ export class ContentRegistry {
     if (this._categories.has(category)) throw new Error(`Category already registered: ${category}`);
 
     const records = new Map();
+    const aliases = new Map();
+
     for (const rawDefinition of definitions) {
       const definition = normalizeDefinition(rawDefinition);
-      if (records.has(definition.id)) {
-        throw new Error(`Duplicate id in ${category}: ${definition.id}`);
-      }
+      if (records.has(definition.id)) throw new Error(`Duplicate id in ${category}: ${definition.id}`);
       records.set(definition.id, definition);
     }
 
+    for (const definition of records.values()) {
+      for (const alias of definition.aliases) {
+        if (records.has(alias)) {
+          throw new Error(`Alias collides with canonical ${category} id: ${alias}`);
+        }
+        if (aliases.has(alias)) {
+          throw new Error(`Duplicate alias in ${category}: ${alias}`);
+        }
+        aliases.set(alias, definition.id);
+      }
+    }
+
     this._categories.set(category, records);
+    this._aliases.set(category, aliases);
     return this;
   }
 
@@ -74,21 +93,34 @@ export class ContentRegistry {
     return [...this._categories.keys()];
   }
 
+  canonicalId(category, id) {
+    const normalizedCategory = normalizeCategory(category);
+    const normalizedId = String(id || "").trim().toLowerCase();
+    const records = this._categories.get(normalizedCategory);
+    if (!records || !normalizedId) return null;
+    if (records.has(normalizedId)) return normalizedId;
+    return this._aliases.get(normalizedCategory)?.get(normalizedId) || null;
+  }
+
   has(category, id) {
-    return this._categories.get(normalizeCategory(category))?.has(id) || false;
+    return this.canonicalId(category, id) !== null;
   }
 
   get(category, id) {
     const normalizedCategory = normalizeCategory(category);
     const records = this._categories.get(normalizedCategory);
     if (!records) throw new Error(`Unknown content category: ${category}`);
-    const value = records.get(id);
-    if (!value) throw new Error(`Unknown ${normalizedCategory} id: ${id}`);
-    return value;
+    const canonical = this.canonicalId(normalizedCategory, id);
+    if (!canonical) throw new Error(`Unknown ${normalizedCategory} id: ${id}`);
+    return records.get(canonical);
   }
 
   maybeGet(category, id) {
-    return this._categories.get(normalizeCategory(category))?.get(id) || null;
+    const normalizedCategory = normalizeCategory(category);
+    const records = this._categories.get(normalizedCategory);
+    if (!records) return null;
+    const canonical = this.canonicalId(normalizedCategory, id);
+    return canonical ? records.get(canonical) : null;
   }
 
   all(category) {
@@ -98,11 +130,23 @@ export class ContentRegistry {
     return [...records.values()];
   }
 
-  ids(category) {
+  ids(category, { includeAliases = false } = {}) {
     const normalizedCategory = normalizeCategory(category);
     const records = this._categories.get(normalizedCategory);
     if (!records) throw new Error(`Unknown content category: ${category}`);
-    return [...records.keys()];
+    const canonical = [...records.keys()];
+    if (!includeAliases) return canonical;
+    return [...canonical, ...(this._aliases.get(normalizedCategory)?.keys() || [])];
+  }
+
+  aliases(category, id = null) {
+    const normalizedCategory = normalizeCategory(category);
+    const aliases = this._aliases.get(normalizedCategory);
+    if (!aliases) throw new Error(`Unknown content category: ${category}`);
+    if (id == null) return Object.fromEntries(aliases);
+    const canonical = this.canonicalId(normalizedCategory, id);
+    if (!canonical) return [];
+    return [...aliases.entries()].filter(([, target]) => target === canonical).map(([alias]) => alias);
   }
 
   where(category, predicate) {
@@ -149,9 +193,7 @@ export class ContentRegistry {
         }
 
         for (const id of ids) {
-          if (!this.has(to, id)) {
-            issues.push(`${from}:${definition.id}.${field} -> missing ${to}:${id}`);
-          }
+          if (!this.has(to, id)) issues.push(`${from}:${definition.id}.${field} -> missing ${to}:${id}`);
         }
       }
     }
