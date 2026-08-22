@@ -51,7 +51,6 @@ export function createRizoWorld({
   const world = {
     version: 1,
     core,
-    sources,
     playerState,
 
     get(category, id) {
