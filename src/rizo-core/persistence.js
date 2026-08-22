@@ -37,24 +37,72 @@ export class LocalStoragePersistenceAdapter {
   }
 }
 
-export function createPersistenceController(stateStore, adapter, { debounceMs = 250 } = {}) {
+function assertAdapter(adapter) {
+  if (!adapter || typeof adapter !== "object") {
+    throw new TypeError("Persistence adapter must be an object.");
+  }
+
+  for (const method of ["load", "save", "clear"]) {
+    if (typeof adapter[method] !== "function") {
+      throw new TypeError(`Persistence adapter is missing ${method}().`);
+    }
+  }
+}
+
+export function createPersistenceController(
+  stateStore,
+  adapter,
+  { debounceMs = 250, onError = null } = {}
+) {
+  assertAdapter(adapter);
+
   let timer = null;
   let writeChain = Promise.resolve();
   let destroyed = false;
+  let lastError = null;
+
+  function reportError(error) {
+    lastError = error;
+    if (typeof onError === "function") onError(error);
+  }
+
+  function queueSave(snapshot) {
+    // A rejected save must not poison the queue forever. The next save still waits for
+    // the previous attempt to settle, then gets a fresh chance to persist newer state.
+    const attempt = writeChain.then(
+      () => adapter.save(snapshot),
+      () => adapter.save(snapshot)
+    );
+    writeChain = attempt;
+    return attempt;
+  }
 
   async function persistNow() {
     if (destroyed) return writeChain;
     const snapshot = stateStore.serialize();
-    writeChain = writeChain.then(() => adapter.save(snapshot));
-    return writeChain;
+
+    try {
+      const result = await queueSave(snapshot);
+      lastError = null;
+      return result;
+    } catch (error) {
+      reportError(error);
+      throw error;
+    }
   }
 
-  const unsubscribe = stateStore.subscribe(() => {
+  const unsubscribe = stateStore.subscribe((_current, _previous, meta = {}) => {
+    // Hydration should not immediately rewrite the same payload it just loaded.
+    if (meta.source === "persistence") return;
+
     clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      persistNow();
-    }, debounceMs);
+      persistNow().catch(() => {
+        // Error is retained in lastError/reported through onError. Swallow here only to
+        // prevent an unhandled rejection from a background debounced write.
+      });
+    }, Math.max(0, Number(debounceMs) || 0));
   });
 
   return Object.freeze({
@@ -73,17 +121,30 @@ export function createPersistenceController(stateStore, adapter, { debounceMs = 
     async clear() {
       clearTimeout(timer);
       timer = null;
-      await writeChain;
+      try {
+        await writeChain;
+      } catch {
+        // A previous failed save should not block an explicit clear operation.
+      }
       await adapter.clear();
+      lastError = null;
+    },
+
+    getLastError() {
+      return lastError;
     },
 
     async destroy() {
       if (destroyed) return;
       clearTimeout(timer);
       timer = null;
-      await persistNow();
-      destroyed = true;
-      unsubscribe();
+
+      try {
+        await persistNow();
+      } finally {
+        destroyed = true;
+        unsubscribe();
+      }
     }
   });
 }
