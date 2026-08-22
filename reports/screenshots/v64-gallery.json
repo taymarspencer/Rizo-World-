@@ -1,0 +1,82 @@
+[
+  {
+    "name": "01-phone-short-planning",
+    "viewport": "320x568",
+    "map": "grove",
+    "description": "Short-phone planning; triple-digit reached-wave stress",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/01-phone-short-planning.png"
+  },
+  {
+    "name": "02-phone-combat-packet",
+    "viewport": "360x640",
+    "map": "grove",
+    "description": "Packet combat and density-controlled field",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/02-phone-combat-packet.png"
+  },
+  {
+    "name": "03-phone-standard-combat",
+    "viewport": "390x844",
+    "map": "ember",
+    "description": "2\u00d7 combat with mixed enemy composition",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/03-phone-standard-combat.png"
+  },
+  {
+    "name": "04-phone-tower-panel",
+    "viewport": "430x932",
+    "map": "moon",
+    "description": "Selected-Rizo action sheet",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/04-phone-tower-panel.png"
+  },
+  {
+    "name": "05-landscape-command-wings",
+    "viewport": "844x390",
+    "map": "storm",
+    "description": "Landscape command wings and boss state",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/05-landscape-command-wings.png"
+  },
+  {
+    "name": "06-tablet-portrait-field-menu",
+    "viewport": "768x1024",
+    "map": "blizzard",
+    "description": "Tablet portrait utility sheet",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/06-tablet-portrait-field-menu.png"
+  },
+  {
+    "name": "07-tablet-landscape-boss",
+    "viewport": "1024x768",
+    "map": "eclipse",
+    "description": "Tablet landscape boss and Eclipse route",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/07-tablet-landscape-boss.png"
+  },
+  {
+    "name": "08-blizzard-world",
+    "viewport": "390x844",
+    "map": "blizzard",
+    "description": "Whiteout world contrast and route structure",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/08-blizzard-world.png"
+  },
+  {
+    "name": "09-eclipse-world",
+    "viewport": "390x844",
+    "map": "eclipse",
+    "description": "Eclipse veil readability and placement pockets",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/09-eclipse-world.png"
+  },
+  {
+    "name": "10-world-lobby",
+    "viewport": "390x844",
+    "map": "grove",
+    "description": "Bounded world lobby and unified cards",
+    "runtimeErrors": [],
+    "file": "reports/screenshots/v64/10-world-lobby.png"
+  }
+]

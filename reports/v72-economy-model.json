@@ -1,0 +1,223 @@
+{
+  "assumptions": [
+    "220 starting cash",
+    "perfect wave bonus with recommended tower count",
+    "planned enemies plus deterministic split children",
+    "no optional boss summons",
+    "Golden comparison uses 1.22 capped multiplier"
+  ],
+  "oldSpend": {
+    "ninePaidDeployments": 6020,
+    "tenMaxUpgrades": 9900,
+    "total": 15920,
+    "deployments": [
+      150,
+      200,
+      270,
+      360,
+      500,
+      670,
+      920,
+      1250,
+      1700
+    ]
+  },
+  "newSpend": {
+    "ninePaidDeployments": 12580,
+    "tenMaxUpgrades": 12500,
+    "total": 25080,
+    "deployments": [
+      150,
+      200,
+      270,
+      430,
+      700,
+      1140,
+      1850,
+      2990,
+      4850
+    ]
+  },
+  "worlds": {
+    "grove": {
+      "old": {
+        "1": 383,
+        "5": 1342,
+        "10": 3763,
+        "20": 13982,
+        "30": 32529,
+        "40": 60088,
+        "50": 92581,
+        "75": 196701,
+        "100": 326334,
+        "125": 490335,
+        "150": 683371
+      },
+      "new": {
+        "1": 383,
+        "5": 1342,
+        "10": 3763,
+        "20": 11590,
+        "30": 21176,
+        "40": 31831,
+        "50": 42550,
+        "75": 69769,
+        "100": 95994,
+        "125": 122942,
+        "150": 149702
+      },
+      "newGoldenCap": {
+        "1": 409,
+        "5": 1529,
+        "10": 4401,
+        "20": 13721,
+        "30": 25135,
+        "40": 37830,
+        "50": 50581,
+        "75": 82950,
+        "100": 114105,
+        "125": 146142,
+        "150": 177950
+      }
+    },
+    "eclipse": {
+      "old": {
+        "1": 523,
+        "5": 2100,
+        "10": 5021,
+        "20": 16055,
+        "30": 34602,
+        "40": 62161,
+        "50": 94654,
+        "75": 198774,
+        "100": 328407,
+        "125": 492408,
+        "150": 685444
+      },
+      "new": {
+        "1": 523,
+        "5": 2100,
+        "10": 5021,
+        "20": 13488,
+        "30": 23074,
+        "40": 33729,
+        "50": 44448,
+        "75": 71667,
+        "100": 97892,
+        "125": 124840,
+        "150": 151600
+      },
+      "newGoldenCap": {
+        "1": 580,
+        "5": 2455,
+        "10": 5938,
+        "20": 16039,
+        "30": 27453,
+        "40": 40148,
+        "50": 52899,
+        "75": 85268,
+        "100": 116423,
+        "125": 148460,
+        "150": 180268
+      }
+    }
+  },
+  "waveSamples": {
+    "10": {
+      "old": {
+        "income": 452,
+        "killIncome": 370,
+        "bonus": 82,
+        "planned": 9,
+        "modifier": "boss"
+      },
+      "new": {
+        "income": 452,
+        "killIncome": 370,
+        "bonus": 82,
+        "planned": 9,
+        "modifier": "boss"
+      }
+    },
+    "20": {
+      "old": {
+        "income": 749,
+        "killIncome": 627,
+        "bonus": 122,
+        "planned": 14,
+        "modifier": "boss"
+      },
+      "new": {
+        "income": 497,
+        "killIncome": 375,
+        "bonus": 122,
+        "planned": 14,
+        "modifier": "boss"
+      }
+    },
+    "30": {
+      "old": {
+        "income": 1108,
+        "killIncome": 946,
+        "bonus": 162,
+        "planned": 19,
+        "modifier": "boss"
+      },
+      "new": {
+        "income": 529,
+        "killIncome": 397,
+        "bonus": 132,
+        "planned": 19,
+        "modifier": "boss"
+      }
+    },
+    "50": {
+      "old": {
+        "income": 1558,
+        "killIncome": 1316,
+        "bonus": 242,
+        "planned": 19,
+        "modifier": "boss"
+      },
+      "new": {
+        "income": 525,
+        "killIncome": 373,
+        "bonus": 152,
+        "planned": 19,
+        "modifier": "boss"
+      }
+    },
+    "100": {
+      "old": {
+        "income": 2664,
+        "killIncome": 2222,
+        "bonus": 442,
+        "planned": 19,
+        "modifier": "boss"
+      },
+      "new": {
+        "income": 525,
+        "killIncome": 373,
+        "bonus": 152,
+        "planned": 19,
+        "modifier": "boss"
+      }
+    },
+    "150": {
+      "old": {
+        "income": 3776,
+        "killIncome": 3134,
+        "bonus": 642,
+        "planned": 19,
+        "modifier": "boss"
+      },
+      "new": {
+        "income": 525,
+        "killIncome": 373,
+        "bonus": 152,
+        "planned": 19,
+        "modifier": "boss"
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "build": "v70-phase7-battlefield-art",
+  "automated": {"core":23,"static":58,"browserIntegration":77,"surface":76,"serviceWorkerPolicy":4,"passed":238,"failed":0},
+  "screenshots": {"count":10,"capturedRuntimeErrors":0},
+  "physicalSafariServiceWorkerLifecycle": "unable-to-verify-in-container-localhost-blocked"
+}

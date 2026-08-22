@@ -1,0 +1,157 @@
+{
+  "environment": "Headless Chromium, 390x844 emulation; not physical-device benchmarking",
+  "cycles": 50,
+  "baseline": {
+    "dom": 237,
+    "heap": 17472536,
+    "pool": {
+      "enemy": 14,
+      "projectile": 26,
+      "impact": 8,
+      "enemyCreated": 14,
+      "enemyAcquired": 0,
+      "projectileCreated": 26,
+      "projectileAcquired": 0,
+      "impactCreated": 8,
+      "impactAcquired": 0
+    },
+    "density": 14,
+    "visual": {
+      "maxVisibleProjectiles": 26,
+      "maxImpactEffects": 8,
+      "weatherParticleScale": 1
+    }
+  },
+  "samples": [
+    {
+      "pool": {
+        "enemy": 14,
+        "projectile": 26,
+        "impact": 8,
+        "enemyCreated": 14,
+        "enemyAcquired": 1,
+        "projectileCreated": 26,
+        "projectileAcquired": 0,
+        "impactCreated": 8,
+        "impactAcquired": 0
+      },
+      "dom": 237,
+      "activeEnemyDom": 0,
+      "activeProjectileDom": 0
+    },
+    {
+      "pool": {
+        "enemy": 14,
+        "projectile": 26,
+        "impact": 8,
+        "enemyCreated": 14,
+        "enemyAcquired": 5,
+        "projectileCreated": 26,
+        "projectileAcquired": 1,
+        "impactCreated": 8,
+        "impactAcquired": 0
+      },
+      "dom": 237,
+      "activeEnemyDom": 0,
+      "activeProjectileDom": 0
+    },
+    {
+      "pool": {
+        "enemy": 14,
+        "projectile": 26,
+        "impact": 7,
+        "enemyCreated": 14,
+        "enemyAcquired": 10,
+        "projectileCreated": 26,
+        "projectileAcquired": 2,
+        "impactCreated": 8,
+        "impactAcquired": 1
+      },
+      "dom": 238,
+      "activeEnemyDom": 0,
+      "activeProjectileDom": 0
+    },
+    {
+      "pool": {
+        "enemy": 14,
+        "projectile": 26,
+        "impact": 8,
+        "enemyCreated": 14,
+        "enemyAcquired": 25,
+        "projectileCreated": 26,
+        "projectileAcquired": 5,
+        "impactCreated": 8,
+        "impactAcquired": 3
+      },
+      "dom": 237,
+      "activeEnemyDom": 0,
+      "activeProjectileDom": 0
+    },
+    {
+      "pool": {
+        "enemy": 14,
+        "projectile": 26,
+        "impact": 8,
+        "enemyCreated": 14,
+        "enemyAcquired": 50,
+        "projectileCreated": 26,
+        "projectileAcquired": 9,
+        "impactCreated": 8,
+        "impactAcquired": 3
+      },
+      "dom": 214,
+      "activeEnemyDom": 0,
+      "activeProjectileDom": 0
+    }
+  ],
+  "final": {
+    "dom": 214,
+    "heap": 17898809,
+    "pool": {
+      "enemy": 14,
+      "projectile": 26,
+      "impact": 8,
+      "enemyCreated": 14,
+      "enemyAcquired": 50,
+      "projectileCreated": 26,
+      "projectileAcquired": 9,
+      "impactCreated": 8,
+      "impactAcquired": 3
+    },
+    "activeEnemyDom": 0,
+    "activeProjectileDom": 0,
+    "maxActive": 1,
+    "maxProjectiles": 1,
+    "maxEffects": 1
+  },
+  "domGrowth": -23,
+  "heapGrowth": 426273,
+  "budgets": {
+    "one": {
+      "density": 9,
+      "visual": {
+        "maxVisibleProjectiles": 16,
+        "maxImpactEffects": 5,
+        "weatherParticleScale": 0.6
+      }
+    },
+    "two": {
+      "density": 7,
+      "visual": {
+        "maxVisibleProjectiles": 10,
+        "maxImpactEffects": 3,
+        "weatherParticleScale": 0.35
+      }
+    },
+    "low": {
+      "density": 7,
+      "visual": {
+        "maxVisibleProjectiles": 10,
+        "maxImpactEffects": 3,
+        "weatherParticleScale": 0.35
+      },
+      "renderTier": 2
+    }
+  },
+  "runtimeErrors": []
+}

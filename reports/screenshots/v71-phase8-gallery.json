@@ -1,0 +1,72 @@
+[
+  {
+    "name": "01-wave-start",
+    "viewport": "320x568",
+    "map": "grove",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/01-wave-start.png"
+  },
+  {
+    "name": "02-boss-entrance",
+    "viewport": "390x844",
+    "map": "moon",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/02-boss-entrance.png"
+  },
+  {
+    "name": "03-gate-danger",
+    "viewport": "390x844",
+    "map": "eclipse",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/03-gate-danger.png"
+  },
+  {
+    "name": "04-perfect-wave",
+    "viewport": "430x932",
+    "map": "grove",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/04-perfect-wave.png"
+  },
+  {
+    "name": "05-packet-arrival",
+    "viewport": "390x844",
+    "map": "ember",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/05-packet-arrival.png"
+  },
+  {
+    "name": "06-upgrade-unlock",
+    "viewport": "390x844",
+    "map": "storm",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/06-upgrade-unlock.png"
+  },
+  {
+    "name": "07-landscape-boss",
+    "viewport": "844x390",
+    "map": "storm",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/07-landscape-boss.png"
+  },
+  {
+    "name": "08-tablet-perfect",
+    "viewport": "768x1024",
+    "map": "blizzard",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/08-tablet-perfect.png"
+  },
+  {
+    "name": "09-bank-success",
+    "viewport": "390x844",
+    "map": "moon",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/09-bank-success.png"
+  },
+  {
+    "name": "10-final-defeat",
+    "viewport": "390x844",
+    "map": "eclipse",
+    "errors": [],
+    "file": "reports/screenshots/v71-phase8/10-final-defeat.png"
+  }
+]

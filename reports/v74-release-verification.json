@@ -1,0 +1,28 @@
+{
+  "release": "v74-smooth-defense",
+  "date": "2026-08-03",
+  "focus": ["balloon route fidelity", "mobile frame-time resilience"],
+  "verification": {
+    "defenseCore": "25/25",
+    "serviceWorkerPolicy": "4/4",
+    "staticDefenseAudit": "74/74",
+    "browserDefenseIntegration": "77/77",
+    "browserDefenseSurfaces": "76/76",
+    "browserPhase7Art": "43/43",
+    "browserPhase8Final": "17/17",
+    "browserLaunchRecovery": "5/5",
+    "browserV74RouteFidelity": "19/19"
+  },
+  "routeWorstErrorCssPx": 0.066,
+  "comparativeProfile": {
+    "environment": "Headless Chromium, 390x844; comparative QA only, not a physical iPhone benchmark",
+    "v73": {
+      "1x": {"averageFrameMs": 17.154, "estimatedFps": 58.3, "worstFrameMs": 50.0},
+      "2x": {"averageFrameMs": 27.413, "estimatedFps": 36.5, "worstFrameMs": 183.4, "performanceLow": true}
+    },
+    "v74": {
+      "1x": {"averageFrameMs": 16.666, "estimatedFps": 60.0, "worstFrameMs": 16.8},
+      "2x": {"averageFrameMs": 16.666, "estimatedFps": 60.0, "worstFrameMs": 16.8, "performanceLow": false}
+    }
+  }
+}

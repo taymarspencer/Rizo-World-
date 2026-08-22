@@ -1,0 +1,72 @@
+[
+  {
+    "name": "authored packets use breath-aware spawn grammar",
+    "passed": true,
+    "detail": "{'early': [(0.63, 2.375, 5), (0.6799999999999999, 0, 3)], 'late': [(0.3025, 1.875, 10), (0.335, 0, 7)]}"
+  },
+  {
+    "name": "late difficulty stays composition-led instead of count runaway",
+    "passed": true,
+    "detail": "[8, 13, 10, 16, 16, 17]"
+  },
+  {
+    "name": "packet grammar sample has no runtime errors",
+    "passed": true,
+    "detail": ""
+  },
+  {
+    "name": "30 fps-like callbacks still drive deterministic 30 Hz simulation",
+    "passed": true,
+    "detail": "{'simSeconds': 0.9999999999999999, 'presentationFrames': 31}"
+  },
+  {
+    "name": "2x advances exact game time without changing the fixed step",
+    "passed": true,
+    "detail": "{'simSeconds': 2.0000000000000027, 'maxCatchUp': 2}"
+  },
+  {
+    "name": "30 fps-like fixed-step samples have no runtime errors",
+    "passed": true,
+    "detail": "[]"
+  },
+  {
+    "name": "measured frame pressure activates adaptive presentation tier",
+    "passed": true,
+    "detail": "{'frameP95': 36, 'frameP99': 36, 'governorTier': 2, 'renderTier': 2, 'performanceLow': True, 'densityCap': 14, 'visualBudget': {'maxVisibleProjectiles': 16, 'maxImpactEffects': 5, 'weatherParticleScale': 0.42, 'projectileEmissionHz': 6, 'presentationFps': 30}}"
+  },
+  {
+    "name": "adaptive quality never changes authored enemy density",
+    "passed": true,
+    "detail": "{'stressed': 14, 'core': [14, 14, 14]}"
+  },
+  {
+    "name": "rapid logical fire is visually coalesced",
+    "passed": true,
+    "detail": "{'requested': 48, 'logical': 48, 'visible': 1, 'coalescedVisual': 47, 'coalescedLogical': 0, 'budget': {'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'weatherParticleScale': 1, 'projectileEmissionHz': 10, 'presentationFps': 60}}"
+  },
+  {
+    "name": "visible projectile count stays inside the active visual budget",
+    "passed": true,
+    "detail": "{'requested': 48, 'logical': 48, 'visible': 1, 'coalescedVisual': 47, 'coalescedLogical': 0, 'budget': {'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'weatherParticleScale': 1, 'projectileEmissionHz': 10, 'presentationFps': 60}}"
+  },
+  {
+    "name": "projectile coalescing sample has no runtime errors",
+    "passed": true,
+    "detail": ""
+  },
+  {
+    "name": "auto waves are off by default",
+    "passed": true,
+    "detail": "False"
+  },
+  {
+    "name": "wave clear gets a punctuation beat before manual next wave",
+    "passed": true,
+    "detail": "{'immediate': 1, 'afterSettling': 2}"
+  },
+  {
+    "name": "wave-boundary sample has no runtime errors",
+    "passed": true,
+    "detail": ""
+  }
+]

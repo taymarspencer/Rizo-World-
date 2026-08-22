@@ -1,0 +1,53 @@
+/* Rizo.game v84 — Lame Test gameplay layer.
+   This file only styles the new mechanical affordances. The full interface
+   identity rework is intentionally kept for the separate Phase 2 pass. */
+
+.power-coach{
+  position:absolute;left:18px;top:58px;z-index:8;display:grid;gap:1px;
+  padding:7px 10px;border:2px solid #0a0a0a;background:#f5f0df;color:#0a0a0a;
+  transform:rotate(-1.5deg);box-shadow:3px 3px 0 #0a0a0a;
+}
+.power-coach small{font:800 9px/1 "JetBrains Mono",monospace;letter-spacing:.12em}
+.power-coach b{font:900 24px/.95 Anton,Impact,sans-serif;letter-spacing:.035em}
+.power-techniques{position:absolute;left:50%;bottom:74px;z-index:9;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;width:min(92%,330px);transform:translateX(-50%)}
+.power-techniques button{min-height:42px;border:2px solid #111;border-radius:5px;background:#191919;color:#eee;font:900 16px/1 Anton,Impact,sans-serif;letter-spacing:.05em;box-shadow:0 3px 0 #000}
+.power-techniques button.called{background:#f2d750;color:#0b0b0b;transform:translateY(-2px);box-shadow:0 5px 0 #000}
+.power-world.feint .power-coach{background:#ff7373}
+
+.spark-hud{position:absolute;top:54px;left:12px;right:12px;z-index:8;display:flex;justify-content:space-between;pointer-events:none}
+.spark-hud span{padding:5px 8px;border:1px solid rgba(255,255,255,.68);background:rgba(5,5,8,.72);font:800 10px/1.1 "JetBrains Mono",monospace;letter-spacing:.08em}
+.spark-bank{position:absolute;right:14px;bottom:18px;z-index:10;min-width:118px;min-height:42px;border:2px solid #0b0b0b;border-radius:4px;background:#ffe45b;color:#0b0b0b;font:900 14px/1 Anton,Impact,sans-serif;box-shadow:3px 3px 0 #0b0b0b}
+.spark-bank:disabled{opacity:.42;filter:grayscale(.4);box-shadow:none}
+.spark-rule{position:absolute;left:12px;bottom:21px;z-index:8;max-width:55%;font:800 9px/1.3 "JetBrains Mono",monospace;letter-spacing:.04em;color:#f6f0dd;text-shadow:0 1px 5px #000}
+.spark-world.frenzy .spark-bank{animation:spark-bank-pulse .52s steps(2,end) infinite}
+@keyframes spark-bank-pulse{50%{transform:translateY(-3px)}}
+
+.forage-ticket-state{position:absolute;top:105px;left:50%;z-index:7;transform:translateX(-50%) rotate(-1deg);padding:4px 7px;border:1px solid #1b1913;background:#f3ead5;color:#191710;font:900 9px/1.2 "JetBrains Mono",monospace;letter-spacing:.08em;white-space:nowrap}
+.forage-world.picnic-panic .forage-ticket-state{background:#ffcf4a;animation:picnic-jolt .28s steps(2,end) infinite}
+.forage-world.picnic-panic::after{content:"PICK FAST";position:absolute;inset:48px auto auto 50%;transform:translateX(-50%);z-index:5;color:#ffd75e;font:900 20px/1 Anton,Impact,sans-serif;letter-spacing:.08em;text-shadow:2px 2px 0 #000}
+@keyframes picnic-jolt{50%{transform:translateX(-50%) rotate(1deg) scale(1.03)}}
+
+.rush-delivery{position:absolute;left:50%;top:56px;z-index:8;transform:translateX(-50%);padding:5px 9px;border:1px solid rgba(255,255,255,.72);background:rgba(9,9,10,.7);font:800 9px/1 "JetBrains Mono",monospace;letter-spacing:.07em;white-space:nowrap}
+.rush-world.has-parcel .rush-delivery{background:#e8c844;color:#111;border-color:#111}
+
+.memory-frequency{position:absolute;left:12px;top:52px;z-index:5;display:grid;gap:0;color:#efe8d8;font:900 28px/.9 "JetBrains Mono",monospace;letter-spacing:-.05em;opacity:.72;transform:rotate(-2deg)}
+.memory-frequency i{font:800 7px/1.2 "JetBrains Mono",monospace;letter-spacing:.12em;font-style:normal}
+.lost-signal .memory-rune{border-radius:3px}
+.lost-signal .memory-rune.lit{filter:contrast(1.2);transform:translateY(-3px) rotate(var(--signal-tilt,0deg)) scale(1.04)}
+
+.glide-thermal{position:absolute;left:50%;top:79px;z-index:7;transform:translateX(-50%);padding:4px 7px;background:rgba(7,7,10,.68);border:1px solid rgba(255,255,255,.5);font:800 8px/1.2 "JetBrains Mono",monospace;letter-spacing:.07em;white-space:nowrap}
+.glide-world.thermal .glide-thermal{background:#f5d455;color:#101010;border-color:#101010;box-shadow:2px 2px 0 #101010}
+
+.breaker-pattern{position:absolute;left:50%;top:50px;z-index:7;transform:translateX(-50%);padding:3px 7px;background:rgba(7,7,8,.72);border:1px solid rgba(255,255,255,.4);font:900 9px/1 "JetBrains Mono",monospace;letter-spacing:.09em;white-space:nowrap}
+.breaker-block.core{background:#f1e3a0;border:2px solid #111;color:#111;box-shadow:inset 0 0 0 2px #f05a4f,2px 2px 0 #111}
+.breaker-block.core::after{content:"×";position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-52%);font:900 18px/1 Anton,Impact,sans-serif}
+.breaker-block.core-collapse{filter:brightness(1.8);transform:scale(.65) rotate(8deg)}
+
+/* Development-history stickers are not player-facing identity. */
+.game-card.power-card::after,.game-card.spark-card::after,.game-card.forage-card::after,.game-card.rush-card::after,.game-card.memory-card::after,.game-card.glide-card::after,.game-card.breaker-card::after,.game-card.maze-card::after{display:none}
+
+@media(max-width:360px){
+  .power-techniques{bottom:66px}.power-techniques button{min-height:38px;font-size:14px}
+  .spark-rule{font-size:8px;max-width:52%}.spark-bank{min-width:105px;min-height:38px;font-size:13px}
+  .memory-frequency{font-size:22px}.glide-thermal{font-size:7px}.rush-delivery{top:50px}
+}

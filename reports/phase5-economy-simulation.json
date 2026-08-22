@@ -1,0 +1,421 @@
+{
+  "build": "v70-phase7-battlefield-art",
+  "startingCash": 220,
+  "upgradeCosts": [
+    110,
+    180,
+    280,
+    420
+  ],
+  "firstUpgradeWithWorldPerk": 90,
+  "planningRefundRate": 0.7,
+  "placementUndoSeconds": 5,
+  "baseKillRewards": {
+    "puff": 12,
+    "fleet": 14,
+    "shell": 24,
+    "split": 20,
+    "fire": 32,
+    "frost": 36,
+    "storm": 38,
+    "ghost": 44,
+    "shade": 30,
+    "boss": 130
+  },
+  "killRewardExamples": [
+    {
+      "wave": 1,
+      "puff": 13,
+      "shell": 25,
+      "ghost": 46,
+      "boss": 136
+    },
+    {
+      "wave": 10,
+      "puff": 17,
+      "shell": 35,
+      "ghost": 64,
+      "boss": 189
+    },
+    {
+      "wave": 25,
+      "puff": 26,
+      "shell": 51,
+      "ghost": 94,
+      "boss": 276
+    },
+    {
+      "wave": 50,
+      "puff": 39,
+      "shell": 78,
+      "ghost": 143,
+      "boss": 423
+    },
+    {
+      "wave": 100,
+      "puff": 66,
+      "shell": 132,
+      "ghost": 242,
+      "boss": 715
+    },
+    {
+      "wave": 250,
+      "puff": 147,
+      "shell": 294,
+      "ghost": 539,
+      "boss": 1593
+    }
+  ],
+  "deploymentCosts": [
+    {
+      "paidTowerCount": 0,
+      "cost": 150
+    },
+    {
+      "paidTowerCount": 1,
+      "cost": 200
+    },
+    {
+      "paidTowerCount": 2,
+      "cost": 270
+    },
+    {
+      "paidTowerCount": 3,
+      "cost": 360
+    },
+    {
+      "paidTowerCount": 4,
+      "cost": 500
+    },
+    {
+      "paidTowerCount": 5,
+      "cost": 670
+    },
+    {
+      "paidTowerCount": 6,
+      "cost": 920
+    },
+    {
+      "paidTowerCount": 7,
+      "cost": 1250
+    }
+  ],
+  "duplicateDeploymentExamples": [
+    {
+      "copyCount": 0,
+      "cost": 150
+    },
+    {
+      "copyCount": 1,
+      "cost": 190
+    },
+    {
+      "copyCount": 2,
+      "cost": 240
+    },
+    {
+      "copyCount": 3,
+      "cost": 280
+    }
+  ],
+  "waveBonuses": [
+    {
+      "clearedWave": 1,
+      "base": 28,
+      "perfectEfficient": 46
+    },
+    {
+      "clearedWave": 5,
+      "base": 44,
+      "perfectEfficient": 62
+    },
+    {
+      "clearedWave": 10,
+      "base": 64,
+      "perfectEfficient": 82
+    },
+    {
+      "clearedWave": 25,
+      "base": 124,
+      "perfectEfficient": 142
+    },
+    {
+      "clearedWave": 50,
+      "base": 224,
+      "perfectEfficient": 242
+    },
+    {
+      "clearedWave": 100,
+      "base": 424,
+      "perfectEfficient": 442
+    },
+    {
+      "clearedWave": 250,
+      "base": 1024,
+      "perfectEfficient": 1042
+    }
+  ],
+  "goldenMultiplier": [
+    {
+      "count": 0,
+      "multiplier": 1
+    },
+    {
+      "count": 1,
+      "multiplier": 1.1
+    },
+    {
+      "count": 2,
+      "multiplier": 1.13
+    },
+    {
+      "count": 3,
+      "multiplier": 1.16
+    },
+    {
+      "count": 4,
+      "multiplier": 1.19
+    },
+    {
+      "count": 5,
+      "multiplier": 1.22
+    },
+    {
+      "count": 8,
+      "multiplier": 1.22
+    },
+    {
+      "count": 10,
+      "multiplier": 1.22
+    }
+  ],
+  "goldenActive": [
+    {
+      "goldenTowerCount": 1,
+      "wave20Level3": 168
+    },
+    {
+      "goldenTowerCount": 2,
+      "wave20Level3": 148
+    },
+    {
+      "goldenTowerCount": 3,
+      "wave20Level3": 128
+    },
+    {
+      "goldenTowerCount": 5,
+      "wave20Level3": 87
+    },
+    {
+      "goldenTowerCount": 10,
+      "wave20Level3": 87
+    }
+  ],
+  "runRewardExamples": [
+    {
+      "clearedWave": 10,
+      "kills": 100,
+      "bossesDefeated": 1,
+      "perfectWaveCount": 5,
+      "embers": 230
+    },
+    {
+      "clearedWave": 25,
+      "kills": 350,
+      "bossesDefeated": 2,
+      "perfectWaveCount": 12,
+      "embers": 671
+    },
+    {
+      "clearedWave": 50,
+      "kills": 900,
+      "bossesDefeated": 5,
+      "perfectWaveCount": 25,
+      "embers": 1590
+    },
+    {
+      "clearedWave": 100,
+      "kills": 2200,
+      "bossesDefeated": 10,
+      "perfectWaveCount": 45,
+      "embers": 2301
+    },
+    {
+      "clearedWave": 250,
+      "kills": 6500,
+      "bossesDefeated": 25,
+      "perfectWaveCount": 100,
+      "embers": 4566
+    }
+  ],
+  "nominalWaveSamples": [
+    {
+      "wave": 1,
+      "modifier": "normal",
+      "plannedEnemies": 9,
+      "resolvedEnemies": 9,
+      "killIncome": 117,
+      "waveBonus": 46,
+      "totalCashIncome": 163
+    },
+    {
+      "wave": 2,
+      "modifier": "normal",
+      "plannedEnemies": 10,
+      "resolvedEnemies": 10,
+      "killIncome": 134,
+      "waveBonus": 50,
+      "totalCashIncome": 184
+    },
+    {
+      "wave": 5,
+      "modifier": "rush",
+      "plannedEnemies": 15,
+      "resolvedEnemies": 15,
+      "killIncome": 255,
+      "waveBonus": 62,
+      "totalCashIncome": 317
+    },
+    {
+      "wave": 10,
+      "modifier": "boss",
+      "plannedEnemies": 9,
+      "resolvedEnemies": 9,
+      "killIncome": 370,
+      "waveBonus": 82,
+      "totalCashIncome": 452
+    },
+    {
+      "wave": 15,
+      "modifier": "swarm",
+      "plannedEnemies": 28,
+      "resolvedEnemies": 48,
+      "killIncome": 1139,
+      "waveBonus": 102,
+      "totalCashIncome": 1241
+    },
+    {
+      "wave": 20,
+      "modifier": "boss",
+      "plannedEnemies": 14,
+      "resolvedEnemies": 14,
+      "killIncome": 627,
+      "waveBonus": 122,
+      "totalCashIncome": 749
+    },
+    {
+      "wave": 25,
+      "modifier": "wall",
+      "plannedEnemies": 28,
+      "resolvedEnemies": 28,
+      "killIncome": 1558,
+      "waveBonus": 142,
+      "totalCashIncome": 1700
+    },
+    {
+      "wave": 30,
+      "modifier": "boss",
+      "plannedEnemies": 19,
+      "resolvedEnemies": 19,
+      "killIncome": 946,
+      "waveBonus": 162,
+      "totalCashIncome": 1108
+    },
+    {
+      "wave": 40,
+      "modifier": "boss",
+      "plannedEnemies": 19,
+      "resolvedEnemies": 19,
+      "killIncome": 1133,
+      "waveBonus": 202,
+      "totalCashIncome": 1335
+    },
+    {
+      "wave": 50,
+      "modifier": "boss",
+      "plannedEnemies": 19,
+      "resolvedEnemies": 19,
+      "killIncome": 1316,
+      "waveBonus": 242,
+      "totalCashIncome": 1558
+    },
+    {
+      "wave": 75,
+      "modifier": "swarm",
+      "plannedEnemies": 46,
+      "resolvedEnemies": 78,
+      "killIncome": 4870,
+      "waveBonus": 342,
+      "totalCashIncome": 5212
+    },
+    {
+      "wave": 100,
+      "modifier": "boss",
+      "plannedEnemies": 19,
+      "resolvedEnemies": 19,
+      "killIncome": 2222,
+      "waveBonus": 442,
+      "totalCashIncome": 2664
+    },
+    {
+      "wave": 150,
+      "modifier": "boss",
+      "plannedEnemies": 19,
+      "resolvedEnemies": 19,
+      "killIncome": 3134,
+      "waveBonus": 642,
+      "totalCashIncome": 3776
+    },
+    {
+      "wave": 200,
+      "modifier": "boss",
+      "plannedEnemies": 19,
+      "resolvedEnemies": 19,
+      "killIncome": 4040,
+      "waveBonus": 842,
+      "totalCashIncome": 4882
+    },
+    {
+      "wave": 250,
+      "modifier": "boss",
+      "plannedEnemies": 19,
+      "resolvedEnemies": 19,
+      "killIncome": 4952,
+      "waveBonus": 1042,
+      "totalCashIncome": 5994
+    }
+  ],
+  "cumulativeNominal": [
+    {
+      "throughWave": 5,
+      "totalCashIncome": 1122
+    },
+    {
+      "throughWave": 10,
+      "totalCashIncome": 3543
+    },
+    {
+      "throughWave": 20,
+      "totalCashIncome": 13762
+    },
+    {
+      "throughWave": 30,
+      "totalCashIncome": 32309
+    },
+    {
+      "throughWave": 40,
+      "totalCashIncome": 59868
+    },
+    {
+      "throughWave": 50,
+      "totalCashIncome": 92361
+    }
+  ],
+  "notes": [
+    "Map reward multipliers are not inputs to kill, wave-clear, or permanent reward functions.",
+    "Nominal wave cash assumes every planned enemy and split child is popped, zero hearts lost, and an efficient tower count; it is not a combat-win simulation.",
+    "The v67 per-enemy wave scaling remains a tuning surface; Phase 5 removes map inflation first so balance changes are attributable.",
+    "Permanent Ember soft cap begins at raw 1600; excess value contributes at 35%.",
+    "Deployment escalation remains intentionally tunable but is centralized."
+  ]
+}

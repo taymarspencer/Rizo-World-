@@ -1,0 +1,25 @@
+{
+  "build": "v72-final-product",
+  "environment": "Headless Chromium on build host for browser tests; CSS viewport emulation, not physical-device testing",
+  "tests": {
+    "coreLogic": {"passed": 25, "total": 25},
+    "serviceWorkerPolicy": {"passed": 4, "total": 4},
+    "staticArchitecture": {"passed": 73, "total": 73},
+    "gameplayEconomyIntegration": {"passed": 77, "total": 77},
+    "battlefieldArt": {"passed": 43, "total": 43},
+    "cinematicExploit": {"passed": 17, "total": 17},
+    "viewportSurfaces": {"passed": 76, "total": 76},
+    "syntax": {"boot": "pass", "defenseCore": "pass", "gameRuntime": "pass"}
+  },
+  "targetedChecks": {
+    "validFullTowerCap": "10/10 at 390x844; no horizontal overflow; no runtime errors",
+    "crowdedFieldHierarchy": "selected upgraded tower level visible; non-selected upgraded tower levels hidden",
+    "longSessionAllocation": "50 repeated queue/clear cycles after pool warmup; enemy/projectile/impact node creation remained 14/26/8; no active enemy/projectile DOM after clear; no runtime errors",
+    "economyModel": "opening curve preserved; late-run reward normalization and stronger late deployment/upgrade sinks modeled through Wave 150"
+  },
+  "verificationBoundary": {
+    "physicalDevice": false,
+    "fullGeneralPerformanceProfiler": "attempted but exceeded sandbox time ceiling; no FPS claim made",
+    "targetedLongevityProfiler": "completed"
+  }
+}

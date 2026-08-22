@@ -1,0 +1,47 @@
+RIZO.GAME V82 — ARCADE SOUL PASS
+Build: v82-arcade-soul
+Date: 2026-08-10
+
+CONSUMER GOAL
+Ember Beat remains the quality bar. This pass makes the other Arcade cabinets earn replay through distinct mastery loops instead of adding more generic tapping or more on-screen entities. Defense gameplay/economy is intentionally left alone.
+
+SHIPPED
+- NEW: Rizo Runaway — original maze-chase cabinet with continuous movement, Ember trail collection, three Shadow hunter behaviors (chase / ambush / wander), Prism Hunt role reversal, hunter-tag combo scoring, escalating level speed, three hearts, swipe + d-pad + keyboard controls, permanent Instinct/Speed training, personal best, and instant replay.
+- Spark Catch DX — six clean reads trigger Spark Rush: faster target cadence, more gold signals, x2 scoring, and a miss ends the rush. Existing Shadow decoys remain the restraint/read mechanic.
+- Power Tap DX — anti-mash Bag Feints. Holding through a fake earns score/heat; swinging into it gets countered and breaks the streak.
+- Forest Forage DX — authored two-lane food decisions; wrong edible catches now cost score and break the chain instead of acting like free consolation.
+- Rizo Rush DX — flame/prism pickups now live at different jump heights; obstacle clears can earn close-call bonuses.
+- Forest Memory DX — every fifth round is an OPPOSITES rule that transforms the shown rune sequence, alongside existing forward/reverse rules.
+- Skybound Rizo — fixed Retro variant animation conflict that could override the flight transform and misplace the character.
+- Ember Breaker — new Ember blocks trigger a temporary piercing fireball; Prism blocks retain wide-paddle mode.
+- Rain Walk — preserved as the exploration pillar because weather, biome finds, hazards, route forks, risk/luck, and treasure discovery already give it a distinct fantasy.
+- Ember Beat — deliberately preserved rather than changed for novelty.
+
+BUG / SAVE FIXES
+- Added migrated + normalized maze personal-best score.
+- Fixed older Arcade score normalization omission for glide and breaker.
+- Fixed whole-save integrity coverage so glide, breaker, and maze scores are part of the signed progression surface.
+- Bumped state schema 18 -> 19.
+- Bumped runtime/cache marker to v82-arcade-soul and precached arcade-v82.css.
+- Test harness now inlines the active v81 + v82 CSS layers so browser regression tests exercise the actual shipped visual stack.
+
+PERFORMANCE RULE
+No entity-spam solution was introduced. Runaway is bounded to one static maze, one player, and three hunters. The other upgrades reuse existing bounded entities/state.
+
+VERIFICATION GATE
+PASS 25/25  v82 Arcade Soul behavior checks
+PASS 99/99  v82 Arcade phone/portrait/landscape surface checks
+PASS 17/17  v75 Arcade regression checks
+PASS 29/29  Defense core checks
+PASS  4/4   service-worker policy checks
+PASS 80/80  static architecture / Defense isolation checks
+PASS  5/5   launch recovery checks
+PASS 20/20  v79 consumer Defense regression checks
+PASS 17/17  v80 strategy/feel Defense regression checks
+-------------------------------------------
+PASS 296/296 recorded checks
+
+Manual visual captures included:
+- reports/v82-runaway-320x568.png
+- reports/v82-runaway-390x844.png
+- reports/v82-runaway-844x390.png

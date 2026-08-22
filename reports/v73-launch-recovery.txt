@@ -1,0 +1,7 @@
+PASS healthy runtime reports exact v73 build {'expected': 'v73-launch-recovery', 'ready': True, 'recoveryVisible': False, 'problems': ['Failed to load ./assets/rizo-classic.png', 'Failed to load ./assets/rizo-full-mark.png', 'Failed to load ./assets/rizo-bubblegum.png', 'Failed to load ./assets/rizo-toxic.png', 'Failed to load ./assets/rizo-glitch.png', 'Failed to load ./assets/rizo-violet.png', 'Failed to load ./assets/rizo-moss.png', 'Failed to load ./assets/rizo-ember.png']}
+PASS healthy boot keeps recovery shell dormant instead of deleting it {'exists': True, 'hidden': True, 'recovery': False}
+PASS healthy boot has no page errors 
+PASS bad foreground restore becomes visible recovery instead of blank screen {'hidden': False, 'recovery': True, 'title': 'RIZO.GAME NEEDS A CLEAN RELOAD', 'reason': 'The app resumed without a visible game surface (qa-surface-loss).', 'actions': 'grid'}
+PASS inline guard survives total external runtime loss {'status': {'expected': 'v73-launch-recovery', 'ready': False, 'recoveryVisible': True, 'problems': ['Failed to load ./assets/rizo-classic.png', 'Failed to load ./assets/rizo-full-mark.png', 'Failed to load ./assets/rizo-bubblegum.png', 'Failed to load ./assets/rizo-toxic.png', 'Failed to load ./assets/rizo-glitch.png', 'Failed to load ./assets/rizo-violet.png', 'Failed to load ./assets/rizo-moss.png', 'Failed to load ./assets/rizo-ember.png', 'Simulated runtime fetch failure']}, 'hidden': False, 'title': 'RIZO.GAME NEEDS A CLEAN RELOAD', 'reason': 'Simulated runtime fetch failure'}
+
+5/5 launch recovery checks passed

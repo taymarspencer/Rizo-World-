@@ -1,0 +1,45 @@
+PASS grove has structural terrain features {'mapId': 'grove', 'featureCount': 3, 'featureKinds': ['root', 'root', 'vine'], 'buildPocketCount': 2, 'unitScale': '', 'playOutline': '#132019', 'playHalo': 'rgb(236 255 220 / .18)', 'roadFill': '#b9a06e', 'visibleLandmarkLabels': 0}
+PASS grove terrain feature identity is canonical ['root', 'root', 'vine']
+PASS grove hides development landmark labels 0
+PASS grove keeps two environmental build pockets 2
+PASS ember has structural terrain features {'mapId': 'ember', 'featureCount': 3, 'featureKinds': ['vent', 'vent', 'crack'], 'buildPocketCount': 2, 'unitScale': '0.921', 'playOutline': '#211110', 'playHalo': 'rgb(255 202 148 / .24)', 'roadFill': '#8d6551', 'visibleLandmarkLabels': 0}
+PASS ember terrain feature identity is canonical ['vent', 'vent', 'crack']
+PASS ember hides development landmark labels 0
+PASS ember keeps two environmental build pockets 2
+PASS moon has structural terrain features {'mapId': 'moon', 'featureCount': 3, 'featureKinds': ['orbit', 'crater', 'crater'], 'buildPocketCount': 2, 'unitScale': '', 'playOutline': '#171523', 'playHalo': 'rgb(222 211 255 / .32)', 'roadFill': '#8a839f', 'visibleLandmarkLabels': 0}
+PASS moon terrain feature identity is canonical ['orbit', 'crater', 'crater']
+PASS moon hides development landmark labels 0
+PASS moon keeps two environmental build pockets 2
+PASS storm has structural terrain features {'mapId': 'storm', 'featureCount': 3, 'featureKinds': ['puddle', 'puddle', 'wind'], 'buildPocketCount': 2, 'unitScale': '0.921', 'playOutline': '#10252d', 'playHalo': 'rgb(177 239 255 / .28)', 'roadFill': '#768d8d', 'visibleLandmarkLabels': 0}
+PASS storm terrain feature identity is canonical ['puddle', 'puddle', 'wind']
+PASS storm hides development landmark labels 0
+PASS storm keeps two environmental build pockets 2
+PASS blizzard has structural terrain features {'mapId': 'blizzard', 'featureCount': 3, 'featureKinds': ['bank', 'bank', 'crack'], 'buildPocketCount': 2, 'unitScale': '0.921', 'playOutline': '#102a35', 'playHalo': 'rgb(255 255 255 / .44)', 'roadFill': '#9aaeb7', 'visibleLandmarkLabels': 0}
+PASS blizzard terrain feature identity is canonical ['bank', 'bank', 'crack']
+PASS blizzard hides development landmark labels 0
+PASS blizzard keeps two environmental build pockets 2
+PASS eclipse has structural terrain features {'mapId': 'eclipse', 'featureCount': 3, 'featureKinds': ['lane', 'reveal', 'reveal'], 'buildPocketCount': 2, 'unitScale': '0.921', 'playOutline': '#f7ddff', 'playHalo': 'rgb(255 112 194 / .32)', 'roadFill': '#66536e', 'visibleLandmarkLabels': 0}
+PASS eclipse terrain feature identity is canonical ['lane', 'reveal', 'reveal']
+PASS eclipse hides development landmark labels 0
+PASS eclipse keeps two environmental build pockets 2
+PASS world landmarks preserve authored nonuniform silhouettes {'grove': {'className': 'defense-landmark landmark-pine-grove', 'w': 58, 'h': 50, 'bg': 'none', 'display': 'block'}, 'ember': {'className': 'defense-landmark landmark-lava-crater', 'w': 68, 'h': 44, 'bg': 'none', 'display': 'block'}, 'moon': {'className': 'defense-landmark landmark-moon-basin', 'w': 70, 'h': 50, 'bg': 'none', 'display': 'block'}, 'storm': {'className': 'defense-landmark landmark-storm-pylon', 'w': 26, 'h': 48, 'bg': 'none', 'display': 'block'}, 'blizzard': {'className': 'defense-landmark landmark-ice-shelf', 'w': 60, 'h': 36, 'bg': 'none', 'display': 'block'}, 'eclipse': {'className': 'defense-landmark landmark-eclipse-obelisk', 'w': 26, 'h': 50, 'bg': 'none', 'display': 'block'}}
+PASS lava crater retains large authored silhouette {'className': 'defense-landmark landmark-lava-crater', 'w': 68, 'h': 44, 'bg': 'none', 'display': 'block'}
+PASS moon basin retains large authored silhouette {'className': 'defense-landmark landmark-moon-basin', 'w': 70, 'h': 50, 'bg': 'none', 'display': 'block'}
+PASS blizzard shelf is wider than tall {'className': 'defense-landmark landmark-ice-shelf', 'w': 60, 'h': 36, 'bg': 'none', 'display': 'block'}
+PASS Blizzard uses a dark gameplay outline #102a35
+PASS Eclipse uses a light gameplay outline #f7ddff
+PASS world road palettes are structurally distinct {'grove': '#b9a06e', 'ember': '#8d6551', 'moon': '#8a839f', 'storm': '#768d8d', 'blizzard': '#9aaeb7', 'eclipse': '#66536e'}
+PASS trail visual weight is reduced below legacy 67px fill {'stroke': 'rgb(185, 160, 110)', 'strokeWidth': 58}
+PASS route markers stay quiet until trace is requested (0, 0.55)
+PASS selected range uses dedicated soft ground ellipse {'rangeOpacity': 1, 'rangeBorder': 'solid', 'towerW': 57.09375, 'towerH': 69.984375, 'filter': 'drop-shadow(rgb(19, 32, 25) 0px 0px 1px) drop-shadow(rgb(158, 255, 117) 0px 0px 8px) drop-shadow(rgba(20, 10, 20, 0.22) 0px 5px 2px)'}
+PASS tower body stays within bounded world-space contract {'rangeOpacity': 1, 'rangeBorder': 'solid', 'towerW': 57.09375, 'towerH': 69.984375, 'filter': 'drop-shadow(rgb(19, 32, 25) 0px 0px 1px) drop-shadow(rgb(158, 255, 117) 0px 0px 8px) drop-shadow(rgba(20, 10, 20, 0.22) 0px 5px 2px)'}
+PASS placement validity is local instead of tinting the whole battlefield {'worldW': 358.8125, 'previewW': 43, 'previewH': 20.6400146484375, 'labelDisplay': 'block'}
+PASS placement release state has a readable local label block
+PASS short-phone unit scale respects lower bound 0.86
+PASS tablet unit scale respects upper bound 1.0
+PASS unit scale grows gently across device classes (0.86, 1.0)
+PASS enemy outline adapts between Blizzard and Eclipse ({'border': 'rgb(16, 42, 53)', 'health': 'rgb(12, 39, 49)'}, {'border': 'rgb(247, 221, 255)', 'health': 'rgb(240, 217, 255)'})
+PASS health-bar edge adapts with world contrast ({'border': 'rgb(16, 42, 53)', 'health': 'rgb(12, 39, 49)'}, {'border': 'rgb(247, 221, 255)', 'health': 'rgb(240, 217, 255)'})
+PASS phase 7 art browser sample has no runtime errors []
+
+43/43 phase 7 art checks passed

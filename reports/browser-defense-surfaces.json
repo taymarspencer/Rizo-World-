@@ -1,0 +1,386 @@
+{
+  "passed": 76,
+  "total": 76,
+  "results": [
+    {
+      "name": "tower surface contained 320x568",
+      "passed": true,
+      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 243.78125, 'bottom': 476.84375, 'w': 297.625, 'h': 233.0625}"
+    },
+    {
+      "name": "tower type floor 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "tower usable controls 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu surface contained 320x568",
+      "passed": true,
+      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 151.890625, 'bottom': 476.84375, 'w': 297.625, 'h': 324.953125}"
+    },
+    {
+      "name": "field-menu type floor 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu usable controls 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers surface contained 320x568",
+      "passed": true,
+      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+    },
+    {
+      "name": "powers type floor 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers usable controls 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel surface contained 320x568",
+      "passed": true,
+      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 283.75, 'bottom': 476.84375, 'w': 297.625, 'h': 193.09375}"
+    },
+    {
+      "name": "intel type floor 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel usable controls 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-guide modal contained 320x568",
+      "passed": true,
+      "detail": "{'left': 14, 'right': 306, 'top': 16, 'bottom': 552, 'w': 292, 'h': 536}"
+    },
+    {
+      "name": "field-guide modal type floor 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "records modal contained 320x568",
+      "passed": true,
+      "detail": "{'left': 14, 'right': 306, 'top': 16, 'bottom': 552, 'w': 292, 'h': 536}"
+    },
+    {
+      "name": "records modal type floor 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "lobby modal contained 320x568",
+      "passed": true,
+      "detail": "{'left': 14, 'right': 306, 'top': 14, 'bottom': 566, 'w': 292, 'h': 552}"
+    },
+    {
+      "name": "lobby modal type floor 320x568",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "no runtime errors surface suite 320x568",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "tower surface contained 390x844",
+      "passed": true,
+      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 505.375, 'bottom': 738.4375, 'w': 362.8125, 'h': 233.0625}"
+    },
+    {
+      "name": "tower type floor 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "tower usable controls 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu surface contained 390x844",
+      "passed": true,
+      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 444.484375, 'bottom': 738.4375, 'w': 362.8125, 'h': 293.953125}"
+    },
+    {
+      "name": "field-menu type floor 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu usable controls 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers surface contained 390x844",
+      "passed": true,
+      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+    },
+    {
+      "name": "powers type floor 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers usable controls 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel surface contained 390x844",
+      "passed": true,
+      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 545.34375, 'bottom': 738.4375, 'w': 362.8125, 'h': 193.09375}"
+    },
+    {
+      "name": "intel type floor 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel usable controls 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-guide modal contained 390x844",
+      "passed": true,
+      "detail": "{'left': 14, 'right': 376, 'top': 50.15625, 'bottom': 793.828125, 'w': 362, 'h': 743.671875}"
+    },
+    {
+      "name": "field-guide modal type floor 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "records modal contained 390x844",
+      "passed": true,
+      "detail": "{'left': 14, 'right': 376, 'top': 16, 'bottom': 828, 'w': 362, 'h': 812}"
+    },
+    {
+      "name": "records modal type floor 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "lobby modal contained 390x844",
+      "passed": true,
+      "detail": "{'left': 14, 'right': 376, 'top': 159.703125, 'bottom': 684.296875, 'w': 362, 'h': 524.59375}"
+    },
+    {
+      "name": "lobby modal type floor 390x844",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "no runtime errors surface suite 390x844",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "tower surface contained 844x390",
+      "passed": true,
+      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 336.015625, 'w': 211, 'h': 330.421875}"
+    },
+    {
+      "name": "tower type floor 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "tower usable controls 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu surface contained 844x390",
+      "passed": true,
+      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 336.015625, 'w': 211, 'h': 330.421875}"
+    },
+    {
+      "name": "field-menu type floor 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu usable controls 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers surface contained 844x390",
+      "passed": true,
+      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+    },
+    {
+      "name": "powers type floor 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers usable controls 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel surface contained 844x390",
+      "passed": true,
+      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 336.015625, 'w': 211, 'h': 330.421875}"
+    },
+    {
+      "name": "intel type floor 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel usable controls 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-guide modal contained 844x390",
+      "passed": true,
+      "detail": "{'left': 202, 'right': 642, 'top': 16, 'bottom': 374, 'w': 440, 'h': 358}"
+    },
+    {
+      "name": "field-guide modal type floor 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "records modal contained 844x390",
+      "passed": true,
+      "detail": "{'left': 202, 'right': 642, 'top': 16, 'bottom': 374, 'w': 440, 'h': 358}"
+    },
+    {
+      "name": "records modal type floor 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "lobby modal contained 844x390",
+      "passed": true,
+      "detail": "{'left': 202, 'right': 642, 'top': 14, 'bottom': 388, 'w': 440, 'h': 374}"
+    },
+    {
+      "name": "lobby modal type floor 844x390",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "no runtime errors surface suite 844x390",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "tower surface contained 768x1024",
+      "passed": true,
+      "detail": "{'left': 74, 'right': 694, 'top': 662.359375, 'bottom': 896.03125, 'w': 620, 'h': 233.671875}"
+    },
+    {
+      "name": "tower type floor 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "tower usable controls 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu surface contained 768x1024",
+      "passed": true,
+      "detail": "{'left': 74, 'right': 694, 'top': 626.078125, 'bottom': 896.03125, 'w': 620, 'h': 269.953125}"
+    },
+    {
+      "name": "field-menu type floor 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-menu usable controls 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers surface contained 768x1024",
+      "passed": true,
+      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+    },
+    {
+      "name": "powers type floor 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "powers usable controls 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel surface contained 768x1024",
+      "passed": true,
+      "detail": "{'left': 74, 'right': 694, 'top': 702.9375, 'bottom': 896.03125, 'w': 620, 'h': 193.09375}"
+    },
+    {
+      "name": "intel type floor 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "intel usable controls 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "field-guide modal contained 768x1024",
+      "passed": true,
+      "detail": "{'left': 164, 'right': 604, 'top': 16, 'bottom': 1008, 'w': 440, 'h': 992}"
+    },
+    {
+      "name": "field-guide modal type floor 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "records modal contained 768x1024",
+      "passed": true,
+      "detail": "{'left': 164, 'right': 604, 'top': 16, 'bottom': 1008, 'w': 440, 'h': 992}"
+    },
+    {
+      "name": "records modal type floor 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "lobby modal contained 768x1024",
+      "passed": true,
+      "detail": "{'left': 164, 'right': 604, 'top': 226.65625, 'bottom': 797.34375, 'w': 440, 'h': 570.6875}"
+    },
+    {
+      "name": "lobby modal type floor 768x1024",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "no runtime errors surface suite 768x1024",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

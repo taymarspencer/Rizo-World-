@@ -1,0 +1,34 @@
+[
+  {
+    "mode": "dom",
+    "avg": 16.771,
+    "p95": 16.7,
+    "worst": 33.4,
+    "fps": 59.6,
+    "dom": {
+      "world": 283,
+      "enemies": 14,
+      "shots": 0
+    },
+    "canvasFrames": 0,
+    "renderer": "dom",
+    "peakAlive": 14,
+    "errors": []
+  },
+  {
+    "mode": "canvas",
+    "avg": 16.718,
+    "p95": 16.7,
+    "worst": 33.4,
+    "fps": 59.8,
+    "dom": {
+      "world": 101,
+      "enemies": 0,
+      "shots": 0
+    },
+    "canvasFrames": 313,
+    "renderer": "canvas",
+    "peakAlive": 14,
+    "errors": []
+  }
+]

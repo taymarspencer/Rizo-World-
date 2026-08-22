@@ -1,0 +1,322 @@
+{
+  "production QA uses a single gated namespace": {
+    "passed": true,
+    "detail": ""
+  },
+  "legacy QA namespaces are not assigned": {
+    "passed": true,
+    "detail": ""
+  },
+  "no direct QA helper globals": {
+    "passed": true,
+    "detail": ""
+  },
+  "currentWave and clearedWave state exist": {
+    "passed": true,
+    "detail": ""
+  },
+  "whole-save envelope is signed": {
+    "passed": true,
+    "detail": ""
+  },
+  "verified save backup recovery exists": {
+    "passed": true,
+    "detail": ""
+  },
+  "invalid checkpoints fail closed": {
+    "passed": true,
+    "detail": ""
+  },
+  "checkpoint canonicalization rejects unknown pet ids": {
+    "passed": true,
+    "detail": ""
+  },
+  "completion verifies full resolution": {
+    "passed": true,
+    "detail": ""
+  },
+  "child queue blocks completion": {
+    "passed": true,
+    "detail": ""
+  },
+  "rewards calculate from clearedWave": {
+    "passed": true,
+    "detail": ""
+  },
+  "zero-clear runs cannot advance mastery": {
+    "passed": true,
+    "detail": ""
+  },
+  "run outcomes are explicit": {
+    "passed": true,
+    "detail": ""
+  },
+  "history migration preserves reached wave": {
+    "passed": true,
+    "detail": ""
+  },
+  "golden bonus only has one implementation": {
+    "passed": true,
+    "detail": ""
+  },
+  "gameplay density uses centralized invariant core": {
+    "passed": true,
+    "detail": ""
+  },
+  "explicit upgrade costs are active": {
+    "passed": true,
+    "detail": ""
+  },
+  "simulation and control clocks are separated": {
+    "passed": true,
+    "detail": ""
+  },
+  "v76 uses fixed 30hz simulation with bounded catch-up": {
+    "passed": true,
+    "detail": ""
+  },
+  "presentation interpolates simulation snapshots": {
+    "passed": true,
+    "detail": ""
+  },
+  "adaptive governor tracks p95 and degrades presentation first": {
+    "passed": true,
+    "detail": ""
+  },
+  "logical projectile simulation is decoupled from visual emission": {
+    "passed": true,
+    "detail": ""
+  },
+  "speed and quality do not secretly thin gameplay density": {
+    "passed": true,
+    "detail": ""
+  },
+  "manual wave boundaries remain default with optional auto waves": {
+    "passed": true,
+    "detail": ""
+  },
+  "target refresh uses wall time and cached references": {
+    "passed": true,
+    "detail": ""
+  },
+  "split children use deterministic game-time release": {
+    "passed": true,
+    "detail": ""
+  },
+  "child buffer is not sorted every frame": {
+    "passed": true,
+    "detail": ""
+  },
+  "density reserves imminent child spawns": {
+    "passed": true,
+    "detail": ""
+  },
+  "boss entries have no density bypass": {
+    "passed": true,
+    "detail": ""
+  },
+  "2x visual budgets lower effects": {
+    "passed": true,
+    "detail": ""
+  },
+  "income flush cadence uses wall time": {
+    "passed": true,
+    "detail": ""
+  },
+  "v80 checkpoint migrates v79 and older data": {
+    "passed": true,
+    "detail": ""
+  },
+  "new service worker cache matches build": {
+    "passed": true,
+    "detail": ""
+  },
+  "index build metadata matches v86": {
+    "passed": true,
+    "detail": ""
+  },
+  "index loads active defense assets": {
+    "passed": true,
+    "detail": ""
+  },
+  "defense css has no important declarations": {
+    "passed": true,
+    "detail": ""
+  },
+  "no uncontrolled defense z-index literals": {
+    "passed": true,
+    "detail": ""
+  },
+  "media query count reduced": {
+    "passed": true,
+    "detail": "count=30"
+  },
+  "important count materially reduced": {
+    "passed": true,
+    "detail": "count=252"
+  },
+  "stylesheet smaller than original": {
+    "passed": true,
+    "detail": "bytes=286417"
+  },
+  "obsolete per-world starting cash removed": {
+    "passed": true,
+    "detail": ""
+  },
+  "phase 5 economy is centralized in core": {
+    "passed": true,
+    "detail": ""
+  },
+  "late economy uses normalized bounty and late deployment growth": {
+    "passed": true,
+    "detail": ""
+  },
+  "all maps share one starting-cash contract": {
+    "passed": true,
+    "detail": ""
+  },
+  "map reward multipliers no longer inflate defense economy": {
+    "passed": true,
+    "detail": ""
+  },
+  "canonical enemy and boss/heavy kill rewards remain defined": {
+    "passed": true,
+    "detail": "count=15 rewards=[12, 14, 24, 20, 32, 36, 38, 44, 30, 56, 62, 180, 180, 180, 190]"
+  },
+  "deployment cost is canonical and not duplicated in runtime": {
+    "passed": true,
+    "detail": ""
+  },
+  "planning refund and undo use centralized wall-time rules": {
+    "passed": true,
+    "detail": ""
+  },
+  "combat economy permissions use phase model with live upgrades": {
+    "passed": true,
+    "detail": ""
+  },
+  "world opening perks are explicit and one-shot": {
+    "passed": true,
+    "detail": ""
+  },
+  "Golden global and active income use capped core functions": {
+    "passed": true,
+    "detail": ""
+  },
+  "v5 checkpoint signature covers opening economy state": {
+    "passed": true,
+    "detail": ""
+  },
+  "bosses reserve a dedicated final packet entrance": {
+    "passed": true,
+    "detail": ""
+  },
+  "obsolete runtime spawn pacing workarounds are removed": {
+    "passed": true,
+    "detail": ""
+  },
+  "phase transitions are explicit and validated": {
+    "passed": true,
+    "detail": ""
+  },
+  "persistent phase HUD shows active and cleared waves separately": {
+    "passed": true,
+    "detail": ""
+  },
+  "context overlays use one manager with inert background": {
+    "passed": true,
+    "detail": ""
+  },
+  "context keyboard handling traps focus and handles Escape": {
+    "passed": true,
+    "detail": ""
+  },
+  "portrait shell has an explicit minmax column contract": {
+    "passed": true,
+    "detail": ""
+  },
+  "short portrait preserves hearts, gold, wave and phase": {
+    "passed": true,
+    "detail": ""
+  },
+  "large cash is compacted only at HUD presentation": {
+    "passed": true,
+    "detail": ""
+  },
+  "boot recovery is inline and survives external runtime failure": {
+    "passed": true,
+    "detail": ""
+  },
+  "automatic install gate is disabled at launch": {
+    "passed": true,
+    "detail": ""
+  },
+  "service worker core runtime is network first": {
+    "passed": true,
+    "detail": ""
+  },
+  "service worker optional shell cannot fail update atomically": {
+    "passed": true,
+    "detail": ""
+  },
+  "service worker converges after complete shell cache": {
+    "passed": true,
+    "detail": ""
+  },
+  "deployment MIME and cache headers are explicit": {
+    "passed": true,
+    "detail": ""
+  },
+  "all active local assets exist": {
+    "passed": true,
+    "detail": "refs=87 missing=[]"
+  },
+  "phase 7 structural world feature layer is canonical": {
+    "passed": true,
+    "detail": ""
+  },
+  "all six worlds define authored terrain feature identities": {
+    "passed": true,
+    "detail": ""
+  },
+  "generic landmark rule no longer flattens authored silhouettes": {
+    "passed": true,
+    "detail": "position:absolute; left:var(--landmark-x); top:var(--landmark-y); translate:-50% -50%; z-index:2; filter:drop-shadow(0 4px 0 rgb(24 25 22 / .28));"
+  },
+  "road fill weight is reduced from legacy width": {
+    "passed": true,
+    "detail": ""
+  },
+  "adaptive gameplay contrast variables exist for all worlds": {
+    "passed": true,
+    "detail": "outline=7 halo=8"
+  },
+  "tower and enemy geometry share bounded world scale": {
+    "passed": true,
+    "detail": ""
+  },
+  "selected tower uses dedicated ground range surface": {
+    "passed": true,
+    "detail": ""
+  },
+  "placement pockets carry world identity classes": {
+    "passed": true,
+    "detail": ""
+  },
+  "route markers are quiet until explicit trace state": {
+    "passed": true,
+    "detail": ""
+  },
+  "development-style world labels are visually removed": {
+    "passed": true,
+    "detail": ""
+  },
+  "tower grounding uses foot shadow and pedestal contracts": {
+    "passed": true,
+    "detail": ""
+  },
+  "phase 7 adds no defense important override debt": {
+    "passed": true,
+    "detail": ""
+  }
+}

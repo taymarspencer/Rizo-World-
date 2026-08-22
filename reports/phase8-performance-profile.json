@@ -1,0 +1,544 @@
+{
+  "environment": "Headless Chromium on the build host; 390x844 CSS viewport; real requestAnimationFrame timing. This is comparative QA, not a physical iPhone benchmark.",
+  "profiles": [
+    {
+      "speed": 1,
+      "durationSeconds": 6.5,
+      "sampleCount": 220,
+      "averageFrameMs": 26.817,
+      "p95FrameMs": 50.0,
+      "worstFrameMs": 200,
+      "estimatedFps": 37.3,
+      "maxActiveEnemies": 9,
+      "densityCap": 9,
+      "maxProjectileNodes": 3,
+      "maxEffectNodes": 4,
+      "enemyNodesCreated": 14,
+      "projectileNodesCreated": 26,
+      "effectNodesCreated": 8,
+      "targetScansPerSecond": 43.08,
+      "targetSnapshotBuildsPerSecond": 7.69,
+      "hudWritesPerSecond": 2.92,
+      "cashWritesPerSecond": 0.0,
+      "enemyPositionWritesPerSecond": 85.38,
+      "projectilePositionWritesPerSecond": 6.62,
+      "visualBudget": {
+        "maxVisibleProjectiles": 16,
+        "maxImpactEffects": 5,
+        "weatherParticleScale": 0.6
+      },
+      "realClock": 5.605600000000035,
+      "simulationClock": 5.605600000000035,
+      "activeDom": {
+        "enemy": 9,
+        "projectile": 0,
+        "effect": 1,
+        "total": 332,
+        "heap": 7651995
+      },
+      "renderTier": 2,
+      "performanceLow": true,
+      "runtimeErrors": []
+    },
+    {
+      "speed": 2,
+      "durationSeconds": 6.5,
+      "sampleCount": 220,
+      "averageFrameMs": 27.044,
+      "p95FrameMs": 50.0,
+      "worstFrameMs": 183.3,
+      "estimatedFps": 37.0,
+      "maxActiveEnemies": 7,
+      "densityCap": 7,
+      "maxProjectileNodes": 3,
+      "maxEffectNodes": 3,
+      "enemyNodesCreated": 14,
+      "projectileNodesCreated": 26,
+      "effectNodesCreated": 8,
+      "targetScansPerSecond": 41.85,
+      "targetSnapshotBuildsPerSecond": 9.54,
+      "hudWritesPerSecond": 3.08,
+      "cashWritesPerSecond": 0.0,
+      "enemyPositionWritesPerSecond": 91.85,
+      "projectilePositionWritesPerSecond": 7.23,
+      "visualBudget": {
+        "maxVisibleProjectiles": 10,
+        "maxImpactEffects": 3,
+        "weatherParticleScale": 0.35
+      },
+      "realClock": 5.833300000000009,
+      "simulationClock": 11.62660000000002,
+      "activeDom": {
+        "enemy": 7,
+        "projectile": 0,
+        "effect": 2,
+        "total": 307,
+        "heap": 7185958
+      },
+      "renderTier": 2,
+      "performanceLow": true,
+      "runtimeErrors": []
+    }
+  ],
+  "incomeScheduler": [
+    {
+      "speed": 1,
+      "realSeconds": 2.2,
+      "simulationSeconds": 2.2,
+      "queuedIncome": 120,
+      "settledIncome": 120,
+      "pendingIncome": 0,
+      "cashWrites": 14,
+      "cashWritesPerSecond": 6.36,
+      "lastBatch": {
+        "amount": 3,
+        "events": 1,
+        "sources": {
+          "qa": 3
+        },
+        "atReal": 2.149999999999998
+      },
+      "runtimeErrors": []
+    },
+    {
+      "speed": 2,
+      "realSeconds": 2.2,
+      "simulationSeconds": 4.4,
+      "queuedIncome": 120,
+      "settledIncome": 120,
+      "pendingIncome": 0,
+      "cashWrites": 14,
+      "cashWritesPerSecond": 6.36,
+      "lastBatch": {
+        "amount": 3,
+        "events": 1,
+        "sources": {
+          "qa": 3
+        },
+        "atReal": 2.149999999999998
+      },
+      "runtimeErrors": []
+    }
+  ],
+  "longSession": {
+    "waves": 50,
+    "baselineDomNodes": 237,
+    "finalDomNodes": 214,
+    "domNodeGrowth": -23,
+    "baselineHeapBytes": 6783120,
+    "finalHeapBytes": 7244035,
+    "heapGrowthBytes": 460915,
+    "enemyNodesCreatedStart": 14,
+    "enemyNodesCreatedEnd": 14,
+    "projectileNodesCreatedStart": 26,
+    "projectileNodesCreatedEnd": 26,
+    "effectNodesCreatedStart": 8,
+    "effectNodesCreatedEnd": 8,
+    "activeEnemyDomAfterClear": 0,
+    "activeProjectileDomAfterClear": 0,
+    "peakDomNodes": 214,
+    "creationSeries": [
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      },
+      {
+        "enemyCreated": 14,
+        "projectileCreated": 26,
+        "effectCreated": 8,
+        "activeEnemies": 0,
+        "projectiles": 0,
+        "dom": 214
+      }
+    ],
+    "runtimeErrors": []
+  }
+}

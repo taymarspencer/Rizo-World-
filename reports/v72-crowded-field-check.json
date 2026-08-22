@@ -1,0 +1,39 @@
+{
+  "captures": [
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "file": "crowded-phone.png",
+      "density": "crowded",
+      "towers": 9,
+      "hiddenLevels": 0,
+      "hiddenMarks": 0,
+      "world": {
+        "w": 358.8125,
+        "h": 401.859375
+      },
+      "scrollW": 390,
+      "innerW": 390
+    },
+    {
+      "viewport": [
+        844,
+        390
+      ],
+      "file": "crowded-landscape.png",
+      "density": "crowded",
+      "towers": 9,
+      "hiddenLevels": 0,
+      "hiddenMarks": 0,
+      "world": {
+        "w": 374.8125,
+        "h": 374.8125
+      },
+      "scrollW": 844,
+      "innerW": 844
+    }
+  ],
+  "runtimeErrors": []
+}

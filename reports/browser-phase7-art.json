@@ -1,0 +1,437 @@
+[
+  {
+    "name": "grove has structural terrain features",
+    "passed": true,
+    "detail": {
+      "mapId": "grove",
+      "featureCount": 3,
+      "featureKinds": [
+        "root",
+        "root",
+        "vine"
+      ],
+      "buildPocketCount": 2,
+      "unitScale": "0.921",
+      "playOutline": "#132019",
+      "playHalo": "rgb(236 255 220 / .18)",
+      "roadFill": "#c1a97a",
+      "visibleLandmarkLabels": 0
+    }
+  },
+  {
+    "name": "grove terrain feature identity is canonical",
+    "passed": true,
+    "detail": [
+      "root",
+      "root",
+      "vine"
+    ]
+  },
+  {
+    "name": "grove hides development landmark labels",
+    "passed": true,
+    "detail": 0
+  },
+  {
+    "name": "grove keeps two environmental build pockets",
+    "passed": true,
+    "detail": 2
+  },
+  {
+    "name": "ember has structural terrain features",
+    "passed": true,
+    "detail": {
+      "mapId": "ember",
+      "featureCount": 3,
+      "featureKinds": [
+        "vent",
+        "vent",
+        "crack"
+      ],
+      "buildPocketCount": 2,
+      "unitScale": "0.921",
+      "playOutline": "#211110",
+      "playHalo": "rgb(255 202 148 / .24)",
+      "roadFill": "#8d7060",
+      "visibleLandmarkLabels": 0
+    }
+  },
+  {
+    "name": "ember terrain feature identity is canonical",
+    "passed": true,
+    "detail": [
+      "vent",
+      "vent",
+      "crack"
+    ]
+  },
+  {
+    "name": "ember hides development landmark labels",
+    "passed": true,
+    "detail": 0
+  },
+  {
+    "name": "ember keeps two environmental build pockets",
+    "passed": true,
+    "detail": 2
+  },
+  {
+    "name": "moon has structural terrain features",
+    "passed": true,
+    "detail": {
+      "mapId": "moon",
+      "featureCount": 3,
+      "featureKinds": [
+        "orbit",
+        "crater",
+        "crater"
+      ],
+      "buildPocketCount": 2,
+      "unitScale": "0.921",
+      "playOutline": "#171523",
+      "playHalo": "rgb(222 211 255 / .32)",
+      "roadFill": "#948ba8",
+      "visibleLandmarkLabels": 0
+    }
+  },
+  {
+    "name": "moon terrain feature identity is canonical",
+    "passed": true,
+    "detail": [
+      "orbit",
+      "crater",
+      "crater"
+    ]
+  },
+  {
+    "name": "moon hides development landmark labels",
+    "passed": true,
+    "detail": 0
+  },
+  {
+    "name": "moon keeps two environmental build pockets",
+    "passed": true,
+    "detail": 2
+  },
+  {
+    "name": "storm has structural terrain features",
+    "passed": true,
+    "detail": {
+      "mapId": "storm",
+      "featureCount": 3,
+      "featureKinds": [
+        "puddle",
+        "puddle",
+        "wind"
+      ],
+      "buildPocketCount": 2,
+      "unitScale": "0.921",
+      "playOutline": "#10252d",
+      "playHalo": "rgb(177 239 255 / .28)",
+      "roadFill": "#74858a",
+      "visibleLandmarkLabels": 0
+    }
+  },
+  {
+    "name": "storm terrain feature identity is canonical",
+    "passed": true,
+    "detail": [
+      "puddle",
+      "puddle",
+      "wind"
+    ]
+  },
+  {
+    "name": "storm hides development landmark labels",
+    "passed": true,
+    "detail": 0
+  },
+  {
+    "name": "storm keeps two environmental build pockets",
+    "passed": true,
+    "detail": 2
+  },
+  {
+    "name": "blizzard has structural terrain features",
+    "passed": true,
+    "detail": {
+      "mapId": "blizzard",
+      "featureCount": 3,
+      "featureKinds": [
+        "bank",
+        "bank",
+        "crack"
+      ],
+      "buildPocketCount": 2,
+      "unitScale": "0.921",
+      "playOutline": "#102a35",
+      "playHalo": "rgb(255 255 255 / .44)",
+      "roadFill": "#b6c8c8",
+      "visibleLandmarkLabels": 0
+    }
+  },
+  {
+    "name": "blizzard terrain feature identity is canonical",
+    "passed": true,
+    "detail": [
+      "bank",
+      "bank",
+      "crack"
+    ]
+  },
+  {
+    "name": "blizzard hides development landmark labels",
+    "passed": true,
+    "detail": 0
+  },
+  {
+    "name": "blizzard keeps two environmental build pockets",
+    "passed": true,
+    "detail": 2
+  },
+  {
+    "name": "eclipse has structural terrain features",
+    "passed": true,
+    "detail": {
+      "mapId": "eclipse",
+      "featureCount": 3,
+      "featureKinds": [
+        "lane",
+        "reveal",
+        "reveal"
+      ],
+      "buildPocketCount": 2,
+      "unitScale": "0.921",
+      "playOutline": "#f7ddff",
+      "playHalo": "rgb(255 112 194 / .32)",
+      "roadFill": "#6f5a73",
+      "visibleLandmarkLabels": 0
+    }
+  },
+  {
+    "name": "eclipse terrain feature identity is canonical",
+    "passed": true,
+    "detail": [
+      "lane",
+      "reveal",
+      "reveal"
+    ]
+  },
+  {
+    "name": "eclipse hides development landmark labels",
+    "passed": true,
+    "detail": 0
+  },
+  {
+    "name": "eclipse keeps two environmental build pockets",
+    "passed": true,
+    "detail": 2
+  },
+  {
+    "name": "world landmarks preserve authored nonuniform silhouettes",
+    "passed": true,
+    "detail": {
+      "grove": {
+        "className": "defense-landmark landmark-pine-grove",
+        "w": 58,
+        "h": 50,
+        "bg": "none",
+        "display": "block"
+      },
+      "ember": {
+        "className": "defense-landmark landmark-lava-crater",
+        "w": 68,
+        "h": 44,
+        "bg": "none",
+        "display": "block"
+      },
+      "moon": {
+        "className": "defense-landmark landmark-moon-basin",
+        "w": 70,
+        "h": 50,
+        "bg": "none",
+        "display": "block"
+      },
+      "storm": {
+        "className": "defense-landmark landmark-storm-pylon",
+        "w": 26,
+        "h": 48,
+        "bg": "none",
+        "display": "block"
+      },
+      "blizzard": {
+        "className": "defense-landmark landmark-ice-shelf",
+        "w": 60,
+        "h": 36,
+        "bg": "none",
+        "display": "block"
+      },
+      "eclipse": {
+        "className": "defense-landmark landmark-eclipse-obelisk",
+        "w": 26,
+        "h": 50,
+        "bg": "none",
+        "display": "block"
+      }
+    }
+  },
+  {
+    "name": "lava crater retains large authored silhouette",
+    "passed": true,
+    "detail": {
+      "className": "defense-landmark landmark-lava-crater",
+      "w": 68,
+      "h": 44,
+      "bg": "none",
+      "display": "block"
+    }
+  },
+  {
+    "name": "moon basin retains large authored silhouette",
+    "passed": true,
+    "detail": {
+      "className": "defense-landmark landmark-moon-basin",
+      "w": 70,
+      "h": 50,
+      "bg": "none",
+      "display": "block"
+    }
+  },
+  {
+    "name": "blizzard shelf is wider than tall",
+    "passed": true,
+    "detail": {
+      "className": "defense-landmark landmark-ice-shelf",
+      "w": 60,
+      "h": 36,
+      "bg": "none",
+      "display": "block"
+    }
+  },
+  {
+    "name": "Blizzard uses a dark gameplay outline",
+    "passed": true,
+    "detail": "#102a35"
+  },
+  {
+    "name": "Eclipse uses a light gameplay outline",
+    "passed": true,
+    "detail": "#f7ddff"
+  },
+  {
+    "name": "world road palettes are structurally distinct",
+    "passed": true,
+    "detail": {
+      "grove": "#c1a97a",
+      "ember": "#8d7060",
+      "moon": "#948ba8",
+      "storm": "#74858a",
+      "blizzard": "#b6c8c8",
+      "eclipse": "#6f5a73"
+    }
+  },
+  {
+    "name": "trail visual weight matches authored v81 road contract",
+    "passed": true,
+    "detail": {
+      "stroke": "rgb(193, 169, 122)",
+      "strokeWidth": 103
+    }
+  },
+  {
+    "name": "route markers stay quiet until trace is requested",
+    "passed": true,
+    "detail": [
+      0,
+      0.55
+    ]
+  },
+  {
+    "name": "selected range uses dedicated soft ground ellipse",
+    "passed": true,
+    "detail": {
+      "rangeOpacity": 1,
+      "rangeBorder": "solid",
+      "towerW": 57.09375,
+      "towerH": 69.984375,
+      "filter": "drop-shadow(rgb(19, 32, 25) 0px 0px 1px) drop-shadow(rgb(158, 255, 117) 0px 0px 8px) drop-shadow(rgba(20, 10, 20, 0.22) 0px 5px 2px)"
+    }
+  },
+  {
+    "name": "tower body stays within bounded world-space contract",
+    "passed": true,
+    "detail": {
+      "rangeOpacity": 1,
+      "rangeBorder": "solid",
+      "towerW": 57.09375,
+      "towerH": 69.984375,
+      "filter": "drop-shadow(rgb(19, 32, 25) 0px 0px 1px) drop-shadow(rgb(158, 255, 117) 0px 0px 8px) drop-shadow(rgba(20, 10, 20, 0.22) 0px 5px 2px)"
+    }
+  },
+  {
+    "name": "placement validity is local instead of tinting the whole battlefield",
+    "passed": true,
+    "detail": {
+      "worldW": 358.8125,
+      "previewW": 43,
+      "previewH": 20.6400146484375,
+      "labelDisplay": "block"
+    }
+  },
+  {
+    "name": "placement release state has a readable local label",
+    "passed": true,
+    "detail": "block"
+  },
+  {
+    "name": "short-phone unit scale respects lower bound",
+    "passed": true,
+    "detail": 0.86
+  },
+  {
+    "name": "tablet unit scale respects upper bound",
+    "passed": true,
+    "detail": 1.16
+  },
+  {
+    "name": "unit scale grows gently across device classes",
+    "passed": true,
+    "detail": [
+      0.86,
+      1.16
+    ]
+  },
+  {
+    "name": "enemy outline adapts between Blizzard and Eclipse",
+    "passed": true,
+    "detail": [
+      {
+        "border": "rgb(16, 42, 53)",
+        "health": "rgb(12, 39, 49)"
+      },
+      {
+        "border": "rgb(247, 221, 255)",
+        "health": "rgb(240, 217, 255)"
+      }
+    ]
+  },
+  {
+    "name": "health-bar edge adapts with world contrast",
+    "passed": true,
+    "detail": [
+      {
+        "border": "rgb(16, 42, 53)",
+        "health": "rgb(12, 39, 49)"
+      },
+      {
+        "border": "rgb(247, 221, 255)",
+        "health": "rgb(240, 217, 255)"
+      }
+    ]
+  },
+  {
+    "name": "phase 7 art browser sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  }
+]

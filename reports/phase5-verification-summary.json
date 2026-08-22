@@ -1,0 +1,59 @@
+{
+  "build": "v70-phase7-battlefield-art",
+  "date": "2026-08-01",
+  "automated": {
+    "core": {
+      "passed": 21,
+      "total": 21
+    },
+    "static": {
+      "passed": 46,
+      "total": 46
+    },
+    "browserIntegration": {
+      "passed": 70,
+      "total": 70
+    },
+    "surface": {
+      "passed": 76,
+      "total": 76
+    },
+    "total": {
+      "passed": 213,
+      "total": 213
+    }
+  },
+  "screenshots": {
+    "passed": 10,
+    "total": 10,
+    "runtimeErrors": 0,
+    "contactSheet": "reports/screenshots/Rizo-Defense-v68-phase5-contact-sheet.jpg"
+  },
+  "performance": {
+    "environment": "Headless Chromium on the build host; 390x844 CSS viewport; real requestAnimationFrame timing. This is comparative QA, not a physical iPhone benchmark.",
+    "oneX": {
+      "averageFrameMs": 16.666,
+      "worstFrameMs": 16.8,
+      "maxActiveEnemies": 13,
+      "densityCap": 14,
+      "targetScansPerSecond": 60.31,
+      "hudWritesPerSecond": 3.69
+    },
+    "twoX": {
+      "averageFrameMs": 16.666,
+      "worstFrameMs": 16.8,
+      "maxActiveEnemies": 9,
+      "densityCap": 9,
+      "targetScansPerSecond": 60.46,
+      "hudWritesPerSecond": 4.46
+    },
+    "incomeWritesPerSecond1x": 5.91,
+    "incomeWritesPerSecond2x": 5.91,
+    "longSessionDomGrowth": -23,
+    "longSessionHeapGrowthBytes": 378046
+  },
+  "limitations": [
+    "Physical iOS Safari performance/touch behavior not verified",
+    "Late-run kill-income curve remains explicitly tunable"
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "build": "v76-defense-rhythm-engine",
+  "basis": "BTD5 -> Rizo Defense Design Translation (user-supplied research; principles translated, no copyrighted game content copied)",
+  "checks": {
+    "core": {
+      "passed": 27,
+      "total": 27
+    },
+    "serviceWorker": {
+      "passed": 4,
+      "total": 4
+    },
+    "staticArchitecture": {
+      "passed": 80,
+      "total": 80
+    },
+    "launchRecovery": {
+      "passed": 5,
+      "total": 5
+    },
+    "arcadeBehavior": {
+      "passed": 17,
+      "total": 17
+    },
+    "arcadeSurfaces": {
+      "passed": 66,
+      "total": 66
+    },
+    "defenseIntegration": {
+      "passed": 77,
+      "total": 77
+    },
+    "defenseSurfaces": {
+      "passed": 76,
+      "total": 76
+    },
+    "battlefieldArt": {
+      "passed": 43,
+      "total": 43
+    },
+    "cinematicExploit": {
+      "passed": 17,
+      "total": 17
+    },
+    "routeFidelity": {
+      "passed": 19,
+      "total": 19
+    },
+    "rhythmEngine": {
+      "passed": 14,
+      "total": 14
+    },
+    "aggregate": {
+      "passed": 445,
+      "total": 445
+    }
+  },
+  "profile": {
+    "environment": "Headless Chromium, 390x844 CSS viewport; comparative QA only",
+    "oneX": {
+      "averageFrameMs": 16.666,
+      "p95FrameMs": 16.7,
+      "worstFrameMs": 16.8,
+      "estimatedFps": 60.0
+    },
+    "twoX": {
+      "averageFrameMs": 16.666,
+      "p95FrameMs": 16.78,
+      "worstFrameMs": 16.8,
+      "estimatedFps": 60.0
+    },
+    "longSessionDomGrowth": -23,
+    "longSessionHeapGrowthBytes": -2033843,
+    "denseStressPresentation": "Cosmetic tier 2 at 13\u201314 active enemies, 60 fps presentation target while measured governor remained healthy; measured hard-low tier targets 30 fps."
+  },
+  "physicalDeviceGate": "Still requires user testing on real iPhone with Low Power Mode and/or screen sharing for subjective smoothness and thermal behavior."
+}

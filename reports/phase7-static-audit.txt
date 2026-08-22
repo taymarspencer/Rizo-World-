@@ -1,0 +1,60 @@
+PASS production QA uses a single gated namespace 
+PASS legacy QA namespaces are not assigned 
+PASS no direct QA helper globals 
+PASS currentWave and clearedWave state exist 
+PASS whole-save envelope is signed 
+PASS verified save backup recovery exists 
+PASS invalid checkpoints fail closed 
+PASS checkpoint canonicalization rejects unknown pet ids 
+PASS completion verifies full resolution 
+PASS child queue blocks completion 
+PASS rewards calculate from clearedWave 
+PASS zero-clear runs cannot advance mastery 
+PASS run outcomes are explicit 
+PASS history migration preserves reached wave 
+PASS golden bonus only has one implementation 
+PASS 2x density uses centralized core 
+PASS explicit upgrade costs are active 
+PASS simulation and control clocks are separated 
+PASS target refresh uses wall time and cached references 
+PASS split children use paced wall-time release 
+PASS child buffer is not sorted every frame 
+PASS density reserves imminent child spawns 
+PASS boss entries have no density bypass 
+PASS 2x visual budgets lower effects 
+PASS income flush cadence uses wall time 
+PASS v68 checkpoint migrates v67 data 
+PASS new service worker cache matches build 
+PASS index build metadata matches phase 6 
+PASS index loads active defense assets 
+PASS defense css has no important declarations 
+PASS no uncontrolled defense z-index literals 
+PASS media query count reduced count=26
+PASS important count materially reduced count=249
+PASS stylesheet smaller than original bytes=260976
+PASS obsolete per-world starting cash removed 
+PASS phase 5 economy is centralized in core 
+PASS all maps share one starting-cash contract 
+PASS map reward multipliers no longer inflate defense economy 
+PASS canonical enemy and boss kill rewards remain defined count=13 rewards=[12, 14, 24, 20, 32, 36, 38, 44, 30, 130, 130, 130, 130]
+PASS deployment cost is canonical and not duplicated in runtime 
+PASS planning refund and undo use centralized wall-time rules 
+PASS combat economy permissions use phase model 
+PASS world opening perks are explicit and one-shot 
+PASS Golden global and active income use capped core functions 
+PASS v5 checkpoint signature covers opening economy state 
+PASS phase transitions are explicit and validated 
+PASS persistent phase HUD shows active and cleared waves separately 
+PASS context overlays use one manager with inert background 
+PASS context keyboard handling traps focus and handles Escape 
+PASS portrait shell has an explicit minmax column contract 
+PASS short portrait preserves hearts, cash, wave and phase 
+PASS large cash is compacted only at HUD presentation 
+PASS boot recovery detects mixed or incomplete runtime 
+PASS automatic install gate is disabled at launch 
+PASS service worker core runtime is network first 
+PASS service worker optional shell cannot fail update atomically 
+PASS deployment MIME and cache headers are explicit 
+PASS all active local assets exist refs=87 missing=[]
+
+58/58 static checks passed

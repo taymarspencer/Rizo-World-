@@ -1,0 +1,205 @@
+[
+  {
+    "name": "grove road is generated from canonical gameplay route",
+    "passed": true,
+    "detail": {
+      "road": "M-60 210 L-49 208 L-37 207 L-26 204 L-14 202 L-3 199 L9 196 L20 194 L32 191 L43 ",
+      "canonical": "M-60 210 L-49 208 L-37 207 L-26 204 L-14 202 L-3 199 L9 196 L20 194 L32 191 L43 "
+    }
+  },
+  {
+    "name": "grove balloon body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "maxErrorPx": 0.233,
+      "samples": [
+        0.233,
+        0.233,
+        0.169,
+        0.205,
+        0.182
+      ]
+    }
+  },
+  {
+    "name": "grove boss body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "errorPx": 0.273,
+      "rect": {
+        "w": 58.93748474121094,
+        "h": 77.359375
+      }
+    }
+  },
+  {
+    "name": "ember road is generated from canonical gameplay route",
+    "passed": true,
+    "detail": {
+      "road": "M-60 720 L-47 720 L-33 721 L-20 722 L-6 723 L8 724 L22 725 L36 726 L49 727 L63 7",
+      "canonical": "M-60 720 L-47 720 L-33 721 L-20 722 L-6 723 L8 724 L22 725 L36 726 L49 727 L63 7"
+    }
+  },
+  {
+    "name": "ember balloon body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "maxErrorPx": 0.229,
+      "samples": [
+        0.162,
+        0.185,
+        0.229,
+        0.192,
+        0.161
+      ]
+    }
+  },
+  {
+    "name": "ember boss body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "errorPx": 0.669,
+      "rect": {
+        "w": 58.9375,
+        "h": 77.359375
+      }
+    }
+  },
+  {
+    "name": "moon road is generated from canonical gameplay route",
+    "passed": true,
+    "detail": {
+      "road": "M-60 250 L-47 242 L-34 234 L-21 225 L-8 216 L5 207 L18 198 L31 188 L44 179 L57 1",
+      "canonical": "M-60 250 L-47 242 L-34 234 L-21 225 L-8 216 L5 207 L18 198 L31 188 L44 179 L57 1"
+    }
+  },
+  {
+    "name": "moon balloon body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "maxErrorPx": 0.237,
+      "samples": [
+        0.2,
+        0.192,
+        0.206,
+        0.237,
+        0.184
+      ]
+    }
+  },
+  {
+    "name": "moon boss body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "errorPx": 0.648,
+      "rect": {
+        "w": 58.9375,
+        "h": 77.359375
+      }
+    }
+  },
+  {
+    "name": "storm road is generated from canonical gameplay route",
+    "passed": true,
+    "detail": {
+      "road": "M-60 560 L-49 570 L-38 581 L-27 593 L-16 604 L-5 616 L6 628 L17 640 L28 652 L39 ",
+      "canonical": "M-60 560 L-49 570 L-38 581 L-27 593 L-16 604 L-5 616 L6 628 L17 640 L28 652 L39 "
+    }
+  },
+  {
+    "name": "storm balloon body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "maxErrorPx": 0.201,
+      "samples": [
+        0.168,
+        0.158,
+        0.201,
+        0.156,
+        0.199
+      ]
+    }
+  },
+  {
+    "name": "storm boss body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "errorPx": 1.121,
+      "rect": {
+        "w": 58.9375,
+        "h": 77.359375
+      }
+    }
+  },
+  {
+    "name": "blizzard road is generated from canonical gameplay route",
+    "passed": true,
+    "detail": {
+      "road": "M-60 750 L-47 745 L-34 741 L-21 736 L-7 732 L6 728 L20 724 L33 720 L47 716 L60 7",
+      "canonical": "M-60 750 L-47 745 L-34 741 L-21 736 L-7 732 L6 728 L20 724 L33 720 L47 716 L60 7"
+    }
+  },
+  {
+    "name": "blizzard balloon body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "maxErrorPx": 0.236,
+      "samples": [
+        0.155,
+        0.173,
+        0.186,
+        0.236,
+        0.215
+      ]
+    }
+  },
+  {
+    "name": "blizzard boss body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "errorPx": 0.627,
+      "rect": {
+        "w": 58.9375,
+        "h": 77.359375
+      }
+    }
+  },
+  {
+    "name": "eclipse road is generated from canonical gameplay route",
+    "passed": true,
+    "detail": {
+      "road": "M-60 200 L-46 200 L-32 199 L-18 198 L-3 197 L11 196 L26 194 L40 193 L54 192 L69 ",
+      "canonical": "M-60 200 L-46 200 L-32 199 L-18 198 L-3 197 L11 196 L26 194 L40 193 L54 192 L69 "
+    }
+  },
+  {
+    "name": "eclipse balloon body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "maxErrorPx": 0.237,
+      "samples": [
+        0.158,
+        0.217,
+        0.183,
+        0.16,
+        0.237
+      ]
+    }
+  },
+  {
+    "name": "eclipse boss body stays centered on trail",
+    "passed": true,
+    "detail": {
+      "errorPx": 0.623,
+      "rect": {
+        "w": 58.93751525878906,
+        "h": 77.359375
+      }
+    }
+  },
+  {
+    "name": "route fidelity suite has no runtime errors",
+    "passed": true,
+    "detail": []
+  }
+]

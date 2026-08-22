@@ -1,0 +1,72 @@
+[
+  {
+    "name": "01-grove-placement",
+    "viewport": "390x844",
+    "map": "grove",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/01-grove-placement.png"
+  },
+  {
+    "name": "02-ember-structure",
+    "viewport": "390x844",
+    "map": "ember",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/02-ember-structure.png"
+  },
+  {
+    "name": "03-moon-structure",
+    "viewport": "390x844",
+    "map": "moon",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/03-moon-structure.png"
+  },
+  {
+    "name": "04-storm-landscape",
+    "viewport": "844x390",
+    "map": "storm",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/04-storm-landscape.png"
+  },
+  {
+    "name": "05-blizzard-contrast",
+    "viewport": "390x844",
+    "map": "blizzard",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/05-blizzard-contrast.png"
+  },
+  {
+    "name": "06-eclipse-contrast",
+    "viewport": "390x844",
+    "map": "eclipse",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/06-eclipse-contrast.png"
+  },
+  {
+    "name": "07-selected-range",
+    "viewport": "430x932",
+    "map": "moon",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/07-selected-range.png"
+  },
+  {
+    "name": "08-route-trace",
+    "viewport": "390x844",
+    "map": "storm",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/08-route-trace.png"
+  },
+  {
+    "name": "09-tablet-world",
+    "viewport": "768x1024",
+    "map": "grove",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/09-tablet-world.png"
+  },
+  {
+    "name": "10-phone-short",
+    "viewport": "320x568",
+    "map": "ember",
+    "errors": [],
+    "file": "reports/screenshots/v70-phase7/10-phone-short.png"
+  }
+]

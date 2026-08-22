@@ -1,0 +1,38 @@
+{
+  "build": "v73-launch-recovery",
+  "reason": "Fix residual Safari/PWA blank-screen recovery hole where the recovery watchdog itself depended on external JavaScript.",
+  "executed": {
+    "core": {
+      "passed": 25,
+      "total": 25
+    },
+    "serviceWorkerPolicy": {
+      "passed": 4,
+      "total": 4
+    },
+    "staticArchitecture": {
+      "passed": 74,
+      "total": 74
+    },
+    "launchRecovery": {
+      "passed": 5,
+      "total": 5
+    },
+    "viewportSurfaces": {
+      "passed": 76,
+      "total": 76
+    },
+    "cinematicExploit": {
+      "passed": 17,
+      "total": 17
+    },
+    "integrationPartial": {
+      "passedBeforeTimeout": 36,
+      "failed": 0,
+      "totalSuite": 77
+    }
+  },
+  "physicalIOS": "unable-to-verify-in-container",
+  "saveFormatChanged": false,
+  "gameplayBalanceChanged": false
+}

@@ -1,0 +1,11 @@
+01-wave-start 320x568 errors=0 reports/screenshots/v71-phase8/01-wave-start.png
+02-boss-entrance 390x844 errors=0 reports/screenshots/v71-phase8/02-boss-entrance.png
+03-gate-danger 390x844 errors=0 reports/screenshots/v71-phase8/03-gate-danger.png
+04-perfect-wave 430x932 errors=0 reports/screenshots/v71-phase8/04-perfect-wave.png
+05-packet-arrival 390x844 errors=0 reports/screenshots/v71-phase8/05-packet-arrival.png
+06-upgrade-unlock 390x844 errors=0 reports/screenshots/v71-phase8/06-upgrade-unlock.png
+07-landscape-boss 844x390 errors=0 reports/screenshots/v71-phase8/07-landscape-boss.png
+08-tablet-perfect 768x1024 errors=0 reports/screenshots/v71-phase8/08-tablet-perfect.png
+09-bank-success 390x844 errors=0 reports/screenshots/v71-phase8/09-bank-success.png
+10-final-defeat 390x844 errors=0 reports/screenshots/v71-phase8/10-final-defeat.png
+CONTACT reports/screenshots/v71-phase8/Rizo-Defense-v71-phase8-contact-sheet.jpg
