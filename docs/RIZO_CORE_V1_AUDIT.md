@@ -59,7 +59,9 @@ The executable suite covers:
 - hydration without immediate echo-save
 - normalized content-pack merging
 
-Local adversarial execution after fixes: all tested cases pass.
+Local adversarial execution after fixes passed all tested cases.
+
+GitHub Actions then checked out the draft PR merge commit on a clean Ubuntu runner with Node 22 and executed the repository test file. Result: **23/23 tests passed**, workflow conclusion `success`.
 
 ## Remaining limitations before real save migration
 
@@ -73,4 +75,4 @@ These are not blockers for keeping the skeleton branch, but should be addressed 
 
 ## Current recommendation
 
-Keep `rizo-core-v1` isolated until CI passes. Then use Defense as the first migration consumer in this order: abilities, enemies, towers, upgrades, waves, rewards/state, game lifecycle, renderer/performance cleanup.
+Keep `rizo-core-v1` isolated until the first Defense migration seam is ready. The draft PR is a review/test surface, not permission to merge blindly. Use Defense as the first migration consumer in this order: abilities, enemies, towers, upgrades, waves, rewards/state, game lifecycle, renderer/performance cleanup.
