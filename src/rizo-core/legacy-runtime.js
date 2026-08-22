@@ -2,11 +2,16 @@ function splitPath(path) {
   return String(path || "").split(".").map(part => part.trim()).filter(Boolean);
 }
 
+function safeProperty(object, key) {
+  try { return object?.[key]; }
+  catch { return null; }
+}
+
 function getPath(root, path) {
   let value = root;
   for (const key of splitPath(path)) {
     if (value == null) return undefined;
-    value = value[key];
+    value = safeProperty(value, key);
   }
   return value;
 }
@@ -17,17 +22,17 @@ function getCallable(root, path) {
   let owner = root;
   for (const key of parts) {
     if (owner == null) return { owner: null, fn: null };
-    owner = owner[key];
+    owner = safeProperty(owner, key);
   }
-  const fn = owner?.[method];
+  const fn = safeProperty(owner, method);
   return { owner, fn: typeof fn === "function" ? fn : null };
 }
 
 export class LegacyRuntimeAdapter {
-  constructor({ globalObject = globalThis, documentObject = globalObject?.document, storage = globalObject?.localStorage } = {}) {
+  constructor({ globalObject = globalThis, documentObject, storage } = {}) {
     this.globalObject = globalObject;
-    this.documentObject = documentObject;
-    this.storage = storage;
+    this.documentObject = documentObject === undefined ? safeProperty(globalObject, "document") : documentObject;
+    this.storage = storage === undefined ? safeProperty(globalObject, "localStorage") : storage;
   }
 
   resolve(definition) {
@@ -43,7 +48,9 @@ export class LegacyRuntimeAdapter {
       case "dom-click":
         return this.documentObject?.querySelector?.(binding.selector) || null;
       case "local-storage": {
-        const raw = this.storage?.getItem?.(binding.key);
+        let raw = null;
+        try { raw = this.storage?.getItem?.(binding.key); }
+        catch { return null; }
         if (raw == null || binding.parse !== "json") return raw ?? null;
         try { return JSON.parse(raw); }
         catch { return null; }
