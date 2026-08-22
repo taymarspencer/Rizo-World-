@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Rizo Core v1 self-test</title>
+<pre id="output">Running…</pre>
+<script type="module">
+  import { createRizoCore } from "../src/rizo-core/core.js";
+  import { createInitialPlayerState } from "../src/rizo-core/state-store.js";
+
+  const lines = [];
+  const test = (name, fn) => {
+    try {
+      fn();
+      lines.push(`PASS  ${name}`);
+    } catch (error) {
+      lines.push(`FAIL  ${name}\n      ${error.message}`);
+    }
+  };
+  const expect = (condition, message) => {
+    if (!condition) throw new Error(message);
+  };
+
+  const content = {
+    abilities: [
+      { id: "ability.ember_shot", name: "Ember Shot", tags: ["Fire", "Ranged"], damage: 8 },
+      { id: "ability.slam", name: "Slam", tags: ["heavy"], damage: 14 }
+    ],
+    rizos: [
+      { id: "rizo.scout", name: "Scout", tags: ["starter"], abilityIds: ["ability.ember_shot"] }
+    ],
+    items: [
+      { id: "item.bat_hoodie", name: "Bat Hoodie", tags: ["halloween", "wearable"], rarity: 3 }
+    ]
+  };
+
+  const refs = [
+    { from: "rizos", field: "abilityIds", to: "abilities", many: true }
+  ];
+
+  const core = createRizoCore({ content, referenceRules: refs, initialState: createInitialPlayerState() });
+
+  test("lookup by stable ID", () => {
+    expect(core.registry.get("abilities", "ability.ember_shot").damage === 8, "lookup returned wrong definition");
+  });
+
+  test("tags normalize and filter", () => {
+    expect(core.select.byTag("abilities", "FIRE").count() === 1, "tag filtering failed");
+  });
+
+  test("chainable query sorts", () => {
+    const first = core.select.query("abilities").sort("damage", "desc").first();
+    expect(first.id === "ability.slam", "descending numeric sort failed");
+  });
+
+  test("player state updates without content duplication", () => {
+    core.state.update(state => state.player.ownedRizos.push("rizo.scout"));
+    expect(core.state.get().player.ownedRizos[0] === "rizo.scout", "state update failed");
+  });
+
+  test("duplicate IDs fail", () => {
+    let failed = false;
+    try {
+      createRizoCore({ content: { items: [{ id: "item.same" }, { id: "item.same" }] } });
+    } catch {
+      failed = true;
+    }
+    expect(failed, "duplicate IDs were accepted");
+  });
+
+  test("missing references fail", () => {
+    let failed = false;
+    try {
+      createRizoCore({
+        content: { rizos: [{ id: "rizo.bad", abilityIds: ["ability.missing"] }], abilities: [] },
+        referenceRules: refs
+      });
+    } catch {
+      failed = true;
+    }
+    expect(failed, "missing references were accepted");
+  });
+
+  document.querySelector("#output").textContent = lines.join("\n");
+</script>
