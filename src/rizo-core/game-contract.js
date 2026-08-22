@@ -33,7 +33,9 @@ export function createGameContext({ core, gameId, services = {} }) {
     },
 
     updatePlayer(updater, meta = {}) {
+      if (typeof updater !== "function") throw new TypeError("Player updater must be a function.");
       return core.state.update(state => {
+        state.player = state.player || {};
         updater(state.player, state);
         state.meta = state.meta || {};
         state.meta.updatedAt = Date.now();
@@ -41,6 +43,7 @@ export function createGameContext({ core, gameId, services = {} }) {
     },
 
     updateGameState(updater, meta = {}) {
+      if (typeof updater !== "function") throw new TypeError("Game state updater must be a function.");
       return core.state.update(state => {
         state.games = state.games || {};
         state.games[gameId] = state.games[gameId] || {};
@@ -70,7 +73,22 @@ export class GameHost {
       services: this.services
     });
 
-    await gameModule.initialize(context, mountPoint);
+    try {
+      await gameModule.initialize(context, mountPoint);
+    } catch (initializeError) {
+      // initialize() may have already attached listeners/canvas/resources before failing.
+      // The contract therefore requires destroy() to be safe after partial setup.
+      try {
+        await gameModule.destroy();
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [initializeError, cleanupError],
+          `${gameId} failed to initialize and cleanup also failed.`
+        );
+      }
+      throw initializeError;
+    }
+
     this.active = { gameId, gameModule, context, mountPoint };
     return this.active;
   }
