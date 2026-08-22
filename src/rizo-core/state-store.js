@@ -2,6 +2,10 @@ function clone(value) {
   return value == null ? value : structuredClone(value);
 }
 
+function isStateObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function assertVersion(version) {
   if (!Number.isInteger(version) || version < 1) {
     throw new Error(`Invalid state version: ${version}`);
@@ -20,7 +24,11 @@ export class StateStore {
   }
 
   _normalize(input) {
-    const source = clone(input) || {};
+    if (!isStateObject(input)) {
+      throw new TypeError("Rizo Core state must be a plain object.");
+    }
+
+    const source = clone(input);
     const sourceVersion = Number.isInteger(source.version) ? source.version : 1;
     let state = { ...source, version: sourceVersion };
 
@@ -35,8 +43,8 @@ export class StateStore {
       }
 
       const next = migrate(clone(state));
-      if (!next || typeof next !== "object") {
-        throw new Error(`Migration from v${state.version} did not return an object.`);
+      if (!isStateObject(next)) {
+        throw new Error(`Migration from v${state.version} did not return a state object.`);
       }
 
       state = { ...next, version: state.version + 1 };
@@ -60,8 +68,13 @@ export class StateStore {
     if (typeof updater !== "function") throw new TypeError("State updater must be a function.");
     const previous = this.get();
     const draft = this.get();
-    const result = updater(draft);
-    this._state = this._normalize(result === undefined ? draft : result);
+
+    // update() is deliberately mutation-style. Its return value is ignored so common
+    // expressions such as array.push(), Map-like helpers, or assignment expressions
+    // cannot accidentally replace the entire state. Use replace() for replacement.
+    updater(draft);
+
+    this._state = this._normalize(draft);
     this._emit(previous, meta);
     return this.get();
   }
@@ -90,6 +103,7 @@ export class StateStore {
 }
 
 export function createInitialPlayerState() {
+  const now = Date.now();
   return {
     version: 1,
     player: {
@@ -101,8 +115,8 @@ export function createInitialPlayerState() {
     },
     games: {},
     meta: {
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+      createdAt: now,
+      updatedAt: now
     }
   };
 }
