@@ -4,7 +4,7 @@ Date: 2026-08-22
 
 ## Scope
 
-Audited and executed the Rizo Core v1 infrastructure before any runtime integration with `index.html` or Defense.
+Audited and executed the Rizo Core / Rizo World infrastructure before merging it into `main`. The branch now includes both the original data-driven Core and a coexistence bridge that can reference the current v86 runtime without forcing a rewrite.
 
 ## Release-blocking defect found and fixed
 
@@ -20,7 +20,7 @@ returns the new array length (`1`). The store then normalized that primitive and
 
 `update()` is now deliberately mutation-style and ignores callback return values. Full replacement must use `replace()`.
 
-## Additional defects found and fixed
+## Additional Core defects found and fixed
 
 1. Content category keys were normalized inside the registry but not before Core assembled categories, so `Items` could collide with the built-in `items` category.
 2. `services.events` could shadow the authoritative Core event bus and split communication into two buses.
@@ -30,49 +30,55 @@ returns the new array length (`1`). The store then normalized that primitive and
 6. Hydrating persisted state could immediately schedule an unnecessary echo-save of the same payload.
 7. Primitive state replacement is now rejected instead of silently degrading to a minimal version object.
 
+## Coexistence architecture added
+
+The architecture no longer assumes existing gameplay must be migrated into new files before it can participate in Rizo World.
+
+- Definitions can declare a source (`native` or `legacy`).
+- Stable aliases resolve to one canonical ID.
+- Alias/canonical collisions are rejected.
+- A source resolver hides implementation location from callers.
+- The legacy adapter can safely reference existing globals, DOM launch controls, and localStorage values.
+- Blocked/throwing browser storage access is treated as unavailable rather than crashing the bridge.
+- Existing code can later be replaced by a native implementation behind the same stable ID.
+
+## Existing runtime now indexed through public seams
+
+All eleven current `data-minigame` launch modes have canonical game IDs and legacy bindings. Examples:
+
+- `defense` -> `game.defense`
+- `pacman` / `maze` -> `game.rizo_runaway`
+- `flappy` / `glide` -> `game.skybound`
+- `emberrun` / `rush` -> `game.rizo_courier`
+
+Existing public runtime systems are also addressable through stable system IDs, including Defense Core, ads, cloud, launch config, boot recovery, runtime build marker, and the existing player-save record.
+
+Private variables buried inside the monolithic legacy IIFE are intentionally **not** fake-indexed. They remain legacy implementation details until a real public seam or a gameplay-driven replacement is introduced.
+
+## Runtime boot integration
+
+`rizo-config.js` now starts the World bridge at `DOMContentLoaded`, after the existing synchronous runtime scripts execute. The import is non-fatal: if the bridge fails, the legacy runtime remains playable and logs a warning.
+
+The service worker cache was versioned to `rizo-game-v86-rizo-world-core-v1` and the entire World/Core/content import graph was added to the required offline shell. This prevents online and installed/offline sessions from silently running different architectural layers.
+
 ## Executed tests
 
-The executable suite covers:
+Core suite covers registry/reference validation, selectors, state mutation and migrations, events, game lifecycle, persistence ordering/recovery, and content-pack merging.
 
-- stable ID lookup
-- category normalization
-- caller-owned content isolation
-- duplicate ID rejection
-- ID format rejection
-- broken cross-reference rejection
-- tag normalization/filtering
-- any/all tag queries
-- search/sort/clone/limit query behavior
-- Array.push-safe state updates
-- defensive state cloning
-- chained state migrations
-- future-version rejection
-- primitive-state rejection
-- event bus on/off/once behavior
-- authoritative event bus injection
-- full game lifecycle
-- cleanup after initialization failure
-- player/per-game context updates
-- ordered persistence writes
-- final flush on destroy
-- recovery after a transient save failure
-- hydration without immediate echo-save
-- normalized content-pack merging
+World bridge suite covers canonical aliases, alias collision rejection, all eleven current arcade launch bindings, public runtime-system resolution, existing save referencing, legacy availability/error handling, and native+legacy coexistence.
 
-Local adversarial execution after fixes passed all tested cases.
+Static/offline suite validates DOM-ready bootstrap wiring, cache versioning, inclusion of the actual module import graph in the service-worker shell, and existence of cached module files.
 
-GitHub Actions then checked out the draft PR merge commit on a clean Ubuntu runner with Node 22 and executed the repository test file. Result: **23/23 tests passed**, workflow conclusion `success`.
+CI is the source of truth for the final branch head. Do not merge if the latest workflow is not green.
 
-## Remaining limitations before real save migration
+## Remaining boundaries (not migration chores)
 
-These are not blockers for keeping the skeleton branch, but should be addressed before real player saves become dependent on Core:
+- Core-owned player state still needs a domain schema before real saves depend on it.
+- Event listeners are synchronous; one throwing listener can interrupt later listeners.
+- Native GameHost does not yet require the game ID to exist in the registry, which keeps legacy/prototype work flexible.
+- Most canonical content arrays other than games/systems remain intentionally empty because the current monolithic runtime does not expose those private definitions publicly.
+- Browser/device gameplay still needs a preview smoke test before production merge; Node/CI proves contracts and wiring, not visual interaction or device performance.
 
-- Player-state shape is not yet schema-validated beyond being an object and carrying a supported version.
-- Event listeners are synchronous; a throwing listener can interrupt later listeners.
-- Game IDs are not yet required to exist in the `games` registry, which is useful for legacy migration but should eventually become stricter.
-- The content arrays are intentionally mostly empty. Real Defense data has not been migrated yet.
-- Rizo Core is not loaded by the current runtime, so this audit tests infrastructure behavior, not game integration.
+## Recommendation
 
-## Current recommendation
-
-Keep `rizo-core-v1` isolated until the first Defense migration seam is ready. The draft PR is a review/test surface, not permission to merge blindly. Use Defense as the first migration consumer in this order: abilities, enemies, towers, upgrades, waves, rewards/state, game lifecycle, renderer/performance cleanup.
+Do not perform a bulk migration. Keep the stable World layer as the shared language. Existing working behavior remains legacy behind references; anything new or meaningfully rebuilt enters as native content behind stable IDs. Defense can now be worked on directly without paying a separate architecture-transition cost first.
