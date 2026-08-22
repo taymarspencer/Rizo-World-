@@ -27,6 +27,6 @@ export const EVENTS = [
     source: "legacy",
     rewardIds: ["reward.embers", "reward.prism_shards", "reward.heat"],
     tags: ["season", "progression", "endless"],
-    binding: { kind: "global-value", path: "RizoLegacyRuntime.systems.season" }
+    implementation: "private-legacy-flow"
   }
 ];
