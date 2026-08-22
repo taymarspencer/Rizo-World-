@@ -1,4 +1,3 @@
-
 /**
  * RIZO.GAME LAUNCH CONFIG
  * =======================
@@ -65,3 +64,19 @@ window.RIZO_CONFIG = Object.freeze({
   }
 });
 
+// Rizo World is intentionally loaded *after* the existing non-module runtime has finished.
+// This lets the new world/index layer reference today's globals and DOM controls without
+// forcing the old game to move first. A bridge failure is non-fatal to the legacy build.
+(() => {
+  let started = false;
+  const startWorld = () => {
+    if (started) return;
+    started = true;
+    import("./src/rizo-world/bootstrap.js").catch(error => {
+      console.warn("Rizo World bridge did not start; legacy runtime remains available.", error);
+    });
+  };
+
+  if (document.readyState === "complete") queueMicrotask(startWorld);
+  else window.addEventListener("load", startWorld, { once: true });
+})();
