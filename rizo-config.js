@@ -64,9 +64,9 @@ window.RIZO_CONFIG = Object.freeze({
   }
 });
 
-// Rizo World is intentionally loaded *after* the existing non-module runtime has finished.
-// This lets the new world/index layer reference today's globals and DOM controls without
-// forcing the old game to move first. A bridge failure is non-fatal to the legacy build.
+// The new World layer waits for DOMContentLoaded because this file is parsed before the
+// existing runtime scripts. That guarantees the legacy scripts have executed, but does not
+// delay the bridge until every image/font finishes loading. Bridge failure stays non-fatal.
 (() => {
   let started = false;
   const startWorld = () => {
@@ -77,6 +77,9 @@ window.RIZO_CONFIG = Object.freeze({
     });
   };
 
-  if (document.readyState === "complete") queueMicrotask(startWorld);
-  else window.addEventListener("load", startWorld, { once: true });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startWorld, { once: true });
+  } else {
+    queueMicrotask(startWorld);
+  }
 })();
