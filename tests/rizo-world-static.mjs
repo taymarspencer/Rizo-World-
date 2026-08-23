@@ -34,16 +34,25 @@ async function collectModuleGraph(entry, seen = new Set()) {
   return seen;
 }
 
-await test("rizo-config boots World at DOM ready and keeps failure non-fatal", async () => {
+await test("rizo-config boots World and Defense onboarding at DOM ready without making either fatal", async () => {
   const config = await read("rizo-config.js");
   assert.match(config, /DOMContentLoaded/);
   assert.match(config, /import\("\.\/src\/rizo-world\/bootstrap\.js"\)/);
-  assert.match(config, /\.catch\(/);
+  assert.match(config, /import\("\.\/defense-onboarding-v1\.js"\)/);
+  assert.ok((config.match(/\.catch\(/g) || []).length >= 2, "World and onboarding imports must fail independently");
 });
 
-await test("service worker cache version changed for the World foundation", async () => {
+await test("service worker cache version changed for Phase 1 onboarding", async () => {
   const sw = await read("sw.js");
-  assert.match(sw, /const CACHE = "rizo-game-v86-world-organizer"/);
+  assert.match(sw, /const CACHE = "rizo-game-v86-world-organizer-p1"/);
+});
+
+await test("Defense onboarding is a required offline runtime dependency", async () => {
+  const [sw, onboarding] = await Promise.all([read("sw.js"), read("defense-onboarding-v1.js")]);
+  assert.match(sw, /"\.\/defense-onboarding-v1\.js"/);
+  assert.match(onboarding, /rizo-defense-first-120-v1/);
+  assert.match(onboarding, /data-defense-roster-id/);
+  assert.match(onboarding, /data-defense-upgrade/);
 });
 
 await test("page, runtime, and service worker share one build identity", async () => {
@@ -90,6 +99,7 @@ await test("script and World boot order preserves the active runtime", async () 
   const config = await read("rizo-config.js");
   assert.match(config, /DOMContentLoaded/);
   assert.match(config, /src\/rizo-world\/bootstrap\.js/);
+  assert.match(config, /defense-onboarding-v1\.js/);
 });
 
 await test("every module required by the World bootstrap is present in the offline shell", async () => {

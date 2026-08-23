@@ -11,6 +11,8 @@ on:
       - "tests/rizo-world-bridge.mjs"
       - "tests/rizo-world-static.mjs"
       - "tests/browser-rizo-world-organizer.py"
+      - "tests/browser-defense-first-120.py"
+      - "defense-onboarding-v1.js"
       - "game-v79-defense.js"
       - "index.html"
       - "rizo-config.js"
@@ -26,6 +28,8 @@ on:
       - "tests/rizo-world-bridge.mjs"
       - "tests/rizo-world-static.mjs"
       - "tests/browser-rizo-world-organizer.py"
+      - "tests/browser-defense-first-120.py"
+      - "defense-onboarding-v1.js"
       - "game-v79-defense.js"
       - "index.html"
       - "rizo-config.js"
@@ -44,6 +48,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Check Defense onboarding syntax
+        run: node --check defense-onboarding-v1.js
 
       - name: Run Rizo Core tests
         run: node --experimental-default-type=module tests/rizo-core-v1.mjs
@@ -66,3 +73,6 @@ jobs:
 
       - name: Run portable Chromium integration smoke
         run: python tests/browser-rizo-world-organizer.py
+
+      - name: Run Defense first-120-second gate
+        run: python tests/browser-defense-first-120.py
