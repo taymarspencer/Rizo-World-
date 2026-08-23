@@ -37,7 +37,12 @@ origin = f"http://127.0.0.1:{server.server_port}"
 try:
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-        context = browser.new_context(viewport={"width": 390, "height": 844})
+        context = browser.new_context(
+            viewport={"width": 390, "height": 844},
+            is_mobile=True,
+            has_touch=True,
+            device_scale_factor=3,
+        )
         page = context.new_page()
         errors = []
         watch_errors(page, errors)
@@ -67,15 +72,15 @@ try:
         page.evaluate('RizoWorld.launch("game.defense")')
         page.wait_for_selector(".defense-origin-reveal, .defense-world-lobby", state="visible", timeout=10000)
         if page.locator(".defense-origin-reveal").count():
-            page.click("[data-defense-intro-continue]")
+            page.tap("[data-defense-intro-continue]")
         page.wait_for_selector(".defense-world-lobby", state="visible", timeout=10000)
-        page.click('[data-enter-defense-world="grove"]')
+        page.tap('[data-enter-defense-world="grove"]')
         page.wait_for_selector(".defense-shell", state="visible", timeout=10000)
 
         page.wait_for_selector("#defenseMapIntro", state="visible", timeout=5000)
         coach_intro = page.locator(".rizo-first-120-coach").inner_text()
         record("first-run coach respects the map intro", "READ THE ROAD" in coach_intro, coach_intro)
-        page.click("[data-defense-skip-map-intro]")
+        page.tap("[data-defense-skip-map-intro]")
 
         page.wait_for_function(
             "document.querySelector('.defense-shell')?.dataset.rizoFirstStep === 'place'",
@@ -96,7 +101,7 @@ try:
             page.locator(".rizo-first-120-coach").inner_text(),
         )
 
-        choice.click()
+        choice.tap()
         page.wait_for_function(
             "document.querySelector('[data-defense-roster-id][aria-pressed=\"true\"]')",
             timeout=5000,
@@ -106,13 +111,21 @@ try:
         record("placement exposes authored safe-spot targets", target_count >= 2, str(target_count))
         record("placement instruction advances after Rizo selection", "PICK A SPOT" in page.locator(".rizo-first-120-coach").inner_text())
 
-        # Pine Bend's late-return pocket gives the starter enough repeated trail
-        # coverage to demonstrate a real pop without giving it tutorial-only damage.
-        page.locator(".rizo-first-pocket-target").last.click()
+        # Marker is deliberately pointer-transparent: a real mobile tap reaches the
+        # existing Defense field, including its native finger-lift placement logic.
+        marker = page.locator(".rizo-first-pocket-target").last
+        box = marker.bounding_box()
+        assert box, "guided placement marker has no geometry"
+        page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
         page.wait_for_selector("[data-defense-tower]", state="visible", timeout=5000)
         page.wait_for_function(
             "document.querySelector('.defense-shell')?.dataset.rizoFirstStep === 'start'",
             timeout=5000,
+        )
+        record(
+            "marked spot uses the native mobile placement path",
+            page.locator("[data-defense-tower]").count() == 1,
+            f"towers={page.locator('[data-defense-tower]').count()}",
         )
         record(
             "first placement immediately points to Wave 1",
@@ -125,7 +138,7 @@ try:
             not page.locator(".defense-deploy-dock").is_visible(),
         )
 
-        page.click("#defenseWaveButton", timeout=5000)
+        page.tap("#defenseWaveButton", timeout=5000)
         page.wait_for_function("Number(document.querySelector('#defenseWave')?.textContent || 0) === 1", timeout=5000)
         page.wait_for_function(
             "Number((document.querySelector('#miniScore')?.textContent.match(/\\d+/) || ['0'])[0]) >= 1",
@@ -151,7 +164,7 @@ try:
             page.locator(".rizo-first-120-coach").inner_text(),
         )
 
-        page.locator("#defenseTowerPanel [data-defense-upgrade]").click()
+        page.locator("#defenseTowerPanel [data-defense-upgrade]").tap()
         page.wait_for_function("localStorage.getItem('rizo-defense-first-120-v1') === 'done'", timeout=5000)
         page.wait_for_function(
             "document.querySelector('#defenseTowerPanel .defense-panel-copy b')?.textContent.includes('LV 2')",
