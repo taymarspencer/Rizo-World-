@@ -125,8 +125,6 @@ try:
         )
         assert placement.get("valid"), f"first-run safe spot is not actually valid: {placement}"
 
-        # Marker is pointer-transparent. A real mobile tap lands on the existing
-        # Defense world and uses the same pointerdown path as a player's finger.
         box = marker.bounding_box()
         assert box, "guided placement marker has no geometry"
         page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
@@ -157,27 +155,49 @@ try:
             "Number((document.querySelector('#miniScore')?.textContent.match(/\\d+/) || ['0'])[0]) >= 1",
             timeout=25000,
         )
+        page.wait_for_function(
+            "document.querySelector('.defense-shell')?.dataset.rizoFirstPop === '1'",
+            timeout=2500,
+        )
         record(
             "first pop gets explicit payoff feedback",
-            page.locator(".defense-shell").get_attribute("data-rizo-first-pop") == "1",
+            "FIRST POP" in page.locator(".rizo-first-120-coach").inner_text()
+            or page.locator(".defense-shell").get_attribute("data-rizo-first-pop") == "1",
             page.locator("#miniScore").inner_text(),
         )
 
         page.wait_for_function("Number(document.querySelector('#defenseClearedWave')?.textContent || 0) >= 1", timeout=40000)
-        page.wait_for_selector("#defenseTowerPanel:not([hidden]) [data-defense-upgrade]", state="visible", timeout=5000)
-        upgrade_text = page.locator("#defenseTowerPanel [data-defense-upgrade]").inner_text()
-        record(
-            "Wave 1 clear opens the first meaningful upgrade",
-            "LEVEL UP" in upgrade_text and page.locator("#defenseTowerPanel [data-defense-upgrade]").is_enabled(),
-            upgrade_text,
+        page.wait_for_function(
+            "document.querySelector('.defense-shell')?.dataset.rizoFirstStep === 'upgrade-pick'",
+            timeout=5000,
         )
+        tower = page.locator("[data-defense-tower].rizo-first-upgrade-target")
         record(
-            "coach explains the core defend-earn-upgrade loop",
-            "UPGRADE YOUR RIZO" in page.locator(".rizo-first-120-coach").inner_text(),
+            "Wave 1 clear points back to the Rizo instead of opening UI for the player",
+            tower.count() == 1 and "TAP YOUR RIZO" in page.locator(".rizo-first-120-coach").inner_text(),
             page.locator(".rizo-first-120-coach").inner_text(),
         )
 
-        page.locator("#defenseTowerPanel [data-defense-upgrade]").tap()
+        tower.tap()
+        page.wait_for_selector("#defenseTowerPanel:not([hidden]) [data-defense-upgrade]", state="visible", timeout=5000)
+        page.wait_for_function(
+            "document.querySelector('.defense-shell')?.dataset.rizoFirstStep === 'upgrade'",
+            timeout=5000,
+        )
+        upgrade = page.locator("#defenseTowerPanel [data-defense-upgrade]")
+        upgrade_text = upgrade.inner_text()
+        record(
+            "first meaningful upgrade is obvious and affordable",
+            "LEVEL UP" in upgrade_text and upgrade.is_enabled(),
+            upgrade_text,
+        )
+        record(
+            "coach explains the defend-earn-upgrade loop",
+            "LEVEL IT UP" in page.locator(".rizo-first-120-coach").inner_text(),
+            page.locator(".rizo-first-120-coach").inner_text(),
+        )
+
+        upgrade.tap()
         page.wait_for_function("localStorage.getItem('rizo-defense-first-120-v1') === 'done'", timeout=5000)
         page.wait_for_function(
             "document.querySelector('#defenseTowerPanel .defense-panel-copy b')?.textContent.includes('LV 2')",
