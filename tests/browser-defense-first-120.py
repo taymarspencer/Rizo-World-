@@ -72,8 +72,6 @@ try:
         page.click('[data-enter-defense-world="grove"]')
         page.wait_for_selector(".defense-shell", state="visible", timeout=10000)
 
-        # The authored map intro remains the first orientation beat. The guide waits
-        # behind it instead of stacking another modal on top.
         page.wait_for_selector("#defenseMapIntro", state="visible", timeout=5000)
         coach_intro = page.locator(".rizo-first-120-coach").inner_text()
         record("first-run coach respects the map intro", "READ THE ROAD" in coach_intro, coach_intro)
@@ -83,11 +81,9 @@ try:
             "document.querySelector('.defense-shell')?.dataset.rizoFirstStep === 'place'",
             timeout=5000,
         )
-        visible_roster = page.evaluate(
-            """() => [...document.querySelectorAll('[data-defense-roster-id]')]
-              .filter(node => getComputedStyle(node).display !== 'none').length"""
-        )
         choice = page.locator("[data-defense-roster-id].rizo-first-choice")
+        choice.wait_for(state="visible", timeout=5000)
+        visible_roster = page.locator("[data-defense-roster-id]:visible").count()
         selected_label = choice.get_attribute("aria-label") or ""
         record(
             "new player gets one obvious free first choice",
@@ -122,13 +118,12 @@ try:
             and "START WAVE 1" in page.locator(".rizo-first-120-coach").inner_text(),
             page.locator(".rizo-first-120-coach").inner_text(),
         )
-        restored_roster = page.evaluate(
-            """() => [...document.querySelectorAll('[data-defense-roster-id]')]
-              .filter(node => getComputedStyle(node).display !== 'none').length"""
+        record(
+            "deployment choices get out of the way for the first wave",
+            not page.locator(".defense-deploy-dock").is_visible(),
         )
-        record("full roster returns after the first placement", restored_roster > 1, str(restored_roster))
 
-        page.click("#defenseWaveButton")
+        page.click("#defenseWaveButton", timeout=5000)
         page.wait_for_function("Number(document.querySelector('#defenseWave')?.textContent || 0) === 1", timeout=5000)
         page.wait_for_function(
             "Number((document.querySelector('#miniScore')?.textContent.match(/\\d+/) || ['0'])[0]) >= 1",
@@ -140,7 +135,6 @@ try:
             page.locator("#miniScore").inner_text(),
         )
 
-        # Exercise the real Wave 1 rather than shortcutting the progression gate.
         page.wait_for_function("Number(document.querySelector('#defenseClearedWave')?.textContent || 0) >= 1", timeout=40000)
         page.wait_for_selector("#defenseTowerPanel:not([hidden]) [data-defense-upgrade]", state="visible", timeout=5000)
         upgrade_text = page.locator("#defenseTowerPanel [data-defense-upgrade]").inner_text()
