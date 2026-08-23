@@ -48,7 +48,7 @@
       .rizo-first-120-coach button{width:30px;height:30px;min-width:30px;border:2px solid #11141a;border-radius:8px;background:transparent;color:#11141a;font:1000 17px/1 system-ui;box-shadow:none;padding:0}
       .rizo-first-120 .defense-stage-frame{position:relative}
       .rizo-first-120[data-rizo-first-step="place"] .defense-roster-pet:not(.rizo-first-choice){display:none!important}
-      .rizo-first-120 .defense-roster-pet.rizo-first-choice{outline:3px solid var(--first120-accent);outline-offset:2px}
+      .rizo-first-120 .defense-roster-pet.rizo-first-choice{display:grid!important;outline:3px solid var(--first120-accent);outline-offset:2px}
       .rizo-first-120[data-rizo-first-step="start"] #defenseWaveButton{outline:3px solid var(--first120-warn);outline-offset:3px;box-shadow:0 0 0 5px rgba(255,207,102,.18)}
       .rizo-first-120[data-rizo-first-step="upgrade"] [data-defense-upgrade]:not([disabled]){outline:3px solid var(--first120-accent);outline-offset:3px}
       .rizo-first-pocket-target{position:absolute;z-index:58;width:54px;height:54px;min-width:54px;transform:translate(-50%,-50%);border:2px solid #0b0d11;border-radius:50%;background:rgba(119,229,154,.20);box-shadow:0 0 0 8px rgba(119,229,154,.13);color:#fff;font:1000 9px/1 system-ui;letter-spacing:.08em;text-shadow:0 1px 2px #000;touch-action:manipulation}
@@ -132,6 +132,24 @@
     return enabled.find(button => /FREE DEPLOY/i.test(button.getAttribute("aria-label") || button.title || "")) || enabled[0];
   }
 
+  function sendNativeFieldPointer(world, xPercent, yPercent) {
+    const rect = world.getBoundingClientRect();
+    const init = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      pointerId: 91,
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: rect.left + rect.width * xPercent / 100,
+      clientY: rect.top + rect.height * yPercent / 100,
+      button: 0,
+      buttons: 1
+    };
+    if (typeof PointerEvent === "function") world.dispatchEvent(new PointerEvent("pointerdown", init));
+    else world.dispatchEvent(new MouseEvent("pointerdown", init));
+  }
+
   function ensurePocketTargets(shell) {
     const world = shell.querySelector("#defenseWorld");
     if (!world || !shell.classList.contains("has-placement")) {
@@ -154,16 +172,10 @@
         button.addEventListener("click", event => {
           event.preventDefault();
           event.stopPropagation();
-          const rect = world.getBoundingClientRect();
           const xPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-x"));
           const yPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-y"));
           if (!Number.isFinite(xPercent) || !Number.isFinite(yPercent)) return;
-          world.dispatchEvent(new MouseEvent("click", {
-            bubbles: true,
-            cancelable: true,
-            clientX: rect.left + rect.width * xPercent / 100,
-            clientY: rect.top + rect.height * yPercent / 100
-          }));
+          sendNativeFieldPointer(world, xPercent, yPercent);
         });
         world.appendChild(button);
       }
