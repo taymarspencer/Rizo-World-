@@ -1,0 +1,117 @@
+/*
+ * Rizo Defense — Combat Readability Pass
+ * --------------------------------------
+ * Presentation only. Uses the runtime's existing firing / impact / popped states.
+ * No combat math, timing, targeting, save, or World behavior changes here.
+ */
+
+/* Attacks should read as a deliberate action, not a generic bounce. */
+.defense-world.fx-full .defense-tower.firing .defense-rizo,
+.defense-world.fx-full .defense-tower.firing .mini-pet {
+  animation:rizo-combat-recoil .22s cubic-bezier(.2,.85,.25,1) both;
+  filter:drop-shadow(0 5px 0 rgba(7,9,13,.24));
+}
+
+@keyframes rizo-combat-recoil {
+  0% { transform:translateY(0) scale(1); }
+  28% { transform:translateY(3px) scale(1.06,.91); }
+  55% { transform:translateY(-7px) scale(.96,1.08); }
+  100% { transform:translateY(0) scale(1); }
+}
+
+/* Keep projectiles compact, but give the eye a bright leading point. */
+.defense-world.fx-full .defense-shot {
+  width:11px;
+  height:11px;
+  border-width:2px;
+  box-shadow:
+    0 0 3px #fff,
+    0 0 9px currentColor,
+    0 0 0 1px var(--play-outline);
+}
+
+.defense-world.fx-full .defense-shot::after {
+  content:"";
+  position:absolute;
+  inset:2px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 0 5px #fff;
+}
+
+/* A hit is a short hard punctuation mark instead of a slow expanding ring. */
+.defense-world.fx-full .defense-impact {
+  width:24px;
+  height:24px;
+  border-width:3px;
+  animation:rizo-combat-impact .24s cubic-bezier(.1,.75,.2,1) forwards;
+}
+
+.defense-world.fx-full .defense-impact::after {
+  content:"";
+  position:absolute;
+  inset:50% auto auto 50%;
+  width:5px;
+  height:5px;
+  translate:-50% -50%;
+  rotate:45deg;
+  background:var(--impact-color,#fff);
+  box-shadow:
+    0 -12px 0 -1px var(--impact-color,#fff),
+    0 12px 0 -1px var(--impact-color,#fff),
+    12px 0 0 -1px var(--impact-color,#fff),
+    -12px 0 0 -1px var(--impact-color,#fff);
+  animation:rizo-combat-impact-star .24s ease-out forwards;
+}
+
+@keyframes rizo-combat-impact {
+  0% { scale:.28; opacity:1; }
+  48% { scale:1.02; opacity:1; }
+  100% { scale:1.48; opacity:0; }
+}
+
+@keyframes rizo-combat-impact-star {
+  0% { scale:.35; opacity:1; }
+  100% { scale:1.35; opacity:0; }
+}
+
+/* Pops read differently from ordinary hits: squash, burst, gone. */
+.defense-world.fx-full .defense-enemy.popped {
+  animation:rizo-combat-pop .24s cubic-bezier(.15,.7,.25,1) forwards;
+}
+
+.defense-world.fx-full .defense-enemy.popped .balloon-body {
+  animation:rizo-combat-pop-body .24s cubic-bezier(.15,.7,.25,1) forwards;
+}
+
+@keyframes rizo-combat-pop {
+  0% { scale:1; opacity:1; }
+  34% { scale:1.18 .76; opacity:1; }
+  62% { scale:.76 1.32; opacity:.92; }
+  100% { scale:1.62; opacity:0; }
+}
+
+@keyframes rizo-combat-pop-body {
+  0%,36% { filter:brightness(1); }
+  54% { filter:brightness(1.9); }
+  100% { filter:brightness(1.15); }
+}
+
+/* Lean/potato modes keep the old cheap visuals on purpose. */
+.defense-world.fx-lean .defense-shot::after,
+.defense-world.fx-potato .defense-shot::after,
+.defense-world.fx-lean .defense-impact::after,
+.defense-world.fx-potato .defense-impact::after {
+  display:none;
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .defense-world.fx-full .defense-tower.firing .defense-rizo,
+  .defense-world.fx-full .defense-tower.firing .mini-pet,
+  .defense-world.fx-full .defense-impact,
+  .defense-world.fx-full .defense-impact::after,
+  .defense-world.fx-full .defense-enemy.popped,
+  .defense-world.fx-full .defense-enemy.popped .balloon-body {
+    animation:none!important;
+  }
+}
