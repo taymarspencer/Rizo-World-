@@ -54,8 +54,9 @@
       .rizo-first-120[data-rizo-first-step="place"] .defense-deploy-dock{display:block!important}
       .rizo-first-120[data-rizo-first-step="place"] .defense-roster-pet:not(.rizo-first-choice){display:none!important}
       .rizo-first-120 .defense-roster-pet.rizo-first-choice{display:grid!important;outline:3px solid var(--first120-accent);outline-offset:2px}
-      .rizo-first-120[data-rizo-first-step="start"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="watch"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="upgrade"] .defense-deploy-dock{display:none!important}
+      .rizo-first-120[data-rizo-first-step="start"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="watch"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="upgrade-pick"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="upgrade"] .defense-deploy-dock{display:none!important}
       .rizo-first-120[data-rizo-first-step="start"] #defenseWaveButton{animation:none!important;transform:none!important;outline:3px solid var(--first120-warn);outline-offset:3px;box-shadow:0 0 0 5px rgba(255,207,102,.18)}
+      .rizo-first-120[data-rizo-first-step="upgrade-pick"] .rizo-first-upgrade-target{outline:3px solid var(--first120-accent);outline-offset:4px;filter:drop-shadow(0 0 8px rgba(119,229,154,.42))}
       .rizo-first-120[data-rizo-first-step="upgrade"] [data-defense-upgrade]:not([disabled]){outline:3px solid var(--first120-accent);outline-offset:3px}
       .rizo-first-pocket-target{position:absolute;z-index:58;width:58px;height:58px;transform:translate(-50%,-50%);display:grid;place-items:center;border:2px solid #0b0d11;border-radius:50%;background:rgba(119,229,154,.22);box-shadow:0 0 0 9px rgba(119,229,154,.13);color:#fff;font:1000 9px/1 system-ui;letter-spacing:.08em;text-shadow:0 1px 2px #000;pointer-events:none;user-select:none}
       .rizo-first-120 .defense-build-pocket{opacity:.3!important;filter:none!important;animation:none!important;outline:none!important}
@@ -100,6 +101,14 @@
     shell.querySelectorAll(".rizo-first-pocket-target").forEach(node => node.remove());
   }
 
+  function clearChoiceClasses(shell) {
+    shell.querySelectorAll(".rizo-first-choice").forEach(node => node.classList.remove("rizo-first-choice"));
+  }
+
+  function clearUpgradeTarget(shell) {
+    shell.querySelectorAll(".rizo-first-upgrade-target").forEach(node => node.classList.remove("rizo-first-upgrade-target"));
+  }
+
   function markOnlyChoice(shell, choice) {
     shell.querySelectorAll(".rizo-first-choice").forEach(node => {
       if (node !== choice) node.classList.remove("rizo-first-choice");
@@ -107,13 +116,10 @@
     if (choice && !choice.classList.contains("rizo-first-choice")) choice.classList.add("rizo-first-choice");
   }
 
-  function clearChoiceClasses(shell) {
-    shell.querySelectorAll(".rizo-first-choice").forEach(node => node.classList.remove("rizo-first-choice"));
-  }
-
   function cleanup(shell, session) {
     removePocketTargets(shell);
     clearChoiceClasses(shell);
+    clearUpgradeTarget(shell);
     shell.classList.remove("rizo-first-120", "rizo-first-pop");
     shell.removeAttribute("data-rizo-first-step");
     shell.removeAttribute("data-rizo-first-pop");
@@ -129,6 +135,7 @@
     setCoach(shell, "3/3", "YOU KNOW THE LOOP", "Place → start → pop → upgrade. Now the field is yours.");
     removePocketTargets(shell);
     clearChoiceClasses(shell);
+    clearUpgradeTarget(shell);
     setTimeout(() => cleanup(shell, session), 1500);
   }
 
@@ -194,6 +201,7 @@
   function syncSession(shell, session) {
     if (!session || session.finished || !shell.isConnected) return;
     if (mapIntroIsBlocking(shell)) {
+      clearUpgradeTarget(shell);
       setCoach(shell, "1/3", "READ THE ROAD", "Entry goes to the Ember Gate. Enter the field when you're ready.");
       return;
     }
@@ -204,6 +212,7 @@
     const pops = parseCounter("#miniScore");
 
     if (!towers.length) {
+      clearUpgradeTarget(shell);
       shell.dataset.rizoFirstStep = "place";
       const choice = firstChoice(shell);
       markOnlyChoice(shell, choice);
@@ -221,12 +230,14 @@
     clearChoiceClasses(shell);
 
     if (currentWave === 0) {
+      clearUpgradeTarget(shell);
       shell.dataset.rizoFirstStep = "start";
       setCoach(shell, "2/3", "START WAVE 1", "Your Rizo attacks automatically. Start the wave and watch the trail.");
       return;
     }
 
     if (clearedWave < 1) {
+      clearUpgradeTarget(shell);
       shell.dataset.rizoFirstStep = "watch";
       if (pops > 0 && !session.firstPopSeen) {
         session.firstPopSeen = true;
@@ -243,23 +254,24 @@
       return;
     }
 
-    shell.dataset.rizoFirstStep = "upgrade";
-    setCoach(shell, "3/3", "UPGRADE YOUR RIZO", "Tap LEVEL UP. This is the core loop: defend, earn, get stronger.");
     const panel = shell.querySelector("#defenseTowerPanel");
-    if (!session.autoOpenedUpgrade && (!panel || !visible(panel))) {
-      session.autoOpenedUpgrade = true;
-      setTimeout(() => {
-        if (session.finished || !shell.isConnected) return;
-        const firstTower = shell.querySelector("[data-defense-tower]");
-        if (firstTower) firstTower.click();
-      }, 620);
+    if (!panel || !visible(panel)) {
+      shell.dataset.rizoFirstStep = "upgrade-pick";
+      setCoach(shell, "3/3", "TAP YOUR RIZO", "Wave clear. Tap the Rizo you placed to open its upgrade card.");
+      clearUpgradeTarget(shell);
+      const firstTower = shell.querySelector("[data-defense-tower]");
+      if (firstTower) firstTower.classList.add("rizo-first-upgrade-target");
+      return;
     }
+
+    clearUpgradeTarget(shell);
+    shell.dataset.rizoFirstStep = "upgrade";
+    setCoach(shell, "3/3", "LEVEL IT UP", "Tap LEVEL UP. That is the loop: defend, earn, get stronger.");
   }
 
   function activate(shell) {
     if (!shell || sessions.has(shell) || !playerNeedsGuide()) return;
     const session = {
-      autoOpenedUpgrade: false,
       firstPopSeen: false,
       flashUntil: 0,
       finished: false
