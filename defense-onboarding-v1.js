@@ -47,9 +47,11 @@
       .rizo-first-120-coach span{font-size:10px;line-height:1.25;font-weight:800;opacity:.76}
       .rizo-first-120-coach button{width:30px;height:30px;min-width:30px;border:2px solid #11141a;border-radius:8px;background:transparent;color:#11141a;font:1000 17px/1 system-ui;box-shadow:none;padding:0}
       .rizo-first-120 .defense-stage-frame{position:relative}
+      .rizo-first-120[data-rizo-first-step="place"] .defense-deploy-dock{display:block!important}
       .rizo-first-120[data-rizo-first-step="place"] .defense-roster-pet:not(.rizo-first-choice){display:none!important}
       .rizo-first-120 .defense-roster-pet.rizo-first-choice{display:grid!important;outline:3px solid var(--first120-accent);outline-offset:2px}
-      .rizo-first-120[data-rizo-first-step="start"] #defenseWaveButton{outline:3px solid var(--first120-warn);outline-offset:3px;box-shadow:0 0 0 5px rgba(255,207,102,.18)}
+      .rizo-first-120[data-rizo-first-step="start"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="watch"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="upgrade"] .defense-deploy-dock{display:none!important}
+      .rizo-first-120[data-rizo-first-step="start"] #defenseWaveButton{animation:none!important;transform:none!important;outline:3px solid var(--first120-warn);outline-offset:3px;box-shadow:0 0 0 5px rgba(255,207,102,.18)}
       .rizo-first-120[data-rizo-first-step="upgrade"] [data-defense-upgrade]:not([disabled]){outline:3px solid var(--first120-accent);outline-offset:3px}
       .rizo-first-pocket-target{position:absolute;z-index:58;width:54px;height:54px;min-width:54px;transform:translate(-50%,-50%);border:2px solid #0b0d11;border-radius:50%;background:rgba(119,229,154,.20);box-shadow:0 0 0 8px rgba(119,229,154,.13);color:#fff;font:1000 9px/1 system-ui;letter-spacing:.08em;text-shadow:0 1px 2px #000;touch-action:manipulation}
       .rizo-first-120 .defense-build-pocket{opacity:1!important;filter:none!important}
