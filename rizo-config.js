@@ -64,22 +64,25 @@ window.RIZO_CONFIG = Object.freeze({
   }
 });
 
-// The new World layer waits for DOMContentLoaded because this file is parsed before the
-// existing runtime scripts. That guarantees the legacy scripts have executed, but does not
-// delay the bridge until every image/font finishes loading. Bridge failure stays non-fatal.
+// The World layer and the first-run Defense guide wait for DOMContentLoaded because
+// this file is parsed before the existing runtime scripts. Both are additive and
+// non-fatal: a blocked helper must never stop the legacy game from booting.
 (() => {
   let started = false;
-  const startWorld = () => {
+  const startEnhancements = () => {
     if (started) return;
     started = true;
     import("./src/rizo-world/bootstrap.js").catch(error => {
       console.warn("Rizo World bridge did not start; legacy runtime remains available.", error);
     });
+    import("./defense-onboarding-v1.js").catch(error => {
+      console.warn("Rizo Defense first-run guide did not start; Defense remains playable.", error);
+    });
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startWorld, { once: true });
+    document.addEventListener("DOMContentLoaded", startEnhancements, { once: true });
   } else {
-    queueMicrotask(startWorld);
+    queueMicrotask(startEnhancements);
   }
 })();
