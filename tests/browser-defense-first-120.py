@@ -83,24 +83,33 @@ try:
             "document.querySelector('.defense-shell')?.dataset.rizoFirstStep === 'place'",
             timeout=5000,
         )
-        page.wait_for_function(
-            "document.querySelector('[data-defense-roster-id][aria-pressed=\"true\"]')",
-            timeout=5000,
-        )
         visible_roster = page.evaluate(
             """() => [...document.querySelectorAll('[data-defense-roster-id]')]
               .filter(node => getComputedStyle(node).display !== 'none').length"""
         )
-        selected_label = page.locator('[data-defense-roster-id][aria-pressed="true"]').get_attribute("aria-label") or ""
+        choice = page.locator("[data-defense-roster-id].rizo-first-choice")
+        selected_label = choice.get_attribute("aria-label") or ""
         record(
             "new player gets one obvious free first choice",
-            visible_roster == 1 and "FREE DEPLOY" in selected_label,
-            f"visible={visible_roster} selected={selected_label}",
+            visible_roster == 1 and choice.count() == 1 and "FREE DEPLOY" in selected_label,
+            f"visible={visible_roster} choice={selected_label}",
+        )
+        record(
+            "guide makes player choose instead of playing for them",
+            choice.get_attribute("aria-pressed") == "false" and "TAP YOUR RIZO" in page.locator(".rizo-first-120-coach").inner_text(),
+            page.locator(".rizo-first-120-coach").inner_text(),
         )
 
+        choice.click()
+        page.wait_for_function(
+            "document.querySelector('[data-defense-roster-id][aria-pressed=\"true\"]')",
+            timeout=5000,
+        )
         page.wait_for_selector(".rizo-first-pocket-target", state="visible", timeout=5000)
         target_count = page.locator(".rizo-first-pocket-target").count()
         record("placement exposes authored safe-spot targets", target_count >= 2, str(target_count))
+        record("placement instruction advances after Rizo selection", "PICK A SPOT" in page.locator(".rizo-first-120-coach").inner_text())
+
         page.locator(".rizo-first-pocket-target").first.click()
         page.wait_for_selector("[data-defense-tower]", state="visible", timeout=5000)
         page.wait_for_function(
@@ -131,8 +140,7 @@ try:
             page.locator("#miniScore").inner_text(),
         )
 
-        # Finish Wave 1 in the real runtime. If CI is under load, 40 seconds still
-        # keeps the gate bounded while exercising actual spawn/target/attack timing.
+        # Exercise the real Wave 1 rather than shortcutting the progression gate.
         page.wait_for_function("Number(document.querySelector('#defenseClearedWave')?.textContent || 0) >= 1", timeout=40000)
         page.wait_for_selector("#defenseTowerPanel:not([hidden]) [data-defense-upgrade]", state="visible", timeout=5000)
         upgrade_text = page.locator("#defenseTowerPanel [data-defense-upgrade]").inner_text()
