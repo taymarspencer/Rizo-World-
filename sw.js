@@ -1,6 +1,6 @@
 /* Offline shell for Rizo.game. Third-party ad requests are intentionally never cached. */
 const CACHE_PREFIX = "rizo-game-";
-const CACHE = "rizo-game-v86-world-organizer-p1";
+const CACHE = "rizo-game-v86-world-organizer-p2";
 
 // Rizo World modules are required shell now that rizo-config.js boots the bridge.
 // Keeping the full import graph here means an installed/offline build gets the same
@@ -37,7 +37,7 @@ const RIZO_WORLD_SHELL = [
 ];
 
 const SHELL = [
-  "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./defense-onboarding-v1.js", "./install-manager.js",
+  "./", "./index.html", "./launch-v79-defense-alive.css", "./defense-combat-feedback-v1.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./defense-onboarding-v1.js", "./install-manager.js",
   "./monetization.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
   "./privacy.html", "./terms.html", "./support.html", ...RIZO_WORLD_SHELL, "./assets/icon-192.png",
   "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
@@ -72,7 +72,7 @@ const SHELL = [
   "./assets/wearables/visor-back.svg", "./assets/wearables/visor-front.svg", "./assets/wearables/wings-back.svg"
 ];
 const REQUIRED_SHELL = [
-  "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css",
+  "./", "./index.html", "./launch-v79-defense-alive.css", "./defense-combat-feedback-v1.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css",
   "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./defense-onboarding-v1.js", "./install-manager.js", "./monetization.js",
   "./game-v79-defense.js", "./manifest.webmanifest", ...RIZO_WORLD_SHELL, "./assets/icon-192.png",
   "./assets/icon-512.png", "./assets/rizo-classic.png"
