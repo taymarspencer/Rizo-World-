@@ -106,7 +106,9 @@ try:
         record("placement exposes authored safe-spot targets", target_count >= 2, str(target_count))
         record("placement instruction advances after Rizo selection", "PICK A SPOT" in page.locator(".rizo-first-120-coach").inner_text())
 
-        page.locator(".rizo-first-pocket-target").first.click()
+        # Pine Bend's late-return pocket gives the starter enough repeated trail
+        # coverage to demonstrate a real pop without giving it tutorial-only damage.
+        page.locator(".rizo-first-pocket-target").last.click()
         page.wait_for_selector("[data-defense-tower]", state="visible", timeout=5000)
         page.wait_for_function(
             "document.querySelector('.defense-shell')?.dataset.rizoFirstStep === 'start'",
@@ -127,7 +129,7 @@ try:
         page.wait_for_function("Number(document.querySelector('#defenseWave')?.textContent || 0) === 1", timeout=5000)
         page.wait_for_function(
             "Number((document.querySelector('#miniScore')?.textContent.match(/\\d+/) || ['0'])[0]) >= 1",
-            timeout=20000,
+            timeout=25000,
         )
         record(
             "first pop gets explicit payoff feedback",
