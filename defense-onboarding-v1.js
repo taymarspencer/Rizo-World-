@@ -134,17 +134,6 @@
     return enabled.find(button => /FREE DEPLOY/i.test(button.getAttribute("aria-label") || button.title || "")) || enabled[0];
   }
 
-  function markerPosition(world, xPercent, yPercent) {
-    const rect = world.getBoundingClientRect();
-    const touchInput = Number(navigator.maxTouchPoints || 0) > 0;
-    const landscape = matchMedia("(max-height:650px) and (orientation:landscape)").matches;
-    const liftPx = touchInput ? Math.max(42, Math.min(56, Math.min(rect.width, rect.height) * .135)) : 0;
-    return {
-      left: `calc(${xPercent}% + ${landscape ? liftPx : 0}px)`,
-      top: `calc(${yPercent}% + ${touchInput && !landscape ? liftPx : 0}px)`
-    };
-  }
-
   function ensurePocketTargets(shell) {
     const world = shell.querySelector("#defenseWorld");
     if (!world || !shell.classList.contains("has-placement")) {
@@ -167,9 +156,8 @@
       const xPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-x"));
       const yPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-y"));
       if (Number.isFinite(xPercent) && Number.isFinite(yPercent)) {
-        const position = markerPosition(world, xPercent, yPercent);
-        marker.style.left = position.left;
-        marker.style.top = position.top;
+        marker.style.left = `${xPercent}%`;
+        marker.style.top = `${yPercent}%`;
       }
       existing.delete(key);
     });
@@ -209,7 +197,7 @@
       const choice = firstChoice(shell);
       markOnlyChoice(shell, choice);
       if (shell.classList.contains("has-placement")) {
-        setCoach(shell, "1/3", "PICK A SPOT", "Tap a marked spot beside the trail. The game keeps your finger out of the way while placing.");
+        setCoach(shell, "1/3", "PICK A SPOT", "Tap a marked spot beside the trail. Green means the full Rizo footprint fits.");
         ensurePocketTargets(shell);
       } else {
         removePocketTargets(shell);
