@@ -106,14 +106,27 @@ try:
             "document.querySelector('[data-defense-roster-id][aria-pressed=\"true\"]')",
             timeout=5000,
         )
-        page.wait_for_selector(".rizo-first-pocket-target", state="visible", timeout=5000)
-        target_count = page.locator(".rizo-first-pocket-target").count()
-        record("placement exposes authored safe-spot targets", target_count >= 2, str(target_count))
-        record("placement instruction advances after Rizo selection", "PICK A SPOT" in page.locator(".rizo-first-120-coach").inner_text())
+        marker = page.locator(".rizo-first-pocket-target")
+        marker.wait_for(state="visible", timeout=5000)
+        target_count = marker.count()
+        record("first run exposes one no-guess placement target", target_count == 1, str(target_count))
+        record("placement instruction advances after Rizo selection", "PICK THIS SPOT" in page.locator(".rizo-first-120-coach").inner_text())
 
-        # Marker is deliberately pointer-transparent: a real mobile tap reaches the
-        # existing Defense field, including its native finger-lift placement logic.
-        marker = page.locator(".rizo-first-pocket-target").last
+        x = float(marker.get_attribute("data-x") or "0")
+        y = float(marker.get_attribute("data-y") or "0")
+        placement = page.evaluate(
+            "([x,y]) => RizoRuntimeQA.defenseResolvePlacementForQA(x,y)",
+            [x, y],
+        )
+        record(
+            "first-run marker is valid under the real mobile footprint rules",
+            bool(placement.get("valid")),
+            str(placement),
+        )
+        assert placement.get("valid"), f"first-run safe spot is not actually valid: {placement}"
+
+        # Marker is pointer-transparent. A real mobile tap lands on the existing
+        # Defense world and uses the same pointerdown path as a player's finger.
         box = marker.bounding_box()
         assert box, "guided placement marker has no geometry"
         page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
