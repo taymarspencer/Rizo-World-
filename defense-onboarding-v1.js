@@ -4,9 +4,9 @@
   const MARKER_KEY = "rizo-defense-first-120-v1";
   const FORCE = new URLSearchParams(location.search).get("first120") === "1";
   // Pine Bend's decorative build pockets sit deliberately close to the road. The
-  // first-run target is slightly farther out so the full mobile tower footprint is
-  // valid while still staying inside the starter Rizo's useful attack band.
-  const FIRST_RUN_SPOTS = Object.freeze({ grove: Object.freeze([{ x: .39, y: .63 }]) });
+  // first-run target sits in a valid double-coverage pocket so one starter Rizo can
+  // visibly earn its first pop without tutorial-only damage or stat exceptions.
+  const FIRST_RUN_SPOTS = Object.freeze({ grove: Object.freeze([{ x: .75, y: .36 }]) });
   const sessions = new WeakMap();
   let scheduled = false;
 
