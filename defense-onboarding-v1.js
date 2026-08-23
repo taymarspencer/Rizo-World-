@@ -85,13 +85,20 @@
     const label = coach.querySelector("[data-rizo-first-step-label]");
     const titleNode = coach.querySelector("[data-rizo-first-title]");
     const copyNode = coach.querySelector("[data-rizo-first-copy]");
-    if (label) label.textContent = step;
-    if (titleNode) titleNode.textContent = title;
-    if (copyNode) copyNode.textContent = copy;
+    if (label && label.textContent !== step) label.textContent = step;
+    if (titleNode && titleNode.textContent !== title) titleNode.textContent = title;
+    if (copyNode && copyNode.textContent !== copy) copyNode.textContent = copy;
   }
 
   function removePocketTargets(shell) {
     shell.querySelectorAll(".rizo-first-pocket-target").forEach(node => node.remove());
+  }
+
+  function markOnlyChoice(shell, choice) {
+    shell.querySelectorAll(".rizo-first-choice").forEach(node => {
+      if (node !== choice) node.classList.remove("rizo-first-choice");
+    });
+    if (choice && !choice.classList.contains("rizo-first-choice")) choice.classList.add("rizo-first-choice");
   }
 
   function clearChoiceClasses(shell) {
@@ -197,19 +204,15 @@
 
     if (!towers.length) {
       shell.dataset.rizoFirstStep = "place";
-      setCoach(shell, "1/3", "PLACE YOUR RIZO", "One free Rizo is picked for you. Tap any marked spot beside the trail.");
-      clearChoiceClasses(shell);
       const choice = firstChoice(shell);
-      if (choice) {
-        choice.classList.add("rizo-first-choice");
-        if (!session.autoSelected && choice.getAttribute("aria-pressed") !== "true") {
-          session.autoSelected = true;
-          setTimeout(() => {
-            if (!session.finished && shell.isConnected && choice.isConnected && !choice.disabled) choice.click();
-          }, 220);
-        }
+      markOnlyChoice(shell, choice);
+      if (shell.classList.contains("has-placement")) {
+        setCoach(shell, "1/3", "PICK A SPOT", "Now tap any marked spot beside the trail. Green means Rizo can fight from there.");
+        ensurePocketTargets(shell);
+      } else {
+        removePocketTargets(shell);
+        setCoach(shell, "1/3", "TAP YOUR RIZO", "Your active Rizo deploys free. Tap the one card below to pick it.");
       }
-      ensurePocketTargets(shell);
       return;
     }
 
@@ -255,7 +258,6 @@
   function activate(shell) {
     if (!shell || sessions.has(shell) || !playerNeedsGuide()) return;
     const session = {
-      autoSelected: false,
       autoOpenedUpgrade: false,
       firstPopSeen: false,
       flashUntil: 0,
