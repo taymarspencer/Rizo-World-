@@ -110,8 +110,8 @@ try:
               const world = document.querySelector('#defenseWorld');
               const inspect = node => {
                 if (!(node instanceof Element)) return;
-                const nodes = [node, ...node.querySelectorAll?.('*') || []];
-                for (const item of nodes) {
+                const descendants = node.querySelectorAll ? [...node.querySelectorAll('*')] : [];
+                for (const item of [node, ...descendants]) {
                   if (item.matches?.('.defense-tower.firing')) {
                     const actor = item.querySelector('.defense-rizo,.mini-pet');
                     window.__rizoCombatSeen.firing = true;
@@ -162,11 +162,11 @@ try:
         snapshot = page.evaluate("RizoRuntimeQA.defenseSnapshotForQA()")
         record(
             "combat pass does not add gameplay entities or bypass visual budgets",
-            snapshot["visibleProjectileCount"] <= snapshot["visualBudget"]["maxProjectileNodes"]
+            snapshot["visibleProjectileCount"] <= snapshot["visualBudget"]["maxVisibleProjectiles"]
             and snapshot["maxEffectNodesObserved"] <= snapshot["visualBudget"]["maxImpactEffects"],
             str({
                 "visibleProjectiles": snapshot["visibleProjectileCount"],
-                "maxProjectiles": snapshot["visualBudget"]["maxProjectileNodes"],
+                "maxProjectiles": snapshot["visualBudget"]["maxVisibleProjectiles"],
                 "maxEffectsObserved": snapshot["maxEffectNodesObserved"],
                 "maxEffects": snapshot["visualBudget"]["maxImpactEffects"],
             }),
