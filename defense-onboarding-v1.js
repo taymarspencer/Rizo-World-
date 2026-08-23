@@ -53,10 +53,10 @@
       .rizo-first-120[data-rizo-first-step="start"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="watch"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="upgrade"] .defense-deploy-dock{display:none!important}
       .rizo-first-120[data-rizo-first-step="start"] #defenseWaveButton{animation:none!important;transform:none!important;outline:3px solid var(--first120-warn);outline-offset:3px;box-shadow:0 0 0 5px rgba(255,207,102,.18)}
       .rizo-first-120[data-rizo-first-step="upgrade"] [data-defense-upgrade]:not([disabled]){outline:3px solid var(--first120-accent);outline-offset:3px}
-      .rizo-first-pocket-target{position:absolute;z-index:58;width:54px;height:54px;min-width:54px;transform:translate(-50%,-50%);border:2px solid #0b0d11;border-radius:50%;background:rgba(119,229,154,.20);box-shadow:0 0 0 8px rgba(119,229,154,.13);color:#fff;font:1000 9px/1 system-ui;letter-spacing:.08em;text-shadow:0 1px 2px #000;touch-action:manipulation}
+      .rizo-first-pocket-target{position:absolute;z-index:58;width:54px;height:54px;transform:translate(-50%,-50%);display:grid;place-items:center;border:2px solid #0b0d11;border-radius:50%;background:rgba(119,229,154,.20);box-shadow:0 0 0 8px rgba(119,229,154,.13);color:#fff;font:1000 9px/1 system-ui;letter-spacing:.08em;text-shadow:0 1px 2px #000;pointer-events:none;user-select:none}
       .rizo-first-120 .defense-build-pocket{opacity:1!important;filter:none!important}
       .rizo-first-120.rizo-first-pop #defenseWorld{outline:3px solid var(--first120-accent);outline-offset:-4px}
-      @media(max-width:520px){.rizo-first-120-coach{top:7px;left:7px;right:7px;min-height:48px;padding:7px 8px;gap:7px}.rizo-first-120-coach span{font-size:9px}.rizo-first-120-coach b{font-size:12px}.rizo-first-120-coach>em{font-size:9px}.rizo-first-pocket-target{width:48px;height:48px;min-width:48px}}
+      @media(max-width:520px){.rizo-first-120-coach{top:7px;left:7px;right:7px;min-height:48px;padding:7px 8px;gap:7px}.rizo-first-120-coach span{font-size:9px}.rizo-first-120-coach b{font-size:12px}.rizo-first-120-coach>em{font-size:9px}.rizo-first-pocket-target{width:48px;height:48px}}
       @media(prefers-reduced-motion:reduce){.rizo-first-120 *{scroll-behavior:auto!important}}
     `;
     document.head.appendChild(style);
@@ -134,22 +134,15 @@
     return enabled.find(button => /FREE DEPLOY/i.test(button.getAttribute("aria-label") || button.title || "")) || enabled[0];
   }
 
-  function sendNativeFieldPointer(world, xPercent, yPercent) {
+  function markerPosition(world, xPercent, yPercent) {
     const rect = world.getBoundingClientRect();
-    const init = {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      pointerId: 1,
-      pointerType: "mouse",
-      isPrimary: true,
-      clientX: rect.left + rect.width * xPercent / 100,
-      clientY: rect.top + rect.height * yPercent / 100,
-      button: 0,
-      buttons: 1
+    const touchInput = Number(navigator.maxTouchPoints || 0) > 0;
+    const landscape = matchMedia("(max-height:650px) and (orientation:landscape)").matches;
+    const liftPx = touchInput ? Math.max(42, Math.min(56, Math.min(rect.width, rect.height) * .135)) : 0;
+    return {
+      left: `calc(${xPercent}% + ${landscape ? liftPx : 0}px)`,
+      top: `calc(${yPercent}% + ${touchInput && !landscape ? liftPx : 0}px)`
     };
-    if (typeof PointerEvent === "function") world.dispatchEvent(new PointerEvent("pointerdown", init));
-    else world.dispatchEvent(new MouseEvent("pointerdown", init));
   }
 
   function ensurePocketTargets(shell) {
@@ -162,27 +155,22 @@
     const existing = new Map([...world.querySelectorAll(".rizo-first-pocket-target")].map(node => [node.dataset.pocket, node]));
     pockets.forEach((pocket, index) => {
       const key = String(index);
-      let button = existing.get(key);
-      if (!button) {
-        button = document.createElement("button");
-        button.type = "button";
-        button.className = "rizo-first-pocket-target";
-        button.dataset.pocket = key;
-        button.textContent = "PLACE";
-        button.setAttribute("aria-label", `Place Rizo at suggested spot ${index + 1}`);
-        for (const type of ["pointerdown", "pointerup"]) button.addEventListener(type, event => event.stopPropagation());
-        button.addEventListener("click", event => {
-          event.preventDefault();
-          event.stopPropagation();
-          const xPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-x"));
-          const yPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-y"));
-          if (!Number.isFinite(xPercent) || !Number.isFinite(yPercent)) return;
-          sendNativeFieldPointer(world, xPercent, yPercent);
-        });
-        world.appendChild(button);
+      let marker = existing.get(key);
+      if (!marker) {
+        marker = document.createElement("span");
+        marker.className = "rizo-first-pocket-target";
+        marker.dataset.pocket = key;
+        marker.textContent = "PLACE";
+        marker.setAttribute("aria-hidden", "true");
+        world.appendChild(marker);
       }
-      button.style.left = pocket.style.getPropertyValue("--pocket-x");
-      button.style.top = pocket.style.getPropertyValue("--pocket-y");
+      const xPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-x"));
+      const yPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-y"));
+      if (Number.isFinite(xPercent) && Number.isFinite(yPercent)) {
+        const position = markerPosition(world, xPercent, yPercent);
+        marker.style.left = position.left;
+        marker.style.top = position.top;
+      }
       existing.delete(key);
     });
     existing.forEach(node => node.remove());
@@ -221,7 +209,7 @@
       const choice = firstChoice(shell);
       markOnlyChoice(shell, choice);
       if (shell.classList.contains("has-placement")) {
-        setCoach(shell, "1/3", "PICK A SPOT", "Now tap any marked spot beside the trail. Green means Rizo can fight from there.");
+        setCoach(shell, "1/3", "PICK A SPOT", "Tap a marked spot beside the trail. The game keeps your finger out of the way while placing.");
         ensurePocketTargets(shell);
       } else {
         removePocketTargets(shell);
@@ -318,5 +306,6 @@
     attributeFilter: ["hidden", "disabled", "aria-pressed", "class"]
   });
   window.addEventListener("rizo:world-ready", scheduleSync);
+  window.addEventListener("resize", scheduleSync, { passive: true });
   scheduleSync();
 })();
