@@ -20,7 +20,7 @@ function deepFreeze(value, seen = new WeakSet()) {
   return value;
 }
 
-function normalizeDefinition(definition) {
+function normalizeDefinition(definition, category) {
   if (!definition || typeof definition !== "object" || Array.isArray(definition)) {
     throw new TypeError("Rizo Core definitions must be plain objects.");
   }
@@ -42,7 +42,7 @@ function normalizeDefinition(definition) {
     ? [...new Set(source.aliases.map(alias => normalizeId(alias, "alias")).filter(alias => alias !== id))]
     : [];
 
-  return deepFreeze({ ...source, id, tags, aliases });
+  return deepFreeze({ ...source, id, category, tags, aliases });
 }
 
 function readPath(object, path) {
@@ -55,6 +55,7 @@ export class ContentRegistry {
   constructor() {
     this._categories = new Map();
     this._aliases = new Map();
+    this._addresses = new Map();
   }
 
   registerCategory(categoryName, definitions = []) {
@@ -67,30 +68,53 @@ export class ContentRegistry {
     const aliases = new Map();
 
     for (const rawDefinition of definitions) {
-      const definition = normalizeDefinition(rawDefinition);
+      const definition = normalizeDefinition(rawDefinition, category);
       if (records.has(definition.id)) throw new Error(`Duplicate id in ${category}: ${definition.id}`);
       records.set(definition.id, definition);
     }
 
+    const addresses = new Map();
+    const claim = (address, canonicalId, kind) => {
+      const existing = addresses.get(address) || this._addresses.get(address);
+      if (existing) {
+        throw new Error(
+          `Global id/alias collision: ${address} (${category}:${canonicalId} ${kind}) conflicts with ` +
+          `${existing.category}:${existing.canonicalId} ${existing.kind}`
+        );
+      }
+      addresses.set(address, Object.freeze({ category, canonicalId, kind }));
+    };
+
+    for (const definition of records.values()) claim(definition.id, definition.id, "canonical");
+
     for (const definition of records.values()) {
       for (const alias of definition.aliases) {
-        if (records.has(alias)) {
-          throw new Error(`Alias collides with canonical ${category} id: ${alias}`);
-        }
-        if (aliases.has(alias)) {
-          throw new Error(`Duplicate alias in ${category}: ${alias}`);
-        }
+        claim(alias, definition.id, "alias");
         aliases.set(alias, definition.id);
       }
     }
 
     this._categories.set(category, records);
     this._aliases.set(category, aliases);
+    for (const [address, owner] of addresses) this._addresses.set(address, owner);
     return this;
   }
 
   categories() {
     return [...this._categories.keys()];
+  }
+
+  locate(id, { includeAliases = true } = {}) {
+    const normalizedId = String(id || "").trim().toLowerCase();
+    if (!normalizedId) return null;
+
+    const owner = this._addresses.get(normalizedId);
+    if (!owner || (!includeAliases && owner.kind === "alias")) return null;
+    return Object.freeze({
+      category: owner.category,
+      canonicalId: owner.canonicalId,
+      definition: this._categories.get(owner.category).get(owner.canonicalId)
+    });
   }
 
   canonicalId(category, id) {

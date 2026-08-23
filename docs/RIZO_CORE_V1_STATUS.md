@@ -1,8 +1,3 @@
-# Rizo Core v1 Status
+# Historical Status Note
 
-- Branch: `rizo-core-v1`
-- Runtime integration: not enabled
-- `main` modified by this work: no
-- Local adversarial test run after audit fixes: passing
-- GitHub CI: configured in `.github/workflows/rizo-core.yml`
-- Next consumer: Rizo Defense
+This file described the pre-integration `rizo-core-v1` branch and is retained only as history. Runtime integration is now enabled on `codex/rizo-world-organizer`. The active architecture and status are documented in `AGENTS.md` and `docs/RIZO_CORE_V1.md`.

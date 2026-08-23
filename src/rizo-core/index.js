@@ -1,10 +1,10 @@
 export { ContentRegistry } from "./registry.js";
 export { ContentQuery, createSelectors } from "./selectors.js";
-export { StateStore, createInitialPlayerState } from "./state-store.js";
+export { StateStore, createInitialCoreState } from "./state-store.js";
 export { EventBus } from "./event-bus.js";
 export { GameHost, assertGameModule, createGameContext, GAME_CONTRACT_METHODS } from "./game-contract.js";
 export { MemoryPersistenceAdapter, LocalStoragePersistenceAdapter, createPersistenceController } from "./persistence.js";
-export { LegacyRuntimeAdapter, NativeRuntimeAdapter, resolveGlobalPath } from "./legacy-runtime.js";
+export { LegacyRuntimeAdapter, NativeRuntimeAdapter, readonlySnapshot, resolveGlobalPath } from "./legacy-runtime.js";
 export { SourceResolver } from "./source-resolver.js";
 export { createRizoCore, mergeContentPacks, CORE_CATEGORIES } from "./core.js";
 

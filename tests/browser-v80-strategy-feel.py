@@ -17,7 +17,7 @@ def place_next(page, pet_id=None):
     return page.evaluate('(id)=>RizoRuntimeQA.defensePlaceNextForQA(id)', pet_id)
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
 
     # Landscape ownership: controls cannot sit on top of field or roster.
     land=browser.new_page(viewport={'width':844,'height':390},device_scale_factor=2)

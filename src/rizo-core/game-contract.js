@@ -21,7 +21,7 @@ export function createGameContext({ core, gameId, services = {} }) {
     gameId,
     registry: core.registry,
     select: core.select,
-    state: core.state,
+    coreState: core.state,
     services: Object.freeze({ ...services }),
 
     getContent(category, id) {
@@ -32,14 +32,19 @@ export function createGameContext({ core, gameId, services = {} }) {
       return core.select.query(category);
     },
 
+    getPlayerSnapshot() {
+      if (typeof services.playerState?.snapshot !== "function") {
+        throw new Error("No authoritative player-state reader is configured.");
+      }
+      return services.playerState.snapshot();
+    },
+
     updatePlayer(updater, meta = {}) {
       if (typeof updater !== "function") throw new TypeError("Player updater must be a function.");
-      return core.state.update(state => {
-        state.player = state.player || {};
-        updater(state.player, state);
-        state.meta = state.meta || {};
-        state.meta.updatedAt = Date.now();
-      }, { gameId, ...meta });
+      if (typeof services.playerState?.update !== "function") {
+        throw new Error("Authoritative player state is read-only; live write-through is not implemented.");
+      }
+      return services.playerState.update(updater, { gameId, ...meta });
     },
 
     updateGameState(updater, meta = {}) {

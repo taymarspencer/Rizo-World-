@@ -11,11 +11,14 @@ export class SourceResolver {
     this.adapters = new Map([["native", new NativeRuntimeAdapter()]]);
   }
 
-  register(sourceName, adapter) {
+  register(sourceName, adapter, { replace = false } = {}) {
     const source = normalizeSource(sourceName);
     if (!source) throw new Error("Source names cannot be empty.");
     if (!adapter || typeof adapter.resolve !== "function") {
       throw new TypeError(`Source adapter ${source} must implement resolve(definition).`);
+    }
+    if (this.adapters.has(source) && !replace) {
+      throw new Error(`Rizo World source adapter already registered: ${source}`);
     }
     this.adapters.set(source, adapter);
     return this;

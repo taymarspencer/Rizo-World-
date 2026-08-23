@@ -10,6 +10,8 @@ import { WAVES } from "./waves.js";
 import { EVENTS } from "./events.js";
 import { REWARDS } from "./rewards.js";
 import { SYSTEMS } from "./systems.js";
+import { ACHIEVEMENTS } from "./achievements.js";
+import { MAPS } from "./maps.js";
 
 export const RIZO_CONTENT = Object.freeze({
   games: GAMES,
@@ -23,13 +25,16 @@ export const RIZO_CONTENT = Object.freeze({
   waves: WAVES,
   events: EVENTS,
   rewards: REWARDS,
-  systems: SYSTEMS
+  systems: SYSTEMS,
+  achievements: ACHIEVEMENTS,
+  maps: MAPS
 });
 
 // Standard reference rules. Add rules here when a category gains a new ID-based relationship.
 export const RIZO_REFERENCE_RULES = Object.freeze([
   { from: "rizos", field: "traitIds", to: "traits", many: true, optional: true },
   { from: "rizos", field: "abilityIds", to: "abilities", many: true, optional: true },
+  { from: "abilities", field: "rizoId", to: "rizos", optional: true },
   { from: "items", field: "abilityIds", to: "abilities", many: true, optional: true },
   { from: "towers", field: "rizoId", to: "rizos", optional: true },
   { from: "towers", field: "abilityIds", to: "abilities", many: true, optional: true },

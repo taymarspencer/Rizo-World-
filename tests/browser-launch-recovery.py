@@ -6,7 +6,7 @@ def record(name, passed, detail=''):
     results.append((name,bool(passed),detail)); print(('PASS' if passed else 'FAIL'), name, detail)
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
 
     # A healthy boot must retire the shell but retain it dormant for future resume recovery.
     page=browser.new_page(viewport={'width':390,'height':844})
@@ -16,7 +16,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(250)
     status=page.evaluate('RizoBoot.status()')
     shell=page.evaluate('''()=>{const n=document.getElementById('rizoBootShell');return {exists:!!n,hidden:n?.hidden,recovery:n?.classList.contains('is-recovery')}}''')
-    record('healthy runtime reports exact v86 build', status['ready'] and status['expected']=='v86-launch-hotfix', str(status))
+    record('healthy runtime reports exact organizer build', status['ready'] and status['expected']=='v86-world-organizer', str(status))
     record('healthy boot keeps recovery shell dormant instead of deleting it', shell['exists'] and shell['hidden'] and not shell['recovery'], str(shell))
     record('healthy boot has no page errors', not errors, '; '.join(errors[:3]))
 

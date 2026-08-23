@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { ContentRegistry } from "../src/rizo-core/registry.js";
 import { createSelectors } from "../src/rizo-core/selectors.js";
-import { StateStore, createInitialPlayerState } from "../src/rizo-core/state-store.js";
+import { StateStore, createInitialCoreState } from "../src/rizo-core/state-store.js";
 import { EventBus } from "../src/rizo-core/event-bus.js";
 import { createPersistenceController } from "../src/rizo-core/persistence.js";
 import { createRizoCore, mergeContentPacks } from "../src/rizo-core/core.js";
@@ -63,6 +63,35 @@ await test("duplicate IDs are rejected", () => {
   }), /Duplicate id/);
 });
 
+await test("stable IDs are globally unique across categories", () => {
+  const registry = new ContentRegistry().registerCategory("items", [{ id: "thing.same" }]);
+  assert.throws(
+    () => registry.registerCategory("rewards", [{ id: "thing.same" }]),
+    /Global id\/alias collision/
+  );
+});
+
+await test("global namespace rejects every canonical and alias collision direction", () => {
+  assert.throws(() => new ContentRegistry()
+    .registerCategory("items", [{ id: "item.one", aliases: ["shared.address"] }])
+    .registerCategory("rewards", [{ id: "shared.address" }]), /Global id\/alias collision/);
+  assert.throws(() => new ContentRegistry()
+    .registerCategory("items", [{ id: "shared.address" }])
+    .registerCategory("rewards", [{ id: "reward.one", aliases: ["shared.address"] }]), /Global id\/alias collision/);
+  assert.throws(() => new ContentRegistry()
+    .registerCategory("items", [{ id: "item.one", aliases: ["shared.address"] }])
+    .registerCategory("rewards", [{ id: "reward.one", aliases: ["shared.address"] }]), /Global id\/alias collision/);
+});
+
+await test("registry locates canonical IDs and aliases without a category", () => {
+  const registry = new ContentRegistry().registerCategory("games", [
+    { id: "game.defense", aliases: ["defense"] }
+  ]);
+  assert.equal(registry.locate("game.defense").category, "games");
+  assert.equal(registry.locate("defense").canonicalId, "game.defense");
+  assert.equal(registry.locate("missing"), null);
+});
+
 await test("invalid IDs are rejected", () => {
   assert.throws(() => createRizoCore({ content: { items: [{ id: "Bad ID" }] } }), /Invalid Rizo Core id/);
 });
@@ -100,9 +129,15 @@ await test("query supports search, sortBy, clone and limit", () => {
 });
 
 await test("state update safely supports Array.push", () => {
-  const state = new StateStore({ initialState: createInitialPlayerState() });
-  state.update(current => current.player.ownedRizos.push("rizo.scout"));
-  assert.deepEqual(state.get().player.ownedRizos, ["rizo.scout"]);
+  const state = new StateStore({ initialState: { version: 1, queue: [] } });
+  state.update(current => current.queue.push("rizo.scout"));
+  assert.deepEqual(state.get().queue, ["rizo.scout"]);
+});
+
+await test("default Core state has no shadow player domain", () => {
+  const state = createInitialCoreState();
+  assert.equal(state.player, undefined);
+  assert.deepEqual(state.games, {});
 });
 
 await test("state get returns defensive clones", () => {
@@ -193,13 +228,11 @@ await test("failed game initialize is cleaned up", async () => {
   assert.equal(core.games.active, null);
 });
 
-await test("game context updates player and per-game state", async () => {
+await test("game context cannot write shadow player state", async () => {
   const core = createRizoCore();
   const game = makeGame({
     initialize(context) {
-      context.updatePlayer(player => {
-        player.currency.embers = 10;
-      });
+      assert.throws(() => context.updatePlayer(() => {}), /read-only/);
       context.updateGameState(gameState => {
         gameState.bestWave = 7;
       });
@@ -207,8 +240,16 @@ await test("game context updates player and per-game state", async () => {
   });
 
   await core.games.mount("game.defense", game);
-  assert.equal(core.state.get().player.currency.embers, 10);
+  assert.equal(core.state.get().player, undefined);
   assert.equal(core.state.get().games["game.defense"].bestWave, 7);
+  await core.games.unmount();
+});
+
+await test("game context reads only a configured authoritative player adapter", async () => {
+  const snapshot = Object.freeze({ wallet: Object.freeze({ embers: 42 }) });
+  const core = createRizoCore({ services: { playerState: { snapshot: () => snapshot } } });
+  const game = makeGame({ initialize(context) { assert.equal(context.getPlayerSnapshot(), snapshot); } });
+  await core.games.mount("game.test", game);
   await core.games.unmount();
 });
 

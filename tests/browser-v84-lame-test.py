@@ -6,7 +6,7 @@ def record(name, passed, detail=''):
     results.append((name,bool(passed),detail)); print(('PASS' if passed else 'FAIL'),name,detail)
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
     page=browser.new_page(viewport={'width':390,'height':844})
     errors=[]; page.on('pageerror',lambda e:errors.append(str(e)))
     page.set_content(build_inline_app(True,embed_assets=True),wait_until='load',timeout=120000)

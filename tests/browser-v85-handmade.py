@@ -10,7 +10,7 @@ def num_px(v):
     except:return 999
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
     for width,height in [(320,568),(390,844),(844,390)]:
         page=browser.new_page(viewport={'width':width,'height':height})
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))

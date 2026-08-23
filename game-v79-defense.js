@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v86-launch-hotfix";
+  const RIZO_RUNTIME_BUILD = "v86-world-organizer";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -5253,9 +5253,12 @@
   function defenseSellRefund(tower,d=mini.defense){if(!tower)return 0;return Math.floor((tower.spent||0)*(defenseCanUndoPlacement(tower,d)?1:DefenseCore.ECONOMY.planningRefundRate));}
 
   function defenseDeployCost(row){const d=mini.defense,copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,paid=d.towers.filter(tower=>tower.cost>0).length;return DefenseCore.deploymentCost({paidTowerCount:paid,copyCount:copies,activeFirst:row.source==="active"});}
+  const DEFENSE_TOWER_PROFILES=Object.freeze({
+    classic:{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"},ember:{damage:1.03,rate:.96,range:1,projectile:"ember",label:"BURN"},toxic:{damage:.88,rate:1,range:1.04,projectile:"toxic",label:"POISON"},violet:{damage:.94,rate:1.08,range:1.08,projectile:"void",label:"CHAIN"},moss:{damage:.78,rate:.91,range:1.08,projectile:"moss",label:"ROOT"},bubblegum:{damage:.85,rate:.9,range:.98,projectile:"bubble",label:"KNOCKBACK"},frost:{damage:.82,rate:.95,range:1.08,projectile:"frost",label:"SLOW"},glitch:{damage:1.02,rate:1.13,range:1,projectile:"glitch",label:"RANDOM"},obsidian:{damage:1.62,rate:.62,range:.94,projectile:"stone",label:"HEAVY"},aurora:{damage:.78,rate:.9,range:1.18,projectile:"aurora",label:"AURA"},golden:{damage:.9,rate:.92,range:1,projectile:"gold",label:"PROFIT"},diamond:{damage:1.2,rate:.76,range:1.15,projectile:"diamond",label:"PIERCE"},shadow:{damage:1.08,rate:.92,range:1.04,projectile:"shadow",label:"CRITICAL"},retro:{damage:.72,rate:1.48,range:.95,projectile:"retro",label:"RAPID"}
+  });
   function defenseTowerStats(pet,upgrade=0){
     const stage=DEFENSE_STAGE_MULTIPLIER[pet.stage]||1,power=Number(pet.skills?.power)||0,speed=Number(pet.skills?.speed)||0,instinct=Number(pet.skills?.instinct)||0,stamina=Number(pet.skills?.stamina)||0,variant=pet.variant||pet.hiddenVariant||"classic";
-    const profile={classic:{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"},ember:{damage:1.03,rate:.96,range:1,projectile:"ember",label:"BURN"},toxic:{damage:.88,rate:1,range:1.04,projectile:"toxic",label:"POISON"},violet:{damage:.94,rate:1.08,range:1.08,projectile:"void",label:"CHAIN"},moss:{damage:.78,rate:.91,range:1.08,projectile:"moss",label:"ROOT"},bubblegum:{damage:.85,rate:.9,range:.98,projectile:"bubble",label:"KNOCKBACK"},frost:{damage:.82,rate:.95,range:1.08,projectile:"frost",label:"SLOW"},glitch:{damage:1.02,rate:1.13,range:1,projectile:"glitch",label:"RANDOM"},obsidian:{damage:1.62,rate:.62,range:.94,projectile:"stone",label:"HEAVY"},aurora:{damage:.78,rate:.9,range:1.18,projectile:"aurora",label:"AURA"},golden:{damage:.9,rate:.92,range:1,projectile:"gold",label:"PROFIT"},diamond:{damage:1.2,rate:.76,range:1.15,projectile:"diamond",label:"PIERCE"},shadow:{damage:1.08,rate:.92,range:1.04,projectile:"shadow",label:"CRITICAL"},retro:{damage:.72,rate:1.48,range:.95,projectile:"retro",label:"RAPID"}}[variant]||{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"};
+    const profile=DEFENSE_TOWER_PROFILES[variant]||DEFENSE_TOWER_PROFILES.classic;
     const up=1+upgrade*.34;return{variant,profile,damage:(3.4+power*.052+stamina*.012)*stage*profile.damage*up,rate:(.88+speed*.009)*profile.rate*(1+upgrade*.12),range:(.198+instinct*.00078)*profile.range*(1+upgrade*.085),crit:.06+instinct*.0014,projectile:profile.projectile,label:profile.label};
   }
   function defenseCombatStats(tower){const stats=defenseTowerStats(tower.pet,tower.upgrade),time=defenseNow(),d=mini.defense;if(tower.doctrine==="power"){stats.damage*=1.24;stats.rate*=1.06;stats.range*=.97;}else if(tower.doctrine==="control"){stats.damage*=.86;stats.rate*=1.18;stats.range*=1.24;}if(tower.superForm==="power"){stats.damage*=2.75;stats.rate*=1.18;stats.range*=1.06;}else if(tower.superForm==="control"){stats.damage*=1.18;stats.rate*=1.72;stats.range*=1.48;}if(d.rallyUntil>time)stats.rate*=1.34;if(d.prismUntil>time){stats.damage*=1.28;stats.rate*=1.15;stats.range*=1.08;}if(tower.overclockUntil>time)stats.rate*=2;if(tower.rangeDebuffUntil>time)stats.range*=.75;if(d.whiteoutUntil>time&&!['frost','aurora'].includes(stats.variant))stats.range*=.82;return stats;}
@@ -7900,6 +7903,59 @@ Streak: ${state.player.streak}`;
     registerRizoServiceWorker();
   }
 
+  function readonlyRuntimeSnapshot(value,seen=new WeakMap()){
+    if(value==null||(typeof value!=="object"&&typeof value!=="function"))return value;
+    if(seen.has(value))return seen.get(value);
+    if(typeof value==="function"){const wrapped=function(...args){return Reflect.apply(value,this,args);};seen.set(value,wrapped);return Object.freeze(wrapped);}
+    const copy=Array.isArray(value)?[]:{};seen.set(value,copy);for(const[key,child]of Object.entries(value))copy[key]=readonlyRuntimeSnapshot(child,seen);return Object.freeze(copy);
+  }
+
+  // Rizo World receives immutable snapshots of definition data plus deliberately
+  // exposed service functions. Live player state and mutable runtime internals stay private.
+  const legacyContent=readonlyRuntimeSnapshot({
+    rizos:VARIANTS,foods:FOODS,wearables:ACCESSORIES,treasures:WALK_TREASURES,rooms:ROOMS,
+    boosts:BOOSTS,skills:SKILLS,mutations:MUTATIONS,evolutionForms:EVOLUTION_FORMS,
+    worldEvents:WORLD_EVENTS,achievements:ACHIEVEMENTS,rizoForms:RIZO_FORMS,
+    defenseMaps:DEFENSE_MAPS,defenseEnemies:DEFENSE_ENEMIES,defenseBosses:DEFENSE_BOSSES,
+    defenseAbilities:DEFENSE_ABILITIES,defenseControlAbilities:DEFENSE_CONTROL_ABILITIES,
+    defenseDoctrines:DEFENSE_DOCTRINES,defenseTowerProfiles:DEFENSE_TOWER_PROFILES
+  });
+  const legacyRuntime = {
+    version: 1,
+    content: legacyContent,
+    systems: Object.freeze({
+      save: Object.freeze({
+        key: SAVE_KEY,
+        legacyKey: LEGACY_KEY,
+        version: VERSION,
+        load: loadState,
+        save: saveState,
+        normalize: normalizeStateDetached
+      }),
+      arcade: Object.freeze({ rules: ARCADE_MODE_RULES, start: startMiniGame }),
+      progression: Object.freeze({ achievements: legacyContent.achievements, check: checkAchievements, progressQuest }),
+      season: Object.freeze({ earnHeat, keeperRank }),
+      defense: Object.freeze({
+        core: DefenseCore,
+        maps: legacyContent.defenseMaps,
+        enemies: legacyContent.defenseEnemies,
+        bosses: legacyContent.defenseBosses,
+        abilities: legacyContent.defenseAbilities,
+        doctrines: legacyContent.defenseDoctrines,
+        towerProfiles: legacyContent.defenseTowerProfiles,
+        wavePlan: defenseWavePlan
+      })
+    })
+  };
+  Object.defineProperty(legacyRuntime, "currentState", {
+    enumerable: true,
+    get: () => readonlyRuntimeSnapshot(state)
+  });
+  Object.defineProperty(window, "RizoLegacyRuntime", {
+    value: Object.freeze(legacyRuntime),
+    configurable: true,
+    enumerable: false
+  });
 
   const IS_QA_BUILD=location.hostname==="localhost"||location.hostname==="127.0.0.1"||new URLSearchParams(location.search).get("qa")==="1";
   function createRizoRuntimeQA(){return Object.freeze({

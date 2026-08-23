@@ -102,17 +102,10 @@ export class StateStore {
   }
 }
 
-export function createInitialPlayerState() {
+export function createInitialCoreState() {
   const now = Date.now();
   return {
     version: 1,
-    player: {
-      currency: {},
-      ownedRizos: [],
-      ownedItems: [],
-      unlocks: [],
-      progress: {}
-    },
     games: {},
     meta: {
       createdAt: now,

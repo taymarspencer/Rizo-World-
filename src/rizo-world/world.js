@@ -1,5 +1,6 @@
 import { createDefaultRizoCore } from "../rizo-core/index.js";
 import { LegacyRuntimeAdapter } from "../rizo-core/legacy-runtime.js";
+import { readonlySnapshot } from "../rizo-core/legacy-runtime.js";
 import { SourceResolver } from "../rizo-core/source-resolver.js";
 
 function safeProperty(object, key) {
@@ -15,7 +16,19 @@ export function createRizoWorld({
 } = {}) {
   const resolvedDocument = documentObject === undefined ? safeProperty(globalObject, "document") : documentObject;
   const resolvedStorage = storage === undefined ? safeProperty(globalObject, "localStorage") : storage;
-  const core = createDefaultRizoCore(coreOptions);
+  const playerState = Object.freeze({
+    authority: "legacy",
+    writable: false,
+    snapshot() {
+      const snapshot = safeProperty(safeProperty(globalObject, "RizoLegacyRuntime"), "currentState");
+      if (!snapshot) throw new Error("Authoritative legacy player state is unavailable.");
+      return readonlySnapshot(snapshot);
+    }
+  });
+  const core = createDefaultRizoCore({
+    ...coreOptions,
+    services: { ...(coreOptions.services || {}), playerState }
+  });
   const legacy = new LegacyRuntimeAdapter({
     globalObject,
     documentObject: resolvedDocument,
@@ -23,10 +36,27 @@ export function createRizoWorld({
   });
   const sources = new SourceResolver(core.registry).register("legacy", legacy);
 
+  function locate(id) {
+    const located = core.registry.locate(id);
+    if (!located) throw new Error(`Unknown Rizo World id: ${id}`);
+    return located;
+  }
+
+  function address(categoryOrId, id) {
+    if (id !== undefined) return { category: categoryOrId, id };
+    const located = locate(categoryOrId);
+    return { category: located.category, id: located.canonicalId };
+  }
+
+  function isCategory(value) {
+    const category = String(value || "").trim().toLowerCase();
+    return core.registry.categories().includes(category);
+  }
+
   const world = {
     version: 1,
     core,
-    sources,
+    playerState,
 
     get(category, id) {
       return core.registry.get(category, id);
@@ -48,16 +78,28 @@ export function createRizoWorld({
       return core.select.query(category);
     },
 
-    resolve(category, id) {
-      return sources.resolve(category, id);
+    describe(categoryOrId, id) {
+      const target = address(categoryOrId, id);
+      return sources.describe(target.category, target.id);
     },
 
-    available(category, id) {
-      return sources.available(category, id);
+    resolve(categoryOrId, id) {
+      const target = address(categoryOrId, id);
+      return sources.resolve(target.category, target.id);
     },
 
-    invoke(category, id, ...args) {
-      return sources.invoke(category, id, ...args);
+    available(categoryOrId, id) {
+      const target = address(categoryOrId, id);
+      return sources.available(target.category, target.id);
+    },
+
+    invoke(categoryOrId, id, ...args) {
+      if (arguments.length >= 2 && isCategory(categoryOrId)) {
+        return sources.invoke(categoryOrId, id, ...args);
+      }
+      const target = address(categoryOrId);
+      const invocationArgs = arguments.length > 1 ? [id, ...args] : [];
+      return sources.invoke(target.category, target.id, ...invocationArgs);
     },
 
     launch(gameId) {
@@ -74,6 +116,10 @@ export function createRizoWorld({
 
     manifest() {
       return core.registry.snapshot();
+    },
+
+    player() {
+      return playerState.snapshot();
     },
 
     status() {
