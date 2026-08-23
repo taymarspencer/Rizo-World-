@@ -3,6 +3,10 @@
 
   const MARKER_KEY = "rizo-defense-first-120-v1";
   const FORCE = new URLSearchParams(location.search).get("first120") === "1";
+  // Pine Bend's decorative build pockets sit deliberately close to the road. The
+  // first-run target is slightly farther out so the full mobile tower footprint is
+  // valid while still staying inside the starter Rizo's useful attack band.
+  const FIRST_RUN_SPOTS = Object.freeze({ grove: Object.freeze([{ x: .39, y: .63 }]) });
   const sessions = new WeakMap();
   let scheduled = false;
 
@@ -53,10 +57,10 @@
       .rizo-first-120[data-rizo-first-step="start"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="watch"] .defense-deploy-dock,.rizo-first-120[data-rizo-first-step="upgrade"] .defense-deploy-dock{display:none!important}
       .rizo-first-120[data-rizo-first-step="start"] #defenseWaveButton{animation:none!important;transform:none!important;outline:3px solid var(--first120-warn);outline-offset:3px;box-shadow:0 0 0 5px rgba(255,207,102,.18)}
       .rizo-first-120[data-rizo-first-step="upgrade"] [data-defense-upgrade]:not([disabled]){outline:3px solid var(--first120-accent);outline-offset:3px}
-      .rizo-first-pocket-target{position:absolute;z-index:58;width:54px;height:54px;transform:translate(-50%,-50%);display:grid;place-items:center;border:2px solid #0b0d11;border-radius:50%;background:rgba(119,229,154,.20);box-shadow:0 0 0 8px rgba(119,229,154,.13);color:#fff;font:1000 9px/1 system-ui;letter-spacing:.08em;text-shadow:0 1px 2px #000;pointer-events:none;user-select:none}
-      .rizo-first-120 .defense-build-pocket{opacity:1!important;filter:none!important}
+      .rizo-first-pocket-target{position:absolute;z-index:58;width:58px;height:58px;transform:translate(-50%,-50%);display:grid;place-items:center;border:2px solid #0b0d11;border-radius:50%;background:rgba(119,229,154,.22);box-shadow:0 0 0 9px rgba(119,229,154,.13);color:#fff;font:1000 9px/1 system-ui;letter-spacing:.08em;text-shadow:0 1px 2px #000;pointer-events:none;user-select:none}
+      .rizo-first-120 .defense-build-pocket{opacity:.3!important;filter:none!important;animation:none!important;outline:none!important}
       .rizo-first-120.rizo-first-pop #defenseWorld{outline:3px solid var(--first120-accent);outline-offset:-4px}
-      @media(max-width:520px){.rizo-first-120-coach{top:7px;left:7px;right:7px;min-height:48px;padding:7px 8px;gap:7px}.rizo-first-120-coach span{font-size:9px}.rizo-first-120-coach b{font-size:12px}.rizo-first-120-coach>em{font-size:9px}.rizo-first-pocket-target{width:48px;height:48px}}
+      @media(max-width:520px){.rizo-first-120-coach{top:7px;left:7px;right:7px;min-height:48px;padding:7px 8px;gap:7px}.rizo-first-120-coach span{font-size:9px}.rizo-first-120-coach b{font-size:12px}.rizo-first-120-coach>em{font-size:9px}.rizo-first-pocket-target{width:52px;height:52px}}
       @media(prefers-reduced-motion:reduce){.rizo-first-120 *{scroll-behavior:auto!important}}
     `;
     document.head.appendChild(style);
@@ -134,15 +138,24 @@
     return enabled.find(button => /FREE DEPLOY/i.test(button.getAttribute("aria-label") || button.title || "")) || enabled[0];
   }
 
+  function fallbackSpot(world) {
+    const pocket = world.querySelector(".defense-build-pocket");
+    if (!pocket) return null;
+    const xPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-x"));
+    const yPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-y"));
+    return Number.isFinite(xPercent) && Number.isFinite(yPercent) ? { x: xPercent / 100, y: yPercent / 100 } : null;
+  }
+
   function ensurePocketTargets(shell) {
     const world = shell.querySelector("#defenseWorld");
     if (!world || !shell.classList.contains("has-placement")) {
       removePocketTargets(shell);
       return;
     }
-    const pockets = [...world.querySelectorAll(".defense-build-pocket")];
+    const mapId = world.dataset.defenseMap || "grove";
+    const spots = FIRST_RUN_SPOTS[mapId] || [fallbackSpot(world)].filter(Boolean);
     const existing = new Map([...world.querySelectorAll(".rizo-first-pocket-target")].map(node => [node.dataset.pocket, node]));
-    pockets.forEach((pocket, index) => {
+    spots.forEach((spot, index) => {
       const key = String(index);
       let marker = existing.get(key);
       if (!marker) {
@@ -153,12 +166,10 @@
         marker.setAttribute("aria-hidden", "true");
         world.appendChild(marker);
       }
-      const xPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-x"));
-      const yPercent = Number.parseFloat(pocket.style.getPropertyValue("--pocket-y"));
-      if (Number.isFinite(xPercent) && Number.isFinite(yPercent)) {
-        marker.style.left = `${xPercent}%`;
-        marker.style.top = `${yPercent}%`;
-      }
+      marker.style.left = `${spot.x * 100}%`;
+      marker.style.top = `${spot.y * 100}%`;
+      marker.dataset.x = String(spot.x);
+      marker.dataset.y = String(spot.y);
       existing.delete(key);
     });
     existing.forEach(node => node.remove());
@@ -197,7 +208,7 @@
       const choice = firstChoice(shell);
       markOnlyChoice(shell, choice);
       if (shell.classList.contains("has-placement")) {
-        setCoach(shell, "1/3", "PICK A SPOT", "Tap a marked spot beside the trail. Green means the full Rizo footprint fits.");
+        setCoach(shell, "1/3", "PICK THIS SPOT", "Tap the bright PLACE mark. It gives your first Rizo clean coverage without making you guess.");
         ensurePocketTargets(shell);
       } else {
         removePocketTargets(shell);
