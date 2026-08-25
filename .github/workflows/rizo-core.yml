@@ -12,7 +12,9 @@ on:
       - "tests/rizo-world-static.mjs"
       - "tests/browser-rizo-world-organizer.py"
       - "tests/browser-defense-first-120.py"
+      - "tests/browser-defense-combat-feedback.py"
       - "defense-onboarding-v1.js"
+      - "defense-combat-feedback-v1.css"
       - "game-v79-defense.js"
       - "index.html"
       - "rizo-config.js"
@@ -29,7 +31,9 @@ on:
       - "tests/rizo-world-static.mjs"
       - "tests/browser-rizo-world-organizer.py"
       - "tests/browser-defense-first-120.py"
+      - "tests/browser-defense-combat-feedback.py"
       - "defense-onboarding-v1.js"
+      - "defense-combat-feedback-v1.css"
       - "game-v79-defense.js"
       - "index.html"
       - "rizo-config.js"
@@ -76,3 +80,6 @@ jobs:
 
       - name: Run Defense first-120-second gate
         run: python tests/browser-defense-first-120.py
+
+      - name: Run Defense combat-readability gate
+        run: python tests/browser-defense-combat-feedback.py

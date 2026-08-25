@@ -34,25 +34,37 @@ async function collectModuleGraph(entry, seen = new Set()) {
   return seen;
 }
 
-await test("rizo-config boots World and Defense onboarding at DOM ready without making either fatal", async () => {
+await test("rizo-config boots World, onboarding, and combat presentation without making gameplay fatal", async () => {
   const config = await read("rizo-config.js");
   assert.match(config, /DOMContentLoaded/);
   assert.match(config, /import\("\.\/src\/rizo-world\/bootstrap\.js"\)/);
   assert.match(config, /import\("\.\/defense-onboarding-v1\.js"\)/);
+  assert.match(config, /defense-combat-feedback-v1\.css/);
+  assert.match(config, /rizo-defense-combat-feedback-v1/);
   assert.ok((config.match(/\.catch\(/g) || []).length >= 2, "World and onboarding imports must fail independently");
 });
 
-await test("service worker cache version changed for Phase 1 onboarding", async () => {
+await test("service worker cache version changed for Phase 2 combat presentation", async () => {
   const sw = await read("sw.js");
-  assert.match(sw, /const CACHE = "rizo-game-v86-world-organizer-p1"/);
+  assert.match(sw, /const CACHE = "rizo-game-v86-world-organizer-p2"/);
 });
 
-await test("Defense onboarding is a required offline runtime dependency", async () => {
-  const [sw, onboarding] = await Promise.all([read("sw.js"), read("defense-onboarding-v1.js")]);
+await test("Defense onboarding and combat feedback are required offline dependencies", async () => {
+  const [sw, onboarding, combat] = await Promise.all([
+    read("sw.js"),
+    read("defense-onboarding-v1.js"),
+    read("defense-combat-feedback-v1.css")
+  ]);
   assert.match(sw, /"\.\/defense-onboarding-v1\.js"/);
+  assert.match(sw, /"\.\/defense-combat-feedback-v1\.css"/);
   assert.match(onboarding, /rizo-defense-first-120-v1/);
   assert.match(onboarding, /data-defense-roster-id/);
   assert.match(onboarding, /data-defense-upgrade/);
+  assert.match(combat, /defense-tower\.firing/);
+  assert.match(combat, /defense-impact/);
+  assert.match(combat, /defense-enemy\.popped/);
+  assert.match(combat, /fx-lean/);
+  assert.match(combat, /prefers-reduced-motion/);
 });
 
 await test("page, runtime, and service worker share one build identity", async () => {
@@ -100,6 +112,7 @@ await test("script and World boot order preserves the active runtime", async () 
   assert.match(config, /DOMContentLoaded/);
   assert.match(config, /src\/rizo-world\/bootstrap\.js/);
   assert.match(config, /defense-onboarding-v1\.js/);
+  assert.match(config, /defense-combat-feedback-v1\.css/);
 });
 
 await test("every module required by the World bootstrap is present in the offline shell", async () => {

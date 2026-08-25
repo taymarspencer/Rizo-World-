@@ -64,14 +64,28 @@ window.RIZO_CONFIG = Object.freeze({
   }
 });
 
-// The World layer and the first-run Defense guide wait for DOMContentLoaded because
-// this file is parsed before the existing runtime scripts. Both are additive and
-// non-fatal: a blocked helper must never stop the legacy game from booting.
+// The World layer, first-run Defense guide, and presentation-only combat pass all
+// attach after DOMContentLoaded because this file is parsed before the active runtime.
+// Every enhancement is independent and non-fatal: the legacy game still owns gameplay.
 (() => {
   let started = false;
+
+  const loadCombatFeedback = () => {
+    if (document.getElementById("rizo-defense-combat-feedback-v1")) return;
+    const link = document.createElement("link");
+    link.id = "rizo-defense-combat-feedback-v1";
+    link.rel = "stylesheet";
+    link.href = "./defense-combat-feedback-v1.css";
+    link.addEventListener("error", () => {
+      console.warn("Rizo Defense combat feedback styles did not load; base Defense visuals remain active.");
+    }, { once: true });
+    document.head.appendChild(link);
+  };
+
   const startEnhancements = () => {
     if (started) return;
     started = true;
+    loadCombatFeedback();
     import("./src/rizo-world/bootstrap.js").catch(error => {
       console.warn("Rizo World bridge did not start; legacy runtime remains available.", error);
     });
