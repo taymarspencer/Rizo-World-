@@ -3,6 +3,8 @@ const ROOT=path.resolve(__dirname,'..');
 const code=fs.readFileSync(path.join(ROOT,'sw.js'),'utf8');
 const listeners={};
 const store=new Map();
+const deletedCaches=[];
+const lifecycle={claimed:0,skipped:0};
 let networkMode='online';
 const keyOf=req=>typeof req==='string'?new URL(req,'https://play.rizo.store/').href:req.url;
 const cache={
@@ -13,8 +15,8 @@ const cache={
 const caches={
   async open(){return cache},
   async match(req){return cache.match(req)},
-  async keys(){return ['rizo-game-v86-launch-hotfix']},
-  async delete(){return true}
+  async keys(){return ['unrelated-cache','rizo-game-v86-launch-hotfix','rizo-game-v86-world-organizer-p2']},
+  async delete(key){deletedCaches.push(key);return true}
 };
 const context={
   URL,Set,Map,Promise,Response,Request,console,caches,
@@ -29,7 +31,7 @@ const context={
   self:{
     location:new URL('https://play.rizo.store/sw.js'),
     addEventListener(type,fn){listeners[type]=fn},
-    clients:{claim:async()=>true}, skipWaiting:async()=>true
+    clients:{claim:async()=>{lifecycle.claimed++;return true}}, skipWaiting:async()=>{lifecycle.skipped++;return true}
   }
 };
 vm.createContext(context);vm.runInContext(code,context,{filename:'sw.js'});
@@ -39,6 +41,11 @@ async function dispatch(url,{mode='same-origin'}={}){
   const shaped={url:request.url,method:'GET',mode};
   let promise=null;listeners.fetch({request:shaped,respondWith(value){promise=Promise.resolve(value)}});
   return promise?await promise:null;
+}
+async function dispatchLifecycle(type){
+  let promise=null;
+  listeners[type]({waitUntil(value){promise=Promise.resolve(value)}});
+  if(promise)await promise;
 }
 (async()=>{
   let passed=0;const test=async(name,fn)=>{try{await fn();passed++;console.log('PASS',name)}catch(e){console.error('FAIL',name,e.message);process.exitCode=1}};
@@ -65,6 +72,22 @@ async function dispatch(url,{mode='same-origin'}={}){
     assert(code.includes('./rizo-v85-handmade.css'));
     assert(code.includes('await self.skipWaiting()'));
   });
-  console.log(`\n${passed}/4 service-worker policy checks passed`);
+  await test('candidate install completes its required shell before taking control',async()=>{
+    await dispatchLifecycle('install');
+    assert.equal(lifecycle.skipped,1);
+  });
+  await test('candidate activation removes only superseded Rizo caches',async()=>{
+    await dispatchLifecycle('activate');
+    assert.deepEqual(deletedCaches,['rizo-game-v86-launch-hotfix']);
+    assert.equal(lifecycle.claimed,1);
+  });
+  await test('updated candidate still serves repaired runtime and navigation offline',async()=>{
+    networkMode='offline';
+    const runtime=await dispatch('https://play.rizo.store/game-v79-defense.js');
+    const navigation=await dispatch('https://play.rizo.store/index.html',{mode:'navigate'});
+    assert.equal(await runtime.text(),'NETWORK_RUNTIME');
+    assert((await navigation.text()).includes('NETWORK_HTML'));
+  });
+  console.log(`\n${passed}/7 service-worker policy checks passed`);
   if(process.exitCode)process.exit(process.exitCode);
 })().catch(e=>{console.error(e);process.exit(1)});
