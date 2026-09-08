@@ -2,7 +2,7 @@ RIZO V87 — ARCADE QUALITY PASS
 Baseline: RIZO_V87_PURPLE_POP_CORRECTION_FLAT
 Build marker: v87-first-ten-visual-nuance
 Branch: claude/rizo-arcade-quality-pass-o17io9
-Commit: 89e26dedc310202eff0ae687f19006e31d0e70b5
+Commit: c4879d5 (arcade quality pass + pause-aware scheduler)
 Deploy: extract this ZIP directly; index.html is at root.
 
 Focus: shared arcade infrastructure across all 11 modes. The individual games
@@ -60,6 +60,20 @@ NOT IN THIS PASS (deliberate)
   saves.
 - Per-game onboarding cards: 11 new flows plus a state.meta schema change.
 
+PAUSE-AWARE SCHEDULER
+- queueMiniTimeout() wrapped native setTimeout, so a hold stopped the run clock
+  and the frame loop but not the delayed gameplay callbacks riding on it: Lost
+  Signal's rune chain and input gate, its round transitions, Ember Beat's
+  3/2/1/GO countdown, Ember Forge's wall rebuild and Rizo Runaway's maze rebuild
+  all advanced behind the pause panel.
+- Buffs and invulnerability windows are absolute now() stamps and burned off in
+  real time during a hold.
+- Both are fixed: jobs bank their remaining delay and re-arm with exactly that
+  much left, and absolute deadlines are credited the frozen interval on thaw.
+  Holds stack by reason. A deadline that had already lapsed stays lapsed.
+- Found while testing: arcadeFreeze() registered a job hold only for the first
+  freeze source, so ending an ad while still backgrounded released the queue.
+
 VERIFICATION
 - 19 browser suites, 2 node suites, static defense audit: all green and
   matching the pre-pass baseline. defense-core 31/31, service-worker 4/4,
@@ -67,6 +81,9 @@ VERIFICATION
   first-ten 41/41, all arcade suites 100%.
 - Three partials (rhythm-engine 13/14, phase7-art 42/43, consumer-pass 18/20)
   were confirmed pre-existing by running them against the pre-pass commit.
+- tests/browser-v87-arcade-freeze.py: 65 checks proving no game state advances
+  during manual pause, background suspension or stacked ad+background (in both
+  release orders). 29 of them fail against the previous behaviour.
 - 90 additional targeted checks for behaviour no existing suite covered:
   background credit-back across all 10 timed modes, stacked ad+background
   freezes, pause/restart/quit paths, death vs timeout results, naming on every
