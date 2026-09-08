@@ -6879,7 +6879,7 @@
     if(score>previousBest&&qualifiedRun){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
     showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${completedMode} ${rareDiscovery?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(completedMode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${trackTitle?`<div class="result-track-title">${trackTitle} • ${rhythmSnapshot?.track?.difficulty||"NORMAL"}</div>`:""}${newBest}<h2>${score} POINTS</h2><p class="big-line">${line}</p>${rhythmBreakdown}${arcadeBreakdown}${treasureCopy}${rareCopy}<p>${skill?.name || "Growth"} rose permanently. The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${completedMode}">RUN IT BACK</button></div></div>`);
     advanceTutorial("play");
-    if(score>20) celebrate();
+    if(score>20 && (endReason!=="death" || score>previousBest)) celebrate();
   }
 
 

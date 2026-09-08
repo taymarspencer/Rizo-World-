@@ -149,7 +149,7 @@
     "detail": [
       {
         "id": "tower-1",
-        "petId": "PET-C7CFF0BA671C",
+        "petId": "PET-DC4D7CF8354F",
         "variant": "classic",
         "copy": 1,
         "x": 0.32,
@@ -158,7 +158,7 @@
         "cost": 0,
         "spent": 0,
         "openingPerkApplied": false,
-        "placedAtReal": 0.066608,
+        "placedAtReal": 0.06670000000000005,
         "kills": 0,
         "damage": 0,
         "shots": 0,
