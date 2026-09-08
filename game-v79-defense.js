@@ -3793,12 +3793,42 @@
   // back or a phone call silently ends the run. Sources stack: a notification
   // during an ad must not thaw the run early.
   function arcadeFrozen(){ return Boolean(mini?.pauseSources && Object.keys(mini.pauseSources).length); }
+
+  // Deadlines the arcade stores as absolute now() stamps: buffs, invulnerability
+  // windows, spawn/wind timers, coach calls. Frozen time has to be handed back to
+  // every one of them or a pause silently burns a Thermal Burst or an i-frame.
+  // Discovery is by naming convention so a future mini.somethingUntil is covered
+  // automatically; anything that is not a wall-clock run deadline is listed here.
+  const ARCADE_CLOCK_EXEMPT = Object.freeze(new Set([
+    "endAt",            // credited explicitly (Infinity for Defense)
+    "pauseAt",          // walk fork's own pause stamp, credited explicitly
+    "freezeAt",         // the freeze bookkeeping itself
+    "rhythmAudioStartAt" // AudioContext time, not now(); rescheduled on thaw
+  ]));
+  function arcadeDeadlineKeys(){
+    return Object.keys(mini || {}).filter(key => /(?:Until|At)$/.test(key) && !ARCADE_CLOCK_EXEMPT.has(key));
+  }
+  function creditArcadeDeadlines(frozenFor, frozenAt){
+    if(!mini || !(frozenFor > 0)) return 0;
+    let credited = 0;
+    for(const key of arcadeDeadlineKeys()){
+      const value = mini[key];
+      if(typeof value !== "number" || !Number.isFinite(value) || value <= 0) continue;
+      // A deadline that had already expired when the freeze began stays expired;
+      // only one still pending gets the frozen interval back.
+      if(value <= frozenAt) continue;
+      mini[key] = value + frozenFor;
+      credited += 1;
+    }
+    return credited;
+  }
   function arcadeFreeze(source="menu"){
     if(!mini?.active) return false;
     mini.pauseSources ||= {};
     if(mini.pauseSources[source]) return false;
     const first=!arcadeFrozen();
     mini.pauseSources[source]=true;
+    arcadeHoldJobs(source);
     if(!first) return true;
     mini.freezeAt=now();
     mini.pausedByAd=true;
@@ -3810,9 +3840,12 @@
     mini.pauseSources ||= {};
     if(!mini.pauseSources[source]) return false;
     delete mini.pauseSources[source];
+    arcadeReleaseJobs(source);
     if(arcadeFrozen()) return false;
-    const frozenFor=Math.max(0, now()-(mini.freezeAt||now()));
+    const frozenAt=mini.freezeAt||now();
+    const frozenFor=Math.max(0, now()-frozenAt);
     if(Number.isFinite(mini.endAt)) mini.endAt+=frozenFor;
+    creditArcadeDeadlines(frozenFor, frozenAt);
     // The walk fork pauses on its own timestamp; keep it aligned so a fork left
     // open across a background does not double-credit or lose the pause.
     if(mini.pausedByFork && mini.pauseAt) mini.pauseAt+=frozenFor;
@@ -3839,8 +3872,9 @@
       pauseAt: 0, lastFrame: performance.now(), lane: 1, needle: .06, needleDir: 1,
       // Shared arcade state: one lives model, one freeze model, one end reason.
       lives: 3, maxLives: 3, endReason: "", pauseSources: {}, freezeAt: 0, paused: false,
+      jobs: new Map(), jobHolds: {},
       needleSpeed: .72, jumpY: 0, jumpV: 0, invulnerableUntil: 0,
-      distanceCarry: 0, treasureRolls: 0, combo: 1, timeouts: [],
+      distanceCarry: 0, treasureRolls: 0, combo: 1,
       pausedByFork: false, walkForkShown: false, walkPath: null, walkDecisionIndex: 0,
       walkDistance: 0, walkRisk: 0, walkLuck: 0, walkChoices: [],
       rhythmStreak: 0, rhythmMaxStreak: 0, rhythmMisses: 0, rhythmBlankTaps: 0,
@@ -3923,15 +3957,13 @@
       mini.forageOrder = buildForageOrder();
       el.miniArena.innerHTML = `<div class="mini-world forage-world forage-dx"><div class="forage-lanes"><i></i><i></i></div><div id="forageDrops" class="forage-drops"></div>${miniPetMarkup("forage-rizo")}<div id="forageOrder" class="forage-order"></div><div id="forageTicketState" class="forage-ticket-state">PACK THE TICKET</div><div class="forage-chain">LUNCH CHAIN <b id="forageStreak">0</b></div><div class="lane-labels"><span>LEFT</span><span>MIDDLE</span><span>RIGHT</span></div></div>`;
       setForageLane(1); updateForageOrderHUD();
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd) spawnForageItem(); }, 690);
-      mini.intervals.push(interval);
+      mini.intervals.push(queueMiniInterval(() => { if (mini.active) spawnForageItem(); }, 690));
       spawnForageItem();
     }
     if (mode === "rush") {
       el.miniArena.innerHTML = `<div class="mini-world rush-world rush-dx"><div class="rush-clouds"></div><div class="rush-hills"></div><div class="rush-ground"></div><div id="rushEntities"></div>${miniPetMarkup("rush-rizo")}<div id="rushHearts" class="rush-hearts" data-mini-readout>♥ ♥ ♥</div><div class="rush-streak" data-mini-readout>CLEAN <b id="rushStreak">0</b></div><div class="rush-delivery" id="rushDelivery" data-mini-readout>NO PACKAGE • FIND ◆</div><div class="rush-callout">TAP • AIR TAP • DELIVER THE PACKAGE</div></div>`;
       renderLives("rushHearts");
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd) spawnRushEntity(); }, 1160);
-      mini.intervals.push(interval);
+      mini.intervals.push(queueMiniInterval(() => { if (mini.active) spawnRushEntity(); }, 1160));
       spawnRushEntity(true);
     }
     if (mode === "walk") {
@@ -3946,8 +3978,9 @@
         <div class="walk-distance"><i id="walkDistanceBar"></i></div>
         <div id="walkCaption" class="walk-caption"><b>${escapeHTML(biome.name)} • ${escapeHTML(weather.label)}</b><span>${escapeHTML(walkIntroLine())}</span></div>
       </div>`;
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd && !mini.pausedByFork) spawnWalkFind(); }, 1450);
-      mini.intervals.push(interval);
+      // The walk fork is a deliberate design pause with its own clock credit, so
+      // it still suppresses spawns separately from the shared hold.
+      mini.intervals.push(queueMiniInterval(() => { if (mini.active && !mini.pausedByFork) spawnWalkFind(); }, 1450));
       spawnWalkFind();
     }
     if (mode === "rhythm") {
@@ -4521,14 +4554,78 @@
     }
   }
 
+  // ===== PAUSE-AWARE ARCADE SCHEDULER =====
+  // Every delayed gameplay callback in the arcade runs through here. Native
+  // setTimeout keeps counting while a run is frozen, which meant a Lost Signal
+  // sequence, a Rhythm countdown or a delayed round transition would advance
+  // behind the pause panel and land out of sync on resume. Jobs now bank their
+  // remaining delay when the run is held and re-arm with exactly that much left,
+  // so a stacked ad + background + menu hold costs the sequence nothing.
+  let arcadeJobSeq = 0;
+  function arcadeJobs(){ return (mini.jobs ||= new Map()); }
+  function arcadeJobsHeld(){ return Boolean(mini?.jobHolds && Object.keys(mini.jobHolds).length); }
+
+  function armArcadeJob(job){
+    job.armedAt = performance.now();
+    job.timer = setTimeout(() => {
+      job.timer = null;
+      if(!mini?.active){ mini?.jobs?.delete(job.id); return; }
+      // Re-arm a repeating job before running it, so a callback that schedules
+      // more work or ends the run behaves the same as it did under setInterval.
+      if(job.repeat){ job.remaining = job.period; armArcadeJob(job); }
+      else arcadeJobs().delete(job.id);
+      job.callback();
+    }, Math.max(0, job.remaining));
+  }
+
   function queueMiniTimeout(callback, delay) {
-    const id=setTimeout(()=>{
-      mini.timeouts=(mini.timeouts||[]).filter(value=>value!==id);
-      if(mini.active) callback();
-    },delay);
-    mini.timeouts ||= [];
-    mini.timeouts.push(id);
-    return id;
+    const job = { id: ++arcadeJobSeq, callback, remaining: Math.max(0, Number(delay) || 0), period: 0, repeat: false, timer: null, armedAt: 0 };
+    arcadeJobs().set(job.id, job);
+    if(!arcadeJobsHeld()) armArcadeJob(job);
+    return job.id;
+  }
+
+  function queueMiniInterval(callback, period) {
+    const every = Math.max(16, Number(period) || 16);
+    const job = { id: ++arcadeJobSeq, callback, remaining: every, period: every, repeat: true, timer: null, armedAt: 0 };
+    arcadeJobs().set(job.id, job);
+    if(!arcadeJobsHeld()) armArcadeJob(job);
+    return job.id;
+  }
+
+  function clearArcadeJobs(){
+    for(const job of mini?.jobs?.values() || []) if(job.timer != null) clearTimeout(job.timer);
+    mini?.jobs?.clear?.();
+    if(mini) mini.jobHolds = {};
+  }
+
+  // Holds stack by reason exactly like the run clock does, so a notification
+  // arriving mid-ad cannot release the queue early.
+  function arcadeHoldJobs(reason="menu"){
+    if(!mini?.active) return false;
+    mini.jobHolds ||= {};
+    if(mini.jobHolds[reason]) return false;
+    const first = !arcadeJobsHeld();
+    mini.jobHolds[reason] = true;
+    if(!first) return true;
+    const at = performance.now();
+    for(const job of arcadeJobs().values()){
+      if(job.timer == null) continue;
+      clearTimeout(job.timer);
+      job.timer = null;
+      job.remaining = Math.max(0, job.remaining - (at - job.armedAt));
+    }
+    return true;
+  }
+
+  function arcadeReleaseJobs(reason="menu"){
+    if(!mini?.active) return false;
+    mini.jobHolds ||= {};
+    if(!mini.jobHolds[reason]) return false;
+    delete mini.jobHolds[reason];
+    if(arcadeJobsHeld()) return false;
+    for(const job of arcadeJobs().values()) if(job.timer == null) armArcadeJob(job);
+    return true;
   }
 
   function rhythmClockNow() {
@@ -6534,14 +6631,12 @@
     document.documentElement.classList.remove("defense-performance-session");
     unlockDefenseViewport();
     clearInterval(mini.timer);
-    clearInterval(mini.mover);
-    for (const id of mini.intervals || []) clearInterval(id);
-    for (const id of mini.timeouts || []) clearTimeout(id);
+    clearArcadeJobs();
     if (mini.frame) cancelAnimationFrame(mini.frame);
     if (defenseResizeFrame) { cancelAnimationFrame(defenseResizeFrame); defenseResizeFrame = null; }
     stopRhythmVoices();
     for (const entity of mini.entities || []) entity.node?.remove?.();
-    mini.intervals = []; mini.timeouts = []; mini.entities = [];
+    mini.intervals = []; mini.entities = [];
   }
 
   function unlockWalkTreasure(force = false) {
@@ -6590,6 +6685,7 @@
     if(mini.mode==="defense"){
       const d=mini.defense;
       if(d && !d.paused){ d.paused=true; d.autoPaused=false; mini.defensePauseHeld=true; setDefenseMessage("RUN PAUSED","Nothing advances while this panel is open."); markDefenseUi(); flushDefenseUi(true); }
+      arcadeHoldJobs("menu");
     } else arcadeFreeze("menu");
     renderArcadePausePanel();
     if(el.miniPausePanel) el.miniPausePanel.hidden=false;
@@ -6610,6 +6706,7 @@
     if(mini?.active){
       if(mini.mode==="defense"){
         if(mini.defensePauseHeld && mini.defense){ mini.defense.paused=false; mini.defensePauseHeld=false; setDefenseMessage("BACK ON THE TRAIL","The wave continues where it stopped."); markDefenseUi(); flushDefenseUi(true); }
+        arcadeReleaseJobs("menu");
       } else arcadeThaw("menu");
     }
     if(!silent) sfx("ui");
@@ -8115,6 +8212,7 @@ Streak: ${state.player.streak}`;
     // Defense keeps its own interruption/checkpoint path (above); every other
     // mode is timestamp-driven and needs the freeze.
     if (mini?.active && mini.mode !== "defense") arcadeFreeze("background");
+    else if (mini?.active) arcadeHoldJobs("background");
     stopMusic();
     try { if (audioContext?.state === "running") audioContext.suspend(); } catch (error) {}
     return true;
@@ -8128,6 +8226,7 @@ Streak: ${state.player.streak}`;
     scheduleRuntimeViewportSync("resume");
     if (!wasSuspended) return false;
     if(mini?.active && mini.mode!=="defense") arcadeThaw("background");
+    else if(mini?.active) arcadeReleaseJobs("background");
     processElapsedTime(); renderAll(); surfaceDefenseInterruptionPause(); syncMusic(true); window.RizoBoot?.heartbeat?.(`runtime-${reason}`);
     schedulePetBehavior(4000); scheduleIdleLife(); scheduleLifeWow(9000); greetForSession();
     if (state.pet.resting) showRecoveryModal();
@@ -8465,13 +8564,89 @@ Streak: ${state.player.streak}`;
     // Shared arcade-layer QA surface: interruption safety, pause state, end
     // reason and the canonical name table are all player-visible contracts.
     musicSceneForQA: () => ({scene:musicScene||null, requested:sceneMusicKey(), known:Boolean(MUSIC_TRACKS[sceneMusicKey()])}),
+    arcadePauseForQA: () => openArcadePause(),
+    arcadeResumeForQA: () => closeArcadePause(true),
+    // A neutral probe job: proves remaining-delay banking without depending on
+    // any one game's timing.
+    arcadeProbeJobForQA: (delay=500) => {
+      if(!mini?.active) return null;
+      mini.qaProbe = {fired:false, count:0, id:null};
+      mini.qaProbe.id = queueMiniTimeout(() => { mini.qaProbe.fired = true; mini.qaProbe.count += 1; }, delay);
+      return mini.qaProbe.id;
+    },
+    arcadeProbeStateForQA: () => {
+      const probe = mini?.qaProbe;
+      const job = probe ? mini?.jobs?.get(probe.id) : null;
+      return {fired:Boolean(probe?.fired), count:Number(probe?.count)||0,
+              remaining: job ? Math.round(job.remaining) : -1, armed: Boolean(job?.timer)};
+    },
+    arcadeClearBreakerBoardForQA: () => {
+      if(!mini?.active || mini.mode !== "breaker") return false;
+      for(const item of mini.entities.filter(e => e.kind === "breaker-block")) item.node?.remove?.();
+      mini.entities = mini.entities.filter(e => e.kind !== "breaker-block");
+      return true;
+    },
+    arcadeGrantBuffsForQA: () => {
+      if(!mini?.active) return false;
+      const t = now();
+      if(mini.mode === "breaker"){ mini.breakerBoostUntil = t + 5200; mini.breakerPierceUntil = t + 4200; }
+      if(mini.mode === "glide"){ mini.glideThermalUntil = t + 4200; mini.glideInvulnerableUntil = t + 1250; }
+      if(mini.mode === "maze"){ mini.mazeHuntUntil = t + 5000; mini.mazeInvulnerableUntil = t + 1500; }
+      if(mini.mode === "spark"){ mini.sparkFeverUntil = t + 2700; }
+      return true;
+    },
+    // A deadline that had already lapsed when the hold began must stay lapsed;
+    // crediting it blindly would hand the player back a buff they had lost.
+    arcadeExpiredDeadlineSurvivesForQA: () => {
+      if(!mini?.active) return false;
+      mini.glideInvulnerableUntil = now() - 400;
+      const before = mini.glideInvulnerableUntil;
+      arcadeFreeze("qa-expiry");
+      arcadeThaw("qa-expiry");
+      return mini.glideInvulnerableUntil === before && mini.glideInvulnerableUntil < now();
+    },
+    // Everything a held run could wrongly advance, in one comparable value.
+    arcadeFingerprintForQA: () => {
+      const round = value => typeof value === "number" && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : value;
+      return JSON.stringify({
+        score: round(mini?.score), hits: mini?.hits, lives: mini?.lives, endReason: mini?.endReason,
+        entities: (mini?.entities || []).length,
+        memory: {round: mini?.memoryRound, seq: (mini?.memorySequence || []).length, showing: mini?.memoryShowing, input: mini?.memoryInput},
+        breaker: {level: mini?.breakerLevel, cores: mini?.breakerCores, bricks: mini?.breakerBricks, ball: round(mini?.breakerBall?.x)},
+        glide: {y: round(mini?.glideY), v: round(mini?.glideV), gates: mini?.glideGateCount, clears: mini?.glideClears},
+        maze: {level: mini?.mazeLevel, pellets: mini?.mazePellets, r: mini?.mazePlayer?.r, c: mini?.mazePlayer?.c},
+        rush: {jumpY: round(mini?.jumpY), clears: mini?.rushClears},
+        forage: {orders: mini?.forageOrdersDone, index: mini?.forageOrderIndex, streak: mini?.forageStreak},
+        spark: {stash: mini?.sparkStash, banked: mini?.sparkBanked, streak: mini?.sparkStreak, type: mini?.sparkType},
+        power: {call: mini?.powerCall, streak: mini?.powerStreak, heat: round(mini?.powerHeat), reads: mini?.powerCallsRead},
+        walk: {distance: round(mini?.walkDistance), decision: mini?.walkDecisionIndex, finds: (mini?.walkChoices || []).length},
+        rhythm: {ready: mini?.rhythmReady, index: mini?.rhythmChartIndex, streak: mini?.rhythmStreak, misses: mini?.rhythmMisses}
+      });
+    },
+    arcadeJobsForQA: () => ({
+      count: mini?.jobs?.size || 0,
+      held: arcadeJobsHeld(),
+      holds: Object.keys(mini?.jobHolds || {}).sort(),
+      armed: [...(mini?.jobs?.values() || [])].filter(job => job.timer != null).length,
+      pending: [...(mini?.jobs?.values() || [])].map(job => ({id: job.id, remaining: Math.round(job.remaining), repeat: Boolean(job.repeat)}))
+    }),
+    arcadeDeadlinesForQA: () => {
+      const out = {};
+      for(const key of arcadeDeadlineKeys()){
+        const value = mini?.[key];
+        if(typeof value === "number" && Number.isFinite(value) && value > 0) out[key] = Math.round(value - now());
+      }
+      return out;
+    },
+    arcadeDeadlineKeysForQA: () => arcadeDeadlineKeys().sort(),
     arcadeAdvanceClockForQA: ms => {if(!mini?.active||!Number.isFinite(mini.endAt))return false;mini.endAt-=Math.max(0,Number(ms)||0);return true;},
     arcadeClockForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,endless:!Number.isFinite(mini?.endAt),
       remaining:Number.isFinite(mini?.endAt)?Math.max(0,mini.endAt-now()):Infinity,
-      frozen:arcadeFrozen(),paused:Boolean(mini?.paused),sources:Object.keys(mini?.pauseSources||{})}),
+      frozen:arcadeFrozen(),paused:Boolean(mini?.paused),sources:Object.keys(mini?.pauseSources||{}).sort(),
+      jobsHeld:arcadeJobsHeld(),jobHolds:Object.keys(mini?.jobHolds||{}).sort()}),
     arcadeStateForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Math.max(0,Math.floor(mini?.score||0)),
       lives:mini?.lives??null,maxLives:mini?.maxLives??null,endReason:mini?.endReason||"",paused:Boolean(mini?.paused),
-      quitConfirmed:Boolean(mini?.quitConfirmed)}),
+      quitConfirmed:Boolean(mini?.quitConfirmed),rhythmReady:Boolean(mini?.rhythmReady)}),
     arcadeSetScoreForQA: value => {if(!mini?.active)return false;mini.score=Math.max(0,Number(value)||0);return true;},
     arcadeKillForQA: () => {if(!mini?.active)return false;mini.lives=0;mini.endReason="death";return true;},
     arcadeFreezeForQA: (source="background") => arcadeFreeze(source),
@@ -8485,7 +8660,7 @@ Streak: ${state.player.streak}`;
     arcadeSparkBankForQA: () => {if(!mini.active||mini.mode!=="spark")return null;bankSparkStash(false);return RizoRuntimeQA.arcadeSnapshotForQA().spark},
     arcadeForageCompleteOrderForQA: () => {if(!mini.active||mini.mode!=="forage")return null;mini.forageOrderIndex=Math.max(0,(mini.forageOrder||[]).length-1);advanceForageOrder();return RizoRuntimeQA.arcadeSnapshotForQA().forage},
     arcadeBreakerCollapseCoreForQA: () => {if(!mini.active||mini.mode!=="breaker")return null;const core=mini.entities.find(item=>item.kind==="breaker-block"&&item.special==="core"&&item.node?.isConnected);if(core){core.node.remove();mini.entities=mini.entities.filter(item=>item!==core);breakerCollapseCore(core);}return RizoRuntimeQA.arcadeSnapshotForQA().breaker},
-    arcadeMemoryRoundForQA: round => {if(!mini.active||mini.mode!=="memory")return null;for(const id of mini.timeouts||[])clearTimeout(id);mini.timeouts=[];mini.memoryRound=Math.max(0,Math.floor(Number(round)||1)-1);mini.memorySequence=[];startMemoryRound();return RizoRuntimeQA.arcadeSnapshotForQA().memory;},
+    arcadeMemoryRoundForQA: round => {if(!mini.active||mini.mode!=="memory")return null;clearArcadeJobs();mini.memoryRound=Math.max(0,Math.floor(Number(round)||1)-1);mini.memorySequence=[];startMemoryRound();return RizoRuntimeQA.arcadeSnapshotForQA().memory;},
     arcadeMazeDirectionForQA: dir => {if(!mini.active||mini.mode!=="maze")return null;mazeSetDirection(String(dir||""));return RizoRuntimeQA.arcadeSnapshotForQA().maze;},
     defenseMapsForQA: () => ({best:Number(state.scores?.defense)||0,unlocked:defenseUnlockedMaps().map(map=>map.id),all:Object.values(DEFENSE_MAPS).map(map=>({id:map.id,unlockWave:map.unlockWave,level:map.level}))}),
     defenseRandomMapsForQA: (count=30) => Array.from({length:Math.max(1,Number(count)||1)},()=>chooseDefenseMapId()),
