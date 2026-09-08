@@ -135,7 +135,7 @@
     "name": "boss body follows the canonical trail",
     "passed": true,
     "detail": {
-      "errorPx": 0.191
+      "errorPx": 0.514
     }
   },
   {
@@ -149,7 +149,7 @@
     "detail": [
       {
         "id": "tower-1",
-        "petId": "PET-A8209EE151CE",
+        "petId": "PET-C7CFF0BA671C",
         "variant": "classic",
         "copy": 1,
         "x": 0.32,
@@ -158,7 +158,7 @@
         "cost": 0,
         "spent": 0,
         "openingPerkApplied": false,
-        "placedAtReal": 0.016599999999999965,
+        "placedAtReal": 0.066608,
         "kills": 0,
         "damage": 0,
         "shots": 0,

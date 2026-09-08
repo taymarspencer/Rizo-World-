@@ -31,7 +31,7 @@ with sync_playwright() as p:
     after_right=page.evaluate('(t)=>RizoRuntimeQA.arcadePowerStrikeForQA(t)',snap['call'])
     record('Power correct called strike can land',after_right['callsRead']>snap['callsRead'],str(after_right))
     record('Power exposes three deliberate strike buttons',page.locator('[data-power-tech]').count()==3)
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Spark Stash: points are at risk before banking, so catch-spam alone is not the strategy.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("spark")');page.wait_for_timeout(30)
@@ -41,7 +41,7 @@ with sync_playwright() as p:
     record('Spark bank converts risk into permanent run score',bank['stash']==0 and bank['banked']>0 and bank['banks']>=1,str(bank))
     page.evaluate('RizoRuntimeQA.arcadeSparkCatchForQA("normal",0)');lost=page.evaluate('RizoRuntimeQA.arcadeSparkCatchForQA("shadow")')
     record('Shadow signal wipes unbanked greed',lost['stash']==0 and lost['lost']>0,str(lost))
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Forest Lunch: order length evolves and every second completed ticket changes the spawn phase.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("forage")');page.wait_for_timeout(30)
@@ -50,7 +50,7 @@ with sync_playwright() as p:
     record('Forage ticket progresses instead of one endless catch loop',f2['ordersDone']==2,str(f2))
     record('Forage earns a distinct Picnic Panic phase',f2['panic'],str(f2))
     record('Forage ticket difficulty grows with completed lunches',len(f2['order'])>=len(f0['order']),f"{len(f0['order'])}->{len(f2['order'])}")
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Lost Signal stacks rules instead of just extending Simon sequences.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("memory")');page.wait_for_timeout(30)
@@ -58,24 +58,24 @@ with sync_playwright() as p:
     record('Lost Signal reaches stacked reverse/opposite corruption',m7['mode']=='reverse-opposite',str(m7))
     record('Lost Signal later reaches reverse/rotate corruption',m9['mode']=='reverse-rotate',str(m9))
     record('Lost Signal transforms expected input, not only copy text',m9['expected']!=m9['sequence'],str(m9))
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Skybound and Forge surface their mastery loops immediately.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("glide")');page.wait_for_timeout(30)
     record('Skybound shows center-thread draft objective','DRAFT' in page.locator('#miniArena').inner_text() and 'THERMAL' in page.locator('#miniArena').inner_text())
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("breaker")');page.wait_for_timeout(30)
     b0=page.evaluate('RizoRuntimeQA.arcadeSnapshotForQA().breaker');b1=page.evaluate('RizoRuntimeQA.arcadeBreakerCollapseCoreForQA()')
     record('Forge loads an authored named wall pattern',bool(b0['pattern']),str(b0))
     record('Forge core is a functional board-collapse objective',b1['coresBroken']>b0['coresBroken'],f"{b0}->{b1}")
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Runaway hunter learns repeated directional preference.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("maze")');page.wait_for_timeout(30)
     for _ in range(6): page.evaluate('RizoRuntimeQA.arcadeMazeDirectionForQA("right")')
     maze=page.evaluate('RizoRuntimeQA.arcadeSnapshotForQA().maze')
     record('Runaway records a player movement habit for ambush AI',maze['favoriteDir']=='right',str(maze))
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Cabinet-specific mechanical language is visible from Home too.
     page.evaluate(SETUP_STATE);page.locator('[data-nav="home"]').click();page.locator('[data-action="play"]').click();page.wait_for_timeout(30)

@@ -29,7 +29,7 @@ with sync_playwright() as p:
                 controls_ok=bool(controls and arena and controls['x']>=arena['x']-1 and controls['y']>=arena['y']-1 and controls['x']+controls['width']<=arena['x']+arena['width']+1 and controls['y']+controls['height']<=arena['y']+arena['height']+1)
                 record(f'runaway board stays inside arena {w}x{h}',board_ok,board)
                 record(f'runaway controls stay reachable {w}x{h}',controls_ok,controls)
-            page.evaluate('RizoRuntimeQA.finishMiniGame(true)');page.wait_for_timeout(20)
+            page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})');page.wait_for_timeout(20)
         record(f'no v82 arcade runtime errors {w}x{h}',not errors,'; '.join(errors[:4]))
         page.close()
     browser.close()

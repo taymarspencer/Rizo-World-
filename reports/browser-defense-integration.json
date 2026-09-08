@@ -72,7 +72,7 @@
   {
     "name": "Escape closes the active context without quitting Defense",
     "passed": true,
-    "detail": "{'surface': None, 'fieldMenuOpen': False, 'abilityTrayOpen': False, 'intelOpen': False, 'towerOpen': False, 'scrimHidden': True, 'stageInert': False, 'commandsInert': False, 'rosterInert': False, 'focusInside': False, 'activeTag': 'BODY', 'activeText': '<div style=\"position:fixed;inset:0;z-index:2147483647;display:grid;place-items:c'}"
+    "detail": "{'surface': None, 'fieldMenuOpen': False, 'abilityTrayOpen': False, 'intelOpen': False, 'towerOpen': False, 'scrimHidden': True, 'stageInert': False, 'commandsInert': False, 'rosterInert': False, 'focusInside': False, 'activeTag': 'BUTTON', 'activeText': ''}"
   },
   {
     "name": "phase 6 overlay sample has no runtime errors",
@@ -87,7 +87,7 @@
   {
     "name": "banking unfinished first wave stores analytics without completion credit",
     "passed": true,
-    "detail": "history=[{'id': 'DEFENSE-RUN-EA313A4AE56E', 'at': 1788780611902, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-2D1D00F673E4', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}]"
+    "detail": "history=[{'id': 'DEFENSE-RUN-B3D1E0F08D5E', 'at': 1788904434776, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-65961E4C8FBB', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}]"
   },
   {
     "name": "zero-clear bank does not create permanent Rizo mastery",
@@ -97,22 +97,22 @@
   {
     "name": "bank outcome is explicit",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-EA313A4AE56E', 'at': 1788780611902, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-2D1D00F673E4', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-B3D1E0F08D5E', 'at': 1788904434776, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-65961E4C8FBB', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "bank during wave 2 records cleared 1 and reached 2",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-C5367DC61DE6', 'at': 1788780612765, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'banked', 'mvpPetId': 'PET-FB980E89DA6C', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-2EB8F4FDDBB4', 'at': 1788904435697, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'banked', 'mvpPetId': 'PET-787D1BD5F2A6', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "death excludes unfinished wave completion credit",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-87F2BF9699AC', 'at': 1788780614559, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-26E581A05EDD', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-7ED661FAEACD', 'at': 1788904437523, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-F6A015E4242E', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "death outcome is explicit",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-87F2BF9699AC', 'at': 1788780614559, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-26E581A05EDD', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-7ED661FAEACD', 'at': 1788904437523, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-F6A015E4242E', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "save migration preserves cleared and reached wave separately",
@@ -137,12 +137,12 @@
   {
     "name": "whole-save envelope signature verifies",
     "passed": true,
-    "detail": "{'saveVersion': 1, 'signature': 's1.15dskkp'}"
+    "detail": "{'saveVersion': 1, 'signature': 's1.afpqmy'}"
   },
   {
     "name": "whole-save signature detects progression edits",
     "passed": true,
-    "detail": "s1.15dskkp"
+    "detail": "s1.afpqmy"
   },
   {
     "name": "invalid whole save is sanitized instead of blindly trusted",
@@ -167,7 +167,7 @@
   {
     "name": "derived tower spending is recalculated",
     "passed": true,
-    "detail": "{'id': 'tower-1', 'petId': 'PET-CC8A5D7DD503', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 4, 'cost': 0, 'spent': 1250, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
+    "detail": "{'id': 'tower-1', 'petId': 'PET-DC8A5CE1F314', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 4, 'cost': 0, 'spent': 1250, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
   },
   {
     "name": "unknown enemy, queue, and pet IDs are rejected",
@@ -182,7 +182,7 @@
   {
     "name": "bad checkpoint cannot preserve forged upgrades or reward counters",
     "passed": true,
-    "detail": "{'id': 'tower-1', 'petId': 'PET-CC8A5D7DD503', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 0, 'cost': 0, 'spent': 0, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
+    "detail": "{'id': 'tower-1', 'petId': 'PET-DC8A5CE1F314', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 0, 'cost': 0, 'spent': 0, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
   },
   {
     "name": "all worlds start with consistent purchasing power",
@@ -242,7 +242,7 @@
   {
     "name": "v67 checkpoint migration conservatively reconstructs one opening discount",
     "passed": true,
-    "detail": "{'status': 'migrated', 'tower': {'id': 'tower-1', 'petId': 'PET-08F991F80E87', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.6699999999999999, 'y': 0.14, 'upgrade': 1, 'cost': 0, 'spent': 90, 'openingPerkApplied': True, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}}"
+    "detail": "{'status': 'migrated', 'tower': {'id': 'tower-1', 'petId': 'PET-A2221F169085', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.6699999999999999, 'y': 0.14, 'upgrade': 1, 'cost': 0, 'spent': 90, 'openingPerkApplied': True, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}}"
   },
   {
     "name": "phase 5 economy sample has no runtime errors",
@@ -277,12 +277,12 @@
   {
     "name": "2x keeps the same bounded targeting cadence per simulation second",
     "passed": true,
-    "detail": "{'1x': 15, '2x': 30}"
+    "detail": "{'1x': 15, '2x': 31}"
   },
   {
     "name": "2x advances simulation without accelerating control clocks",
     "passed": true,
-    "detail": "{'1x': {'real': 2.333299999999995, 'sim': 2.0000000000000027}, '2x': {'real': 2.3332999999999946, 'sim': 3.9999999999999956}}"
+    "detail": "{'1x': {'real': 2.333235999999995, 'sim': 2.0000000000000027}, '2x': {'real': 2.333299999999995, 'sim': 4.033333333333329}}"
   },
   {
     "name": "2x visual budget lowers projectiles and impacts",
@@ -322,7 +322,7 @@
   {
     "name": "income batch flush preserves exact totals",
     "passed": true,
-    "detail": "{1: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.4666020000000002}}, 2: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.4831680000000001}}}"
+    "detail": "{1: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.4333000000000002}}, 2: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.46660000000000007}}}"
   },
   {
     "name": "overlay manager prevents conflict at 320x568",

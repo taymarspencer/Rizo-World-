@@ -571,7 +571,7 @@
     habitatScene: $("#habitatScene"), gardenVisitor: $("#gardenVisitor"), visitorSprite: $("#visitorSprite"), visitorAccessory: $("#visitorAccessory"), visitorName: $("#visitorName"), weatherFx: $("#weatherFx"), denCareTrace: $("#denCareTrace"), moodChip: $("#moodChip"), sceneMenuButton: $("#sceneMenuButton"), thoughtBubble: $("#thoughtBubble"), petTapTarget: $("#petTapTarget"), eggActor: $("#eggActor"), petActor: $("#petActor"), petSprite: $("#petSprite"), faceFx: $("#faceFx"), statusFx: $("#statusFx"), accessoryLayer: $("#accessoryLayer"), tapCombo: $("#tapCombo"), petName: $("#petName"), petDescriptor: $("#petDescriptor"), petLevel: $("#petLevel"), growthTitle: $("#growthTitle"), growthText: $("#growthText"), growthBar: $("#growthBar"), needGrid: $("#needGrid"), careName: $("#careName"), sleepActionText: $("#sleepActionText"),
     hungerText: $("#hungerText"), moodText: $("#moodText"), energyText: $("#energyText"), hygieneText: $("#hygieneText"), hungerBar: $("#hungerBar"), moodBar: $("#moodBar"), energyBar: $("#energyBar"), hygieneBar: $("#hygieneBar"),
     questTitle: $("#questTitle"), questBar: $("#questBar"), questText: $("#questText"), questClaim: $("#questClaim"), memoryTitle: $("#memoryTitle"), memoryText: $("#memoryText"), journalJump: $("#journalJump"), moreCareButton: $("#moreCareButton"),
-    bestPower: $("#bestPower"), bestSpark: $("#bestSpark"), bestForage: $("#bestForage"), bestRush: $("#bestRush"), bestWalk: $("#bestWalk"), bestRhythm: $("#bestRhythm"), bestMemory: $("#bestMemory"), bestGlide: $("#bestGlide"), bestBreaker: $("#bestBreaker"), bestMaze: $("#bestMaze"), bestDefense: $("#bestDefense"), expeditionStatus: $("#expeditionStatus"), expeditionOptions: $("#expeditionOptions"), expeditionClaim: $("#expeditionClaim"),
+    miniPause: $("#miniPause"), miniPausePanel: $("#miniPausePanel"), bestPower: $("#bestPower"), bestSpark: $("#bestSpark"), bestForage: $("#bestForage"), bestRush: $("#bestRush"), bestWalk: $("#bestWalk"), bestRhythm: $("#bestRhythm"), bestMemory: $("#bestMemory"), bestGlide: $("#bestGlide"), bestBreaker: $("#bestBreaker"), bestMaze: $("#bestMaze"), bestDefense: $("#bestDefense"), expeditionStatus: $("#expeditionStatus"), expeditionOptions: $("#expeditionOptions"), expeditionClaim: $("#expeditionClaim"),
     closetActor: $("#closetActor"), closetSprite: $("#closetSprite"), closetAccessory: $("#closetAccessory"), closetName: $("#closetName"), closetVariant: $("#closetVariant"), shopList: $("#shopList"),
     profileActor: $("#profileActor"), profileSprite: $("#profileSprite"), profileAccessory: $("#profileAccessory"), profileRarity: $("#profileRarity"), profileName: $("#profileName"), profileBio: $("#profileBio"), renameButton: $("#renameButton"), journalContent: $("#journalContent"),
     farmContent: $("#farmContent"),
@@ -2061,7 +2061,7 @@
 
   // ===== UI RENDER PIPELINE =====
   function renderSharedUI() {
-    document.body.classList.toggle("reduce-motion", Boolean(state.settings.reducedMotion));
+    document.body.classList.toggle("reduce-motion", reducedMotionActive());
     document.body.classList.toggle("defense-signatures-off", !state.settings.defenseSignatures);
     document.body.classList.toggle("defense-ui-compact", state.settings.defenseUiScale === "compact");
     document.body.classList.toggle("defense-ui-large", state.settings.defenseUiScale === "large");
@@ -2262,17 +2262,27 @@
   }
 
   function renderArcade() {
-    el.bestPower.textContent = formatNumber(state.scores.power);
-    el.bestSpark.textContent = formatNumber(state.scores.spark);
-    el.bestForage.textContent = formatNumber(state.scores.forage);
-    if (el.bestRush) el.bestRush.textContent = formatNumber(state.scores.rush);
-    if (el.bestWalk) el.bestWalk.textContent = formatNumber(state.scores.walk);
-    if (el.bestRhythm) el.bestRhythm.textContent = formatNumber(state.scores.rhythm);
-    if (el.bestMemory) el.bestMemory.textContent = formatNumber(state.scores.memory);
-    if (el.bestGlide) el.bestGlide.textContent = formatNumber(state.scores.glide);
-    if (el.bestBreaker) el.bestBreaker.textContent = formatNumber(state.scores.breaker);
-    if (el.bestMaze) el.bestMaze.textContent = formatNumber(state.scores.maze);
-    if (el.bestDefense) el.bestDefense.textContent = formatNumber(state.scores.defense);
+    // Personal bests and their labels both come from ARCADE_GAMES, so the board
+    // can never show an engineering id where a product name belongs. Defense
+    // reports a wave, not a point total, and is marked as such.
+    for(const mode of ARCADE_MODES){
+      const cell=$(`[data-arcade-best="${mode}"]`);
+      if(!cell)continue;
+      const value=cell.querySelector("b"),label=cell.querySelector("span");
+      if(value)value.textContent=arcadeBestValue(mode);
+      if(label)label.textContent=ARCADE_GAMES[mode].best==="wave"?`${ARCADE_GAMES[mode].name} • WAVE`:ARCADE_GAMES[mode].name;
+      cell.classList.toggle("score-cell-wave",ARCADE_GAMES[mode].best==="wave");
+    }
+    // The decision is made on the shelf, so put the decision information there:
+    // what you have already done, what it costs, and how long it takes.
+    for(const mode of ARCADE_MODES){
+      const meta=$(`[data-arcade-meta="${mode}"]`);
+      if(!meta)continue;
+      const game=ARCADE_GAMES[mode],affordable=(state.pet?.energy??0)>=game.energy;
+      meta.innerHTML=`<span class="meta-best"><small>${arcadeBestLabel(mode)}</small><b>${arcadeBestValue(mode)}</b></span>`
+        +`<span class="meta-energy${affordable?"":" short"}"><small>ENERGY</small><b>${game.energy}</b></span>`
+        +`<span class="meta-length"><small>RUN</small><b>${arcadeRunLength(mode)}</b></span>`;
+    }
     const defenseCard = $(".defense-card");
     if (defenseCard) {
       let badge = defenseCard.querySelector(".defense-milestone-badge");
@@ -3728,17 +3738,97 @@
     }
   }
 
-  const ARCADE_MODE_RULES = Object.freeze({
-    power:{duration:24,energy:15}, spark:{duration:24,energy:10}, forage:{duration:28,energy:11}, rush:{duration:30,energy:15},
-    walk:{duration:40,energy:8}, rhythm:{duration:27,energy:12}, memory:{duration:44,energy:7}, glide:{duration:36,energy:10},
-    breaker:{duration:46,energy:11}, maze:{duration:54,energy:10}, defense:{duration:0,energy:8}
+  // ===== SHARED ARCADE LAYER =====
+  // One authoritative record per arcade mode. The cabinet card, the minigame
+  // shell header, the personal-best grid, the results modal art and the run
+  // rules all read from here, so a mode can never be called EMBER FORGE on the
+  // shelf and "BREAKER" on the score board. Internal mode ids stay internal.
+  const ARCADE_GAMES = Object.freeze({
+    power:{name:"POWER TAPE", kicker:"COACH TAPE 03", art:"🥊", duration:24, energy:15, unit:"PTS", best:"points", family:"training",
+      hint:"The coach calls JAB, BODY, or HOOK. Hit the right strike on the moving window—and do nothing when the bag feints."},
+    spark:{name:"SPARK STASH", kicker:"DON'T GET GREEDY", art:"★", duration:24, energy:10, unit:"PTS", best:"points", family:"spark",
+      hint:"Catch clean signals to build an unbanked stash. BANK it before a miss or Shadow signal wipes the risky part."},
+    forage:{name:"FOREST LUNCH", kicker:"PICKY LITTLE MENACE", art:"🍓", duration:28, energy:11, unit:"PTS", best:"points", family:"forest",
+      hint:"Move lanes and complete Rizo's exact lunch ticket. Wrong food ruins the chain; mushrooms ruin the mood."},
+    rush:{name:"RIZO COURIER", kicker:"ROOFTOP DELIVERY", art:"🔥", duration:30, energy:15, unit:"PTS", best:"points", family:"street",
+      hint:"Double-jump the skyline. Grab a package, then clear two obstacles clean to deliver it before you eat pavement."},
+    walk:{name:"RAIN WALK", kicker:"LIVING FOREST", art:"☂", duration:40, energy:8, unit:"PTS", best:"points", family:"forest",
+      hint:"Walk beside your actual Rizo, inspect discoveries, and choose what kind of story the trail becomes."},
+    rhythm:{name:"EMBER BEAT", kicker:"FOUR-LANE RHYTHM", art:"♫", duration:27, energy:12, unit:"PTS", best:"points", family:"stage",
+      hint:"Tap the matching lane when its note reaches the bright hit line. Timing and lane both matter."},
+    memory:{name:"LOST SIGNAL", kicker:"CORRUPTED BROADCAST", art:"▦", duration:44, energy:7, unit:"PTS", best:"points", family:"signal",
+      hint:"Memorize the transmission, then obey the corruption rule. Later rounds stack reverse, opposite, and rotation logic."},
+    glide:{name:"SKYBOUND", kicker:"CENTER-LINE FLIGHT", art:"☁", duration:36, energy:10, unit:"PTS", best:"points", family:"air",
+      hint:"Tap or press Space to flap through shifting wind. Thread gate centers to charge a Thermal Burst that bends the physics in your favor."},
+    breaker:{name:"EMBER FORGE", kicker:"FORGE THE MARK", art:"✦", duration:46, energy:11, unit:"PTS", best:"points", family:"forge",
+      hint:"Drag Rizo under the ember orb — the paddle tracks your thumb. Read authored wall patterns and crack CORE blocks to collapse nearby bricks."},
+    maze:{name:"RIZO RUNAWAY", kicker:"MAZE-CHASE INSTINCT", art:"⌗", duration:54, energy:10, unit:"PTS", best:"points", family:"chase",
+      hint:"Swipe or use the arrows. Eat the Ember trail. Prism Seeds flip the hunt so Rizo can tag the Shadows."},
+    defense:{name:"RIZO DEFENSE", kicker:"ENDLESS ROSTER STRATEGY", art:"🎈", duration:0, energy:8, unit:"POPS", best:"wave", family:"defense",
+      hint:"Your strongest unlocked world is chosen automatically. Drag a Rizo—or tap one, then tap grass—to defend the illustrated trail."}
   });
+  const ARCADE_MODES = Object.freeze(Object.keys(ARCADE_GAMES));
+  // Legacy alias. Existing call sites and QA hooks keep reading duration/energy
+  // from here; the values are now derived rather than duplicated.
+  const ARCADE_MODE_RULES = Object.freeze(Object.fromEntries(ARCADE_MODES.map(mode=>[mode,{duration:ARCADE_GAMES[mode].duration,energy:ARCADE_GAMES[mode].energy}])));
+  function arcadeGame(mode){ return ARCADE_GAMES[mode] || null; }
+  function arcadeName(mode){ return ARCADE_GAMES[mode]?.name || String(mode||"ARCADE").toUpperCase(); }
+  function arcadeArt(mode){ return ARCADE_GAMES[mode]?.art || "★"; }
+  function arcadeRunLength(mode){
+    const seconds=ARCADE_GAMES[mode]?.duration||0;
+    return seconds>0?`${seconds}s`:"ENDLESS";
+  }
+  function arcadeBestLabel(mode){ return ARCADE_GAMES[mode]?.best==="wave"?"BEST WAVE":"BEST"; }
+  function arcadeBestValue(mode){
+    const raw=Math.max(0,Math.floor(Number(state?.scores?.[mode])||0));
+    return ARCADE_GAMES[mode]?.best==="wave"?(raw?`W${raw}`:"—"):formatNumber(raw);
+  }
   function miniDuration(mode) { return (ARCADE_MODE_RULES[mode]?.duration ?? 15) * 1000; }
   function miniEnergyNeeded(mode) { return ARCADE_MODE_RULES[mode]?.energy ?? 12; }
 
+  // ===== SHARED ARCADE FREEZE =====
+  // One credit-back clock for every interruption an arcade run can survive: an
+  // ad break, the app being backgrounded, and the player's own pause menu. Runs
+  // are timestamp-based (mini.endAt), so any frozen interval has to be handed
+  // back or a phone call silently ends the run. Sources stack: a notification
+  // during an ad must not thaw the run early.
+  function arcadeFrozen(){ return Boolean(mini?.pauseSources && Object.keys(mini.pauseSources).length); }
+  function arcadeFreeze(source="menu"){
+    if(!mini?.active) return false;
+    mini.pauseSources ||= {};
+    if(mini.pauseSources[source]) return false;
+    const first=!arcadeFrozen();
+    mini.pauseSources[source]=true;
+    if(!first) return true;
+    mini.freezeAt=now();
+    mini.pausedByAd=true;
+    if(mini.mode==="rhythm"){ mini.rhythmPauseClock=rhythmClockNow(); stopRhythmVoices(); }
+    return true;
+  }
+  function arcadeThaw(source="menu"){
+    if(!mini?.active) return false;
+    mini.pauseSources ||= {};
+    if(!mini.pauseSources[source]) return false;
+    delete mini.pauseSources[source];
+    if(arcadeFrozen()) return false;
+    const frozenFor=Math.max(0, now()-(mini.freezeAt||now()));
+    if(Number.isFinite(mini.endAt)) mini.endAt+=frozenFor;
+    // The walk fork pauses on its own timestamp; keep it aligned so a fork left
+    // open across a background does not double-credit or lose the pause.
+    if(mini.pausedByFork && mini.pauseAt) mini.pauseAt+=frozenFor;
+    if(mini.mode==="rhythm"){
+      mini.rhythmStartClock+=Math.max(0, rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));
+      scheduleRhythmAudio(Math.max(0, rhythmClockNow()-mini.rhythmStartClock));
+    }
+    mini.pausedByAd=false;
+    mini.freezeAt=0;
+    mini.lastFrame=performance.now();
+    return true;
+  }
+
   function startMiniGame(mode, options = {}) {
     if (!canCare()) return;
-    if (!["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze", "defense"].includes(mode)) return;
+    if (!ARCADE_MODES.includes(mode)) return;
     const energyNeeded = miniEnergyNeeded(mode);
     if (state.pet.energy < energyNeeded) { toast(`NEED ${energyNeeded} ENERGY • RIZO HAS ${Math.floor(state.pet.energy)}`); sfx("no"); return; }
     clearToasts();
@@ -3747,14 +3837,16 @@
       active: true, mode, score: 0, hits: 0, playerInputs: 0, endAt: mode === "defense" ? Infinity : now() + miniDuration(mode), timer: null,
       mover: null, currentGood: true, frame: null, intervals: [], entities: [], pausedByAd: false,
       pauseAt: 0, lastFrame: performance.now(), lane: 1, needle: .06, needleDir: 1,
-      needleSpeed: .72, jumpY: 0, jumpV: 0, hearts: 3, invulnerableUntil: 0,
+      // Shared arcade state: one lives model, one freeze model, one end reason.
+      lives: 3, maxLives: 3, endReason: "", pauseSources: {}, freezeAt: 0, paused: false,
+      needleSpeed: .72, jumpY: 0, jumpV: 0, invulnerableUntil: 0,
       distanceCarry: 0, treasureRolls: 0, combo: 1, timeouts: [],
       pausedByFork: false, walkForkShown: false, walkPath: null, walkDecisionIndex: 0,
       walkDistance: 0, walkRisk: 0, walkLuck: 0, walkChoices: [],
       rhythmStreak: 0, rhythmMaxStreak: 0, rhythmMisses: 0, rhythmBlankTaps: 0,
       rhythmJudgements: { perfect:0, great:0, good:0, miss:0 }, rhythmTrack: null, rhythmChart: [], rhythmChartIndex: 0,
       rhythmStartClock: 0, rhythmLeadIn: 3.7, rhythmReady: false, rhythmTravel: 1.6, rhythmVoices: [], rhythmGain: null,
-      memoryRound: 0, memorySequence: [], memoryInput: 0, memoryShowing: false, memoryLives: 3, memoryMode: "forward", memoryBestRound: 0,
+      memoryRound: 0, memorySequence: [], memoryInput: 0, memoryShowing: false, memoryMode: "forward", memoryBestRound: 0,
       memoryShift: 0, memoryRuleDepth: 1,
       powerStreak: 0, powerBestStreak: 0, powerZone: .5, powerZoneTarget: .5, powerHeat: 0, powerGuardAt: 0, powerGuardUntil: 0, powerGuardReads: 0, powerTapLockUntil: 0, powerEngaged: false,
       powerCall: "jab", powerCallAt: 0, powerCallsRead: 0, powerWrongCalls: 0,
@@ -3764,11 +3856,11 @@
       forageContract: "picky", forageOrdersDone: 0, forageRestraint: 0, forageRushUntil: 0,
       rushAirJumps: 0, rushStreak: 0, rushBestStreak: 0, rushClears: 0,
       rushParcel: false, rushParcelClears: 0, rushDeliveries: 0, rushPackagesLost: 0,
-      glideY: .5, glideV: 0, glideSpawnAt: 0, glideStreak: 0, glideBestStreak: 0, glideClears: 0, glideHearts: 3, glideInvulnerableUntil: 0, glideWind: 0, glideWindAt: 0, glideGateCount: 0,
+      glideY: .5, glideV: 0, glideSpawnAt: 0, glideStreak: 0, glideBestStreak: 0, glideClears: 0, glideInvulnerableUntil: 0, glideWind: 0, glideWindAt: 0, glideGateCount: 0,
       glideDraft: 0, glideThermals: 0, glideThermalUntil: 0,
-      breakerX: .5, breakerBall: null, breakerLevel: 1, breakerStreak: 0, breakerBestStreak: 0, breakerHearts: 3, breakerBoostUntil: 0, breakerPierceUntil: 0, breakerResetAt: 0, breakerBoardPending: false, breakerMoves: 0,
+      breakerX: .5, breakerGrab: null, breakerBricks: 0, breakerBall: null, breakerLevel: 1, breakerStreak: 0, breakerBestStreak: 0, breakerBoostUntil: 0, breakerPierceUntil: 0, breakerResetAt: 0, breakerBoardPending: false, breakerMoves: 0,
       breakerCores: 0, breakerCoresBroken: 0, breakerPatternName: "",
-      mazeLevel: 1, mazeLives: 3, mazeCombo: 0, mazeBestCombo: 0, mazePellets: 0, mazeHunts: 0, mazeHunterTags: 0, mazeGrid: [], mazePlayer: null, mazeHunters: [], mazeMoveCarry: 0, mazeHunterCarry: 0, mazeHuntUntil: 0, mazeInvulnerableUntil: 0, mazeHunterWakeAt: 0, mazeInputs: 0, mazePointerStart: null,
+      mazeLevel: 1, mazeCombo: 0, mazeBestCombo: 0, mazePellets: 0, mazeHunts: 0, mazeHunterTags: 0, mazeGrid: [], mazePlayer: null, mazeHunters: [], mazeMoveCarry: 0, mazeHunterCarry: 0, mazeHuntUntil: 0, mazeInvulnerableUntil: 0, mazeHunterWakeAt: 0, mazeInputs: 0, mazePointerStart: null,
       mazeTurnHistory: [], mazeFavoriteDir: "",
       defense: null, defenseDrag: null, defenseMapChoice: options?.mapId || "auto",
       defenseResume: options?.resumeCheckpoint || null,
@@ -3785,24 +3877,14 @@
       mini.walkBiome = chooseWalkBiome();
       mini.walkWeather = chooseWalkWeather(mini.walkBiome);
     }
-    const details = {
-      power: { kicker: "COACH TAPE 03", title: "POWER TAPE", hint: "The coach calls JAB, BODY, or HOOK. Hit the right strike on the moving window—and do nothing when the bag feints." },
-      spark: { kicker: "DON'T GET GREEDY", title: "SPARK STASH", hint: "Catch clean signals to build an unbanked stash. BANK it before a miss or Shadow signal wipes the risky part." },
-      forage: { kicker: "PICKY LITTLE MENACE", title: "FOREST LUNCH", hint: "Move lanes and complete Rizo's exact lunch ticket. Wrong food ruins the chain; mushrooms ruin the mood." },
-      rush: { kicker: "ROOFTOP DELIVERY", title: "RIZO COURIER", hint: "Double-jump the skyline. Grab a package, then clear two obstacles clean to deliver it before you eat pavement." },
-      walk: { kicker: "LIVING FOREST", title: "RAIN WALK", hint: "Walk beside your actual Rizo, inspect discoveries, and choose what kind of story the trail becomes." },
-      rhythm: { kicker: "FOUR-LANE RHYTHM", title: "EMBER BEAT", hint: "Tap the matching lane when its note reaches the bright hit line. Timing and lane both matter." },
-      memory: { kicker: "CORRUPTED BROADCAST", title: "LOST SIGNAL", hint: "Memorize the transmission, then obey the corruption rule. Later rounds stack reverse, opposite, and rotation logic." },
-      glide: { kicker: "CENTER-LINE FLIGHT", title: "SKYBOUND", hint: "Tap to flap through shifting wind. Thread gate centers to charge a Thermal Burst that bends the physics in your favor." },
-      breaker: { kicker: "FORGE THE MARK", title: "EMBER FORGE", hint: "Move Rizo under the ember orb. Read authored wall patterns and crack CORE blocks to collapse nearby bricks." },
-      maze: { kicker: "MAZE-CHASE INSTINCT", title: "RIZO RUNAWAY", hint: "Swipe or use the arrows. Eat the Ember trail. Prism Seeds flip the hunt so Rizo can tag the Shadows." },
-      defense: { kicker: "ENDLESS ROSTER STRATEGY", title: "RIZO DEFENSE", hint: "Your strongest unlocked world is chosen automatically. Drag a Rizo—or tap one, then tap grass—to defend the illustrated trail." }
-    }[mode];
+    const details = ARCADE_GAMES[mode];
     el.miniKicker.textContent = details.kicker;
-    el.miniTitle.textContent = details.title;
+    el.miniTitle.textContent = details.name;
     el.miniHint.textContent = details.hint;
     el.miniTimer.textContent = mode === "defense" ? "ENDLESS" : (miniDuration(mode) / 1000).toFixed(1);
-    el.miniScore.textContent = mode === "defense" ? "0 POPS" : "0 PTS";
+    el.miniScore.textContent = `0 ${details.unit}`;
+    closeArcadePause(true);
+    if (el.miniPause) el.miniPause.hidden = false;
     lastOverlayFocus = document.activeElement;
     el.miniGameOverlay.hidden = false;
     el.miniGameOverlay.classList.toggle("defense-active", mode === "defense");
@@ -3825,7 +3907,7 @@
       el.miniArena.innerHTML = `<div class="mini-world power-world power-dx">
         <div class="training-floor"></div>${miniPetMarkup("power-rizo")}
         <div id="trainingBag" class="training-bag"><i></i><b class="face-mark-stage"><img src="./assets/rizo-full-mark.png" alt=""></b><span id="bagCracks" class="bag-cracks"></span></div>
-        <div class="power-hud"><span>STREAK <b id="powerStreak">0</b></span><span>OVERDRIVE <b id="powerHeat">0%</b></span></div>
+        <div class="power-hud" data-mini-readout><span>STREAK <b id="powerStreak">0</b></span><span>OVERDRIVE <b id="powerHeat">0%</b></span></div>
         <div class="power-coach"><small>COACH CALL</small><b id="powerCall">JAB</b></div>
         <div class="power-techniques" aria-label="Strike type"><button type="button" data-power-tech="jab">JAB</button><button type="button" data-power-tech="body">BODY</button><button type="button" data-power-tech="hook">HOOK</button></div>
         <div class="timing-console"><div class="timing-track"><i id="timingPerfectZone" class="timing-perfect"></i><b id="timingNeedle"></b></div><strong id="timingCallout">READ THE CALL</strong></div>
@@ -3833,7 +3915,7 @@
       updatePowerZoneVisual();
     }
     if (mode === "spark") {
-      el.miniArena.innerHTML = `<div class="mini-world spark-world spark-dx"><div class="spark-sky"></div>${miniPetMarkup("spark-rizo")}<button id="miniTarget" class="spark-orb" type="button" aria-label="Catch spark">★</button><div class="spark-trail" id="sparkTrail"></div><div class="spark-hud"><span>STASH <b id="sparkStash">0</b></span><span>BANKED <b id="sparkBanked">0</b></span></div><button class="spark-bank" id="sparkBank" type="button" data-spark-bank>BANK STASH</button><div id="sparkRule" class="spark-rule">CATCH • THEN DECIDE WHEN TO BANK</div></div>`;
+      el.miniArena.innerHTML = `<div class="mini-world spark-world spark-dx"><div class="spark-sky"></div>${miniPetMarkup("spark-rizo")}<button id="miniTarget" class="spark-orb" type="button" aria-label="Catch spark">★</button><div class="spark-trail" id="sparkTrail"></div><div class="spark-hud" data-mini-readout><span>STASH <b id="sparkStash">0</b></span><span class="spark-chain">CHAIN <b id="sparkStreak">0</b><em id="sparkRisk">x1</em></span><span>BANKED <b id="sparkBanked">0</b></span></div><button class="spark-bank" id="sparkBank" type="button" data-spark-bank><b>BANK STASH</b><small id="sparkPayout">NOTHING TO BANK</small></button><div id="sparkRule" class="spark-rule">CATCH • THEN DECIDE WHEN TO BANK</div></div>`;
       el.miniTarget = $("#miniTarget");
       moveSparkTarget();
     }
@@ -3846,7 +3928,8 @@
       spawnForageItem();
     }
     if (mode === "rush") {
-      el.miniArena.innerHTML = `<div class="mini-world rush-world rush-dx"><div class="rush-clouds"></div><div class="rush-hills"></div><div class="rush-ground"></div><div id="rushEntities"></div>${miniPetMarkup("rush-rizo")}<div id="rushHearts" class="rush-hearts">♥ ♥ ♥</div><div class="rush-streak">CLEAN <b id="rushStreak">0</b></div><div class="rush-delivery" id="rushDelivery">NO PACKAGE • FIND ◆</div><div class="rush-callout">TAP • AIR TAP • DELIVER THE PACKAGE</div></div>`;
+      el.miniArena.innerHTML = `<div class="mini-world rush-world rush-dx"><div class="rush-clouds"></div><div class="rush-hills"></div><div class="rush-ground"></div><div id="rushEntities"></div>${miniPetMarkup("rush-rizo")}<div id="rushHearts" class="rush-hearts" data-mini-readout>♥ ♥ ♥</div><div class="rush-streak" data-mini-readout>CLEAN <b id="rushStreak">0</b></div><div class="rush-delivery" id="rushDelivery" data-mini-readout>NO PACKAGE • FIND ◆</div><div class="rush-callout">TAP • AIR TAP • DELIVER THE PACKAGE</div></div>`;
+      renderLives("rushHearts");
       const interval = setInterval(() => { if (mini.active && !mini.pausedByAd) spawnRushEntity(); }, 1160);
       mini.intervals.push(interval);
       spawnRushEntity(true);
@@ -3874,8 +3957,8 @@
       startRhythmPerformance();
     }
     if (mode === "maze") {
-      el.miniArena.innerHTML = `<div class="mini-world maze-world"><div class="maze-hud"><span id="mazeLives">♥ ♥ ♥</span><span>MAZE <b id="mazeLevel">1</b></span><span>CHAIN <b id="mazeCombo">0</b></span></div><div id="mazeBoard" class="maze-board"></div><div id="mazeCallout" class="maze-callout">EAT THE EMBER TRAIL</div><div class="maze-controls" aria-label="Runaway directions"><button type="button" data-maze-dir="up" aria-label="Move up">▲</button><button type="button" data-maze-dir="left" aria-label="Move left">◀</button><button type="button" data-maze-dir="down" aria-label="Move down">▼</button><button type="button" data-maze-dir="right" aria-label="Move right">▶</button></div></div>`;
-      buildMazeLevel(true);
+      el.miniArena.innerHTML = `<div class="mini-world maze-world"><div class="maze-hud" data-mini-readout><span id="mazeLives">♥ ♥ ♥</span><span>MAZE <b id="mazeLevel">1</b></span><span>CHAIN <b id="mazeCombo">0</b></span></div><div id="mazeBoard" class="maze-board"></div><div id="mazeCallout" class="maze-callout">EAT THE EMBER TRAIL</div><div class="maze-controls" aria-label="Runaway directions"><button type="button" data-maze-dir="up" aria-label="Move up">▲</button><button type="button" data-maze-dir="left" aria-label="Move left">◀</button><button type="button" data-maze-dir="down" aria-label="Move down">▼</button><button type="button" data-maze-dir="right" aria-label="Move right">▶</button></div></div>`;
+      buildMazeLevel(true); renderLives("mazeLives");
     }
     if (mode === "defense") {
       if (!mini.defenseResume || !restoreDefenseCheckpoint(mini.defenseResume)) {
@@ -3884,19 +3967,19 @@
       }
     }
     if (mode === "memory") {
-      el.miniArena.innerHTML = `<div class="mini-world memory-world memory-dx lost-signal"><div class="memory-stars"></div>${miniPetMarkup("memory-rizo")}<div class="memory-top"><span id="memoryRule">CLEAN SIGNAL</span><span id="memoryHearts">♥ ♥ ♥</span></div><div class="memory-frequency">96.3 <i>RIZO PIRATE RADIO</i></div><div class="memory-board" id="memoryBoard">${[0,1,2,3].map(index=>`<button type="button" class="memory-rune rune-${index}" data-memory-rune="${index}" aria-label="Signal rune ${index+1}">${["☾","✦","◆","∞"][index]}</button>`).join("")}</div><div id="memoryCallout" class="memory-callout">LISTEN FOR THE CORRUPTION</div></div>`;
-      queueMiniTimeout(startMemoryRound, 500);
+      el.miniArena.innerHTML = `<div class="mini-world memory-world memory-dx lost-signal"><div class="memory-stars"></div>${miniPetMarkup("memory-rizo")}<div class="memory-top" data-mini-readout><span id="memoryRule">CLEAN SIGNAL</span><span id="memoryHearts">♥ ♥ ♥</span></div><div class="memory-frequency">96.3 <i>RIZO PIRATE RADIO</i></div><div class="memory-board" id="memoryBoard">${[0,1,2,3].map(index=>`<button type="button" class="memory-rune rune-${index}" data-memory-rune="${index}" aria-label="Signal rune ${index+1}">${["☾","✦","◆","∞"][index]}</button>`).join("")}</div><div id="memoryCallout" class="memory-callout">LISTEN FOR THE CORRUPTION</div></div>`;
+      renderLives("memoryHearts"); queueMiniTimeout(startMemoryRound, 500);
     }
     if (mode === "glide") {
       mini.glideY = Math.max(90, el.miniArena.clientHeight * .48);
       mini.glideSpawnAt = now() + 900;
       mini.glideWindAt = now() + 5200;
-      el.miniArena.innerHTML = `<div class="mini-world glide-world"><div class="glide-clouds"></div><div id="glideGates"></div>${miniPetMarkup("glide-rizo")}<div class="glide-hud"><span id="glideHearts">♥ ♥ ♥</span><span>THREAD <b id="glideStreak">0</b></span><span>DRAFT <b id="glideDraft">0/3</b></span></div><div id="glideWind" class="glide-wind">CALM AIR</div><div id="glideThermal" class="glide-thermal">CENTER 3 GATES → THERMAL</div><div class="glide-floor"></div></div>`;
-      updateGlidePet();
+      el.miniArena.innerHTML = `<div class="mini-world glide-world"><div class="glide-clouds"></div><div id="glideGates"></div>${miniPetMarkup("glide-rizo")}<div class="glide-hud" data-mini-readout><span id="glideHearts">♥ ♥ ♥</span><span>THREAD <b id="glideStreak">0</b></span><span>DRAFT <b id="glideDraft">0/3</b></span></div><div id="glideWind" class="glide-wind" data-mini-readout>CALM AIR</div><div id="glideThermal" class="glide-thermal" data-mini-readout>CENTER 3 GATES → THERMAL</div><div class="glide-floor"></div></div>`;
+      renderLives("glideHearts"); updateGlidePet();
     }
     if (mode === "breaker") {
-      el.miniArena.innerHTML = `<div class="mini-world breaker-world"><div id="breakerBlocks" class="breaker-blocks"></div><div id="breakerBall" class="breaker-ball">✦</div>${miniPetMarkup("breaker-rizo")}<div class="breaker-hud"><span id="breakerHearts">♥ ♥ ♥</span><span>FORGE <b id="breakerLevel">1</b></span><span>CORE <b id="breakerCoreCount">0</b></span></div><div id="breakerPattern" class="breaker-pattern">LOADING MARK…</div><div id="breakerCallout" class="breaker-callout">BREAK THE CORE • COLLAPSE THE WALL</div></div>`;
-      setBreakerPaddle(.5); buildBreakerBoard(); resetBreakerBall(true);
+      el.miniArena.innerHTML = `<div class="mini-world breaker-world"><div id="breakerBlocks" class="breaker-blocks"></div><div id="breakerBall" class="breaker-ball">✦</div>${miniPetMarkup("breaker-rizo")}<div class="breaker-hud" data-mini-readout><span id="breakerHearts">♥ ♥ ♥</span><span>FORGE <b id="breakerLevel">1</b></span><span>RALLY <b id="breakerStreak">0</b></span><span>CORE <b id="breakerCoreCount">0</b></span></div><div id="breakerPattern" class="breaker-pattern">LOADING MARK…</div><div id="breakerCallout" class="breaker-callout">BREAK THE CORE • COLLAPSE THE WALL</div></div>`;
+      renderLives("breakerHearts"); setBreakerPaddle(.5); buildBreakerBoard(); resetBreakerBall(true);
     }
   }
 
@@ -4092,7 +4175,7 @@
       mini.powerWrongCalls+=1;mini.powerStreak=0;mini.powerHeat=clamp(mini.powerHeat-12,0,100);mini.score=Math.max(0,mini.score-2);
       const callout=$("#timingCallout");if(callout){callout.textContent=`WRONG SHOT • COACH SAID ${mini.powerCall.toUpperCase()}`;callout.dataset.grade="wrong";}
       const streak=$("#powerStreak"),heat=$("#powerHeat");if(streak)streak.textContent="0";if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;
-      sfx("no");haptic([12,18,12]);nextPowerCall();return;
+      arcadeSfx("fail");haptic([12,18,12]);nextPowerCall();return;
     }
     mini.powerCallsRead+=1;
     const distance = Math.abs(mini.needle - mini.powerZone);
@@ -4125,7 +4208,7 @@
     if (heat) heat.textContent = `${Math.round(mini.powerHeat)}%`;
     if (cracks) cracks.dataset.crack = String(Math.min(4, Math.floor(mini.hits / 6)));
     if (base === 5) { sfx("perfect"); sensoryBurst(mini.powerStreak >= 4 ? `x${mult}` : "PERFECT", "#16c8ff", 10); haptic([12,20,22]); }
-    else if (base) sfx("hit", base * 3); else { sfx("no"); haptic(18); }
+    else if (base) sfx("hit", base * 3); else { arcadeSfx("fail"); haptic(18); }
   }
 
   function moveSparkTarget(forceType = null) {
@@ -4145,8 +4228,37 @@
     const rule=$("#sparkRule"); if(rule) rule.textContent=frenzy ? "SPARK RUSH • DON'T MISS" : mini.sparkType === "shadow" ? "DECOY • DON'T TAP" : mini.sparkType === "gold" ? "GOLD SIGNAL • GO" : "CATCH THE LIGHT";
   }
 
-  function updateSparkBankHUD(){const stash=$("#sparkStash"),banked=$("#sparkBanked"),bank=$("#sparkBank");if(stash)stash.textContent=String(Math.max(0,Math.floor(mini.sparkStash||0)));if(banked)banked.textContent=String(Math.max(0,Math.floor(mini.sparkBanked||0)));if(bank)bank.disabled=(mini.sparkStash||0)<=0;}
-  function bankSparkStash(auto=false){const held=Math.max(0,Math.floor(mini.sparkStash||0));if(!held)return false;const chain=Math.max(0,mini.sparkStreak||0),mult=auto?1:Math.min(3,1+Math.floor(chain/4));const gain=held*mult;mini.score+=gain;mini.sparkBanked+=gain;mini.sparkStash=0;mini.sparkBanks+=1;if(auto)mini.sparkAutoBanked=true;const trail=$("#sparkTrail");if(trail){trail.textContent=`${auto?"AUTO ":""}BANK x${mult} • +${gain}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}updateSparkBankHUD();sfx("reward");haptic([8,12,8]);return true;}
+  function sparkRiskMultiplier(){ return Math.min(4, 1 + Math.floor(Math.max(0,mini.sparkStreak||0) / 5)); }
+  function sparkBankMultiplier(){ return Math.min(3, 1 + Math.floor(Math.max(0,mini.sparkStreak||0) / 4)); }
+  function updateSparkBankHUD(){
+    const stash=$("#sparkStash"),banked=$("#sparkBanked"),bank=$("#sparkBank"),streak=$("#sparkStreak"),risk=$("#sparkRisk"),payout=$("#sparkPayout");
+    const held=Math.max(0,Math.floor(mini.sparkStash||0)),chain=Math.max(0,mini.sparkStreak||0),bankMult=sparkBankMultiplier();
+    if(stash)stash.textContent=String(held);
+    if(banked)banked.textContent=String(Math.max(0,Math.floor(mini.sparkBanked||0)));
+    if(streak)streak.textContent=String(chain);
+    if(risk){
+      risk.textContent=`x${sparkRiskMultiplier()}`;
+      risk.classList.toggle("hot",chain>=10);
+      risk.classList.toggle("warm",chain>=5&&chain<10);
+    }
+    if(payout)payout.textContent=held?`BANK +${held*bankMult}`:"NOTHING TO BANK";
+    const hud=$(".spark-hud");
+    if(hud)hud.classList.toggle("at-risk",held>=6);
+    if(bank){
+      bank.disabled=held<=0;
+      bank.dataset.mult=String(bankMult);
+      const label=bank.querySelector("b");
+      if(label)label.textContent=bankMult>1?`BANK x${bankMult}`:"BANK STASH";
+    }
+    // Six clean reads in a row arms Spark Rush. Show the fuse, not just the fire.
+    const rule=$("#sparkRule");
+    if(rule&&now()>=(mini.sparkFeverUntil||0)){
+      const toRush=chain?6-(chain%6):6;
+      rule.textContent=chain>=1?`RUSH IN ${toRush===6?6:toRush} • RISK x${sparkRiskMultiplier()}`:"CATCH • THEN DECIDE WHEN TO BANK";
+    }
+  }
+
+  function bankSparkStash(auto=false){const held=Math.max(0,Math.floor(mini.sparkStash||0));if(!held)return false;const mult=auto?1:sparkBankMultiplier();const gain=held*mult;mini.score+=gain;mini.sparkBanked+=gain;mini.sparkStash=0;mini.sparkBanks+=1;if(auto)mini.sparkAutoBanked=true;const trail=$("#sparkTrail");if(trail){trail.textContent=`${auto?"AUTO ":""}BANK x${mult} • +${gain}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}updateSparkBankHUD();sfx("reward");haptic([8,12,8]);return true;}
   function spillSparkStash(reason="SIGNAL LOST"){const lost=Math.max(0,Math.floor(mini.sparkStash||0));if(lost){mini.sparkLost+=lost;mini.sparkStash=0;}mini.sparkStreak=0;updateSparkBankHUD();const trail=$("#sparkTrail");if(trail){trail.textContent=`${reason}${lost?` • -${lost} STASH`:""}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}}
 
   function startSparkFrenzy(){
@@ -4164,9 +4276,9 @@
       const trail=$("#sparkTrail"); if(trail){trail.textContent="GOOD READ +1";trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}
       sfx("perfect");
     } else {
-      spillSparkStash("TOO SLOW");if(mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");}
+      spillSparkStash("TOO SLOW");arcadeSfx("fail");if(mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");}
     }
-    const streak=$("#sparkStreak"); if(streak) streak.textContent=String(mini.sparkStreak);
+    updateSparkBankHUD();
     moveSparkTarget();
   }
 
@@ -4176,15 +4288,15 @@
     if (mini.sparkType === "shadow") {
       mini.score = Math.max(0, mini.score - 2); spillSparkStash("SHADOW STOLE IT");
       if (trail) { trail.textContent = mini.sparkLost ? "SHADOW STOLE THE STASH" : "DECOY -2"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-      pet.classList.add("forage-hit"); queueMiniTimeout(()=>pet.classList.remove("forage-hit"),300); sfx("no"); haptic([16,20,16]);
-      const streak=$("#sparkStreak"); if(streak) streak.textContent="0"; moveSparkTarget(); return;
+      pet.classList.add("forage-hit"); queueMiniTimeout(()=>pet.classList.remove("forage-hit"),300); arcadeSfx("fail"); haptic([16,20,16]);
+      updateSparkBankHUD(); moveSparkTarget(); return;
     }
     const wasFrenzy=now()<mini.sparkFeverUntil;mini.hits += 1; mini.sparkStreak += 1; mini.sparkBestStreak = Math.max(mini.sparkBestStreak, mini.sparkStreak);
-    const mult = Math.min(4, 1 + Math.floor(mini.sparkStreak / 5));
+    const mult = sparkRiskMultiplier();
     const gain = (mini.sparkType === "gold" ? 5 : 1) * (wasFrenzy?2:1); mini.sparkStash += gain;updateSparkBankHUD();
     pet.style.left = `${mini.sparkX + 6}px`; pet.style.top = `${mini.sparkY + 28}px`; pet.classList.add("spark-dash"); queueMiniTimeout(()=>pet.classList.remove("spark-dash"),180);
     if (trail) { trail.textContent = mini.sparkType === "gold" ? `GOLD${wasFrenzy?" RUSH":""} • STASH +${gain}` : wasFrenzy?`RUSH ${mini.sparkStreak} • STASH +${gain}`:mini.sparkStreak > 1 ? `CHAIN ${mini.sparkStreak} • RISK x${mult}` : "STASH +1"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-    const streak=$("#sparkStreak"); if(streak) streak.textContent=String(mini.sparkStreak);
+    updateSparkBankHUD();
     if(!wasFrenzy && mini.sparkStreak>0 && mini.sparkStreak%6===0)startSparkFrenzy();
     sfx(mini.sparkType === "gold" ? "reward" : "spark", mini.hits); haptic(mini.sparkType === "gold" ? [8,10,14] : 8); moveSparkTarget();
   }
@@ -4205,7 +4317,7 @@
     mini.forageOrderIndex+=1;
     if(mini.forageOrderIndex>=mini.forageOrder.length){
       mini.forageOrdersDone+=1;mini.score+=10+Math.min(8,mini.forageOrdersDone*2);mini.treasureRolls+=1;
-      if(mini.forageOrdersDone%2===0){mini.forageRushUntil=now()+3600;sensoryBurst("PICNIC PANIC • PICK FAST","#ffd76a",16);sfx("reward");}
+      if(mini.forageOrdersDone%2===0){mini.forageRushUntil=now()+3600;sensoryBurst("PICNIC PANIC • PICK FAST","#ffd76a",16);arcadeSfx("win");}
       else sensoryBurst(`LUNCH ${mini.forageOrdersDone} PACKED`,`#9eff75`,12);
       mini.forageOrder=buildForageOrder();mini.forageOrderIndex=0;
     }
@@ -4259,7 +4371,7 @@
         } else {
           const wanted=mini.forageOrder[mini.forageOrderIndex]; mini.hits+=1;
           if(entity.foodId===wanted){mini.forageStreak+=1;mini.forageBestStreak=Math.max(mini.forageBestStreak,mini.forageStreak);const mult=Math.min(3,1+Math.floor(mini.forageStreak/4));mini.score+=3*mult;advanceForageOrder();sfx("eat");}
-          else {mini.score=Math.max(0,mini.score-1);mini.forageStreak=0;sfx("no");const order=$("#forageOrder");order?.classList.add("wrong");queueMiniTimeout(()=>order?.classList.remove("wrong"),220);}
+          else {mini.score=Math.max(0,mini.score-1);mini.forageStreak=0;arcadeSfx("fail");const order=$("#forageOrder");order?.classList.add("wrong");queueMiniTimeout(()=>order?.classList.remove("wrong"),220);}
           $("#miniPet")?.classList.add("forage-catch");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("forage-catch"),180);
         }
         const streak=$("#forageStreak");if(streak)streak.textContent=String(mini.forageStreak);
@@ -4297,7 +4409,7 @@
           if(Math.abs(mini.jumpY-(entity.requiredJump||0))<=tolerance){entity.handled=true;mini.hits+=1;const mult=Math.min(4,1+Math.floor(mini.hits/6));const gain=(entity.type==="prism"?4:3)*mult;mini.score+=gain;entity.node.classList.add("collected");sfx(entity.type==="prism"?"reward":"rush",mini.hits);haptic(7);if(entity.type==="prism"){mini.rushParcel=true;mini.rushParcelClears=0;const delivery=$("#rushDelivery");if(delivery)delivery.textContent="PACKAGE LIVE • CLEAR 2";sensoryBurst("PACKAGE PICKED UP","#bdf7ff",10);}}
         } else {
           const needed=entity.type==="tall"?92:54;
-          if(mini.jumpY<needed&&now()>mini.invulnerableUntil){entity.handled=true;mini.hearts-=1;mini.rushStreak=0;if(mini.rushParcel){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushPackagesLost+=1;const delivery=$("#rushDelivery");if(delivery)delivery.textContent="PACKAGE LOST • FIND ◆";}mini.invulnerableUntil=now()+950;const hearts=$("#rushHearts");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.hearts?"♥":"♡").join(" ");const streak=$("#rushStreak");if(streak)streak.textContent="0";pet?.classList.add("rush-hurt");queueMiniTimeout(()=>pet?.classList.remove("rush-hurt"),500);sfx("hit");haptic([18,25,18]);if(mini.hearts<=0){mini.endAt=Math.min(mini.endAt,now()+250);}}
+          if(mini.jumpY<needed&&now()>mini.invulnerableUntil){entity.handled=true;loseArcadeLife();mini.rushStreak=0;if(mini.rushParcel){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushPackagesLost+=1;const delivery=$("#rushDelivery");if(delivery)delivery.textContent="PACKAGE LOST • FIND ◆";}mini.invulnerableUntil=now()+950;renderLives("rushHearts");const streak=$("#rushStreak");if(streak)streak.textContent="0";pet?.classList.add("rush-hurt");queueMiniTimeout(()=>pet?.classList.remove("rush-hurt"),500);arcadeSfx("fail");haptic([18,25,18]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,now()+250);}}
         }
       }
       if(!entity.handled&&["stump","tall"].includes(entity.type)&&entity.x<petX-55){entity.handled=true;mini.rushClears+=1;mini.rushStreak+=1;mini.rushBestStreak=Math.max(mini.rushBestStreak,mini.rushStreak);const needed=entity.type==="tall"?92:54,close=mini.jumpY>=needed&&mini.jumpY<=needed+28;const gain=2+Math.min(4,Math.floor(mini.rushStreak/3))+(close?2:0);mini.score+=gain;const streak=$("#rushStreak");if(streak)streak.textContent=String(mini.rushStreak);if(mini.rushParcel){mini.rushParcelClears+=1;const delivery=$("#rushDelivery");if(mini.rushParcelClears>=2){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushDeliveries+=1;const deliveryGain=10+mini.rushDeliveries*2;mini.score+=deliveryGain;if(delivery)delivery.textContent=`DELIVERED #${mini.rushDeliveries} • +${deliveryGain}`;sensoryBurst(`DELIVERY +${deliveryGain}`,"#16c8ff",11);sfx("reward");}else if(delivery)delivery.textContent="PACKAGE LIVE • CLEAR 1";}if(close)sensoryBurst("CLOSE CALL +2","#ffd45a",7);else if(mini.rushStreak%4===0)sensoryBurst(`CLEAN x${mini.rushStreak}`,"#9eff75",8);sfx("perfect");}
@@ -4575,7 +4687,7 @@
   function lightMemoryRune(index,on=true) { const rune=$(`[data-memory-rune="${index}"]`); if(rune)rune.classList.toggle("lit",on); }
   function memoryExpectedSequence(){let base=[...mini.memorySequence];if(mini.memoryMode.includes("reverse"))base.reverse();if(mini.memoryMode.includes("opposite"))base=base.map(value=>3-value);if(mini.memoryMode.includes("rotate")){const shift=mini.memoryShift||1;base=base.map(value=>(value+shift)%4);}return base;}
   function memoryRuleLabel(){return {forward:"CLEAN SIGNAL",reverse:"PLAY BACKWARD",opposite:"PLAY OPPOSITES","reverse-opposite":"BACKWARD + OPPOSITE",rotate:`ROTATE +${mini.memoryShift||1}`,"reverse-rotate":`BACKWARD + ROTATE`}[mini.memoryMode]||String(mini.memoryMode||"SIGNAL").toUpperCase();}
-  function updateMemoryHUD(){const rule=$("#memoryRule"),hearts=$("#memoryHearts");if(rule)rule.textContent=memoryRuleLabel();if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.memoryLives?"♥":"♡").join(" ");}
+  function updateMemoryHUD(){const rule=$("#memoryRule");if(rule)rule.textContent=memoryRuleLabel();renderLives("memoryHearts");}
 
   function startMemoryRound() {
     if(!mini.active||mini.mode!=="memory")return;
@@ -4590,16 +4702,32 @@
   function memoryTap(index) {
     if(!mini.active||mini.mode!=="memory"||mini.memoryShowing)return;
     lightMemoryRune(index,true);queueMiniTimeout(()=>lightMemoryRune(index,false),180);const expectedSequence=memoryExpectedSequence(),expected=expectedSequence[mini.memoryInput];
-    if(index===expected){mini.memoryInput+=1;mini.score+=2+mini.memoryRound;sfx("spark",mini.memoryInput);haptic(6);$("#miniPet")?.classList.add("memory-nod");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-nod"),180);if(mini.memoryInput>=expectedSequence.length){mini.hits+=1;mini.score+=mini.memoryRound*(mini.memoryRuleDepth>1?6:mini.memoryMode==="forward"?2:4);mini.memoryShowing=true;const callout=$("#memoryCallout");if(callout)callout.textContent=`${memoryRuleLabel()} CLEAN • +${mini.memoryRound*(mini.memoryRuleDepth>1?6:4)}`;sfx("reward");queueMiniTimeout(startMemoryRound,720);}}
-    else {mini.score=Math.max(0,mini.score-3);mini.memoryLives-=1;mini.memoryShowing=true;updateMemoryHUD();const callout=$("#memoryCallout");if(callout)callout.textContent=mini.memoryLives>0?"WRONG RUNE • STUDY IT AGAIN":"MEMORY OVERLOADED";$("#miniPet")?.classList.add("memory-confused");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-confused"),420);sfx("no");haptic([15,20,15]);if(mini.memoryLives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}queueMiniTimeout(()=>{mini.memoryInput=0;mini.memoryShowing=true;const speed=Math.max(250,430-mini.memoryRound*16);mini.memorySequence.forEach((value,i)=>{queueMiniTimeout(()=>lightMemoryRune(value,true),i*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),i*speed+220);});queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`TRY • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+100);},520);}
+    if(index===expected){mini.memoryInput+=1;mini.score+=2+mini.memoryRound;sfx("spark",mini.memoryInput);haptic(6);$("#miniPet")?.classList.add("memory-nod");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-nod"),180);if(mini.memoryInput>=expectedSequence.length){mini.hits+=1;mini.score+=mini.memoryRound*(mini.memoryRuleDepth>1?6:mini.memoryMode==="forward"?2:4);mini.memoryShowing=true;const callout=$("#memoryCallout");if(callout)callout.textContent=`${memoryRuleLabel()} CLEAN • +${mini.memoryRound*(mini.memoryRuleDepth>1?6:4)}`;arcadeSfx("win");queueMiniTimeout(startMemoryRound,720);}}
+    else {mini.score=Math.max(0,mini.score-3);loseArcadeLife();mini.memoryShowing=true;updateMemoryHUD();const callout=$("#memoryCallout");if(callout)callout.textContent=mini.lives>0?"WRONG RUNE • STUDY IT AGAIN":"MEMORY OVERLOADED";$("#miniPet")?.classList.add("memory-confused");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-confused"),420);arcadeSfx("fail");haptic([15,20,15]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}queueMiniTimeout(()=>{mini.memoryInput=0;mini.memoryShowing=true;const speed=Math.max(250,430-mini.memoryRound*16);mini.memorySequence.forEach((value,i)=>{queueMiniTimeout(()=>lightMemoryRune(value,true),i*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),i*speed+220);});queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`TRY • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+100);},520);}
+  }
+
+  function renderLives(id="miniLives"){
+    const host=typeof id==="string"?$(`#${id}`):id;
+    if(!host)return "";
+    const max=Math.max(1,Math.floor(mini.maxLives||3)),lives=clamp(Math.floor(mini.lives||0),0,max);
+    const markup=Array(max).fill(0).map((_,i)=>i<lives?"\u2665":"\u2661").join(" ");
+    host.textContent=markup;
+    host.classList.toggle("lives-critical",lives===1);
+    host.classList.toggle("lives-empty",lives<=0);
+    return markup;
+  }
+  function loseArcadeLife(amount=1){
+    mini.lives=Math.max(0,(mini.lives||0)-Math.max(1,amount));
+    if(mini.lives<=0)mini.endReason="death";
+    return mini.lives;
   }
 
   function updateGlidePet(){const pet=$("#miniPet");if(!pet)return;pet.style.top=`${mini.glideY}px`;pet.style.setProperty("--glide-tilt",`${clamp(mini.glideV/18,-18,22)}deg`);}
   function glideFlap(){if(!mini.active||mini.mode!=="glide")return;mini.glideV=now()<mini.glideThermalUntil?-270:-315;sfx("jump");haptic(6);$("#miniPet")?.classList.add("glide-flap");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-flap"),140);}
   function spawnGlideGate(){const host=$("#glideGates");if(!host)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,progress=1-Math.max(0,mini.endAt-now())/miniDuration("glide"),rare=Math.random()<.12,gapH=Math.max(104,148-progress*36-(rare?12:0)),margin=84,gapY=margin+gapH/2+Math.random()*Math.max(1,height-margin*2-gapH);const node=document.createElement("div");node.className=`glide-gate ${rare?"prism":""}`;node.innerHTML=`<i class="top"></i><i class="bottom"></i><b>${rare?"◆":""}</b>`;host.appendChild(node);const entity={kind:"glide",node,x:width+38,width:58,gapY,gapH,speed:128+progress*46+(rare?9:0),scored:false,rare};mini.entities.push(entity);mini.glideGateCount+=1;}
   function updateGlideGateNode(entity){const h=el.miniArena.clientHeight,topH=Math.max(0,entity.gapY-entity.gapH/2),bottomY=Math.min(h,entity.gapY+entity.gapH/2);entity.node.style.transform=`translateX(${entity.x}px)`;entity.node.style.setProperty("--gate-top",`${topH}px`);entity.node.style.setProperty("--gate-bottom",`${Math.max(0,h-bottomY)}px`);}
-  function glideCrash(){if(now()<mini.glideInvulnerableUntil)return;mini.glideHearts-=1;mini.glideStreak=0;mini.glideDraft=0;const draft=$("#glideDraft");if(draft)draft.textContent="0/3";mini.glideInvulnerableUntil=now()+1250;const hearts=$("#glideHearts"),streak=$("#glideStreak");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.glideHearts?"♥":"♡").join(" ");if(streak)streak.textContent="0";$("#miniPet")?.classList.add("glide-hurt");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-hurt"),520);sfx("hit");haptic([18,26,18]);mini.glideY=el.miniArena.clientHeight*.46;mini.glideV=-80;for(const entity of mini.entities.filter(e=>e.kind==="glide")){entity.node.remove();}mini.entities=mini.entities.filter(e=>e.kind!=="glide");mini.glideSpawnAt=now()+1050;if(mini.glideHearts<=0)mini.endAt=Math.min(mini.endAt,now()+450);}
-  function updateGlideGame(dt){const t=now(),height=el.miniArena.clientHeight,width=el.miniArena.clientWidth,thermal=t<mini.glideThermalUntil;if(mini.glideThermalUntil&&t>=mini.glideThermalUntil){mini.glideThermalUntil=0;$(".glide-world")?.classList.remove("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="CENTER 3 GATES → THERMAL";}if(t>=mini.glideWindAt){mini.glideWind=[-72,-38,0,42,76][Math.floor(Math.random()*5)];mini.glideWindAt=t+5200+Math.random()*2200;const wind=$("#glideWind");if(wind)wind.textContent=mini.glideWind<-20?"UPDRAFT ↑":mini.glideWind>20?"DOWNDRAFT ↓":"CALM AIR";}mini.glideV+=((thermal?525:760)+(thermal?mini.glideWind*.35:mini.glideWind))*dt;mini.glideY+=mini.glideV*dt;updateGlidePet();if(t>=mini.glideSpawnAt){spawnGlideGate();mini.glideSpawnAt=t+1450;}const petX=width*.24,petR=22;for(const entity of [...mini.entities]){if(entity.kind!=="glide")continue;entity.x-=entity.speed*dt;updateGlideGateNode(entity);const overlapX=entity.x<petX+petR&&entity.x+entity.width>petX-petR,top=entity.gapY-entity.gapH/2,bottom=entity.gapY+entity.gapH/2;if(overlapX&&(mini.glideY-petR<top||mini.glideY+petR>bottom))glideCrash();if(!entity.scored&&entity.x+entity.width<petX){entity.scored=true;mini.glideClears+=1;mini.glideStreak+=1;mini.glideBestStreak=Math.max(mini.glideBestStreak,mini.glideStreak);const centered=Math.abs(mini.glideY-entity.gapY)<20,gain=((entity.rare?6:3)+(centered?2:0))*(thermal?2:1);mini.score+=gain;const streak=$("#glideStreak");if(streak)streak.textContent=String(mini.glideStreak);if(centered){mini.glideDraft+=entity.rare?2:1;if(mini.glideDraft>=3){mini.glideDraft=0;mini.glideThermalUntil=t+4200;mini.glideThermals+=1;$(".glide-world")?.classList.add("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="THERMAL BURST • PHYSICS SOFTENED • x2";sensoryBurst("THERMAL BURST","#ffd45a",12);sfx("reward");}else{sensoryBurst("CENTER THREAD","#9eff75",8);sfx("perfect");}const draft=$("#glideDraft");if(draft)draft.textContent=`${mini.glideDraft}/3`;}else sfx(entity.rare?"reward":"spark");}if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}}if((mini.glideY<28||mini.glideY>height-48)&&t>=mini.glideInvulnerableUntil)glideCrash();}
+  function glideCrash(){if(now()<mini.glideInvulnerableUntil)return;loseArcadeLife();mini.glideStreak=0;mini.glideDraft=0;const draft=$("#glideDraft");if(draft)draft.textContent="0/3";mini.glideInvulnerableUntil=now()+1250;renderLives("glideHearts");const streak=$("#glideStreak");if(streak)streak.textContent="0";$("#miniPet")?.classList.add("glide-hurt");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-hurt"),520);arcadeSfx("fail");haptic([18,26,18]);mini.glideY=el.miniArena.clientHeight*.46;mini.glideV=-80;for(const entity of mini.entities.filter(e=>e.kind==="glide")){entity.node.remove();}mini.entities=mini.entities.filter(e=>e.kind!=="glide");mini.glideSpawnAt=now()+1050;if(mini.lives<=0)mini.endAt=Math.min(mini.endAt,now()+450);}
+  function updateGlideGame(dt){const t=now(),height=el.miniArena.clientHeight,width=el.miniArena.clientWidth,thermal=t<mini.glideThermalUntil;if(mini.glideThermalUntil&&t>=mini.glideThermalUntil){mini.glideThermalUntil=0;$(".glide-world")?.classList.remove("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="CENTER 3 GATES → THERMAL";}if(t>=mini.glideWindAt){mini.glideWind=[-72,-38,0,42,76][Math.floor(Math.random()*5)];mini.glideWindAt=t+5200+Math.random()*2200;const wind=$("#glideWind");if(wind)wind.textContent=mini.glideWind<-20?"UPDRAFT ↑":mini.glideWind>20?"DOWNDRAFT ↓":"CALM AIR";}mini.glideV+=((thermal?525:760)+(thermal?mini.glideWind*.35:mini.glideWind))*dt;mini.glideY+=mini.glideV*dt;updateGlidePet();if(t>=mini.glideSpawnAt){spawnGlideGate();mini.glideSpawnAt=t+1450;}const petX=width*.24,petR=22;for(const entity of [...mini.entities]){if(entity.kind!=="glide")continue;entity.x-=entity.speed*dt;updateGlideGateNode(entity);const overlapX=entity.x<petX+petR&&entity.x+entity.width>petX-petR,top=entity.gapY-entity.gapH/2,bottom=entity.gapY+entity.gapH/2;if(overlapX&&(mini.glideY-petR<top||mini.glideY+petR>bottom))glideCrash();if(!entity.scored&&entity.x+entity.width<petX){entity.scored=true;mini.glideClears+=1;mini.glideStreak+=1;mini.glideBestStreak=Math.max(mini.glideBestStreak,mini.glideStreak);const centered=Math.abs(mini.glideY-entity.gapY)<20,gain=((entity.rare?6:3)+(centered?2:0))*(thermal?2:1);mini.score+=gain;const streak=$("#glideStreak");if(streak)streak.textContent=String(mini.glideStreak);if(centered){mini.glideDraft+=entity.rare?2:1;if(mini.glideDraft>=3){mini.glideDraft=0;mini.glideThermalUntil=t+4200;mini.glideThermals+=1;$(".glide-world")?.classList.add("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="THERMAL BURST • PHYSICS SOFTENED • x2";sensoryBurst("THERMAL BURST","#ffd45a",12);arcadeSfx("win");}else{sensoryBurst("CENTER THREAD","#9eff75",8);sfx("perfect");}const draft=$("#glideDraft");if(draft)draft.textContent=`${mini.glideDraft}/3`;}else sfx(entity.rare?"reward":"spark");}if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}}if((mini.glideY<28||mini.glideY>height-48)&&t>=mini.glideInvulnerableUntil)glideCrash();}
 
   function setBreakerPaddle(ratio){mini.breakerX=clamp(Number(ratio)||.5,.08,.92);mini.breakerMoves=(mini.breakerMoves||0)+1;const pet=$("#miniPet");if(pet)pet.style.left=`${mini.breakerX*100}%`;}
   const BREAKER_PATTERNS=[
@@ -4611,8 +4739,8 @@
   function buildBreakerBoard(){const host=$("#breakerBlocks");if(!host)return;host.innerHTML="";mini.entities=mini.entities.filter(e=>e.kind!=="breaker-block");const pattern=BREAKER_PATTERNS[(mini.breakerLevel-1)%BREAKER_PATTERNS.length],cols=7,rows=pattern.rows.length,pad=7,arenaW=Math.max(280,el.miniArena.clientWidth),blockW=(arenaW-28-pad*(cols-1))/cols,blockH=28;mini.breakerPatternName=pattern.name;mini.breakerCores=0;for(let row=0;row<rows;row+=1){for(let col=0;col<cols;col+=1){const token=pattern.rows[row]?.[col]||".";if(token===".")continue;const special=token==="P"?"prism":token==="E"?"ember":token==="C"?"core":null,hp=token==="2"?2:(mini.breakerLevel>=4&&token==="1"&&((row+col+mini.breakerLevel)%5===0)?2:1),node=document.createElement("i");node.className=`breaker-block ${hp>1?"armored":""} ${special||""}`;node.style.left=`${14+col*(blockW+pad)}px`;node.style.top=`${54+row*(blockH+7)}px`;node.style.width=`${blockW}px`;node.style.height=`${blockH}px`;node.textContent=special==="prism"?"◆":special==="ember"?"✦":special==="core"?"×":"";host.appendChild(node);if(special==="core")mini.breakerCores+=1;mini.entities.push({kind:"breaker-block",node,row,col,x:14+col*(blockW+pad),y:54+row*(blockH+7),w:blockW,h:blockH,hp,special});}}const level=$("#breakerLevel"),cores=$("#breakerCoreCount"),name=$("#breakerPattern");if(level)level.textContent=String(mini.breakerLevel);if(cores)cores.textContent=String(mini.breakerCores);if(name)name.textContent=pattern.name;}
   function breakerCollapseCore(core){const neighbors=mini.entities.filter(item=>item.kind==="breaker-block"&&item.node?.isConnected&&item!==core&&item.special!=="core"&&Math.abs((item.row??0)-(core.row??0))+Math.abs((item.col??0)-(core.col??0))<=2).slice(0,5);for(const item of neighbors){item.node.classList.add("break","core-collapse");mini.score+=2;queueMiniTimeout(()=>item.node.remove(),150);mini.entities=mini.entities.filter(entry=>entry!==item);}mini.breakerCoresBroken+=1;mini.breakerCores=Math.max(0,mini.breakerCores-1);const cores=$("#breakerCoreCount");if(cores)cores.textContent=String(mini.breakerCores);sensoryBurst("CORE COLLAPSE","#ff5c6c",14);sfx("reward");haptic([10,14,20]);}
   function resetBreakerBall(first=false){const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,angle=(Math.random()*.7-.35);mini.breakerBall={x:width*mini.breakerX,y:height-128,vx:190*Math.sin(angle),vy:-245*Math.cos(angle),r:9,live:false};mini.breakerResetAt=now()+(first?900:720);const ball=$("#breakerBall");if(ball){ball.style.left=`${mini.breakerBall.x}px`;ball.style.top=`${mini.breakerBall.y}px`;}}
-  function breakerLoseBall(){if(now()<mini.breakerResetAt)return;mini.breakerHearts-=1;mini.breakerStreak=0;const hearts=$("#breakerHearts"),streak=$("#breakerStreak");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.breakerHearts?"♥":"♡").join(" ");if(streak)streak.textContent="0";sfx("no");haptic([14,18,14]);if(mini.breakerHearts<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}resetBreakerBall();}
-  function updateBreakerGame(dt){const b=mini.breakerBall;if(!b)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,t=now();if(!b.live){b.x=width*mini.breakerX;b.y=height-128;if(t>=mini.breakerResetAt)b.live=true;}else{const speedBoost=1+Math.min(.22,(mini.breakerLevel-1)*.035);b.x+=b.vx*dt*speedBoost;b.y+=b.vy*dt*speedBoost;if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x+b.r>width){b.x=width-b.r;b.vx=-Math.abs(b.vx);}if(b.y-b.r<38){b.y=38+b.r;b.vy=Math.abs(b.vy);}const paddleX=width*mini.breakerX,paddleY=height-108,paddleHalf=t<mini.breakerBoostUntil?66:48;if(b.vy>0&&b.y+b.r>=paddleY&&b.y-b.r<=paddleY+28&&Math.abs(b.x-paddleX)<=paddleHalf){const offset=clamp((b.x-paddleX)/paddleHalf,-1,1);b.y=paddleY-b.r;b.vy=-Math.max(235,Math.abs(b.vy));b.vx=clamp(b.vx+offset*125,-300,300);mini.breakerStreak+=1;mini.breakerBestStreak=Math.max(mini.breakerBestStreak,mini.breakerStreak);const streak=$("#breakerStreak");if(streak)streak.textContent=String(mini.breakerStreak);sfx("hit");haptic(5);}for(const block of [...mini.entities]){if(block.kind!=="breaker-block"||!block.node.isConnected)continue;if(b.x+b.r<block.x||b.x-b.r>block.x+block.w||b.y+b.r<block.y||b.y-b.r>block.y+block.h)continue;if(t-(block.lastHitAt||0)<70)continue;block.lastHitAt=t;block.hp-=1;if(t>=mini.breakerPierceUntil)b.vy*=-1;mini.score+=block.hp<=0?(block.special?8:2):1;if(block.hp<=0){block.node.classList.add("break");queueMiniTimeout(()=>block.node.remove(),130);mini.entities=mini.entities.filter(item=>item!==block);if(block.special==="prism"){mini.breakerBoostUntil=t+5200;$(".breaker-world")?.classList.add("boost");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("boost"),5200);sensoryBurst("PRISM PADDLE","#bdf7ff",10);sfx("reward");}else if(block.special==="ember"){mini.breakerPierceUntil=t+4200;$(".breaker-world")?.classList.add("fireball");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("fireball"),4200);sensoryBurst("EMBER BALL • PIERCE","#ff9b4e",10);sfx("reward");}else if(block.special==="core"){breakerCollapseCore(block);}else sfx("spark");}else{block.node.classList.remove("armored");block.node.classList.add("cracked");sfx("hit");}break;}if(b.y-b.r>height+20)breakerLoseBall();}const ball=$("#breakerBall");if(ball){ball.style.left=`${b.x}px`;ball.style.top=`${b.y}px`;}const blocks=mini.entities.filter(e=>e.kind==="breaker-block"&&e.node.isConnected);if(!blocks.length&&!mini.breakerBoardPending){mini.breakerBoardPending=true;mini.breakerLevel+=1;mini.score+=12+mini.breakerLevel*2;sensoryBurst(`WALL ${mini.breakerLevel}`,"#ffd54a",12);sfx("reward");queueMiniTimeout(()=>{if(!mini.active||mini.mode!=="breaker")return;mini.breakerBoardPending=false;buildBreakerBoard();resetBreakerBall();},650);}}
+  function breakerLoseBall(){if(now()<mini.breakerResetAt)return;loseArcadeLife();mini.breakerStreak=0;renderLives("breakerHearts");const streak=$("#breakerStreak");if(streak)streak.textContent="0";arcadeSfx("fail");haptic([14,18,14]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}resetBreakerBall();}
+  function updateBreakerGame(dt){const b=mini.breakerBall;if(!b)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,t=now();if(!b.live){b.x=width*mini.breakerX;b.y=height-128;if(t>=mini.breakerResetAt)b.live=true;}else{const speedBoost=1+Math.min(.22,(mini.breakerLevel-1)*.035);b.x+=b.vx*dt*speedBoost;b.y+=b.vy*dt*speedBoost;if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x+b.r>width){b.x=width-b.r;b.vx=-Math.abs(b.vx);}if(b.y-b.r<38){b.y=38+b.r;b.vy=Math.abs(b.vy);}const paddleX=width*mini.breakerX,paddleY=height-108,paddleHalf=t<mini.breakerBoostUntil?66:48;if(b.vy>0&&b.y+b.r>=paddleY&&b.y-b.r<=paddleY+28&&Math.abs(b.x-paddleX)<=paddleHalf){const offset=clamp((b.x-paddleX)/paddleHalf,-1,1);b.y=paddleY-b.r;b.vy=-Math.max(235,Math.abs(b.vy));b.vx=clamp(b.vx+offset*125,-300,300);mini.breakerStreak+=1;mini.breakerBestStreak=Math.max(mini.breakerBestStreak,mini.breakerStreak);const streak=$("#breakerStreak");if(streak)streak.textContent=String(mini.breakerStreak);sfx("hit");haptic(5);}for(const block of [...mini.entities]){if(block.kind!=="breaker-block"||!block.node.isConnected)continue;if(b.x+b.r<block.x||b.x-b.r>block.x+block.w||b.y+b.r<block.y||b.y-b.r>block.y+block.h)continue;if(t-(block.lastHitAt||0)<70)continue;block.lastHitAt=t;block.hp-=1;if(t>=mini.breakerPierceUntil)b.vy*=-1;mini.score+=block.hp<=0?(block.special?8:2):1;if(block.hp<=0){mini.breakerBricks=(mini.breakerBricks||0)+1;block.node.classList.add("break");queueMiniTimeout(()=>block.node.remove(),130);mini.entities=mini.entities.filter(item=>item!==block);if(block.special==="prism"){mini.breakerBoostUntil=t+5200;$(".breaker-world")?.classList.add("boost");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("boost"),5200);sensoryBurst("PRISM PADDLE","#bdf7ff",10);sfx("reward");}else if(block.special==="ember"){mini.breakerPierceUntil=t+4200;$(".breaker-world")?.classList.add("fireball");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("fireball"),4200);sensoryBurst("EMBER BALL • PIERCE","#ff9b4e",10);sfx("reward");}else if(block.special==="core"){breakerCollapseCore(block);}else sfx("spark");}else{block.node.classList.remove("armored");block.node.classList.add("cracked");sfx("hit");}break;}if(b.y-b.r>height+20)breakerLoseBall();}const ball=$("#breakerBall");if(ball){ball.style.left=`${b.x}px`;ball.style.top=`${b.y}px`;}const blocks=mini.entities.filter(e=>e.kind==="breaker-block"&&e.node.isConnected);if(!blocks.length&&!mini.breakerBoardPending){mini.breakerBoardPending=true;mini.breakerLevel+=1;mini.score+=12+mini.breakerLevel*2;sensoryBurst(`WALL ${mini.breakerLevel}`,"#ffd54a",12);arcadeSfx("win");queueMiniTimeout(()=>{if(!mini.active||mini.mode!=="breaker")return;mini.breakerBoardPending=false;buildBreakerBoard();resetBreakerBall();},650);}}
 
 
   const RUNAWAY_MAZE = [
@@ -4637,14 +4765,14 @@
     mini.mazeHunters=starts.map((spot,index)=>{const node=document.createElement("div");node.className=`maze-hunter hunter-${index}`;node.innerHTML="<i></i><b>×</b>";board.appendChild(node);const hunter={...spot,spawnR:spot.r,spawnC:spot.c,dir:index===0?"right":index===1?"left":"down",node,index};mazeActorStyle(node,spot.r,spot.c);return hunter;});
     // Do not award the starting tile for free.
     const startTile=board.querySelector(`[data-maze-cell="${mazeCellKey(8,7)}"]`);if(startTile?.classList.contains("pellet")){startTile.classList.remove("pellet");startTile.innerHTML="";mini.mazeGrid[8][7]=" ";mini.mazePellets-=1;}
-    const level=$("#mazeLevel"),combo=$("#mazeCombo"),lives=$("#mazeLives"),callout=$("#mazeCallout");if(level)level.textContent=String(mini.mazeLevel);if(combo)combo.textContent="0";if(lives)lives.textContent=Array(3).fill(0).map((_,i)=>i<mini.mazeLives?"♥":"♡").join(" ");if(callout)callout.textContent=first?"MOVE FIRST • SHADOWS ARE WAKING":"NEW MAZE • SHADOWS WAKE FASTER";
+    const level=$("#mazeLevel"),combo=$("#mazeCombo"),lives=$("#mazeLives"),callout=$("#mazeCallout");if(level)level.textContent=String(mini.mazeLevel);if(combo)combo.textContent="0";renderLives(lives);if(callout)callout.textContent=first?"MOVE FIRST • SHADOWS ARE WAKING":"NEW MAZE • SHADOWS WAKE FASTER";
   }
   function mazeCollect(){
     const p=mini.mazePlayer,cell=mini.mazeGrid[p.r][p.c];if(cell!=="."&&cell!=="o")return;
     const tile=$("#mazeBoard")?.querySelector(`[data-maze-cell="${mazeCellKey(p.r,p.c)}"]`);mini.mazeGrid[p.r][p.c]=" ";mini.mazePellets=Math.max(0,mini.mazePellets-1);tile?.classList.remove("pellet","power");if(tile)tile.innerHTML="";
     if(cell==="o"){mini.score+=6;mini.mazeHunts+=1;mini.mazeCombo=0;mini.mazeHuntUntil=now()+5400;$(".maze-world")?.classList.add("hunt");const callout=$("#mazeCallout");if(callout)callout.textContent="PRISM HUNT • CHASE THEM";sensoryBurst("HUNT MODE","#bdf7ff",12);sfx("reward");haptic([7,10,7]);}
     else{mini.score+=1;sfx("spark",mini.mazePellets%8);}
-    if(mini.mazePellets<=0){mini.score+=25*mini.mazeLevel;mini.mazeLives=Math.min(3,mini.mazeLives+1);mini.mazeLevel+=1;sensoryBurst(`MAZE ${mini.mazeLevel}`,"#ffd45a",14);sfx("reward");queueMiniTimeout(()=>{if(mini.active&&mini.mode==="maze")buildMazeLevel(false);},520);}
+    if(mini.mazePellets<=0){mini.score+=25*mini.mazeLevel;mini.lives=Math.min(mini.maxLives||3,(mini.lives||0)+1);renderLives("mazeLives");mini.mazeLevel+=1;sensoryBurst(`MAZE ${mini.mazeLevel}`,"#ffd45a",14);arcadeSfx("win");queueMiniTimeout(()=>{if(mini.active&&mini.mode==="maze")buildMazeLevel(false);},520);}
   }
   function mazeHunterTarget(hunter){
     const p=mini.mazePlayer;if(hunter.kind==="ambush"){const predicted=mini.mazeLevel>=2&&mini.mazeFavoriteDir?mini.mazeFavoriteDir:p.dir;const d=MAZE_DIRS[predicted]||MAZE_DIRS.left;return{r:p.r+d.dr*3,c:p.c+d.dc*3};}
@@ -4659,7 +4787,7 @@
   }
   function mazeResetAfterHit(){const p=mini.mazePlayer;p.r=8;p.c=7;p.dir="down";p.nextDir="down";mazeActorStyle(p.node,p.r,p.c);mini.mazeHunters.forEach(h=>{h.r=h.spawnR;h.c=h.spawnC;h.dir=h.index===0?"right":h.index===1?"left":"down";mazeActorStyle(h.node,h.r,h.c);});}
   function mazeCollision(){
-    const p=mini.mazePlayer,t=now();for(const h of mini.mazeHunters){if(h.r!==p.r||h.c!==p.c)continue;if(t<mini.mazeHuntUntil){mini.mazeCombo+=1;mini.mazeBestCombo=Math.max(mini.mazeBestCombo,mini.mazeCombo);mini.mazeHunterTags+=1;const gain=10*Math.min(5,mini.mazeCombo);mini.score+=gain;h.r=h.spawnR;h.c=h.spawnC;mazeActorStyle(h.node,h.r,h.c);const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent=String(mini.mazeCombo);if(callout)callout.textContent=`SHADOW TAG x${mini.mazeCombo} • +${gain}`;sfx("perfect");haptic([8,10,12]);continue;}if(t<mini.mazeInvulnerableUntil)continue;mini.mazeLives-=1;mini.mazeCombo=0;mini.mazeInvulnerableUntil=t+1500;const lives=$("#mazeLives"),combo=$("#mazeCombo"),callout=$("#mazeCallout");if(lives)lives.textContent=Array(3).fill(0).map((_,i)=>i<mini.mazeLives?"♥":"♡").join(" ");if(combo)combo.textContent="0";if(callout)callout.textContent=mini.mazeLives>0?"CAUGHT • ROUTE RESET":"THE SHADOWS GOT RIZO";$("#mazeRizo")?.classList.add("hurt");queueMiniTimeout(()=>$("#mazeRizo")?.classList.remove("hurt"),520);sfx("hit");haptic([20,24,20]);if(mini.mazeLives<=0){mini.endAt=Math.min(mini.endAt,t+450);return;}mazeResetAfterHit();}
+    const p=mini.mazePlayer,t=now();for(const h of mini.mazeHunters){if(h.r!==p.r||h.c!==p.c)continue;if(t<mini.mazeHuntUntil){mini.mazeCombo+=1;mini.mazeBestCombo=Math.max(mini.mazeBestCombo,mini.mazeCombo);mini.mazeHunterTags+=1;const gain=10*Math.min(5,mini.mazeCombo);mini.score+=gain;h.r=h.spawnR;h.c=h.spawnC;mazeActorStyle(h.node,h.r,h.c);const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent=String(mini.mazeCombo);if(callout)callout.textContent=`SHADOW TAG x${mini.mazeCombo} • +${gain}`;sfx("perfect");haptic([8,10,12]);continue;}if(t<mini.mazeInvulnerableUntil)continue;loseArcadeLife();mini.mazeCombo=0;mini.mazeInvulnerableUntil=t+1500;const combo=$("#mazeCombo"),callout=$("#mazeCallout");renderLives("mazeLives");if(combo)combo.textContent="0";if(callout)callout.textContent=mini.lives>0?"CAUGHT • ROUTE RESET":"THE SHADOWS GOT RIZO";$("#mazeRizo")?.classList.add("hurt");queueMiniTimeout(()=>$("#mazeRizo")?.classList.remove("hurt"),520);arcadeSfx("fail");haptic([20,24,20]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,t+450);return;}mazeResetAfterHit();}
   }
   function mazeMovePlayer(){const p=mini.mazePlayer;if(!p)return;if(mazeCanMove(p,p.nextDir))p.dir=p.nextDir;if(!mazeCanMove(p,p.dir))return;const next=mazeStepPoint(p,p.dir);p.r=next.r;p.c=next.c;mazeActorStyle(p.node,p.r,p.c);p.node.dataset.dir=p.dir;mazeCollect();mazeCollision();}
   function mazeMoveHunters(){for(const h of mini.mazeHunters){h.dir=mazeChooseHunterDir(h);if(mazeCanMove(h,h.dir)){const next=mazeStepPoint(h,h.dir);h.r=next.r;h.c=next.c;mazeActorStyle(h.node,h.r,h.c);}mazeCollision();}}
@@ -4671,6 +4799,9 @@
 
   function handleMiniInput(event) {
     if (!mini.active || mini.pausedByAd) return;
+    // Informational HUD is not the play surface. Reading your heart count or
+    // the wind readout must never flap, jump, or move the paddle.
+    if (mini.mode !== "defense" && event.target.closest?.("[data-mini-readout]")) return;
     if (mini.mode === "walk") {
       const forkBtn = event.target.closest(".walk-fork-btn");
       if (forkBtn) { chooseWalkFork(forkBtn.dataset.walkFork); return; }
@@ -4706,7 +4837,11 @@
     if (mini.mode === "maze") { const dir=event.target.closest("[data-maze-dir]")?.dataset.mazeDir;if(dir){mazeSetDirection(dir);return;}mini.mazePointerStart={x:event.clientX,y:event.clientY};return; }
     if (mini.mode === "glide") { glideFlap(); return; }
     if (mini.mode === "breaker") {
-      const rect=el.miniArena.getBoundingClientRect();setBreakerPaddle((event.clientX-rect.left)/Math.max(1,rect.width));return;
+      const rect=el.miniArena.getBoundingClientRect();
+      const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
+      if(Math.abs(ratio-mini.breakerX)>.22)setBreakerPaddle(ratio);
+      mini.breakerGrab={x:event.clientX,base:mini.breakerX,width:Math.max(1,rect.width)};
+      return;
     }
     if (mini.mode === "walk") {
       const find=event.target.closest(".walk-find");
@@ -4721,8 +4856,13 @@
     if (!["forage","breaker"].includes(mini.mode)) return;
     if (event.buttons === 0 && event.pointerType === "mouse") return;
     const rect=el.miniArena.getBoundingClientRect();
+    if(mini.mode==="breaker"){
+      const grab=mini.breakerGrab;
+      if(grab) setBreakerPaddle(grab.base + (event.clientX-grab.x)/(grab.width||Math.max(1,rect.width)));
+      else setBreakerPaddle(clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1));
+      return;
+    }
     const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-    if(mini.mode==="breaker"){setBreakerPaddle(ratio);return;}
     setForageLane(Math.min(2,Math.floor(ratio*3)));
   }
 
@@ -5440,11 +5580,16 @@
             <button type="button" data-defense-toggle-fullscreen><i>${defenseUiIcon("fullscreen")}</i><span><b>FULLSCREEN</b><small>Use the largest field.</small></span></button>
             <button type="button" data-defense-field-guide="rizos"><i>${defenseUiIcon("guide")}</i><span><b>FIELD GUIDE</b><small>Rizos, threats, and worlds.</small></span></button>
             <button type="button" data-defense-auto-start><i>${defenseUiIcon("snap")}</i><span><b id="defenseAutoStartLabel">AUTO WAVES • ${state.settings.defenseAutoStart?"ON":"OFF"}</b><small id="defenseAutoStartCopy">${state.settings.defenseAutoStart?"2.8s planning countdown after clears.":"You decide when each wave begins."}</small></span></button>
+            <button type="button" data-arcade-pause><i>${defenseUiIcon("speed")}</i><span><b>PAUSE RUN</b><small>Freeze the trail. Nothing advances until you resume.</small></span></button>
             <button type="button" class="danger" data-defense-bank-leave><i>${defenseUiIcon("bank")}</i><span><b>BANK & LEAVE</b><small>Cleared waves bank. The active wave is excluded.</small></span></button>
           </div>
         </div>
       </section>
       <section class="defense-deploy-dock" aria-label="Rizo deployment bench">
+        <div class="defense-placement-coach" id="defensePlacementCoach" aria-live="polite">
+          <span class="defense-placement-guide" id="defensePlacementGuide"><span>1</span><b>CHOOSE A RIZO</b></span>
+          <span class="defense-deploy-hint" id="defenseDeployHint">Your active Rizo deploys free. Tap a card, then grass.</span>
+        </div>
         <div class="defense-roster" id="defenseRoster">${defenseRosterMarkup()}</div>
         <button type="button" class="defense-cancel-placement" data-defense-cancel-placement hidden>CANCEL</button>
       </section>
@@ -5516,6 +5661,8 @@
       if(d.ending||d.phase===DEFENSE_PHASES.RUN_COMPLETE){button.disabled=true;if(waveLabel)waveLabel.textContent=d.lives<=0?"GATE DOWN":"RUN BANKED";}
       button.hidden=false;
     }
+    const coach=$("#defensePlacementCoach");
+    if(coach)coach.hidden=Boolean(d.towers.length&&!d.pendingPlacement);
     if(guide){
       guide.hidden=Boolean(d.towers.length&&!d.pendingPlacement);
       const step=guide.querySelector("span"),title=guide.querySelector("b");
@@ -6211,9 +6358,10 @@
   }
 
 
-  function defenseReducedMotion(){
-    try{return Boolean(state.settings?.reducedMotion||matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);}catch(error){return Boolean(state.settings?.reducedMotion);}
+  function reducedMotionActive(){
+    try{return Boolean(state?.settings?.reducedMotion||matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);}catch(error){return Boolean(state?.settings?.reducedMotion);}
   }
+  function defenseReducedMotion(){ return reducedMotionActive(); }
   function showDefenseCinematicMoment(kind,options={}){
     const d=mini.defense,host=$("#defenseMoment"),shell=$(".defense-shell"),stage=$(".defense-stage-frame");if(!d||!host)return false;
     const base=DEFENSE_CINEMATIC_MOMENTS[kind]||DEFENSE_CINEMATIC_MOMENTS.clear,real=defenseRealNow(d),priority=Number.isFinite(Number(options.priority))?Number(options.priority):base.priority;
@@ -6318,6 +6466,7 @@
     if(event.target.closest("[data-defense-toggle-bench]")){toggleDefenseBench();return;}
     if(event.target.closest("[data-defense-toggle-field-menu]")){toggleDefenseFieldMenu();return;}
     if(event.target.closest("[data-defense-auto-start]")){state.settings.defenseAutoStart=!state.settings.defenseAutoStart;saveState(true);if(mini.defense){mini.defense.autoStartAtReal=state.settings.defenseAutoStart&&mini.defense.phase===DEFENSE_PHASES.WAVE_COMPLETE?defenseRealNow(mini.defense)+2.8:0;markDefenseUi();flushDefenseUi(true);}setDefenseMessage(state.settings.defenseAutoStart?"AUTO WAVES ON":"AUTO WAVES OFF",state.settings.defenseAutoStart?"The next cleared field gets a 2.8-second planning countdown. Opening a planning panel resets it.":"Wave boundaries are yours again. Start each formation when you are ready.");sfx("ui");return;}
+    if(event.target.closest("[data-arcade-pause]")){toggleDefenseFieldMenu(false);openArcadePause();return;}
     if(event.target.closest("[data-defense-bank-leave]")){writeDefenseCheckpoint(true,"field-menu-leave");finishDefenseRunWithMoment("banked");return;}
     if(event.target.closest("[data-defense-toggle-legend]")){toggleDefenseFieldMenu(false);showDefenseControlLegend();return;}
     if(event.target.closest("[data-defense-toggle-fullscreen]")){toggleDefenseFieldMenu(false);toggleDefenseFullscreen();return;}
@@ -6429,6 +6578,111 @@
     return null;
   }
 
+  // ===== SHARED ARCADE PAUSE / QUIT =====
+  // One pause experience for the whole arcade instead of eleven. Defense and
+  // Ember Beat keep their specialised timing: Defense pauses through its own
+  // interruption path, and Rhythm's audio clock is credited by arcadeThaw().
+  function arcadeCanPause(){ return Boolean(mini?.active && !mini.pausedByFork); }
+  function arcadePauseLabel(){ return mini?.mode==="defense" ? "HOLD THE LINE" : "RUN PAUSED"; }
+  function openArcadePause(){
+    if(!arcadeCanPause() || mini.paused) return false;
+    mini.paused=true;
+    if(mini.mode==="defense"){
+      const d=mini.defense;
+      if(d && !d.paused){ d.paused=true; d.autoPaused=false; mini.defensePauseHeld=true; setDefenseMessage("RUN PAUSED","Nothing advances while this panel is open."); markDefenseUi(); flushDefenseUi(true); }
+    } else arcadeFreeze("menu");
+    renderArcadePausePanel();
+    if(el.miniPausePanel) el.miniPausePanel.hidden=false;
+    el.miniGameOverlay.classList.add("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","true"); el.miniPause.textContent="RESUME"; }
+    duckMusic(600,.05);
+    sfx("ui");
+    el.miniPausePanel?.querySelector("[data-arcade-resume]")?.focus({preventScroll:true});
+    return true;
+  }
+  function closeArcadePause(silent=false){
+    const wasPaused=Boolean(mini?.paused);
+    if(mini) mini.paused=false;
+    if(el.miniPausePanel) el.miniPausePanel.hidden=true;
+    el.miniGameOverlay?.classList.remove("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","false"); el.miniPause.textContent="PAUSE"; }
+    if(!wasPaused) return false;
+    if(mini?.active){
+      if(mini.mode==="defense"){
+        if(mini.defensePauseHeld && mini.defense){ mini.defense.paused=false; mini.defensePauseHeld=false; setDefenseMessage("BACK ON THE TRAIL","The wave continues where it stopped."); markDefenseUi(); flushDefenseUi(true); }
+      } else arcadeThaw("menu");
+    }
+    if(!silent) sfx("ui");
+    return true;
+  }
+  function toggleArcadePause(){ return mini?.paused ? closeArcadePause() : openArcadePause(); }
+  function renderArcadePausePanel(){
+    const host=el.miniPausePanel;
+    if(!host || !mini?.active) return;
+    const mode=mini.mode,defense=mode==="defense";
+    const score=Math.max(0,Math.floor(mini.score||0));
+    const remaining=Number.isFinite(mini.endAt)?Math.max(0,(mini.endAt-now())/1000):0;
+    const wave=defense?Math.max(0,Number(mini.defense?.clearedWave)||0):0;
+    const stat=defense
+      ? `<span><small>CLEARED</small><b>WAVE ${wave}</b></span><span><small>GATE</small><b>${Math.max(0,Number(mini.defense?.lives)||0)} ♥</b></span>`
+      : `<span><small>THIS RUN</small><b>${formatNumber(score)}</b></span><span><small>TIME LEFT</small><b>${remaining.toFixed(1)}s</b></span>`;
+    host.innerHTML=`<div class="arcade-pause-card">
+      <small>${escapeHTML(arcadeName(mode))}</small>
+      <h3>${arcadePauseLabel()}</h3>
+      <div class="arcade-pause-stats">${stat}</div>
+      <p>${defense?"Cleared waves are already banked. Nothing on the trail moves until you resume.":"The clock is frozen. Nothing spawns, nothing drains."}</p>
+      <div class="arcade-pause-actions">
+        <button type="button" class="primary" data-arcade-resume>RESUME</button>
+        ${defense?"":`<button type="button" data-arcade-restart>RESTART</button>`}
+        <button type="button" class="danger" data-arcade-quit>${defense?"BANK &amp; LEAVE":"END RUN"}</button>
+      </div>
+    </div>`;
+  }
+  function restartArcadeRun(){
+    if(!mini?.active) return false;
+    const mode=mini.mode;
+    if(mode==="defense") return false;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    // Restarting throws the run away, so a run worth keeping asks first.
+    if(score>0 && arcadeRunQualified(mode,score) && !mini.restartConfirmed){
+      mini.restartConfirmed=true;
+      renderArcadePausePanel();
+      const actions=el.miniPausePanel?.querySelector(".arcade-pause-actions");
+      if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-restart>DISCARD ${formatNumber(score)} • RESTART</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
+      return false;
+    }
+    closeArcadePause(true);
+    finishMiniGame(true,null,{discard:true});
+    startMiniGame(mode);
+    return true;
+  }
+  // A mis-tap used to destroy a personal best with zero friction. A run that
+  // would actually count now confirms, and confirming banks it instead of
+  // silently deleting it — the behaviour Defense already had.
+  function requestArcadeQuit(source="button"){
+    if(!mini?.active) return false;
+    if(mini.mode==="defense"){ closeArcadePause(true); finishDefenseRunWithMoment("banked"); return true; }
+    const mode=mini.mode,score=Math.max(0,Math.floor(mini.score||0));
+    const meaningful=score>0 && arcadeRunQualified(mode,score);
+    if(meaningful && !mini.quitConfirmed){
+      mini.quitConfirmed=true;
+      if(!mini.paused) openArcadePause();
+      renderArcadePausePanel();
+      const card=el.miniPausePanel?.querySelector(".arcade-pause-card");
+      if(card){
+        const copy=card.querySelector("p");
+        if(copy) copy.textContent=`End the run here? ${formatNumber(score)} points bank exactly as they stand — the rest of the clock is forfeit.`;
+        const actions=card.querySelector(".arcade-pause-actions");
+        if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-quit>BANK ${formatNumber(score)} • END RUN</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
+      }
+      sfx("no");
+      return false;
+    }
+    closeArcadePause(true);
+    finishMiniGame(true);
+    return true;
+  }
+
   function arcadeRunQualified(mode, score) {
     if(mode==="defense")return true;
     if(mode==="power")return Boolean(mini.powerEngaged && mini.hits>=2 && score>=2);
@@ -6444,10 +6698,75 @@
     return score>0;
   }
 
-  function finishMiniGame(quit = false, defenseEndReason = null) {
+  // ===== SHARED ARCADE RESULTS =====
+  // Every small game reports four stats drawn from play it already tracked.
+  // Nothing here is invented to fill a slot: if a mode genuinely has only
+  // three honest numbers, it ships three rather than padding.
+  function arcadeResultStats(mode, snap){
+    const lives=()=>({label:"HEARTS LEFT", value:`${snap.livesLeft}/${snap.maxLives}`});
+    const table={
+      power:[{label:"BEST STREAK",value:snap.powerBestStreak},{label:"COACH CALLS",value:snap.powerCallsRead},{label:"FEINTS READ",value:snap.powerGuardReads},{label:"WRONG SHOTS",value:snap.powerWrongCalls}],
+      spark:[{label:"BANKS",value:snap.sparkBanks},{label:"BEST CHAIN",value:snap.sparkBestStreak},{label:"STASH LOST",value:snap.sparkLost},{label:"SPARK RUSHES",value:snap.sparkFrenzies}],
+      forage:[{label:"LUNCH CHAIN",value:snap.forageBestStreak},{label:"TICKETS PACKED",value:snap.forageOrdersDone},{label:"PLATES TAKEN",value:snap.hits},{label:"PRISM ROLLS",value:snap.treasureRolls}],
+      rush:[{label:"DELIVERIES",value:snap.rushDeliveries},{label:"CLEAN STREAK",value:snap.rushBestStreak},{label:"OBSTACLES",value:snap.rushClears},{label:"PACKAGES LOST",value:snap.rushPackagesLost}],
+      walk:[{label:"DISTANCE",value:`${snap.walkDistance}m`},{label:"DISCOVERIES",value:snap.hits},{label:"TRAIL RISK",value:snap.walkRisk},{label:"LUCK READ",value:snap.walkLuck}],
+      memory:[{label:"ROUND REACHED",value:snap.memoryRound},{label:"SIGNALS CLEAN",value:snap.hits},lives(),{label:"FINAL RULE",value:snap.memoryRuleLabel||"CLEAN SIGNAL"}],
+      glide:[{label:"GATES CLEARED",value:snap.glideClears},{label:"THREAD STREAK",value:snap.glideBestStreak},{label:"THERMALS",value:snap.glideThermals},lives()],
+      breaker:[{label:"FORGE REACHED",value:snap.breakerLevel},{label:"BRICKS BROKEN",value:snap.breakerBricks},{label:"CORES BROKEN",value:snap.breakerCoresBroken},{label:"BEST RALLY",value:snap.breakerBestStreak}],
+      maze:[{label:"MAZE REACHED",value:snap.mazeLevel},{label:"BEST HUNT CHAIN",value:snap.mazeBestCombo},{label:"SHADOW TAGS",value:snap.mazeTags},{label:"PRISM HUNTS",value:snap.mazeHunts}]
+    };
+    return table[mode]||[];
+  }
+  function arcadeResultGrid(mode, snap){
+    const stats=arcadeResultStats(mode, snap);
+    if(!stats.length) return "";
+    return `<div class="arcade-result-grid stat-${stats.length}">${stats.map(stat=>`<span>${escapeHTML(String(stat.label))}<b>${escapeHTML(String(stat.value))}</b></span>`).join("")}</div>`;
+  }
+  // Death, the clock running out, and walking away deliberately are three
+  // different feelings and now read as three different screens.
+  function arcadeResultVoice(mode, reason, score){
+    const name=arcadeName(mode);
+    if(reason==="death") return {
+      headline:"RUN ENDED",
+      line:score>=30?`${name} TOOK IT ALL THE WAY DOWN SWINGING.`:score>=10?"THAT LAST ONE GOT YOU.":"GONE ALREADY. BRUTAL.",
+      art:"✖"
+    };
+    if(reason==="quit") return {
+      headline:"RUN BANKED",
+      line:score>=30?"WALKED AWAY RICH. RESPECT.":"CASHED OUT EARLY. NOTHING LOST.",
+      art:"⏻"
+    };
+    if(reason==="cleared") return { headline:"CLEARED", line:"THE WHOLE BOARD. CLEAN.", art:"✓" };
+    return {
+      headline:"TIME UP",
+      line:score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.",
+      art:null
+    };
+  }
+
+  // Why a run ended is now first-class. A player who died must not receive the
+  // same screen as a player who outlasted the clock.
+  const ARCADE_END_REASONS = Object.freeze({
+    death:{label:"RUN ENDED", tone:"death"},
+    timeup:{label:"TIME UP", tone:"timeup"},
+    cleared:{label:"CLEARED", tone:"cleared"},
+    quit:{label:"RUN BANKED", tone:"quit"}
+  });
+  const ARCADE_LIFE_MODES = Object.freeze(["rush","glide","breaker","maze","memory"]);
+  function arcadeEndReason(mode, quit){
+    if(quit) return "quit";
+    if(mini.endReason && ARCADE_END_REASONS[mini.endReason]) return mini.endReason;
+    if(ARCADE_LIFE_MODES.includes(mode) && (mini.lives||0) >= (mini.maxLives||3)) return "cleared";
+    if(mode==="walk" && (mini.walkChoices||[]).length>=2) return "cleared";
+    return "timeup";
+  }
+  function finishMiniGame(quit = false, defenseEndReason = null, options = {}) {
     if (!mini.active) return;
+    const discard=Boolean(options?.discard);
     const completedMode=mini.mode;
-    if(completedMode==="spark"&&!quit&&mini.sparkStash>0)bankSparkStash(true);
+    const endReason=arcadeEndReason(completedMode, quit);
+    // Voluntarily ending a Spark run still banks the pile the player is holding.
+    if(completedMode==="spark"&&!discard&&mini.sparkStash>0)bankSparkStash(true);
     const score=Math.max(0,Math.floor(mini.score));
     const treasureRolls=mini.treasureRolls||0;
     if(completedMode==="defense"&&mini.defense)flushDefenseIncome(mini.defense,"finish");
@@ -6456,8 +6775,12 @@
     const rhythmQuality=rhythmSnapshot?Math.max(5,Math.min(80,Math.round(rhythmSnapshot.accuracy*.45+Math.min(35,rhythmSnapshot.maxStreak*.7)))):score;
     const previousBest=Math.max(0,Number(state.scores?.[completedMode])||0);
     const qualifiedRun=arcadeRunQualified(completedMode,score);
-    const arcadeSnapshot={powerBestStreak:mini.powerBestStreak||0,powerCallsRead:mini.powerCallsRead||0,powerWrongCalls:mini.powerWrongCalls||0,sparkBestStreak:mini.sparkBestStreak||0,sparkAvoided:mini.sparkAvoided||0,sparkFrenzies:mini.sparkFrenzies||0,sparkBanks:mini.sparkBanks||0,sparkLost:mini.sparkLost||0,forageBestStreak:mini.forageBestStreak||0,rushBestStreak:mini.rushBestStreak||0,rushClears:mini.rushClears||0,rushDeliveries:mini.rushDeliveries||0,memoryRound:mini.memoryBestRound||mini.memoryRound||0,memoryLives:mini.memoryLives||0,memoryMode:mini.memoryMode||"forward",glideBestStreak:mini.glideBestStreak||0,glideGates:mini.glideGateCount||0,glideClears:mini.glideClears||0,glideThermals:mini.glideThermals||0,breakerBestStreak:mini.breakerBestStreak||0,breakerLevel:mini.breakerLevel||1,breakerCoresBroken:mini.breakerCoresBroken||0,powerGuardReads:mini.powerGuardReads||0,mazeLevel:mini.mazeLevel||1,mazeBestCombo:mini.mazeBestCombo||0,mazeTags:mini.mazeHunterTags||0,mazeHunts:mini.mazeHunts||0};
+    const livesLeft=Math.max(0,Math.floor(mini.lives||0));
+    const arcadeSnapshot={endReason,livesLeft,maxLives:Math.max(1,Math.floor(mini.maxLives||3)),hits:Math.max(0,Math.floor(mini.hits||0)),walkDistance:Math.round(mini.walkDistance||0),walkRisk:mini.walkRisk||0,walkLuck:mini.walkLuck||0,walkChoices:[...(mini.walkChoices||[])],walkBiome:mini.walkBiome?.name||"",forageOrdersDone:mini.forageOrdersDone||0,rushPackagesLost:mini.rushPackagesLost||0,breakerBricks:mini.breakerBricks||0,memoryRuleLabel:completedMode==="memory"?memoryRuleLabel():"",treasureRolls,powerBestStreak:mini.powerBestStreak||0,powerCallsRead:mini.powerCallsRead||0,powerWrongCalls:mini.powerWrongCalls||0,sparkBestStreak:mini.sparkBestStreak||0,sparkAvoided:mini.sparkAvoided||0,sparkFrenzies:mini.sparkFrenzies||0,sparkBanks:mini.sparkBanks||0,sparkLost:mini.sparkLost||0,forageBestStreak:mini.forageBestStreak||0,rushBestStreak:mini.rushBestStreak||0,rushClears:mini.rushClears||0,rushDeliveries:mini.rushDeliveries||0,memoryRound:mini.memoryBestRound||mini.memoryRound||0,memoryLives:mini.memoryLives||0,memoryMode:mini.memoryMode||"forward",glideBestStreak:mini.glideBestStreak||0,glideGates:mini.glideGateCount||0,glideClears:mini.glideClears||0,glideThermals:mini.glideThermals||0,breakerBestStreak:mini.breakerBestStreak||0,breakerLevel:mini.breakerLevel||1,breakerCoresBroken:mini.breakerCoresBroken||0,powerGuardReads:mini.powerGuardReads||0,mazeLevel:mini.mazeLevel||1,mazeBestCombo:mini.mazeBestCombo||0,mazeTags:mini.mazeHunterTags||0,mazeHunts:mini.mazeHunts||0};
     mini.active=false;
+    mini.paused=false;
+    mini.pauseSources={};
+    closeArcadePause(true);
     cleanupMiniRuntime();
     el.miniGameOverlay.hidden=true;
     el.miniArena.innerHTML="";
@@ -6465,10 +6788,13 @@
     activeMusicOverride=null;
     syncMusic(true);
     if(lastOverlayFocus?.isConnected) lastOverlayFocus.focus({preventScroll:true});
-    if(quit) return;
+    if(discard) return;
+    // Walking away from a run that never got going is a non-event. Only a run
+    // the arcade would actually have credited earns a screen.
+    if(quit && completedMode!=="defense" && !qualifiedRun) return;
     if(completedMode!=="defense"&&!qualifiedRun){
-      const art={power:"🥊",spark:"★",forage:"🍓",rush:"🔥",walk:"☂",rhythm:"♫",memory:"▦",glide:"☁",breaker:"✦",maze:"⌗"}[completedMode]||"★";
-      showModal(`<div class="modal-card minigame-result-${completedMode} arcade-no-credit"><div class="modal-art">${art}</div><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${completedMode}">TRY AGAIN</button></div></div>`);
+      const art=arcadeArt(completedMode);
+      showModal(`<div class="modal-card arcade-result minigame-result-${completedMode} arcade-no-credit"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(completedMode))}</small><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${completedMode}">TRY AGAIN</button></div></div>`);
       return;
     }
     if(completedMode==="defense") {
@@ -6483,7 +6809,7 @@
       if((defenseSnapshot?.clearedWave||0)>0){const memory=lifeMemory();memory.arcadeAfterglowUntil=now()+16000;memory.lastArcadeMode="defense";}
       saveState();renderAll();
       const wave=defenseSnapshot?.clearedWave||0,reachedWave=defenseSnapshot?.currentWave||wave,kills=defenseSnapshot?.kills||0,lives=defenseSnapshot?.lives||0,bosses=[...new Set(defenseSnapshot?.bossesBeaten||[])],stats=defenseSnapshot?.enemyStats||{},heartLoss=Number(stats.heartLoss)||0,leaks=Object.values(stats.leaked||{}).reduce((sum,value)=>sum+(Number(value)||0),0),counters=stats.counters||{},leaders=[...(defenseSnapshot?.towers||[])].sort((a,b)=>(b.damage||0)-(a.damage||0)).slice(0,3),topTower=[...(defenseSnapshot?.towers||[])].filter(tower=>!String(tower.petId||"").startsWith("defense-crew-")).sort((a,b)=>(b.damage||0)-(a.damage||0))[0]||leaders[0],perfect=wave>0&&heartLoss===0,mapBest=Math.max(0,Math.floor(Number(state.scores.defenseMaps?.[defenseSnapshot?.mapId])||0)),medal=defenseMedalName(defenseMedalTier(mapBest)),mastery=runRecord?.mvpPetId?state.scores.defenseMastery?.[runRecord.mvpPetId]:null;
-      const century=wave>=100,newBest=wave>priorMapBest;showModal(`<div class="modal-card defense-result defense-run-recap ${century?"century-clear":""}"><div class="defense-result-hero"><div class="modal-art defense-result-balloon"><i></i></div><small>${escapeHTML(defenseSnapshot?.map?.name||"PINE BEND")} • RUN COMPLETE</small><h2>${century?"WAVE 100+":"WAVE "+wave}${newBest?` <u>NEW BEST</u>`:""}</h2><p class="big-line">${century?"THE GATE SURVIVED A CENTURY.":lives<=0?"THE GATE FINALLY FELL.":perfect?"PERFECT GATE. NOTHING GOT THROUGH.":"RUN BANKED."}</p></div><div class="defense-result-primary"><span>${defenseMedalMarkup(defenseSnapshot?.mapId,mapBest)}<b>${escapeHTML(medal)}</b></span><span><small>R EARNED</small><b>+${rewards.embers}</b></span><span><small>MVP</small><b>${escapeHTML(topTower?.pet?.name||state.pet.name)}</b></span></div><div class="defense-result-grid v80"><span>POPS<b>${kills}</b></span><span>HEARTS LOST<b>${heartLoss}</b></span><span>BOSSES<b>${bosses.length}</b></span></div>${runRecord?.contractComplete?`<div class="defense-contract-seal"><span>◇</span><div><small>TRAIL CONTRACT SEALED</small><b>${escapeHTML(defenseSnapshot.contract?.title||"DAILY TRAIL CONTRACT")}</b></div></div>`:""}<details class="defense-result-details"><summary>RUN DETAILS</summary><div class="defense-counter-recap"><span>LEAKS <b>${leaks}</b></span><span>RIZOS TRAINED <b>${rewards.trained}</b></span><span>ARMOR BROKEN <b>${Number(counters.armorBreaks)||0}</b></span><span>ARMOR SHRED <b>${Number(counters.armorShreds)||0}</b></span><span>REVEALS <b>${Number(counters.reveals)||0}</b></span><span>PHASE LOCKS <b>${Number(counters.phaseLocks)||0}</b></span><span>BOSS BREAKS <b>${Number(counters.bossInterrupts)||0}</b></span><span>DAMAGE <b>${Math.round(topTower?.damage||0)}</b></span></div></details><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="defense">RUN IT BACK</button></div></div>`);
+      const century=wave>=100,newBest=wave>priorMapBest;showModal(`<div class="modal-card arcade-result defense-result defense-run-recap ${century?"century-clear":""}"><div class="defense-result-hero"><div class="modal-art defense-result-balloon"><i></i></div><small>${escapeHTML(defenseSnapshot?.map?.name||"PINE BEND")} • RUN COMPLETE</small><h2>${century?"WAVE 100+":"WAVE "+wave}</h2>${newBest?`<div class="arcade-best-banner"><i aria-hidden="true">\u2605</i><div><small>NEW PERSONAL BEST</small><b>WAVE ${wave}</b><em>PREVIOUS WAVE ${priorMapBest}</em></div></div>`:""}<p class="big-line">${century?"THE GATE SURVIVED A CENTURY.":lives<=0?"THE GATE FINALLY FELL.":perfect?"PERFECT GATE. NOTHING GOT THROUGH.":"RUN BANKED."}</p></div><div class="defense-result-primary"><span>${defenseMedalMarkup(defenseSnapshot?.mapId,mapBest)}<b>${escapeHTML(medal)}</b></span><span><small>R EARNED</small><b>+${rewards.embers}</b></span><span><small>MVP</small><b>${escapeHTML(topTower?.pet?.name||state.pet.name)}</b></span></div><div class="defense-result-grid v80"><span>POPS<b>${kills}</b></span><span>HEARTS LOST<b>${heartLoss}</b></span><span>BOSSES<b>${bosses.length}</b></span></div>${runRecord?.contractComplete?`<div class="defense-contract-seal"><span>◇</span><div><small>TRAIL CONTRACT SEALED</small><b>${escapeHTML(defenseSnapshot.contract?.title||"DAILY TRAIL CONTRACT")}</b></div></div>`:""}<details class="defense-result-details"><summary>RUN DETAILS</summary><div class="defense-counter-recap"><span>LEAKS <b>${leaks}</b></span><span>RIZOS TRAINED <b>${rewards.trained}</b></span><span>ARMOR BROKEN <b>${Number(counters.armorBreaks)||0}</b></span><span>ARMOR SHRED <b>${Number(counters.armorShreds)||0}</b></span><span>REVEALS <b>${Number(counters.reveals)||0}</b></span><span>PHASE LOCKS <b>${Number(counters.phaseLocks)||0}</b></span><span>BOSS BREAKS <b>${Number(counters.bossInterrupts)||0}</b></span><span>DAMAGE <b>${Math.round(topTower?.damage||0)}</b></span></div></details><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="defense">RUN IT BACK</button></div></div>`);
       advanceTutorial("play");if(wave>=10)celebrate();return;
     }
     state.scores[completedMode]=Math.max(state.scores[completedMode]||0,score);
@@ -6538,17 +6864,20 @@
     evaluateForm(true);
     const rareDiscovery = maybeUnlockSpecialRizo(completedMode, score, mini.walkPath);
     const trainedSkill = ({power:"power",spark:"instinct",forage:"instinct",rush:"speed",walk:"stamina",rhythm:"speed",memory:"instinct",glide:"stamina",breaker:"power",maze:"instinct",defense:"power"})[completedMode];
-    const art={power:"🥊",spark:"★",forage:"🍓",rush:"🔥",walk:"☂",rhythm:"♫",memory:"▦",glide:"☁",breaker:"✦",maze:"⌗",defense:"🎈"}[completedMode];
+    const voice=arcadeResultVoice(completedMode,endReason,score);
+    const art=voice.art||arcadeArt(completedMode);
     const trackTitle=completedMode==="rhythm"?(rhythmSnapshot?.track?.title||"EMBER BEAT"):null;
-    const line=score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.";
+    const line=voice.line;
     const treasureCopy=foundTreasure?`<div class="event-reward">${foundTreasure.icon} FOUND: ${foundTreasure.name}</div>`:"";
     const rareCopy=rareDiscovery?`<div class="rare-discovery-stage ${rareDiscovery.id}">${petMarkup({extraClass:"rare-reaction-pet",id:"rareReactionPet"})}<div class="rare-found-pet"><img src="${rareDiscovery.sprite}" alt="${rareDiscovery.name}"></div><b>${rareDiscovery.name} DISCOVERED</b></div>`:"";
     if(rareDiscovery){activeMusicOverride=rareDiscovery.id==="shadow"?"shadow":rareDiscovery.id==="retro"?"retro":"forest";startMusicForScene(activeMusicOverride,true);duckMusic(1400,.08);}
     const skill=SKILLS.find(item=>item.id===trainedSkill);
-    const rhythmBreakdown=rhythmSnapshot?`<div class="rhythm-result-grid"><span>ACCURACY<b>${rhythmSnapshot.accuracy}%</b></span><span>MAX COMBO<b>${rhythmSnapshot.maxStreak}</b></span><span>PERFECT<b>${rhythmSnapshot.judgements.perfect||0}</b></span><span>MISSES<b>${rhythmSnapshot.judgements.miss||0}</b></span></div>`:"";
-    const arcadeBreakdown=completedMode==="power"?`<div class="arcade-result-grid"><span>BEST STREAK<b>${arcadeSnapshot.powerBestStreak}</b></span><span>COACH CALLS<b>${arcadeSnapshot.powerCallsRead}</b></span><span>FEINTS READ<b>${arcadeSnapshot.powerGuardReads}</b></span><span>WRONG SHOTS<b>${arcadeSnapshot.powerWrongCalls}</b></span></div>`:completedMode==="spark"?`<div class="arcade-result-grid"><span>BANKS<b>${arcadeSnapshot.sparkBanks}</b></span><span>STASH LOST<b>${arcadeSnapshot.sparkLost}</b></span><span>DECOYS READ<b>${arcadeSnapshot.sparkAvoided}</b></span><span>SPARK RUSHES<b>${arcadeSnapshot.sparkFrenzies}</b></span></div>`:completedMode==="forage"?`<div class="arcade-result-grid"><span>LUNCH CHAIN<b>${arcadeSnapshot.forageBestStreak}</b></span><span>PRISM ROLLS<b>${treasureRolls}</b></span></div>`:completedMode==="rush"?`<div class="arcade-result-grid"><span>DELIVERIES<b>${arcadeSnapshot.rushDeliveries}</b></span><span>CLEAN STREAK<b>${arcadeSnapshot.rushBestStreak}</b></span><span>OBSTACLES<b>${arcadeSnapshot.rushClears}</b></span></div>`:completedMode==="memory"?`<div class="arcade-result-grid"><span>ROUND REACHED<b>${arcadeSnapshot.memoryRound}</b></span><span>HEARTS LEFT<b>${arcadeSnapshot.memoryLives}</b></span></div>`:completedMode==="glide"?`<div class="arcade-result-grid"><span>THERMALS<b>${arcadeSnapshot.glideThermals}</b></span><span>THREAD STREAK<b>${arcadeSnapshot.glideBestStreak}</b></span><span>GATES<b>${arcadeSnapshot.glideClears}</b></span></div>`:completedMode==="breaker"?`<div class="arcade-result-grid"><span>FORGE REACHED<b>${arcadeSnapshot.breakerLevel}</b></span><span>CORES BROKEN<b>${arcadeSnapshot.breakerCoresBroken}</b></span></div>`:completedMode==="maze"?`<div class="arcade-result-grid"><span>MAZE REACHED<b>${arcadeSnapshot.mazeLevel}</b></span><span>BEST HUNT CHAIN<b>${arcadeSnapshot.mazeBestCombo}</b></span><span>SHADOW TAGS<b>${arcadeSnapshot.mazeTags}</b></span><span>PRISM HUNTS<b>${arcadeSnapshot.mazeHunts}</b></span></div>`:"";
-    const newBest=score>previousBest?`<div class="new-arcade-best">NEW PERSONAL BEST</div>`:"";
-    showModal(`<div class="modal-card minigame-result-${completedMode} ${rareDiscovery?"rare-result":""}"><div class="modal-art">${art}</div>${trackTitle?`<div class="result-track-title">${trackTitle} • ${rhythmSnapshot?.track?.difficulty||"NORMAL"}</div>`:""}${newBest}<h2>${score} POINTS</h2><p class="big-line">${line}</p>${rhythmBreakdown}${arcadeBreakdown}${treasureCopy}${rareCopy}<p>${skill?.name || "Growth"} rose permanently. The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${completedMode}">RUN IT BACK</button></div></div>`);
+    const rhythmBreakdown=rhythmSnapshot?`<div class="arcade-result-grid stat-4"><span>ACCURACY<b>${rhythmSnapshot.accuracy}%</b></span><span>MAX COMBO<b>${rhythmSnapshot.maxStreak}</b></span><span>PERFECT<b>${rhythmSnapshot.judgements.perfect||0}</b></span><span>MISSES<b>${rhythmSnapshot.judgements.miss||0}</b></span></div>`:"";
+    const arcadeBreakdown=rhythmSnapshot?"":arcadeResultGrid(completedMode,arcadeSnapshot);
+    // A personal record deserves more than a bare div.
+    const newBest=score>previousBest?`<div class="arcade-best-banner"><i aria-hidden="true">★</i><div><small>NEW PERSONAL BEST</small><b>${formatNumber(score)}</b><em>PREVIOUS ${formatNumber(previousBest)}</em></div></div>`:"";
+    if(score>previousBest&&qualifiedRun){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
+    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${completedMode} ${rareDiscovery?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(completedMode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${trackTitle?`<div class="result-track-title">${trackTitle} • ${rhythmSnapshot?.track?.difficulty||"NORMAL"}</div>`:""}${newBest}<h2>${score} POINTS</h2><p class="big-line">${line}</p>${rhythmBreakdown}${arcadeBreakdown}${treasureCopy}${rareCopy}<p>${skill?.name || "Growth"} rose permanently. The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${completedMode}">RUN IT BACK</button></div></div>`);
     advanceTutorial("play");
     if(score>20) celebrate();
   }
@@ -6974,7 +7303,47 @@
     else if(name==="hatch"){[260,390,520,780].forEach((f,i)=>tone(f,.16,"triangle",.03,i*.06,100));}
     else if(name==="level"||name==="reward"){[440,554,659,880].forEach((f,i)=>tone(f,.12,"square",.026,i*.055,80));}
     else if(name==="depart"){tone(500,.12,"sine",.022,0,-180);tone(300,.2,"sine",.018,.1,-120);}
+    else if(name==="ui"){tone(540,.026,"triangle",.016);tone(760,.02,"sine",.01,.022);}
+    else if(name==="coin"){tone(880,.045,"square",.022,0,90);tone(1320,.07,"square",.018,.04);}
+    // ===== ARCADE SIGNATURES =====
+    // Eleven games used to share two failure sounds. Each mode family now has a
+    // recognisable win and loss so a dropped package cannot sound like a
+    // corrupted broadcast.
+    else if(name==="fail-air"){tone(520,.16,"sine",.03,0,-330);noise(.13,.016,.05);tone(180,.2,"triangle",.026,.12,-60);}
+    else if(name==="fail-drop"){noise(.09,.026);tone(190,.16,"square",.032,.02,-70);tone(120,.14,"triangle",.022,.12,-40);}
+    else if(name==="fail-chase"){tone(300,.1,"sawtooth",.03,0,-90);tone(226,.12,"sawtooth",.028,.09,-70);tone(168,.18,"sawtooth",.024,.19,-50);}
+    else if(name==="fail-signal"){noise(.16,.024);tone(410,.09,"square",.026,0,-190);tone(300,.13,"square",.022,.1,240);}
+    else if(name==="fail-forge"){tone(260,.07,"square",.034,0,-40);noise(.11,.02,.04);tone(140,.2,"triangle",.028,.08,-45);}
+    else if(name==="fail-lunch"){tone(360,.08,"triangle",.028,0,-130);tone(240,.11,"sine",.022,.07,-90);}
+    else if(name==="fail-spark"){noise(.1,.018);tone(600,.14,"sine",.026,0,-400);}
+    else if(name==="fail-power"){tone(200,.1,"square",.034,0,-60);noise(.08,.022,.02);}
+    else if(name==="win-air"){[660,880,1100].forEach((f,i)=>tone(f,.11,"sine",.026,i*.045,80));}
+    else if(name==="win-forge"){tone(330,.06,"square",.03);[520,780].forEach((f,i)=>tone(f,.09,"triangle",.026,.05+i*.05,60));}
+    else if(name==="win-chase"){[590,740,990].forEach((f,i)=>tone(f,.07,"square",.028,i*.04,120));}
+    else if(name==="win-signal"){[440,660,880].forEach((f,i)=>tone(f,.1,"sine",.026,i*.05,60));noise(.05,.008,.14);}
+    else if(name==="win-lunch"){tone(620,.055,"triangle",.026);tone(830,.07,"triangle",.024,.05);noise(.04,.01,.02);}
+    else if(name==="win-drop"){[500,700,940,1180].forEach((f,i)=>tone(f,.08,"square",.026,i*.038,90));}
     else tone(420,.05,"square",.03);
+  }
+
+  // Per-mode audio identity without eleven bespoke sound banks: the family a
+  // mode belongs to picks the signature, and anything unmapped keeps the old
+  // generic tone rather than going silent.
+  const ARCADE_SFX = Object.freeze({
+    air:{win:"win-air", fail:"fail-air"},
+    street:{win:"win-drop", fail:"fail-drop"},
+    chase:{win:"win-chase", fail:"fail-chase"},
+    signal:{win:"win-signal", fail:"fail-signal"},
+    forge:{win:"win-forge", fail:"fail-forge"},
+    forest:{win:"win-lunch", fail:"fail-lunch"},
+    spark:{win:"reward", fail:"fail-spark"},
+    training:{win:"perfect", fail:"fail-power"},
+    stage:{win:"perfect", fail:"no"},
+    defense:{win:"reward", fail:"no"}
+  });
+  function arcadeSfx(kind="fail", mode=mini?.mode, intensity=0){
+    const family=ARCADE_GAMES[mode]?.family;
+    sfx(ARCADE_SFX[family]?.[kind] || (kind==="win"?"reward":"no"), intensity);
   }
 
   function haptic(pattern = 15) {
@@ -7005,7 +7374,13 @@
     "mini-rush":{tempo:155,lead:[64,67,71,76,74,71,79,76],bass:[40,40,47,47,45,45,52,52],wave:"square"},
     "mini-defense":{tempo:330,lead:[40,null,43,47,50,null,47,43,38,null,43,47,52,null,48,45,36,null,40,43,47,null,50,47,43,null,45,48,52,50,47,null],bass:[24,null,31,null,27,null,34,null,22,null,29,null,25,null,32,null,20,null,27,null,23,null,30,null,19,null,26,null,31,null,34,null],wave:"triangle"},
     "mini-walk":{tempo:360,lead:[67,null,71,74,72,null,69,67],bass:[43,null,50,null,45,null,52,null],wave:"triangle"},
-    "mini-memory":{tempo:520,lead:[60,null,64,null,67,71,null,67],bass:[36,null,null,43,null,null,40,null],wave:"sine"}
+    "mini-memory":{tempo:520,lead:[60,null,64,null,67,71,null,67],bass:[36,null,null,43,null,null,40,null],wave:"sine"},
+    // Skybound: open air, long lift, nothing underneath you.
+    "mini-glide":{tempo:335,lead:[72,null,76,79,83,null,79,76,74,null,78,81,86,null,81,78],bass:[48,null,null,55,52,null,null,59,50,null,null,57,54,null,null,61],wave:"sine"},
+    // Ember Forge: hammer rhythm, metal on metal, no melody wasted.
+    "mini-breaker":{tempo:186,lead:[52,52,59,null,55,55,62,null,53,53,60,null,57,64,60,55],bass:[28,28,null,35,31,31,null,38,29,29,null,36,33,33,40,null],wave:"square"},
+    // Rizo Runaway: the chase. Fast, minor, always one step behind you.
+    "mini-maze":{tempo:132,lead:[62,65,69,65,62,68,65,62,60,63,67,63,60,66,63,60],bass:[38,38,45,45,43,43,50,50,36,36,43,43,41,41,48,48],wave:"square"}
   };
 
   function midiFrequency(note){ return 440 * Math.pow(2,(note-69)/12); }
@@ -7737,9 +8112,9 @@ Streak: ${state.player.streak}`;
     writeDefenseCheckpoint(true, reason);
     saveState(true);
     if (mini?.active) mini.lastFrame = performance.now();
-    if (mini?.active && mini.mode === "rhythm" && !mini.pausedByAd) {
-      mini.pausedByAd = true; mini.pauseAt = now(); mini.rhythmPauseClock = rhythmClockNow(); stopRhythmVoices();
-    }
+    // Defense keeps its own interruption/checkpoint path (above); every other
+    // mode is timestamp-driven and needs the freeze.
+    if (mini?.active && mini.mode !== "defense") arcadeFreeze("background");
     stopMusic();
     try { if (audioContext?.state === "running") audioContext.suspend(); } catch (error) {}
     return true;
@@ -7752,13 +8127,7 @@ Streak: ${state.player.streak}`;
     if (mini?.active) mini.lastFrame = performance.now();
     scheduleRuntimeViewportSync("resume");
     if (!wasSuspended) return false;
-    if(mini?.active && mini.mode==="rhythm" && mini.pausedByAd){
-      const pausedFor=Math.max(0,now()-(mini.pauseAt||now()));
-      mini.endAt+=pausedFor;
-      mini.rhythmStartClock+=Math.max(0,rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));
-      mini.pausedByAd=false;
-      scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));
-    }
+    if(mini?.active && mini.mode!=="defense") arcadeThaw("background");
     processElapsedTime(); renderAll(); surfaceDefenseInterruptionPause(); syncMusic(true); window.RizoBoot?.heartbeat?.(`runtime-${reason}`);
     schedulePetBehavior(4000); scheduleIdleLife(); scheduleLifeWow(9000); greetForSession();
     if (state.pet.resting) showRecoveryModal();
@@ -7882,10 +8251,16 @@ Streak: ${state.player.streak}`;
     document.addEventListener("pointermove", event => { if (mini?.active && mini.mode === "defense" && mini.defenseDrag) moveDefenseDrag(event); }, { passive: false });
     document.addEventListener("pointerdown", beginFoodDrag);
     document.addEventListener("pointermove", moveFoodDrag, { passive: true });
-    document.addEventListener("pointerup", event => { endFoodDrag(event); if(mini?.active&&mini.mode==="defense")endDefenseDrag(event); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; });
-    document.addEventListener("pointercancel", event => { if(mini?.active&&mini.mode==="defense")endDefenseDrag(event,true); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; });
+    document.addEventListener("pointerup", event => { endFoodDrag(event); if(mini?.active&&mini.mode==="defense")endDefenseDrag(event); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; if(mini?.active&&mini.mode==="breaker")mini.breakerGrab=null; });
+    document.addEventListener("pointercancel", event => { if(mini?.active&&mini.mode==="defense")endDefenseDrag(event,true); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; if(mini?.active&&mini.mode==="breaker")mini.breakerGrab=null; });
     document.addEventListener("pointercancel", event => endFoodDrag(event, true));
-    el.miniQuit.addEventListener("click", () => mini.mode==="defense"?finishDefenseRunWithMoment("banked"):finishMiniGame(true));
+    el.miniQuit.addEventListener("click", () => requestArcadeQuit("button"));
+    el.miniPause?.addEventListener("click", () => toggleArcadePause());
+    el.miniPausePanel?.addEventListener("click", event => {
+      if(event.target.closest("[data-arcade-resume]")){ mini.quitConfirmed=false; mini.restartConfirmed=false; closeArcadePause(); return; }
+      if(event.target.closest("[data-arcade-restart]")){ restartArcadeRun(); return; }
+      if(event.target.closest("[data-arcade-quit]")){ requestArcadeQuit("panel"); return; }
+    });
     el.tutorialClose.addEventListener("click", () => {
       state.player.tutorialDismissed = true;
       saveState();
@@ -7909,11 +8284,36 @@ Streak: ${state.player.streak}`;
       }
       if(mini?.active&&mini.mode==="power"&&!mini.pausedByAd){const tech={"1":"jab","2":"body","3":"hook","j":"jab","k":"body","l":"hook"}[String(event.key).toLowerCase()];if(tech){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;powerTap(tech);return;}}
       if(mini?.active&&mini.mode==="spark"&&!mini.pausedByAd&&String(event.key).toLowerCase()==="b"){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;bankSparkStash(false);return;}
+      const typingTarget=Boolean(event.target?.closest?.("input, textarea, select, [contenteditable='true']"));
+      if(mini?.active && !typingTarget && !event.metaKey && !event.ctrlKey && !event.altKey){
+        const key=String(event.key);
+        // P pauses any arcade run, including Defense.
+        if(key.toLowerCase()==="p" && el.modalOverlay && !el.modalOverlay.classList.contains("show")){ event.preventDefault(); toggleArcadePause(); return; }
+        if(!mini.pausedByAd && !mini.paused){
+          if(mini.mode==="glide" && (key===" " || key==="Spacebar" || key==="ArrowUp" || key==="w" || key==="W")){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; glideFlap(); return; }
+          if(mini.mode==="rush" && (key===" " || key==="Spacebar" || key==="ArrowUp" || key==="w" || key==="W")){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; rushJump(); return; }
+          if(mini.mode==="breaker" && (key==="ArrowLeft" || key==="ArrowRight" || key.toLowerCase()==="a" || key.toLowerCase()==="d")){
+            event.preventDefault(); mini.breakerGrab=null;
+            setBreakerPaddle(mini.breakerX + ((key==="ArrowLeft"||key.toLowerCase()==="a")?-.075:.075)); return;
+          }
+          if(mini.mode==="forage" && (key==="ArrowLeft" || key==="ArrowRight" || key.toLowerCase()==="a" || key.toLowerCase()==="d")){
+            event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1;
+            setForageLane((mini.lane||0) + ((key==="ArrowLeft"||key.toLowerCase()==="a")?-1:1)); return;
+          }
+          if(mini.mode==="memory"){
+            const rune={"1":0,"2":1,"3":2,"4":3,"d":0,"f":1,"j":2,"k":3}[key.toLowerCase()];
+            if(rune!==undefined){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; memoryTap(rune); return; }
+          }
+        }
+      }
       if (event.key !== "Escape") return;
-      if (!el.miniGameOverlay.hidden) finishMiniGame(mini.mode!=="defense");
+      // Escape used to silently destroy a personal best with zero friction.
+      if (!el.miniGameOverlay.hidden) { if(mini?.paused) closeArcadePause(); else if(!openArcadePause()) requestArcadeQuit("escape"); }
       else if (el.modalOverlay.classList.contains("show")) closeModal();
       else if (el.bottomSheet.classList.contains("show")) closeSheet();
     });
+    // A live OS reduced-motion change re-applies without a reload.
+    try{ matchMedia("(prefers-reduced-motion: reduce)")?.addEventListener?.("change",()=>{ document.body.classList.toggle("reduce-motion", reducedMotionActive()); }); }catch(error){}
     document.addEventListener("visibilitychange", () => document.hidden ? suspendRuntime("background") : resumeRuntime("visible"));
     window.addEventListener("pagehide", () => suspendRuntime("pagehide"), { capture: true });
     window.addEventListener("pageshow", () => resumeRuntime("pageshow"), { capture: true });
@@ -7932,8 +8332,8 @@ Streak: ${state.player.streak}`;
   }
 
   function boot() {
-    document.addEventListener("rizo:ad-start", () => { if (mini?.active) { mini.pausedByAd = true; mini.pauseAt = now(); if(mini.mode==="rhythm"){mini.rhythmPauseClock=rhythmClockNow();stopRhythmVoices();} } stopMusic(); });
-    document.addEventListener("rizo:ad-end", () => { if (mini?.active) { const pausedFor=Math.max(0, now() - (mini.pauseAt || now())); mini.endAt += pausedFor; if(mini.mode==="rhythm"){const seconds=Math.max(0,rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));mini.rhythmStartClock+=seconds;scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));} mini.pausedByAd = false; } syncMusic(true); });
+    document.addEventListener("rizo:ad-start", () => { arcadeFreeze("ad"); stopMusic(); });
+    document.addEventListener("rizo:ad-end", () => { arcadeThaw("ad"); syncMusic(true); });
     loadState();
     buildRain();
     bindEvents();
@@ -8061,7 +8461,24 @@ Streak: ${state.player.streak}`;
     setBehaviorForQA(behavior = "") { activePetBehavior = behavior; if(currentView === "home") renderHome(); return el.petActor.className; },
     markupForQA(context = "cutscene", accessory = state.pet.accessory) { return petMarkup({context,overrides:{accessory}}); },
     miniSnapshot: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,track:mini?.rhythmTrack?.id||null,voices:(mini?.rhythmVoices||[]).length,intervals:(mini?.intervals||[]).length,timeouts:(mini?.timeouts||[]).length,entities:(mini?.entities||[]).length,defense:mini?.defense?{mapId:mini.defense.mapId,contract:mini.defense.contract?{...mini.defense.contract}:null,maxTowers:mini.defense.maxTowers,speed:mini.defense.speed,currentWave:mini.defense.currentWave,clearedWave:mini.defense.clearedWave,wave:mini.defense.currentWave,lives:mini.defense.lives,cash:mini.defense.cash,towers:(mini.defense.towers||[]).length,enemies:(mini.defense.enemies||[]).length,phase:mini.defense.phase}:null}),
-    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,power:{streak:mini?.powerStreak||0,best:mini?.powerBestStreak||0,heat:mini?.powerHeat||0,guard:Boolean((mini?.powerGuardUntil||0)>now()),reads:mini?.powerGuardReads||0,call:mini?.powerCall||null,callsRead:mini?.powerCallsRead||0,wrongCalls:mini?.powerWrongCalls||0},spark:{type:mini?.sparkType||null,streak:mini?.sparkStreak||0,best:mini?.sparkBestStreak||0,avoided:mini?.sparkAvoided||0,frenzy:Boolean((mini?.sparkFeverUntil||0)>now()),frenzies:mini?.sparkFrenzies||0,stash:mini?.sparkStash||0,banked:mini?.sparkBanked||0,banks:mini?.sparkBanks||0,lost:mini?.sparkLost||0},forage:{lane:mini?.lane||0,streak:mini?.forageStreak||0,best:mini?.forageBestStreak||0,order:[...(mini?.forageOrder||[])],orderIndex:mini?.forageOrderIndex||0,ordersDone:mini?.forageOrdersDone||0,panic:Boolean((mini?.forageRushUntil||0)>now())},rush:{jumpY:mini?.jumpY||0,airJumps:mini?.rushAirJumps||0,streak:mini?.rushStreak||0,clears:mini?.rushClears||0,parcel:Boolean(mini?.rushParcel),parcelClears:mini?.rushParcelClears||0,deliveries:mini?.rushDeliveries||0},memory:{round:mini?.memoryRound||0,mode:mini?.memoryMode||null,lives:mini?.memoryLives||0,sequence:[...(mini?.memorySequence||[])],expected:mini?.mode==="memory"?memoryExpectedSequence():[]},glide:{y:mini?.glideY||0,v:mini?.glideV||0,wind:mini?.glideWind||0,hearts:mini?.glideHearts||0,streak:mini?.glideStreak||0,gates:mini?.glideGateCount||0,clears:mini?.glideClears||0,draft:mini?.glideDraft||0,thermals:mini?.glideThermals||0,thermal:Boolean((mini?.glideThermalUntil||0)>now())},breaker:{level:mini?.breakerLevel||0,hearts:mini?.breakerHearts||0,streak:mini?.breakerStreak||0,moves:mini?.breakerMoves||0,piercing:Boolean((mini?.breakerPierceUntil||0)>now()),cores:mini?.breakerCores||0,coresBroken:mini?.breakerCoresBroken||0,pattern:mini?.breakerPatternName||""},maze:{level:mini?.mazeLevel||0,lives:mini?.mazeLives||0,inputs:mini?.mazeInputs||0,pellets:mini?.mazePellets||0,combo:mini?.mazeCombo||0,bestCombo:mini?.mazeBestCombo||0,hunts:mini?.mazeHunts||0,tags:mini?.mazeHunterTags||0,hunting:Boolean((mini?.mazeHuntUntil||0)>now()),player:mini?.mazePlayer?{r:mini.mazePlayer.r,c:mini.mazePlayer.c,dir:mini.mazePlayer.dir,nextDir:mini.mazePlayer.nextDir}:null,favoriteDir:mini?.mazeFavoriteDir||null,hunters:(mini?.mazeHunters||[]).map(h=>({r:h.r,c:h.c,kind:h.kind}))}}),
+    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,power:{streak:mini?.powerStreak||0,best:mini?.powerBestStreak||0,heat:mini?.powerHeat||0,guard:Boolean((mini?.powerGuardUntil||0)>now()),reads:mini?.powerGuardReads||0,call:mini?.powerCall||null,callsRead:mini?.powerCallsRead||0,wrongCalls:mini?.powerWrongCalls||0},spark:{type:mini?.sparkType||null,streak:mini?.sparkStreak||0,best:mini?.sparkBestStreak||0,avoided:mini?.sparkAvoided||0,frenzy:Boolean((mini?.sparkFeverUntil||0)>now()),frenzies:mini?.sparkFrenzies||0,stash:mini?.sparkStash||0,banked:mini?.sparkBanked||0,banks:mini?.sparkBanks||0,lost:mini?.sparkLost||0},forage:{lane:mini?.lane||0,streak:mini?.forageStreak||0,best:mini?.forageBestStreak||0,order:[...(mini?.forageOrder||[])],orderIndex:mini?.forageOrderIndex||0,ordersDone:mini?.forageOrdersDone||0,panic:Boolean((mini?.forageRushUntil||0)>now())},rush:{jumpY:mini?.jumpY||0,airJumps:mini?.rushAirJumps||0,streak:mini?.rushStreak||0,clears:mini?.rushClears||0,parcel:Boolean(mini?.rushParcel),parcelClears:mini?.rushParcelClears||0,deliveries:mini?.rushDeliveries||0},memory:{round:mini?.memoryRound||0,mode:mini?.memoryMode||null,lives:mini?.mode==="memory"?(mini?.lives||0):0,sequence:[...(mini?.memorySequence||[])],expected:mini?.mode==="memory"?memoryExpectedSequence():[]},glide:{y:mini?.glideY||0,v:mini?.glideV||0,wind:mini?.glideWind||0,hearts:mini?.mode==="glide"?(mini?.lives||0):0,streak:mini?.glideStreak||0,gates:mini?.glideGateCount||0,clears:mini?.glideClears||0,draft:mini?.glideDraft||0,thermals:mini?.glideThermals||0,thermal:Boolean((mini?.glideThermalUntil||0)>now())},breaker:{level:mini?.breakerLevel||0,hearts:mini?.mode==="breaker"?(mini?.lives||0):0,streak:mini?.breakerStreak||0,moves:mini?.breakerMoves||0,piercing:Boolean((mini?.breakerPierceUntil||0)>now()),cores:mini?.breakerCores||0,coresBroken:mini?.breakerCoresBroken||0,pattern:mini?.breakerPatternName||""},maze:{level:mini?.mazeLevel||0,lives:mini?.mode==="maze"?(mini?.lives||0):0,inputs:mini?.mazeInputs||0,pellets:mini?.mazePellets||0,combo:mini?.mazeCombo||0,bestCombo:mini?.mazeBestCombo||0,hunts:mini?.mazeHunts||0,tags:mini?.mazeHunterTags||0,hunting:Boolean((mini?.mazeHuntUntil||0)>now()),player:mini?.mazePlayer?{r:mini.mazePlayer.r,c:mini.mazePlayer.c,dir:mini.mazePlayer.dir,nextDir:mini.mazePlayer.nextDir}:null,favoriteDir:mini?.mazeFavoriteDir||null,hunters:(mini?.mazeHunters||[]).map(h=>({r:h.r,c:h.c,kind:h.kind}))}}),
+    // Shared arcade-layer QA surface: interruption safety, pause state, end
+    // reason and the canonical name table are all player-visible contracts.
+    musicSceneForQA: () => ({scene:musicScene||null, requested:sceneMusicKey(), known:Boolean(MUSIC_TRACKS[sceneMusicKey()])}),
+    arcadeAdvanceClockForQA: ms => {if(!mini?.active||!Number.isFinite(mini.endAt))return false;mini.endAt-=Math.max(0,Number(ms)||0);return true;},
+    arcadeClockForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,endless:!Number.isFinite(mini?.endAt),
+      remaining:Number.isFinite(mini?.endAt)?Math.max(0,mini.endAt-now()):Infinity,
+      frozen:arcadeFrozen(),paused:Boolean(mini?.paused),sources:Object.keys(mini?.pauseSources||{})}),
+    arcadeStateForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Math.max(0,Math.floor(mini?.score||0)),
+      lives:mini?.lives??null,maxLives:mini?.maxLives??null,endReason:mini?.endReason||"",paused:Boolean(mini?.paused),
+      quitConfirmed:Boolean(mini?.quitConfirmed)}),
+    arcadeSetScoreForQA: value => {if(!mini?.active)return false;mini.score=Math.max(0,Number(value)||0);return true;},
+    arcadeKillForQA: () => {if(!mini?.active)return false;mini.lives=0;mini.endReason="death";return true;},
+    arcadeFreezeForQA: (source="background") => arcadeFreeze(source),
+    arcadeThawForQA: (source="background") => arcadeThaw(source),
+    suspendRuntimeForQA: (reason="background") => suspendRuntime(reason),
+    resumeRuntimeForQA: (reason="visible") => resumeRuntime(reason),
+    arcadeGamesForQA: () => JSON.parse(JSON.stringify(ARCADE_GAMES)),
     arcadeQualifyForQA: (mode=mini?.mode) => {if(!mini.active||mini.mode!==mode)return false;if(mode==="power"){mini.powerEngaged=true;mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="spark"){mini.hits=Math.max(2,mini.hits||0);mini.sparkBanked=Math.max(2,mini.sparkBanked||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="forage"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="rush"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.rushClears=Math.max(2,mini.rushClears||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="walk"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="rhythm"){mini.hits=Math.max(3,mini.hits||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="memory"){mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="glide"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.glideClears=Math.max(1,mini.glideClears||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="breaker"){mini.breakerMoves=Math.max(1,mini.breakerMoves||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="maze"){mini.mazeInputs=Math.max(1,mini.mazeInputs||0);mini.score=Math.max(5,mini.score||0);}return arcadeRunQualified(mode,Math.max(0,Math.floor(mini.score||0)));},
     arcadePowerStrikeForQA: (tech=mini?.powerCall||"jab",needle=null) => {if(!mini.active||mini.mode!=="power")return null;mini.needle=needle===null?mini.powerZone:(Number.isFinite(Number(needle))?clamp(Number(needle),0,1):mini.needle);powerTap(String(tech||"jab"));return RizoRuntimeQA.arcadeSnapshotForQA().power},
     arcadeSparkCatchForQA: (type="normal",streak=null) => {if(!mini.active||mini.mode!=="spark")return null;if(streak!==null)mini.sparkStreak=Math.max(0,Math.floor(Number(streak)||0));moveSparkTarget(String(type||"normal"));catchSpark();return RizoRuntimeQA.arcadeSnapshotForQA().spark},

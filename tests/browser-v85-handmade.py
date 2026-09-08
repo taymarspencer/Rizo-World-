@@ -63,7 +63,7 @@ with sync_playwright() as p:
             page.evaluate('RizoRuntimeQA.startMiniGame("power")');page.wait_for_timeout(50)
             arena=page.locator('#miniArena').evaluate('(n)=>({radius:getComputedStyle(n).borderRadius,left:getComputedStyle(n).borderLeftWidth})')
             record('live cabinet frame uses handmade shell',num_px(arena['radius'])<=1 and num_px(arena['left'])>=4,str(arena))
-            page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+            page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
             # Journal follows the same grammar.
             page.locator('[data-nav="journal"]').click();page.wait_for_timeout(35)

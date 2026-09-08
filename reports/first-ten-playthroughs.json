@@ -1578,7 +1578,7 @@
     "cash": 444,
     "peak": 11,
     "projectiles": 2,
-    "simStepP95": 0.39999999990686774,
+    "simStepP95": 0.20000000018626451,
     "scans": 5820,
     "renderer": "dom"
   },
@@ -1698,7 +1698,7 @@
     "cash": 399,
     "peak": 8,
     "projectiles": 1,
-    "simStepP95": 0.10000000009313226,
+    "simStepP95": 0,
     "scans": 861,
     "renderer": "dom"
   }

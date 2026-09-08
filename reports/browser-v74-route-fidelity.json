@@ -25,7 +25,7 @@
     "name": "grove boss body stays centered on trail",
     "passed": true,
     "detail": {
-      "errorPx": 0.273,
+      "errorPx": 0.609,
       "rect": {
         "w": 58.93748474121094,
         "h": 77.359375
@@ -124,7 +124,7 @@
     "name": "storm boss body stays centered on trail",
     "passed": true,
     "detail": {
-      "errorPx": 1.121,
+      "errorPx": 0.639,
       "rect": {
         "w": 58.9375,
         "h": 77.359375
@@ -157,7 +157,7 @@
     "name": "blizzard boss body stays centered on trail",
     "passed": true,
     "detail": {
-      "errorPx": 0.627,
+      "errorPx": 1.225,
       "rect": {
         "w": 58.9375,
         "h": 77.359375
@@ -190,7 +190,7 @@
     "name": "eclipse boss body stays centered on trail",
     "passed": true,
     "detail": {
-      "errorPx": 0.623,
+      "errorPx": 0.245,
       "rect": {
         "w": 58.93751525878906,
         "h": 77.359375

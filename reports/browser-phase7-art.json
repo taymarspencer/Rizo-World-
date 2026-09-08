@@ -14,7 +14,7 @@
       "unitScale": "0.921",
       "playOutline": "#132019",
       "playHalo": "rgb(236 255 220 / .18)",
-      "roadFill": "#c1a97a",
+      "roadFill": "#d3b88a",
       "visibleLandmarkLabels": 0
     }
   },
@@ -322,7 +322,7 @@
     "name": "world road palettes are structurally distinct",
     "passed": true,
     "detail": {
-      "grove": "#c1a97a",
+      "grove": "#d3b88a",
       "ember": "#8d7060",
       "moon": "#948ba8",
       "storm": "#74858a",
@@ -332,10 +332,10 @@
   },
   {
     "name": "trail visual weight matches authored v81 road contract",
-    "passed": true,
+    "passed": false,
     "detail": {
-      "stroke": "rgb(193, 169, 122)",
-      "strokeWidth": 103
+      "stroke": "rgb(211, 184, 138)",
+      "strokeWidth": 63
     }
   },
   {

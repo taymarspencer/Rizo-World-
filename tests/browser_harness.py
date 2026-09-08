@@ -19,7 +19,7 @@ def _embed_asset_refs(text):
 def build_inline_app(qa=False, embed_assets=False):
     html=(ROOT/'index.html').read_text()
     local_css = {}
-    for name in ['launch-v79-defense-alive.css','v81-art.css','arcade-v75.css','arcade-v83.css','arcade-v84-depth.css','rizo-v85-handmade.css']:
+    for name in ['launch-v79-defense-alive.css','v81-art.css','arcade-v75.css','arcade-v83.css','arcade-v84-depth.css','rizo-v85-handmade.css','arcade-v87-system.css']:
         path=ROOT/name
         if path.exists():
             text=path.read_text()

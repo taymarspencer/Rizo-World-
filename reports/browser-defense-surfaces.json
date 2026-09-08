@@ -20,7 +20,7 @@
     {
       "name": "field-menu surface contained 320x568",
       "passed": true,
-      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 151.890625, 'bottom': 476.84375, 'w': 297.625, 'h': 324.953125}"
+      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 147.40625, 'bottom': 476.84375, 'w': 297.625, 'h': 329.4375}"
     },
     {
       "name": "field-menu type floor 320x568",
@@ -115,7 +115,7 @@
     {
       "name": "field-menu surface contained 390x844",
       "passed": true,
-      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 444.484375, 'bottom': 738.4375, 'w': 362.8125, 'h': 293.953125}"
+      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 424.484375, 'bottom': 738.4375, 'w': 362.8125, 'h': 313.953125}"
     },
     {
       "name": "field-menu type floor 390x844",
@@ -180,7 +180,7 @@
     {
       "name": "lobby modal contained 390x844",
       "passed": true,
-      "detail": "{'left': 14, 'right': 376, 'top': 159.703125, 'bottom': 684.296875, 'w': 362, 'h': 524.59375}"
+      "detail": "{'left': 14, 'right': 376, 'top': 142.0625, 'bottom': 701.921875, 'w': 362, 'h': 559.859375}"
     },
     {
       "name": "lobby modal type floor 390x844",
@@ -305,7 +305,7 @@
     {
       "name": "field-menu surface contained 768x1024",
       "passed": true,
-      "detail": "{'left': 74, 'right': 694, 'top': 626.078125, 'bottom': 896.03125, 'w': 620, 'h': 269.953125}"
+      "detail": "{'left': 74, 'right': 694, 'top': 618.078125, 'bottom': 896.03125, 'w': 620, 'h': 277.953125}"
     },
     {
       "name": "field-menu type floor 768x1024",
