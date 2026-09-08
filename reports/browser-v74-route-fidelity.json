@@ -25,9 +25,9 @@
     "name": "grove boss body stays centered on trail",
     "passed": true,
     "detail": {
-      "errorPx": 0.345,
+      "errorPx": 0.609,
       "rect": {
-        "w": 58.9375,
+        "w": 58.93748474121094,
         "h": 77.359375
       }
     }
@@ -56,9 +56,9 @@
   },
   {
     "name": "ember boss body stays centered on trail",
-    "passed": false,
+    "passed": true,
     "detail": {
-      "errorPx": 1.365,
+      "errorPx": 0.669,
       "rect": {
         "w": 58.9375,
         "h": 77.359375

@@ -17,12 +17,12 @@
   {
     "name": "30 fps-like callbacks still drive deterministic 30 Hz simulation",
     "passed": true,
-    "detail": "{'simSeconds': 0.9999999999999999, 'presentationFrames': 31}"
+    "detail": "{'simSeconds': 1.0333333333333332, 'presentationFrames': 31}"
   },
   {
     "name": "2x advances exact game time without changing the fixed step",
     "passed": true,
-    "detail": "{'simSeconds': 2.0000000000000027, 'maxCatchUp': 2}"
+    "detail": "{'simSeconds': 2.033333333333336, 'maxCatchUp': 2}"
   },
   {
     "name": "30 fps-like fixed-step samples have no runtime errors",

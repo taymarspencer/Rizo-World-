@@ -392,7 +392,7 @@
     "cash": 687,
     "peak": 9,
     "projectiles": 2,
-    "simStepP95": 0.09999999997671694,
+    "simStepP95": 0.10000000009313226,
     "scans": 4551,
     "renderer": "dom"
   },
@@ -789,7 +789,7 @@
     "cash": 687,
     "peak": 9,
     "projectiles": 2,
-    "simStepP95": 0.09999999997671694,
+    "simStepP95": 0.10000000009313226,
     "scans": 4551,
     "renderer": "dom"
   },
@@ -1186,7 +1186,7 @@
     "cash": 687,
     "peak": 9,
     "projectiles": 2,
-    "simStepP95": 0.09999999997671694,
+    "simStepP95": 0.10000000009313226,
     "scans": 4551,
     "renderer": "dom"
   },
@@ -1578,7 +1578,7 @@
     "cash": 444,
     "peak": 11,
     "projectiles": 2,
-    "simStepP95": 0.2000000000698492,
+    "simStepP95": 0.20000000018626451,
     "scans": 5820,
     "renderer": "dom"
   },
@@ -1698,7 +1698,7 @@
     "cash": 399,
     "peak": 8,
     "projectiles": 1,
-    "simStepP95": 0,
+    "simStepP95": 0.09999999986030161,
     "scans": 861,
     "renderer": "dom"
   }

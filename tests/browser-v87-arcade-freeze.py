@@ -240,6 +240,32 @@ with sync_playwright() as p:
         page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
         page.wait_for_timeout(40)
 
+    # ---------- 7b. Ember Beat's chart, once the countdown has cleared ----------
+    # Rhythm is excluded from the loop above because it needs its lead-in first.
+    # Its chart rides performance.now() minus rhythmStartClock, so a hold has to
+    # credit the clock and freeze the note stream together or notes jump on resume.
+    for label, (hold, release) in HOLD.items():
+        page.evaluate(SETUP_STATE)
+        page.evaluate('RizoRuntimeQA.startMiniGame("rhythm")')
+        page.wait_for_timeout(4200)         # past the 3s countdown, into live notes
+        record(f'rhythm: the song is live before the {label} hold',
+               page.evaluate('RizoRuntimeQA.arcadeStateForQA().rhythmReady'))
+        page.evaluate(hold)
+        a = page.evaluate('RizoRuntimeQA.arcadeFingerprintForQA()')
+        timing_a = page.evaluate('RizoRuntimeQA.rhythmTimingForQA()')
+        page.wait_for_timeout(1300)
+        b = page.evaluate('RizoRuntimeQA.arcadeFingerprintForQA()')
+        record(f'rhythm: no chart state advances across a {label} hold', a == b,
+               '' if a == b else 'chart advanced')
+        page.evaluate(release)
+        page.wait_for_timeout(60)
+        timing_b = page.evaluate('RizoRuntimeQA.rhythmTimingForQA()')
+        record(f'rhythm: song position is credited across a {label} hold',
+               abs((timing_b['elapsed'] or 0) - (timing_a['elapsed'] or 0)) < 0.25,
+               f"elapsed {timing_a['elapsed']:.2f}s -> {timing_b['elapsed']:.2f}s")
+        page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
+        page.wait_for_timeout(40)
+
     # ---------- 8. Defense keeps its own architecture but holds its queue ----------
     page.evaluate(SETUP_STATE)
     page.evaluate('RizoRuntimeQA.startMiniGame("defense")')
