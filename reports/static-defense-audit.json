@@ -95,7 +95,7 @@
     "passed": true,
     "detail": ""
   },
-  "target refresh uses wall time and cached references": {
+  "target refresh uses simulation time and cached references": {
     "passed": true,
     "detail": ""
   },
@@ -123,7 +123,7 @@
     "passed": true,
     "detail": ""
   },
-  "v80 checkpoint migrates v79 and older data": {
+  "v87 checkpoint migrates v80 and older data": {
     "passed": true,
     "detail": ""
   },
@@ -131,7 +131,7 @@
     "passed": true,
     "detail": ""
   },
-  "index build metadata matches v86": {
+  "index build metadata matches v87": {
     "passed": true,
     "detail": ""
   },
@@ -157,7 +157,7 @@
   },
   "stylesheet smaller than original": {
     "passed": true,
-    "detail": "bytes=286417"
+    "detail": "bytes=287259"
   },
   "obsolete per-world starting cash removed": {
     "passed": true,
@@ -181,7 +181,7 @@
   },
   "canonical enemy and boss/heavy kill rewards remain defined": {
     "passed": true,
-    "detail": "count=15 rewards=[12, 14, 24, 20, 32, 36, 38, 44, 30, 56, 62, 180, 180, 180, 190]"
+    "detail": "count=15 rewards=[6, 8, 15, 10, 18, 36, 18, 44, 30, 56, 62, 180, 180, 180, 190]"
   },
   "deployment cost is canonical and not duplicated in runtime": {
     "passed": true,
@@ -269,7 +269,7 @@
   },
   "all active local assets exist": {
     "passed": true,
-    "detail": "refs=87 missing=[]"
+    "detail": "refs=88 missing=[]"
   },
   "phase 7 structural world feature layer is canonical": {
     "passed": true,

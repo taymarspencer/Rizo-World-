@@ -5,7 +5,7 @@
     {
       "name": "tower surface contained 320x568",
       "passed": true,
-      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 243.78125, 'bottom': 476.84375, 'w': 297.625, 'h': 233.0625}"
+      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 147.40625, 'bottom': 476.84375, 'w': 297.625, 'h': 329.4375}"
     },
     {
       "name": "tower type floor 320x568",
@@ -100,7 +100,7 @@
     {
       "name": "tower surface contained 390x844",
       "passed": true,
-      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 505.375, 'bottom': 738.4375, 'w': 362.8125, 'h': 233.0625}"
+      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 392.359375, 'bottom': 738.4375, 'w': 362.8125, 'h': 346.078125}"
     },
     {
       "name": "tower type floor 390x844",
@@ -160,7 +160,7 @@
     {
       "name": "field-guide modal contained 390x844",
       "passed": true,
-      "detail": "{'left': 14, 'right': 376, 'top': 50.15625, 'bottom': 793.828125, 'w': 362, 'h': 743.671875}"
+      "detail": "{'left': 14, 'right': 376, 'top': 16, 'bottom': 828, 'w': 362, 'h': 812}"
     },
     {
       "name": "field-guide modal type floor 390x844",
@@ -290,7 +290,7 @@
     {
       "name": "tower surface contained 768x1024",
       "passed": true,
-      "detail": "{'left': 74, 'right': 694, 'top': 662.359375, 'bottom': 896.03125, 'w': 620, 'h': 233.671875}"
+      "detail": "{'left': 74, 'right': 694, 'top': 609.921875, 'bottom': 896.03125, 'w': 620, 'h': 286.109375}"
     },
     {
       "name": "tower type floor 768x1024",

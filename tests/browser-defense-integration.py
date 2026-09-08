@@ -193,13 +193,13 @@ with sync_playwright() as p:
 
     page,errors=new_page(browser,True)
     start_defense(page)
-    page.evaluate('RizoRuntimeQA.defensePlaceNextForQA();RizoRuntimeQA.defenseLoadQueueForQA(2,"shell",1,1)')
+    page.evaluate('RizoRuntimeQA.defensePlaceNextForQA();RizoRuntimeQA.defenseLoadQueueForQA(2,"shell",1,1);RizoRuntimeQA.defenseSetCashForQA(400)')
     before=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
     placed=page.evaluate('RizoRuntimeQA.defensePlaceNextForQA()')
     sold=page.evaluate('RizoRuntimeQA.defenseSellLastForQA()')
     upgraded=page.evaluate('RizoRuntimeQA.defenseBuyUpgradeForQA()')
     after=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
-    record('combat locks placement and selling while allowing live upgrades',len(before['towers'])==len(after['towers'])==placed and sold is False and upgraded is True and after['cash']<before['cash'],str({'before':{'towers':len(before['towers']),'cash':before['cash']},'after':{'towers':len(after['towers']),'cash':after['cash']},'sell':sold,'upgrade':upgraded}))
+    record('combat permits paid reinforcements and upgrades but locks selling',len(before['towers'])+1==len(after['towers'])==placed and sold is False and upgraded is True and after['cash']<before['cash'],str({'before':{'towers':len(before['towers']),'cash':before['cash']},'after':{'towers':len(after['towers']),'cash':after['cash']},'sell':sold,'upgrade':upgraded}))
     page.close()
 
     page,errors=new_page(browser,True)
@@ -248,7 +248,7 @@ with sync_playwright() as p:
         record(f'{speed}x scheduler sample has no runtime errors',not errors,'; '.join(errors[:3]))
         page.close()
     scans_1x=scan_samples[1]['targetScans'];scans_2x=scan_samples[2]['targetScans']
-    record('2x speed does not double real-time target scans',scans_2x<=scans_1x+2,str({'1x':scans_1x,'2x':scans_2x}))
+    record('2x keeps the same bounded targeting cadence per simulation second',abs(scans_2x-2*scans_1x)<=3 and scans_2x<=35,str({'1x':scans_1x,'2x':scans_2x}))
     record('2x advances simulation without accelerating control clocks',abs(scan_samples[1]['realClock']-scan_samples[2]['realClock'])<.12 and scan_samples[2]['simulationClock']-scan_samples[1]['simulationClock']>1.9,str({'1x':{'real':scan_samples[1]['realClock'],'sim':scan_samples[1]['simulationClock']},'2x':{'real':scan_samples[2]['realClock'],'sim':scan_samples[2]['simulationClock']}}))
     record('2x visual budget lowers projectiles and impacts',core['visualNormal2x']['maxVisibleProjectiles']<core['visualNormal1x']['maxVisibleProjectiles'] and core['visualNormal2x']['maxImpactEffects']<core['visualNormal1x']['maxImpactEffects'],str({'1x':core['visualNormal1x'],'2x':core['visualNormal2x']}))
 

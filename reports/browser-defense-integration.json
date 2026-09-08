@@ -27,7 +27,7 @@
   {
     "name": "wave cannot complete with packet queue pending",
     "passed": true,
-    "detail": "{'completed': False, 'currentWave': 1, 'clearedWave': 0, 'spawnQueue': 8, 'childSpawnQueue': 0, 'enemies': 0, 'projectiles': 0}"
+    "detail": "{'completed': False, 'currentWave': 1, 'clearedWave': 0, 'spawnQueue': 6, 'childSpawnQueue': 0, 'enemies': 0, 'projectiles': 0}"
   },
   {
     "name": "wave cannot complete with child queue pending",
@@ -47,7 +47,7 @@
   {
     "name": "phase HUD distinguishes cleared wave from active wave",
     "passed": true,
-    "detail": "{'planning': {'phase': 'planning', 'resumePhase': 'combat', 'currentWave': 0, 'clearedWave': 0, 'label': 'PLAN', 'detail': 'BUILD WINDOW', 'tone': 'info', 'domLabel': 'PERFORMANCE', 'domDetail': 'REDUCING EFFECTS', 'domWave': '0', 'domCleared': '0', 'transitionRejects': 0}, 'incoming': {'phase': 'countdown', 'resumePhase': 'combat', 'currentWave': 1, 'clearedWave': 0, 'label': 'INCOMING', 'detail': 'FIRST THREAT 1.8S', 'tone': 'money', 'domLabel': 'PERFORMANCE', 'domDetail': 'REDUCING EFFECTS', 'domWave': '1', 'domCleared': '0', 'transitionRejects': 1}, 'cleared': {'phase': 'wave-complete', 'resumePhase': 'combat', 'currentWave': 1, 'clearedWave': 1, 'label': 'CLEARED', 'detail': 'UPGRADE \u2022 START WHEN READY', 'tone': 'valid', 'domLabel': 'PERFORMANCE', 'domDetail': 'REDUCING EFFECTS', 'domWave': '1', 'domCleared': '1', 'transitionRejects': 1}}"
+    "detail": "{'planning': {'phase': 'planning', 'resumePhase': 'combat', 'currentWave': 0, 'clearedWave': 0, 'label': 'PLAN', 'detail': 'BUILD WINDOW', 'tone': 'info', 'domLabel': 'PERFORMANCE', 'domDetail': 'REDUCING EFFECTS', 'domWave': '0', 'domCleared': '0', 'transitionRejects': 0}, 'incoming': {'phase': 'countdown', 'resumePhase': 'combat', 'currentWave': 1, 'clearedWave': 0, 'label': 'INCOMING', 'detail': 'FIRST THREAT 0.6S', 'tone': 'money', 'domLabel': 'PERFORMANCE', 'domDetail': 'REDUCING EFFECTS', 'domWave': '1', 'domCleared': '0', 'transitionRejects': 1}, 'cleared': {'phase': 'wave-complete', 'resumePhase': 'combat', 'currentWave': 1, 'clearedWave': 1, 'label': 'CLEARED', 'detail': 'UPGRADE \u2022 START WHEN READY', 'tone': 'valid', 'domLabel': 'PERFORMANCE', 'domDetail': 'REDUCING EFFECTS', 'domWave': '1', 'domCleared': '1', 'transitionRejects': 1}}"
   },
   {
     "name": "illegal phase jumps are rejected instead of creating contradictory state",
@@ -72,7 +72,7 @@
   {
     "name": "Escape closes the active context without quitting Defense",
     "passed": true,
-    "detail": "{'surface': None, 'fieldMenuOpen': False, 'abilityTrayOpen': False, 'intelOpen': False, 'towerOpen': False, 'scrimHidden': True, 'stageInert': False, 'commandsInert': False, 'rosterInert': False, 'focusInside': False, 'activeTag': 'DIV', 'activeText': '\u2663 WORLD 1 \u2022 OPEN TRAILPINE BENDWESTERN PINE LINE\\n        20GATE220GOLD\\n        \\n'}"
+    "detail": "{'surface': None, 'fieldMenuOpen': False, 'abilityTrayOpen': False, 'intelOpen': False, 'towerOpen': False, 'scrimHidden': True, 'stageInert': False, 'commandsInert': False, 'rosterInert': False, 'focusInside': False, 'activeTag': 'BODY', 'activeText': '<div style=\"position:fixed;inset:0;z-index:2147483647;display:grid;place-items:c'}"
   },
   {
     "name": "phase 6 overlay sample has no runtime errors",
@@ -87,7 +87,7 @@
   {
     "name": "banking unfinished first wave stores analytics without completion credit",
     "passed": true,
-    "detail": "history=[{'id': 'DEFENSE-RUN-C6D602BD2DAC', 'at': 1786426397542, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-CEDF8EEB5776', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}]"
+    "detail": "history=[{'id': 'DEFENSE-RUN-EA313A4AE56E', 'at': 1788780611902, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-2D1D00F673E4', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}]"
   },
   {
     "name": "zero-clear bank does not create permanent Rizo mastery",
@@ -97,22 +97,22 @@
   {
     "name": "bank outcome is explicit",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-C6D602BD2DAC', 'at': 1786426397542, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-CEDF8EEB5776', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-EA313A4AE56E', 'at': 1788780611902, 'mapId': 'grove', 'wave': 0, 'clearedWave': 0, 'reachedWave': 1, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': False, 'perfectWaveCount': 0, 'ended': 'banked', 'mvpPetId': 'PET-2D1D00F673E4', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "bank during wave 2 records cleared 1 and reached 2",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-3DE042FD54E2', 'at': 1786426398326, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'banked', 'mvpPetId': 'PET-5D32E45CC53A', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-C5367DC61DE6', 'at': 1788780612765, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'banked', 'mvpPetId': 'PET-FB980E89DA6C', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "death excludes unfinished wave completion credit",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-B1E1962441E3', 'at': 1786426400040, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-843029972A72', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-87F2BF9699AC', 'at': 1788780614559, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-26E581A05EDD', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "death outcome is explicit",
     "passed": true,
-    "detail": "{'id': 'DEFENSE-RUN-B1E1962441E3', 'at': 1786426400040, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-843029972A72', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+    "detail": "{'id': 'DEFENSE-RUN-87F2BF9699AC', 'at': 1788780614559, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-26E581A05EDD', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
   },
   {
     "name": "save migration preserves cleared and reached wave separately",
@@ -137,12 +137,12 @@
   {
     "name": "whole-save envelope signature verifies",
     "passed": true,
-    "detail": "{'saveVersion': 1, 'signature': 's1.tdammb'}"
+    "detail": "{'saveVersion': 1, 'signature': 's1.15dskkp'}"
   },
   {
     "name": "whole-save signature detects progression edits",
     "passed": true,
-    "detail": "s1.tdammb"
+    "detail": "s1.15dskkp"
   },
   {
     "name": "invalid whole save is sanitized instead of blindly trusted",
@@ -167,7 +167,7 @@
   {
     "name": "derived tower spending is recalculated",
     "passed": true,
-    "detail": "{'id': 'tower-1', 'petId': 'PET-76859207DF7A', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 4, 'cost': 0, 'spent': 1250, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
+    "detail": "{'id': 'tower-1', 'petId': 'PET-CC8A5D7DD503', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 4, 'cost': 0, 'spent': 1250, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
   },
   {
     "name": "unknown enemy, queue, and pet IDs are rejected",
@@ -182,7 +182,7 @@
   {
     "name": "bad checkpoint cannot preserve forged upgrades or reward counters",
     "passed": true,
-    "detail": "{'id': 'tower-1', 'petId': 'PET-76859207DF7A', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 0, 'cost': 0, 'spent': 0, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
+    "detail": "{'id': 'tower-1', 'petId': 'PET-CC8A5D7DD503', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 0, 'cost': 0, 'spent': 0, 'openingPerkApplied': False, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}"
   },
   {
     "name": "all worlds start with consistent purchasing power",
@@ -207,7 +207,7 @@
   {
     "name": "canonical kill rewards stay positive and map-invariant",
     "passed": true,
-    "detail": "{'grove': 17, 'eclipse': 17}"
+    "detail": "{'grove': 9, 'eclipse': 9}"
   },
   {
     "name": "new placement receives a true five-second 100% planning undo",
@@ -220,14 +220,14 @@
     "detail": "{'before': {'baseStartingCash': 220, 'cash': 30, 'mapId': 'grove', 'worldPerk': 'BALANCED OPENING', 'worldPerkUsed': False, 'phase': 'planning', 'placementAllowed': True, 'sellAllowed': True, 'upgradeAllowed': True, 'goldenBonus': 1, 'tower': {'id': 'tower-2', 'cost': 190, 'spent': 190, 'upgrade': 0, 'openingPerkApplied': False, 'canUndo': False, 'sellRefund': 133, 'nextUpgradeCost': 110}}, 'afterCash': 163}"
   },
   {
-    "name": "combat locks placement and selling while allowing live upgrades",
+    "name": "combat permits paid reinforcements and upgrades but locks selling",
     "passed": true,
-    "detail": "{'before': {'towers': 1, 'cash': 220}, 'after': {'towers': 1, 'cash': 110}, 'sell': False, 'upgrade': True}"
+    "detail": "{'before': {'towers': 1, 'cash': 400}, 'after': {'towers': 2, 'cash': 100}, 'sell': False, 'upgrade': True}"
   },
   {
     "name": "packet breaks are defined safe upgrade windows",
     "passed": true,
-    "detail": "{'before': {'baseStartingCash': 220, 'cash': 220, 'mapId': 'grove', 'worldPerk': 'BALANCED OPENING', 'worldPerkUsed': False, 'phase': 'packet-break', 'placementAllowed': False, 'sellAllowed': False, 'upgradeAllowed': True, 'goldenBonus': 1, 'tower': {'id': 'tower-1', 'cost': 0, 'spent': 0, 'upgrade': 0, 'openingPerkApplied': False, 'canUndo': False, 'sellRefund': 0, 'nextUpgradeCost': 110}}, 'afterCash': 110, 'upgrade': 1}"
+    "detail": "{'before': {'baseStartingCash': 220, 'cash': 220, 'mapId': 'grove', 'worldPerk': 'BALANCED OPENING', 'worldPerkUsed': False, 'phase': 'packet-break', 'placementAllowed': True, 'sellAllowed': False, 'upgradeAllowed': True, 'goldenBonus': 1, 'tower': {'id': 'tower-1', 'cost': 0, 'spent': 0, 'upgrade': 0, 'openingPerkApplied': False, 'canUndo': False, 'sellRefund': 0, 'nextUpgradeCost': 110}}, 'afterCash': 110, 'upgrade': 1}"
   },
   {
     "name": "world identity changes the first strategic upgrade instead of starting cash",
@@ -237,12 +237,12 @@
   {
     "name": "tower panel communicates the active world opening discount",
     "passed": true,
-    "detail": "EMBER RED \u2022 BURNRIZO 01 LV 1FIELD LEADER \u2022 POWER UNLOCKS AT LV 3GOLD220 \ud83e\ude99OPENING DEAL \u2022 +34% HIT \u2022 +8% RANGE \u2022 +12% SPEEDLEVEL UP \u2022 90TARGETFRONTSELL0 \ud83e\ude99FIELD POWER Burn every balloon near this Rizo."
+    "detail": "ED \u2022 BURNRIZO 01 LV 1FIELD LEADER \u2022 POWER UNLOCKS AT LV 3GOLD220 \ud83e\ude99OPENING DEAL \u2022 Stronger hits and wider reachLEVEL UP \u2022 90TARGETFRONTSELL0 \ud83e\ude99FIELD POWER Shots ignite balloons over time. Burn every balloon near this Rizo."
   },
   {
     "name": "v67 checkpoint migration conservatively reconstructs one opening discount",
     "passed": true,
-    "detail": "{'status': 'migrated', 'tower': {'id': 'tower-1', 'petId': 'PET-872CFFAF2421', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.6699999999999999, 'y': 0.14, 'upgrade': 1, 'cost': 0, 'spent': 90, 'openingPerkApplied': True, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}}"
+    "detail": "{'status': 'migrated', 'tower': {'id': 'tower-1', 'petId': 'PET-08F991F80E87', 'source': 'active', 'rosterIndex': -1, 'copyNumber': 1, 'x': 0.6699999999999999, 'y': 0.14, 'upgrade': 1, 'cost': 0, 'spent': 90, 'openingPerkApplied': True, 'placedAtReal': None, 'cooldown': 0, 'kills': 0, 'damage': 0, 'abilityReadyAt': 0, 'overclockUntil': 0, 'rangeDebuffUntil': 0, 'targetMode': 'first', 'doctrine': None, 'shots': 0, 'placedAt': 0, 'superForm': None, 'targetId': None, 'retargetAt': 0, 'retargetAtReal': 0}}"
   },
   {
     "name": "phase 5 economy sample has no runtime errors",
@@ -257,7 +257,7 @@
   {
     "name": "2x speed preserves authored gameplay density",
     "passed": true,
-    "detail": "{'version': 7, 'limits': {'MAX_SUPPORTED_WAVE': 250, 'MAX_RUN_CASH': 2000000, 'MAX_TOWER_LEVEL': 4, 'MAX_DEFENSE_TOWERS': 10, 'MAX_REASONABLE_KILLS': 100000, 'MAX_REASONABLE_DAMAGE': 1000000000, 'MAX_REASONABLE_BOSSES': 2000, 'MAX_REASONABLE_PERFECT_WAVES': 250, 'MAX_PLANNED_ENEMIES': 46, 'MAX_CHILD_BUFFER': 48, 'MAX_CHECKPOINT_ENEMIES': 24, 'MAX_CHECKPOINT_PROJECTILES': 32, 'MAX_QUEUE_ENTRIES': 64, 'MAX_WALLET_EMBERS': 50000000, 'MAX_WALLET_SHARDS': 5000000, 'MAX_INVENTORY_STACK': 100000, 'MAX_COLLECTION_COUNT': 100000, 'MAX_PLAYER_XP': 1000000000, 'MAX_META_COUNTER': 100000000, 'MAX_MASTERY_WAVES': 50000, 'MAX_MASTERY_RUNS': 10000, 'MAX_SEASON_XP': 100000000, 'MAX_SEASON_LEVEL': 100000}, 'phases': {'PLANNING': 'planning', 'COUNTDOWN': 'countdown', 'COMBAT': 'combat', 'PACKET_BREAK': 'packet-break', 'WAVE_COMPLETE': 'wave-complete', 'PAUSED': 'paused', 'RUN_COMPLETE': 'run-complete'}, 'budgets': {'normal': {'maxActiveEnemies': 14, 'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'maxTowers': 8, 'maxTowersHard': 10, 'targetRefreshMs': 120, 'uiRefreshMs': 120, 'incomeFlushMs': 150, 'childReleaseMs': 72}, 'low': {'maxActiveEnemies': 14, 'maxVisibleProjectiles': 16, 'maxImpactEffects': 5, 'maxTowers': 8, 'maxTowersHard': 10, 'targetRefreshMs': 160, 'uiRefreshMs': 180, 'incomeFlushMs': 180, 'childReleaseMs': 96}}, 'simulation': {'stepHz': 30, 'stepSeconds': 0.03333333333333333, 'maxCatchUpSteps': 4, 'presentationHz': 60, 'lowPresentationHz': 30, 'visualProjectileHz': 10, 'fastVisualProjectileHz': 8, 'lowVisualProjectileHz': 6}, 'economy': {'baseStartingCash': 220, 'planningRefundRate': 0.7, 'placementUndoSeconds': 5, 'worldOpeningDiscount': 0.8, 'deployBaseCost': 145, 'deployGrowth': 1.36, 'deployLateGrowth': 1.62, 'deployGrowthPivot': 2, 'duplicateSurcharge': 45, 'goldenIncomeCap': 0.22, 'goldenActiveDuplicateDecay': 0.12, 'lateRunSoftCapThreshold': 1600, 'lateRunSoftCapSlope': 0.35}, 'upgradeCosts': [110, 180, 320, 640], 'goldenAtTwenty': 1.22, 'goldenActiveOne': 152, 'goldenActiveFive': 79, 'deploySamples': [150, 200, 270, 430], 'densityNormal1x': 14, 'densityNormal2x': 14, 'densityLow1x': 14, 'visualNormal1x': {'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'weatherParticleScale': 1, 'projectileEmissionHz': 10, 'presentationFps': 60}, 'visualNormal2x': {'maxVisibleProjectiles': 16, 'maxImpactEffects': 4, 'weatherParticleScale': 0.46, 'projectileEmissionHz': 8, 'presentationFps': 60}, 'visualLow2x': {'maxVisibleProjectiles': 10, 'maxImpactEffects': 3, 'weatherParticleScale': 0.24, 'projectileEmissionHz': 6, 'presentationFps': 30}}"
+    "detail": "{'version': 8, 'limits': {'MAX_SUPPORTED_WAVE': 250, 'MAX_RUN_CASH': 2000000, 'MAX_TOWER_LEVEL': 4, 'MAX_DEFENSE_TOWERS': 10, 'MAX_REASONABLE_KILLS': 100000, 'MAX_REASONABLE_DAMAGE': 1000000000, 'MAX_REASONABLE_BOSSES': 2000, 'MAX_REASONABLE_PERFECT_WAVES': 250, 'MAX_PLANNED_ENEMIES': 46, 'MAX_CHILD_BUFFER': 48, 'MAX_CHECKPOINT_ENEMIES': 24, 'MAX_CHECKPOINT_PROJECTILES': 32, 'MAX_QUEUE_ENTRIES': 64, 'MAX_WALLET_EMBERS': 50000000, 'MAX_WALLET_SHARDS': 5000000, 'MAX_INVENTORY_STACK': 100000, 'MAX_COLLECTION_COUNT': 100000, 'MAX_PLAYER_XP': 1000000000, 'MAX_META_COUNTER': 100000000, 'MAX_MASTERY_WAVES': 50000, 'MAX_MASTERY_RUNS': 10000, 'MAX_SEASON_XP': 100000000, 'MAX_SEASON_LEVEL': 100000}, 'phases': {'PLANNING': 'planning', 'COUNTDOWN': 'countdown', 'COMBAT': 'combat', 'PACKET_BREAK': 'packet-break', 'WAVE_COMPLETE': 'wave-complete', 'PAUSED': 'paused', 'RUN_COMPLETE': 'run-complete'}, 'budgets': {'normal': {'maxActiveEnemies': 14, 'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'maxTowers': 8, 'maxTowersHard': 10, 'targetRefreshMs': 120, 'uiRefreshMs': 120, 'incomeFlushMs': 150, 'childReleaseMs': 72}, 'low': {'maxActiveEnemies': 14, 'maxVisibleProjectiles': 16, 'maxImpactEffects': 5, 'maxTowers': 8, 'maxTowersHard': 10, 'targetRefreshMs': 160, 'uiRefreshMs': 180, 'incomeFlushMs': 180, 'childReleaseMs': 96}}, 'simulation': {'stepHz': 30, 'stepSeconds': 0.03333333333333333, 'maxCatchUpSteps': 4, 'presentationHz': 60, 'lowPresentationHz': 30, 'visualProjectileHz': 10, 'fastVisualProjectileHz': 8, 'lowVisualProjectileHz': 6}, 'economy': {'baseStartingCash': 220, 'planningRefundRate': 0.7, 'placementUndoSeconds': 5, 'worldOpeningDiscount': 0.8, 'deployBaseCost': 145, 'deployGrowth': 1.36, 'deployLateGrowth': 1.62, 'deployGrowthPivot': 2, 'duplicateSurcharge': 45, 'goldenIncomeCap': 0.22, 'goldenActiveDuplicateDecay': 0.12, 'lateRunSoftCapThreshold': 1600, 'lateRunSoftCapSlope': 0.35}, 'upgradeCosts': [110, 180, 320, 640], 'goldenAtTwenty': 1.22, 'goldenActiveOne': 152, 'goldenActiveFive': 79, 'deploySamples': [150, 200, 270, 430], 'densityNormal1x': 14, 'densityNormal2x': 14, 'densityLow1x': 14, 'visualNormal1x': {'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'weatherParticleScale': 1, 'projectileEmissionHz': 10, 'presentationFps': 60}, 'visualNormal2x': {'maxVisibleProjectiles': 16, 'maxImpactEffects': 4, 'weatherParticleScale': 0.46, 'projectileEmissionHz': 8, 'presentationFps': 60}, 'visualLow2x': {'maxVisibleProjectiles': 10, 'maxImpactEffects': 3, 'weatherParticleScale': 0.24, 'projectileEmissionHz': 6, 'presentationFps': 30}}"
   },
   {
     "name": "target retargeting is throttled",
@@ -275,14 +275,14 @@
     "detail": ""
   },
   {
-    "name": "2x speed does not double real-time target scans",
+    "name": "2x keeps the same bounded targeting cadence per simulation second",
     "passed": true,
-    "detail": "{'1x': 15, '2x': 17}"
+    "detail": "{'1x': 15, '2x': 30}"
   },
   {
     "name": "2x advances simulation without accelerating control clocks",
     "passed": true,
-    "detail": "{'1x': {'real': 2.3332679999999946, 'sim': 2.0000000000000027}, '2x': {'real': 2.3666679999999944, 'sim': 4.099999999999995}}"
+    "detail": "{'1x': {'real': 2.333299999999995, 'sim': 2.0000000000000027}, '2x': {'real': 2.3332999999999946, 'sim': 3.9999999999999956}}"
   },
   {
     "name": "2x visual budget lowers projectiles and impacts",
@@ -292,7 +292,7 @@
   {
     "name": "split children release gradually instead of bursting in one frame",
     "passed": true,
-    "detail": "{'released': 2, 'queued': 4}"
+    "detail": "{'released': 0, 'queued': 6}"
   },
   {
     "name": "split children cannot bypass the active density cap",
@@ -322,7 +322,7 @@
   {
     "name": "income batch flush preserves exact totals",
     "passed": true,
-    "detail": "{1: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.4832680000000002}}, 2: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.4499000000000001}}}"
+    "detail": "{1: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.4666020000000002}}, 2: {'cashBefore': 220, 'cashAfter': 245, 'batch': {'amount': 25, 'events': 1, 'sources': {'qa': 25}, 'atReal': 0.4831680000000001}}}"
   },
   {
     "name": "overlay manager prevents conflict at 320x568",

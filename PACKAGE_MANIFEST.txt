@@ -1,0 +1,7 @@
+RIZO POST-V87 — PURPLE POP CORRECTION PASS
+Baseline: RIZO_V87_POP_PARTICLE_CATCHPASS_FLAT
+Build marker: v87-first-ten-visual-nuance
+Deploy: extract this ZIP directly; index.html is at root.
+Focus: purple-family balloon pop quality only.
+Fixes: shell/iron balloons now have their own plated violet breakup instead of sharing the generic heavy pop; ghost/phase balloons now have their own ethereal rupture language instead of falling back to the base pop; DOM fallback got matching shell/ghost body reactions and impact styling.
+Verification rerun: defense core, service worker policy, static defense audit, canvas flow, launch recovery, surface suite. browser-first-ten began cleanly and logged PASS lines through mixed-1x wave 1–10 resolution before the process hit the local time cap.

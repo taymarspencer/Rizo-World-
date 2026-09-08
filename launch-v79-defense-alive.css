@@ -1388,7 +1388,7 @@ body.reduce-motion #petTapTarget>.egg-actor>.egg-motion-shell{animation:none!imp
 .defense-enemy.revealed { opacity:1; filter:drop-shadow(0 0 1.5px var(--play-outline)) drop-shadow(0 0 7px #fff); }
 .defense-enemy.is-burn .balloon-body, .defense-enemy.skin-burn .balloon-body { box-shadow:0 0 12px #ff8a3d,inset -6px -6px 0 rgb(20 10 20 / .14); }
 .defense-enemy.is-poison .balloon-body, .defense-enemy.skin-poison .balloon-body { box-shadow:0 0 12px #8cf05d,inset -6px -6px 0 rgb(20 10 20 / .14); }
-.defense-enemy.popped { animation:def-pop .28s ease-out forwards; }
+.defense-enemy.popped { --pop-bias-x:0; --pop-bias-y:0; --pop-angle:0rad; --pop-weight:1; animation:def-pop .34s cubic-bezier(.15,.74,.28,1) forwards; }
 .defense-shot { position:absolute; left:0; top:0; z-index:7; width:10px; height:10px; translate:-50% -50%; border:2px solid var(--play-outline); border-radius:50%; background:#fff; box-shadow:0 0 7px currentColor,0 0 0 1px var(--play-halo); pointer-events:none; }
 .defense-impact { position:absolute; z-index:8; width:28px; height:28px; translate:-50% -50%; border:3px solid var(--impact-color,#fff); border-radius:50%; filter:drop-shadow(0 0 2px var(--play-outline)); animation:def-impact .42s ease-out forwards; pointer-events:none; }
 
@@ -1742,7 +1742,7 @@ body.reduce-motion #petTapTarget>.egg-actor>.egg-motion-shell{animation:none!imp
 @keyframes def-pocket-pulse { 50% { scale:1.06; opacity:.78; } }
 @keyframes def-placement-valid { 0% { scale:.86; opacity:.55; } 60% { scale:1.08; } 100% { scale:1; opacity:1; } }
 @keyframes def-gate-alert { to { scale:1.1; box-shadow:0 0 18px var(--def-danger); } }
-@keyframes def-pop { to { scale:1.7; opacity:0; } }
+@keyframes def-pop { 0% { transform:translate(0,0) scale(1); opacity:1; } 18% { transform:translate(calc(var(--pop-bias-x) * 2px),calc(var(--pop-bias-y) * 2px)) scale(calc(1.06 + var(--pop-weight) * .05),calc(.90 - (var(--pop-weight) - 1) * .05)) rotate(calc(var(--pop-angle) * .08 - 5deg)); opacity:1; } 44% { transform:translate(calc(var(--pop-bias-x) * 5px),calc(var(--pop-bias-y) * 5px)) scale(calc(.90 - (var(--pop-weight) - 1) * .04),calc(1.12 + var(--pop-weight) * .03)) rotate(calc(var(--pop-angle) * .16 + 3deg)); opacity:.98; } 100% { transform:translate(calc(var(--pop-bias-x) * 10px),calc(var(--pop-bias-y) * 10px)) scale(calc(1.72 + var(--pop-weight) * .10),calc(.94 + (var(--pop-weight) - 1) * .04)) rotate(calc(var(--pop-angle) * .22 + 10deg)); opacity:0; } }
 @keyframes def-impact { from { scale:.25; opacity:1; } to { scale:1.7; opacity:0; } }
 @keyframes def-invalid { 25% { translate:calc(-50% - 5px) -72%; } 75% { translate:calc(-50% + 5px) -72%; } }
 @keyframes def-fade-out { to { opacity:0; } }
@@ -2310,3 +2310,10 @@ html.defense-performance-session .screen-grain { display:none; }
 .balloon-trait{display:none}.defense-enemy.balloon-brick{width:39px;height:49px;background:#c87845;border-width:3px;box-shadow:inset 0 0 0 3px #a65332}.defense-enemy.balloon-lead{width:38px;height:48px;background:#77818d;border-width:3px;box-shadow:inset 0 0 0 4px #515a64}.defense-enemy.balloon-lead::before{content:"";position:absolute;inset:18% -4%;border-top:3px solid #d7dde4;border-bottom:3px solid #4b535c}.defense-enemy.balloon-brick::before{content:"";position:absolute;inset:18% 8%;background:repeating-linear-gradient(0deg,transparent 0 8px,#6d3427 9px 11px);opacity:.72}
 
 #defenseWorld.whiteout-live .defense-tower:not(.defense-variant-frost):not(.defense-variant-aurora) .defense-range{transition:width .28s ease,height .28s ease}#defenseWorld.whiteout-live .defense-tower.defense-variant-frost::after,#defenseWorld.whiteout-live .defense-tower.defense-variant-aurora::after{content:"RESIST";position:absolute;left:50%;bottom:-15px;translate:-50% 0;padding:2px 4px;border-radius:5px;background:#d9fbff;color:#17151b;font:950 7px/1 var(--def-font-mono);border:1px solid #17151b}
+
+/* Chapter one: combat signals, scoped to Defense. */
+.defense-chain-link{position:absolute;height:2px;background:#e7c9ff;box-shadow:0 0 0 1px #4e305c;transform-origin:left center;pointer-events:none}
+.defense-shell .defense-wave-preview em{max-width:300px;white-space:normal;line-height:1.3}
+.defense-shell .defense-roster-info small{letter-spacing:.02em}
+.defense-shell .defense-enemy.storm-charging::after{content:"!";position:absolute;left:40%;top:-13px;color:#ffe66b;font:bold 16px sans-serif;text-shadow:1px 1px #17151b}
+.defense-shell .defense-upgrade-big small{white-space:normal;line-height:1.25}

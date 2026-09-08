@@ -1,11 +1,11 @@
 /* Offline shell for Rizo.game. Third-party ad requests are intentionally never cached. */
 const CACHE_PREFIX = "rizo-game-";
-const CACHE = "rizo-game-v86-launch-hotfix";
+const CACHE = "rizo-game-v87-first-ten-visual-nuance";
 const SHELL = [
   "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js",
   "./monetization.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
   "./privacy.html", "./terms.html", "./support.html", "./assets/icon-192.png",
-  "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
+  "./assets/defense-pine-bend.svg", "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
   "./assets/rizo-ember.png", "./assets/rizo-toxic.png", "./assets/rizo-violet.png",
   "./assets/rizo-bubblegum.png", "./assets/rizo-frost.png", "./assets/rizo-glitch.png",
   "./assets/rizo-obsidian.png", "./assets/rizo-golden.png", "./assets/rizo-diamond.png",
@@ -40,7 +40,7 @@ const REQUIRED_SHELL = [
   "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css",
   "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js", "./monetization.js",
   "./game-v79-defense.js", "./manifest.webmanifest", "./assets/icon-192.png",
-  "./assets/icon-512.png", "./assets/rizo-classic.png"
+  "./assets/defense-pine-bend.svg", "./assets/icon-512.png", "./assets/rizo-classic.png"
 ];
 const NETWORK_FIRST_PATHS = new Set(REQUIRED_SHELL.map(path => new URL(path, self.location.href).pathname));
 

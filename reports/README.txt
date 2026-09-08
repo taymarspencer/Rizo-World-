@@ -1,0 +1,1 @@
+This directory is intentionally present because the repository's static/browser test scripts write generated verification output here. Historical screenshots and old reports are excluded from the Astra clean pack to reduce context noise.

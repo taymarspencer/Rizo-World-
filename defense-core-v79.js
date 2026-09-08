@@ -5,7 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function createRizoDefenseCore() {
   "use strict";
 
-  const VERSION = 7;
+  const VERSION = 8;
   const STATE_SAVE_VERSION = 1;
   const CHECKPOINT_SALTS = Object.freeze({
     2: "RIZO-DEFENSE-V64-EMBER-GATE",
@@ -13,7 +13,8 @@
     4: "RIZO-DEFENSE-V67-PACKET-CLOCK",
     5: "RIZO-DEFENSE-V68-ECONOMY-FLOW",
     6: "RIZO-DEFENSE-V79-GATE-FLAME",
-    7: "RIZO-DEFENSE-V80-STRATEGY-FEEL"
+    7: "RIZO-DEFENSE-V80-STRATEGY-FEEL",
+    8: "RIZO-DEFENSE-V87-FIRST-TEN"
   });
   const STATE_SAVE_SALT = "RIZO-LIFE-V66-VERIFIED-TIMELINE";
 
@@ -164,9 +165,9 @@
     const normalized = normalizePhase(phase);
     const table = {
       [PHASES.PLANNING]: new Set(["place", "move", "sell", "upgrade", "target", "start", "bank", "open-overlay"]),
-      [PHASES.COUNTDOWN]: new Set(["pause", "target", "upgrade", "bank", "open-overlay"]),
-      [PHASES.COMBAT]: new Set(["pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
-      [PHASES.PACKET_BREAK]: new Set(["pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
+      [PHASES.COUNTDOWN]: new Set(["place", "pause", "target", "upgrade", "bank", "open-overlay"]),
+      [PHASES.COMBAT]: new Set(["place", "pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
+      [PHASES.PACKET_BREAK]: new Set(["place", "pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
       [PHASES.WAVE_COMPLETE]: new Set(["place", "move", "sell", "upgrade", "target", "start", "bank", "open-overlay"]),
       [PHASES.PAUSED]: new Set(["resume", "target", "upgrade", "bank", "open-overlay"]),
       [PHASES.RUN_COMPLETE]: new Set([])
@@ -360,8 +361,33 @@
     return packets;
   }
 
+  // The opening is a score, not a seeded mix. Every packet has a job.
+  // Keep entries in the existing checkpoint grammar; old in-flight packets
+  // restore exactly as saved and new waves use this score.
+  function openingWavePlan(wave, bossIds) {
+    const p = (enemies, spawnGap, breakAfter = 1.8) => ({ enemies, spawnGap, breakAfter });
+    const score = [
+      ["KNOCK KNOCK", "Own a bend. One Rizo can hit the road twice.", [p(["puff","puff","puff"],.95,2.2),p(["puff","puff","puff"],.72,0)]],
+      ["WRONG SPEED", "Blue Zips overtake the reds. FRONT catches the runner.", [p(["puff","puff","fleet"],.85,2.1),p(["puff","fleet","puff","fleet"],.65,0)]],
+      ["PLUS ONE. PLUS TWO.", "Pink Bubbles pop into two children. Chain hits clean up.", [p(["split","puff","puff"],.85,2.2),p(["puff","split","puff","fleet"],.65,0)]],
+      ["TIN CAN PARADE", "Iron distracts the front line. Heavy hits crack it; Zips slip past.", [p(["shell","puff","fleet"],.9,1.8),p(["shell","puff","fleet","puff","fleet"],.6,0)]],
+      ["THEY BROUGHT FRIENDS", "Three Zip bursts. Spread coverage or freeze the rush.", [p(["fleet","fleet","fleet","fleet"],.28,2.4),p(["fleet","fleet","fleet","fleet"],.24,2.4),p(["fleet","fleet","fleet","fleet"],.2,0)]],
+      ["DO NOT POP HERE", "Crack Bubbles early. Their children need road left to die on.", [p(["shell","split","split"],.9,2.3),p(["puff","puff","fleet"],.72,2.1),p(["shell","split","fleet"],.65,0)]],
+      ["TOO HOT TO HOLD", "Fireproof escorts punish all-Ember fields. Chill makes them brittle.", [p(["fire","puff","fleet"],.85,2),p(["shell","fire","fleet","fleet"],.6,2.2),p(["split","fire","fleet"],.7,0)]],
+      ["YELLOW MEANS RUN", "Storms wind up, then surge. Save control for the charge.", [p(["storm","puff","puff"],.85,2.2),p(["shell","storm","fleet"],.72,2.2),p(["split","storm","fleet","fleet"],.5,0)]],
+      ["ONE LAST QUIET NIGHT", "The dress rehearsal: armor, children, then a late rush.", [p(["shell","fire","puff","split"],.8,2.4),p(["split","shell","puff","split"],.65,2.4),p(["storm","fleet","fleet","storm"],.38,0)]],
+      ["THE WARDEN", "He walks with the crowd. TOUGHEST breaks him; FRONT catches his cover.", [p(["shell","fleet","fleet"],.7,2.4),p([{type:"boss",bossId:bossIds[0]||"crown",intensity:0},"puff","split","fire"],.95,2.4),p(["shell","split","fleet"],.8,2.4),p(["storm","fleet","fleet"],.4,0)]]
+    ];
+    const [title,copy,packets] = score[wave-1];
+    return { wave, modifier:wave===10?"boss":wave===5?"rush":"authored", packets,
+      plannedEnemyCount:flattenPackets(packets).length,
+      estimatedDuration:packets.reduce((sum,p)=>sum+(p.enemies.length-1)*p.spawnGap+p.breakAfter,0),
+      announcement:{title,copy} };
+  }
+
   function createWavePlan({ wave, specialBias = 0, weather = "clear", bossIds = ["crown", "vortex", "mirror", "apex"] } = {}) {
     const safeWave = clampInteger(wave, 1, LIMITS.MAX_SUPPORTED_WAVE, 1);
+    if (safeWave <= 10) return openingWavePlan(safeWave, bossIds);
     const effective = safeWave + clampInteger(specialBias, 0, 20, 0);
     let modifier = "normal";
     let announcement = null;
@@ -544,6 +570,14 @@
       modern.gateFlameProgress = Math.round(clampNumber(source.gateFlameProgress, 0, 1, .86) * 10000) / 10000;
       modern.gateFlameNextTick = Math.round(clampNumber(source.gateFlameNextTick, 0, 1e9, 0) * 1000) / 1000;
       modern.gateFlameTicks = clampInteger(source.gateFlameTicks, 0, 1000, 0);
+    }
+    if(signatureVersion>=8){
+      // Sign the full combat continuation; old salts/payloads remain untouched.
+      modern.continuation=stableValue({
+        wavePackets:source.wavePackets||[],packetIndex:source.packetIndex||0,packetEnemyIndex:source.packetEnemyIndex||0,
+        nextSpawnAt:source.nextSpawnAt||0,packetBreakUntil:source.packetBreakUntil||0,
+        projectiles:source.projectiles||[],armor:(source.enemies||[]).map(e=>e.armor??null)
+      });
     }
     return stableValue(modern);
   }
