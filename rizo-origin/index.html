@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>RIZO ORIGIN</title>
+<meta name="description" content="Fire. Water. Earth. Air. Put two things together and find out how far it goes.">
+<meta name="theme-color" content="#09090a">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="RIZO ORIGIN">
+<meta property="og:description" content="Four things. Everything else is up to you.">
+<meta property="og:image" content="assets/icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/rizo.css">
+</head>
+<body class="preboot">
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <span id="brandMark" style="display:block;color:var(--ink)"></span>
+      <span class="wordmark">RIZO <i>ORIGIN</i></span>
+    </div>
+    <div class="hstat">
+      <button class="pill" id="pSecret" style="display:none" title="Things that were not supposed to be findable"></button>
+      <button class="pill" id="pFound" title="Your record">FOUND <b>4</b></button>
+      <button class="iconbtn" id="bHint" title="Hint (H)"></button>
+      <button class="iconbtn" id="bBook" title="Discoveries (E)"></button>
+      <button class="iconbtn" id="bAch"  title="Achievements"></button>
+      <button class="iconbtn" id="bMenu" title="The board"></button>
+    </div>
+  </header>
+
+  <main>
+    <nav id="rail" aria-label="Domains"></nav>
+    <section id="work">
+      <div id="bench">
+        <div class="benchrow">
+          <button class="slot" id="slotA" aria-label="First ingredient"><span class="ph">PICK ONE</span></button>
+          <span class="op">+</span>
+          <button class="slot" id="slotB" aria-label="Second ingredient"><span class="ph">PICK ONE</span></button>
+          <span class="op">=</span>
+          <div class="result empty" id="res"><span class="ph">?</span></div>
+        </div>
+        <div class="hintline" id="hintline"></div>
+      </div>
+
+      <div id="gridwrap">
+        <div id="mrail" aria-label="Domains"></div>
+        <div id="tools">
+          <input id="search" placeholder="SEARCH" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search discoveries">
+          <button class="chip on" data-f="all">ALL</button>
+          <button class="chip" data-f="new">NEW</button>
+          <button class="chip" data-f="fav">FAV</button>
+        </div>
+        <div id="grid" role="list"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="ink"></div>
+<div id="card"></div>
+<div id="flash"></div>
+<div id="stage"></div>
+<div id="sheet"></div>
+
+<script src="js/data/groups.js"></script>
+<script src="js/data/elements.js"></script>
+<script src="js/data/recipes.js"></script>
+<script src="js/data/achievements.js"></script>
+<script src="js/art/mark.js"></script>
+<script src="js/art/glyphs.js"></script>
+<script src="js/art/render.js"></script>
+<script src="js/engine/audio.js"></script>
+<script src="js/engine/game.js"></script>
+<script src="js/ui/ui.js"></script>
+<script src="js/ui/moments.js"></script>
+<script src="js/ui/sheets.js"></script>
+<script src="js/main.js"></script>
+<script>
+  document.getElementById('bHint').innerHTML = window.RizoUI.ICON.hint;
+  document.getElementById('bBook').innerHTML = window.RizoUI.ICON.book;
+  document.getElementById('bAch').innerHTML  = window.RizoUI.ICON.cup;
+  document.getElementById('bMenu').innerHTML = window.RizoUI.ICON.menu;
+</script>
+</body>
+</html>
