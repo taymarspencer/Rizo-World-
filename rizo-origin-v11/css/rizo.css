@@ -1,0 +1,1623 @@
+/* ═══ RIZO ORIGIN ═════════════════════════════════════════════════════════
+   Dark, inky, screen-printed. Everything here is hand-set: no framework,
+   no utility classes, no gradients borrowed from a dashboard. */
+
+:root{
+  --bg:#09090a; --bg2:#0f0f11; --panel:#141417; --panel2:#1a1a1e;
+  --line:#26262c; --line2:#34343c;
+  --ink:#ece8e0; --ink2:#a5a099; --ink3:#6e6a66;
+  --accent:#ff7a1a; --accent-d:#ff7a1a22;
+  --rizo:#00c2ff;
+  --ok:#5ad07a; --bad:#c2413f;
+  --r:3px;
+  --grid:74px;
+  --hdr:52px;
+  --shadow:0 10px 30px -12px #000;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden}
+body{
+  background:var(--bg); color:var(--ink);
+  font:400 15px/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior:none; touch-action:manipulation;
+  user-select:none; -webkit-user-select:none;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input{font:inherit;color:inherit}
+::selection{background:var(--accent);color:#000}
+
+/* paper grain — sells the print, costs nothing */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:900;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+.reduced body::after{opacity:.3}
+
+/* ── shell ─────────────────────────────────────────────────────────────── */
+#app{display:flex;flex-direction:column;height:100%;height:100dvh;position:relative;z-index:1}
+
+header{
+  height:var(--hdr);flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:0 12px;border-bottom:1px solid var(--line);background:var(--bg2);
+  position:relative;z-index:30;
+}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.brand .mk{width:26px;height:30px;color:var(--ink);flex:0 0 auto;overflow:visible}
+.brand .mk .eye{transition:transform .12s}
+.wordmark{font:700 15px/1 var(--sans);letter-spacing:.24em;white-space:nowrap}
+.wordmark i{font-style:normal;color:var(--ink3);letter-spacing:.18em;font-weight:400}
+
+.hstat{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pill{
+  font:600 11px/1 var(--mono);letter-spacing:.1em;color:var(--ink2);
+  border:1px solid var(--line);border-radius:var(--r);padding:7px 9px;white-space:nowrap;
+  background:var(--panel);
+}
+.pill b{color:var(--ink);font-weight:700}
+.pill.hot{color:var(--accent);border-color:#4a2a0e}
+.iconbtn{
+  width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--panel);color:var(--ink2);
+}
+.iconbtn:hover{color:var(--ink);border-color:var(--line2)}
+.iconbtn svg{width:17px;height:17px}
+.iconbtn.on{color:var(--accent);border-color:#4a2a0e}
+
+/* ── main ──────────────────────────────────────────────────────────────── */
+main{flex:1 1 auto;display:flex;min-height:0}
+
+/* domain rail (desktop) */
+#rail{
+  width:190px;flex:0 0 auto;border-right:1px solid var(--line);background:var(--bg2);
+  overflow-y:auto;overscroll-behavior:contain;padding:8px 8px 30px;
+}
+.railhead{font:600 9px/1 var(--mono);letter-spacing:.22em;color:var(--ink3);padding:8px 6px 6px}
+.gbtn{
+  width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--r);
+  border:1px solid transparent;text-align:left;color:var(--ink2);
+  font:600 11px/1.1 var(--mono);letter-spacing:.1em;
+}
+.gbtn:hover{background:var(--panel)}
+.gbtn.sel{background:var(--panel2);border-color:var(--line2);color:var(--ink)}
+.gdot{width:8px;height:8px;border-radius:1px;flex:0 0 auto;transform:rotate(45deg)}
+.gname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gnum{font-size:10px;color:var(--ink3);font-weight:400}
+.gbtn.sel .gnum{color:var(--ink2)}
+.gbtn.fresh .gname::after{content:'';display:inline-block;width:5px;height:5px;background:var(--accent);border-radius:50%;margin-left:6px;vertical-align:middle}
+.gbtn.unknown{color:var(--ink3);font-style:italic;letter-spacing:.3em}
+.gbtn.unknown .gdot{background:var(--ink3);opacity:.4;animation:jit 4s steps(1) infinite}
+@keyframes jit{0%,92%{transform:rotate(45deg)}94%{transform:rotate(45deg) translate(2px,-1px)}96%{transform:rotate(45deg) translate(-2px,1px)}98%{transform:rotate(45deg)}}
+
+/* work column */
+#work{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0}
+
+/* ── bench ─────────────────────────────────────────────────────────────── */
+#bench{
+  flex:0 0 auto;border-bottom:1px solid var(--line);background:var(--bg2);
+  padding:14px 14px 12px;position:relative;overflow:hidden;
+}
+.benchrow{display:flex;align-items:center;justify-content:center;gap:12px;max-width:660px;margin:0 auto}
+.slot{
+  flex:0 0 auto;width:104px;height:104px;border:1px dashed var(--line2);border-radius:var(--r);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  background:var(--panel);position:relative;transition:border-color .15s,background .15s,transform .12s;
+}
+.slot.full{border-style:solid;background:var(--panel2)}
+.slot.full:hover{border-color:var(--line2)}
+.slot svg{width:44px;height:44px}
+.slot .sn{font:600 9px/1.15 var(--mono);letter-spacing:.09em;text-align:center;color:var(--ink);max-width:94px;overflow:hidden}
+.slot .ph{font:400 9px/1 var(--mono);letter-spacing:.2em;color:var(--ink3)}
+.slot .x{position:absolute;top:4px;right:5px;width:16px;height:16px;color:var(--ink3);display:none}
+.slot.full .x{display:grid;place-items:center}
+.slot .x:hover{color:var(--ink)}
+.op{font:300 26px/1 var(--sans);color:var(--ink3);flex:0 0 auto}
+
+.result{
+  flex:0 0 auto;min-width:104px;height:104px;border:1px solid var(--line);border-radius:var(--r);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  background:var(--panel);padding:0 12px;position:relative;overflow:hidden;
+}
+.result.empty{border-style:dashed;border-color:var(--line);background:transparent}
+.result svg{width:44px;height:44px}
+.result .sn{font:700 10px/1.15 var(--mono);letter-spacing:.09em;text-align:center}
+.result .tag{font:400 8px/1 var(--mono);letter-spacing:.2em;color:var(--ink3)}
+.result.got{cursor:pointer}
+.result.got::after{display:none}
+.result.reuse-ready .tag{color:var(--ink2);letter-spacing:.13em}
+.result.reuse-ready{border-color:#4a473f}
+.result.got:hover{border-color:var(--line2);background:var(--panel2)}
+.result.nope{border-color:#3a2020}
+.result.nope .sn{color:var(--ink3);font-weight:400}
+
+.hintline{
+  max-width:660px;margin:10px auto 0;min-height:17px;text-align:center;
+  font:400 12px/1.35 var(--sans);color:var(--ink2);
+}
+.hintline b{color:var(--accent);font-weight:600;letter-spacing:.06em}
+.hintline .q{color:var(--ink3);letter-spacing:.3em}
+
+/* ── grid ──────────────────────────────────────────────────────────────── */
+#gridwrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;position:relative}
+#gridwrap::before{
+  content:'';position:absolute;left:0;right:0;top:8%;bottom:0;pointer-events:none;z-index:0;
+  background:url(../assets/rizo-watermark.png) center 46%/auto 58% no-repeat;opacity:.035;
+}
+#tools{
+  flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:9px 14px;
+  border-bottom:1px solid var(--line);background:var(--bg);
+}
+#search{
+  flex:0 1 380px;min-width:0;margin-right:auto;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);padding:7px 10px;font:400 12px/1.2 var(--mono);letter-spacing:.06em;
+  color:var(--ink);outline:none;
+}
+#search:focus{border-color:var(--line2)}
+#search::placeholder{color:var(--ink3);letter-spacing:.14em}
+.chip{
+  font:600 10px/1 var(--mono);letter-spacing:.13em;color:var(--ink3);
+  border:1px solid var(--line);border-radius:var(--r);padding:7px 9px;white-space:nowrap;background:var(--panel);
+}
+.chip.on{color:var(--ink);border-color:var(--line2);background:var(--panel2)}
+.chip:hover{color:var(--ink2)}
+
+#grid{
+  position:relative;z-index:1;
+  flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
+  padding:12px 14px 90px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--grid),1fr));gap:8px;
+  align-content:start;
+}
+.el{
+  position:relative;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
+  padding:9px 4px 7px;display:flex;flex-direction:column;align-items:center;gap:5px;
+  transition:transform .1s,border-color .12s,background .12s;
+}
+.el:hover{border-color:var(--line2);background:var(--panel2)}
+.el:active{transform:scale(.94)}
+.el svg{width:32px;height:32px;flex:0 0 auto}
+.el .en{
+  font:600 8.5px/1.15 var(--mono);letter-spacing:.05em;color:var(--ink2);text-align:center;
+  width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.el.sel{border-color:var(--ink3);background:var(--panel2)}
+.el.sel .en{color:var(--ink)}
+.el.new::before{
+  content:'';position:absolute;top:-1px;right:-1px;width:0;height:0;
+  border-top:11px solid var(--accent);border-left:11px solid transparent;border-radius:0 var(--r) 0 0;
+}
+.el.fav::after{
+  content:'';position:absolute;top:5px;left:5px;width:5px;height:5px;background:var(--ink3);
+  transform:rotate(45deg);
+}
+.empty{grid-column:1/-1;text-align:center;color:var(--ink3);font:400 12px/1.6 var(--mono);letter-spacing:.1em;padding:40px 10px}
+
+/* ── shake / sputter ───────────────────────────────────────────────────── */
+@keyframes shk{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+.shake{animation:shk .26s}
+@keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .22s cubic-bezier(.2,1.4,.4,1)}
+@keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.reduced .shake,.reduced .pop{animation:none!important}
+
+#ink{position:fixed;inset:0;pointer-events:none;z-index:400}
+.spl{position:absolute;border-radius:50%;background:var(--accent);pointer-events:none}
+
+/* ── discovery card ────────────────────────────────────────────────────── */
+#card{
+  position:fixed;left:50%;top:calc(var(--hdr) + 14px);transform:translateX(-50%);
+  z-index:500;pointer-events:none;width:min(420px,calc(100vw - 28px));
+}
+.dcard{
+  border:1px solid var(--line2);border-radius:var(--r);background:#131316;
+  box-shadow:var(--shadow);padding:13px 15px;display:flex;gap:13px;align-items:center;
+  position:relative;overflow:hidden;pointer-events:auto;
+}
+.dcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.dcard svg.big{width:52px;height:52px;flex:0 0 auto;color:var(--accent)}
+.dc-t{font:400 8px/1 var(--mono);letter-spacing:.28em;color:var(--accent)}
+.dc-n{font:700 17px/1.1 var(--sans);letter-spacing:.06em;margin:4px 0 3px}
+.dc-f{font:400 12.5px/1.35 var(--sans);color:var(--ink2)}
+.dc-g{font:400 8px/1 var(--mono);letter-spacing:.22em;color:var(--ink3);margin-top:5px}
+@keyframes cardin{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes cardout{to{opacity:0;transform:translateY(-8px)}}
+.dcard{animation:cardin .2s cubic-bezier(.2,1.2,.4,1)}
+.dcard.out{animation:cardout .18s forwards}
+.reduced .dcard{animation:none}
+
+/* ── full-screen moments ───────────────────────────────────────────────── */
+#stage{
+  position:fixed;inset:0;z-index:700;display:none;place-items:center;
+  background:#000000e0;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  padding:24px;text-align:center;
+}
+#stage.on{display:grid}
+.stg{max-width:520px;animation:stgin .34s cubic-bezier(.2,1.1,.3,1)}
+@keyframes stgin{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.reduced .stg{animation:none}
+.stg .mark{width:104px;height:104px;margin:0 auto 14px;display:block}
+.stg .kick{font:400 9px/1 var(--mono);letter-spacing:.4em;color:var(--ink3);margin-bottom:14px}
+.stg h1{font:800 34px/1.05 var(--sans);letter-spacing:.03em;margin:0 0 10px}
+.stg h1.sm{font-size:26px}
+.stg p{font:400 15px/1.5 var(--sans);color:var(--ink2);margin:0 auto;max-width:38ch}
+.stg .go{
+  margin-top:22px;border:1px solid var(--line2);border-radius:var(--r);padding:11px 22px;
+  font:700 11px/1 var(--mono);letter-spacing:.22em;background:var(--panel);
+}
+.stg .go:hover{background:var(--panel2);border-color:var(--ink3)}
+.bignum{font:800 54px/1 var(--mono);letter-spacing:-.02em}
+.bignum s{text-decoration:none;color:var(--ink3)}
+
+@keyframes flash{0%{opacity:.85}100%{opacity:0}}
+#flash{position:fixed;inset:0;background:#fff;z-index:690;pointer-events:none;opacity:0}
+#flash.go{animation:flash .3s ease-out}
+.reduced #flash.go{animation:none}
+
+/* ── sheets (encyclopedia / achievements / settings) ───────────────────── */
+#sheet{
+  position:fixed;inset:0;z-index:600;display:none;background:#000000c9;
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+}
+#sheet.on{display:block}
+.sh{
+  position:absolute;right:0;top:0;bottom:0;width:min(560px,100%);
+  background:var(--bg2);border-left:1px solid var(--line);display:flex;flex-direction:column;
+  animation:shin .2s ease-out;
+}
+@keyframes shin{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.reduced .sh{animation:none}
+.shhead{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid var(--line);
+}
+.shhead h2{font:700 13px/1 var(--sans);letter-spacing:.26em;margin:0;flex:1}
+.shbody{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:14px 14px 60px}
+.shtabs{display:flex;gap:6px;padding:0 14px 12px;flex-wrap:wrap}
+
+.row{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--line)}
+.row svg{width:30px;height:30px;flex:0 0 auto}
+.row .rn{font:700 12px/1.2 var(--mono);letter-spacing:.07em}
+.row .rf{font:400 12px/1.35 var(--sans);color:var(--ink2);margin-top:2px}
+.row .rg{font:400 8px/1 var(--mono);letter-spacing:.2em;color:var(--ink3);margin-top:4px}
+.row .rt{flex:1;min-width:0}
+.row .fav{width:26px;height:26px;display:grid;place-items:center;color:var(--ink3);flex:0 0 auto}
+.row .fav.on{color:var(--accent)}
+.recipes{padding:2px 0 10px 41px;display:flex;flex-wrap:wrap;gap:5px}
+.rc{
+  font:600 9px/1 var(--mono);letter-spacing:.06em;color:var(--ink2);
+  border:1px solid var(--line);border-radius:var(--r);padding:5px 7px;background:var(--panel);
+}
+.rc em{font-style:normal;color:var(--ink3);margin:0 3px}
+
+.ach{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.ach .bx{
+  width:30px;height:30px;flex:0 0 auto;border:1px solid var(--line2);border-radius:var(--r);
+  display:grid;place-items:center;font:700 12px/1 var(--mono);color:var(--ink3);
+}
+.ach.got .bx{border-color:var(--accent);color:var(--accent)}
+.ach .an{font:700 11px/1.2 var(--mono);letter-spacing:.12em;color:var(--ink3)}
+.ach.got .an{color:var(--ink)}
+.ach .ad{font:400 12px/1.35 var(--sans);color:var(--ink3);margin-top:3px}
+.ach.got .ad{color:var(--ink2)}
+
+.stat{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);
+  font:400 12px/1.3 var(--mono);letter-spacing:.08em;color:var(--ink2)}
+.stat b{color:var(--ink);font-weight:700}
+.bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin:12px 0 18px}
+.bar i{display:block;height:100%;background:var(--accent)}
+
+.btn{
+  border:1px solid var(--line2);border-radius:var(--r);padding:10px 14px;background:var(--panel);
+  font:700 10px/1 var(--mono);letter-spacing:.18em;color:var(--ink2);
+}
+.btn:hover{color:var(--ink);background:var(--panel2)}
+.btn.danger:hover{color:var(--bad);border-color:#4a1f1f}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.note{font:400 12px/1.5 var(--sans);color:var(--ink3);margin:8px 0 18px}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.setrow span{font:600 11px/1.2 var(--mono);letter-spacing:.12em}
+.tg{width:42px;height:23px;border:1px solid var(--line2);border-radius:12px;background:var(--panel);position:relative;flex:0 0 auto}
+.tg i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--ink3);transition:.15s}
+.tg.on{border-color:var(--accent)}
+.tg.on i{left:21px;background:var(--accent)}
+textarea{
+  width:100%;height:110px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  color:var(--ink2);font:400 10px/1.4 var(--mono);padding:9px;resize:none;outline:none;
+}
+
+/* ── mobile ────────────────────────────────────────────────────────────── */
+#mrail{display:none}
+@media (max-width:860px){
+  :root{--grid:70px;--hdr:48px}
+  #rail{display:none}
+  #mrail{
+    display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;
+    padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg2);
+    flex:0 0 auto;scrollbar-width:none;
+  }
+  #mrail::-webkit-scrollbar{display:none}
+  #mrail .gbtn{width:auto;flex:0 0 auto;border:1px solid var(--line);background:var(--panel);padding:7px 10px}
+  #mrail .gnum{margin-left:2px}
+  #bench{padding:11px 11px 10px}
+  .slot{width:84px;height:84px}
+  .slot svg{width:36px;height:36px}
+  .slot .sn{font-size:8px;max-width:76px}
+  .result{min-width:84px;height:84px;padding:0 9px}
+  .result svg{width:36px;height:36px}
+  .benchrow{gap:8px}
+  .op{font-size:20px}
+  #grid{padding:10px 11px 80px;gap:7px}
+  #tools{padding:8px 11px}
+  .sh{width:100%;border-left:0}
+  .stg h1{font-size:27px}
+  .stg h1.sm{font-size:21px}
+  .stg .mark{width:82px;height:82px}
+  .bignum{font-size:42px}
+  .wordmark{font-size:13px;letter-spacing:.18em}
+  .wordmark i{display:none}
+}
+@media (max-width:560px){
+  .wordmark{display:none}
+  #pSecret{display:none!important}
+  .iconbtn{width:31px;height:31px}
+  .iconbtn svg{width:16px;height:16px}
+  .hstat{gap:6px}
+  header{padding:0 9px;gap:8px}
+  .pill{padding:7px 8px;font-size:10.5px;letter-spacing:.06em}
+}
+@media (max-width:400px){
+  :root{--grid:62px}
+  .slot{width:74px;height:74px}
+  .slot svg{width:32px;height:32px}
+  .result{min-width:74px;height:74px}
+  .result svg{width:32px;height:32px}
+  .benchrow{gap:6px}
+  .op{font-size:17px}
+  .dcard{padding:11px 12px;gap:10px}
+  .dcard svg.big{width:42px;height:42px}
+  .dc-n{font-size:15px}
+}
+/* wide screens: keep the board tight instead of letting it sprawl */
+@media (min-width:1120px){
+  .benchrow{max-width:740px}
+  .slot{width:118px;height:118px}
+  .slot svg{width:50px;height:50px}
+  .result{min-width:118px;height:118px}
+  #grid{padding-left:max(14px,calc((100% - 1120px)/2));padding-right:max(14px,calc((100% - 1120px)/2))}
+  #tools{padding-left:max(14px,calc((100% - 1120px)/2));padding-right:max(14px,calc((100% - 1120px)/2))}
+  #bench{padding-top:20px;padding-bottom:16px}
+}
+@media (min-width:1500px){ :root{--grid:80px} }
+
+/* the rail signs off */
+.railfoot{
+  margin-top:18px;padding:12px 8px 0;border-top:1px solid var(--line);
+  font:400 8px/1.6 var(--mono);letter-spacing:.2em;color:#3a3a41;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RIZO RESCUE V2 — THE BOARD
+   The original shell was correct but read like a developer dashboard. These
+   overrides keep the fast information density while turning the interface into
+   a physical, printed discovery board built around the artwork.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#090908;
+  --bg2:#0d0d0c;
+  --panel:#131311;
+  --panel2:#191916;
+  --tile:#151513;
+  --slot-bg:#11110f;
+  --card-bg:#121210;
+  --line:#2a2924;
+  --line2:#403d34;
+  --ink:#eee9dc;
+  --ink2:#aaa397;
+  --ink3:#6f6a61;
+  --accent:#d87435;
+  --accent-d:#d874351d;
+  --rizo:#2ba7c8;
+  --r:1px;
+  --grid:88px;
+  --hdr:50px;
+  --shadow:0 16px 45px -16px #000;
+  --display:Georgia,"Times New Roman",serif;
+}
+
+body{
+  background:
+    radial-gradient(circle at 50% 20%,rgba(255,255,255,.018),transparent 33%),
+    var(--bg);
+}
+body::after{opacity:.19;mix-blend-mode:screen}
+
+/* header: a masthead, not a toolbar */
+header{
+  background:#0b0b0a;
+  border-bottom-color:#302e28;
+  padding:0 14px;
+}
+.brand{gap:10px}
+.brand .mk{width:27px;height:31px;filter:drop-shadow(0 0 7px rgba(238,233,220,.05))}
+.wordmark{font:800 13px/1 var(--sans);letter-spacing:.31em}
+.wordmark i{font-size:11px;color:#777066;letter-spacing:.24em}
+.pill,.iconbtn{
+  background:#11110f;border-color:#302e28;border-radius:1px;
+  box-shadow:inset 0 1px rgba(255,255,255,.015);
+}
+.iconbtn:hover,.pill:hover{border-color:#534e42;background:#171613}
+
+/* left domain index */
+#rail{
+  width:184px;background:#0b0b0a;border-right-color:#302e28;padding:10px 8px 34px;
+}
+.railhead{letter-spacing:.27em;color:#68635b;padding-top:9px}
+.gbtn{border-radius:0;padding:7px 8px;position:relative}
+.gbtn::after{content:'';position:absolute;left:0;bottom:0;width:0;height:1px;background:currentColor;opacity:.28;transition:width .16s}
+.gbtn:hover::after,.gbtn.sel::after{width:100%}
+.gbtn.sel{background:#171613;border-color:#3b3931}
+.gdot{border-radius:0}
+.railfoot{color:#46423b;letter-spacing:.24em}
+
+/* Workbench becomes the visual ritual space. */
+#bench{
+  background:
+    repeating-linear-gradient(90deg,transparent 0 39px,rgba(255,255,255,.012) 40px),
+    repeating-linear-gradient(0deg,transparent 0 39px,rgba(255,255,255,.008) 40px),
+    #0d0d0c;
+  border-bottom-color:#302e28;
+  padding:11px 18px 12px;
+}
+#bench::before{
+  content:'';position:absolute;left:50%;top:47px;width:min(720px,76%);height:1px;
+  transform:translateX(-50%);background:linear-gradient(90deg,transparent,#312f29 15%,#312f29 85%,transparent);
+  opacity:.72;pointer-events:none;
+}
+.bench-caption{
+  width:min(710px,100%);margin:0 auto 9px;display:flex;align-items:center;justify-content:space-between;gap:18px;
+  font:700 8px/1 var(--mono);letter-spacing:.24em;color:#706a60;text-transform:uppercase;
+}
+.bench-caption>span:first-child{color:#c2baac;white-space:nowrap}
+#benchCue{font-weight:500;letter-spacing:.16em;text-align:right;color:#776f65}
+.benchrow{max-width:600px;gap:11px;position:relative;z-index:1}
+.slot,.result{
+  width:92px;height:92px;min-width:92px;border-radius:0;background:#11110f;
+  clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px));
+  box-shadow:inset 0 0 0 1px #34322c;
+  border:0;
+}
+.slot{border:0!important;outline:1px dashed #3a3831;outline-offset:-1px}
+.slot.full{outline-style:solid;background:#171613}
+.slot.full::before,.result.got::before{
+  content:'';position:absolute;left:7px;right:7px;top:5px;height:1px;background:currentColor;opacity:.3;
+}
+.slot-art,.result-art{display:grid;place-items:center;width:56px;height:56px}
+.slot-art svg,.result-art svg{width:56px!important;height:56px!important}
+.slot .sn,.result .sn{font-weight:750;letter-spacing:.1em}
+.slot .ph,.result .ph{font-size:8px;letter-spacing:.23em;color:#777066}
+.op{font-family:var(--display);font-size:23px;color:#827a6f}
+.op.arrow{font-family:var(--mono);font-size:16px;color:#625d55}
+.result.empty{background:rgba(0,0,0,.08);box-shadow:inset 0 0 0 1px #282720;outline:1px dashed #302e28;outline-offset:-1px}
+.result.got{box-shadow:inset 0 0 0 1px #4d493e,0 0 20px rgba(255,255,255,.018)}
+.result.got::after{bottom:3px;color:#70695e}
+.hintline{margin-top:8px;min-height:15px;font-size:11.5px;color:#948d81}
+
+/* collection masthead */
+.collection-head{
+  position:relative;z-index:2;display:flex;align-items:end;justify-content:space-between;gap:20px;
+  padding:15px 18px 7px;background:var(--bg);
+}
+.collection-head::after{content:'';position:absolute;left:18px;right:18px;bottom:0;height:1px;background:#24231f}
+.collection-head h1{
+  margin:0;font:700 20px/.95 var(--display);letter-spacing:.025em;text-transform:uppercase;color:var(--ink);
+}
+.collection-head span{
+  font:600 8px/1 var(--mono);letter-spacing:.18em;color:#746e64;text-align:right;text-transform:uppercase;
+}
+#tools{padding:8px 18px 9px;background:#090908;border-bottom-color:#292721;gap:7px}
+#search{
+  flex-basis:330px;background:#11110f;border:1px solid #302e28;border-radius:0;padding:8px 10px;
+  letter-spacing:.04em;
+}
+#search:focus{border-color:#5b5549;background:#151411}
+#search::placeholder{letter-spacing:.1em;color:#6b655c}
+.chip{border-radius:0;background:#11110f;border-color:#2c2b25;padding:8px 9px}
+.chip.on{background:#1b1a16;border-color:#4c483e;color:#f1ecdf}
+
+/* collection surface */
+#gridwrap::before{opacity:.018;background-size:auto 52%;background-position:center 57%}
+#grid{
+  padding:11px 18px 90px;gap:8px;
+  grid-template-columns:repeat(auto-fill,minmax(var(--grid),1fr));
+}
+.el{
+  min-height:100px;border:0;border-radius:0;background:#141412;padding:8px 5px 7px;gap:4px;
+  clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));
+  box-shadow:inset 0 0 0 1px #2e2c27;
+  isolation:isolate;
+}
+.el::after{
+  content:'';position:absolute;left:6px;right:6px;top:4px;height:1px;background:var(--domain);opacity:.45;z-index:-1;
+}
+.el:hover{background:#1a1916;box-shadow:inset 0 0 0 1px #4c483e;transform:translateY(-1px)}
+.el:active{transform:scale(.96)}
+.el.sel{background:#1d1c18;box-shadow:inset 0 0 0 1px #6c6456,0 0 0 1px rgba(255,255,255,.02)}
+.el-art{width:60px;height:60px;display:grid;place-items:center;margin-top:1px}
+.el-art svg{width:58px!important;height:58px!important;overflow:visible;filter:drop-shadow(0 1px rgba(0,0,0,.35))}
+.el .en{
+  margin-top:auto;font-size:8px;line-height:1.1;letter-spacing:.075em;color:#b5aea1;text-transform:uppercase;
+}
+.el.sel .en{color:#f4eee1}
+.el.new::before{
+  border-top-width:13px;border-left-width:13px;border-top-color:var(--domain,var(--accent));border-radius:0;z-index:4;
+}
+.el.fav::after{top:6px;left:6px;right:auto;bottom:auto;width:5px;height:5px;background:var(--ink2);opacity:.75;z-index:5}
+.illustration.art-authored{filter:drop-shadow(0 1px rgba(0,0,0,.32))}
+.illustration.art-derived{opacity:.92}
+
+/* discovery cards are tiny collectible plates */
+#card{top:calc(var(--hdr) + 12px);width:min(470px,calc(100vw - 24px))}
+.dcard{
+  border:0;border-radius:0;background:#151411;padding:12px 14px 12px 12px;gap:13px;
+  box-shadow:inset 0 0 0 1px #464239,var(--shadow);
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+}
+.dcard::before{width:4px;background:var(--accent)}
+.dcard-art{display:grid;place-items:center;flex:0 0 auto;width:70px;height:70px;border-right:1px solid #302e28;padding-right:8px}
+.dcard-art svg.big{width:62px!important;height:62px!important}
+.dc-t{letter-spacing:.32em}
+.dc-n{font:700 19px/1.05 var(--display);letter-spacing:.02em;text-transform:uppercase}
+.dc-f{color:#bbb3a6}
+.dc-g{letter-spacing:.24em}
+
+/* full screen reveals become an occult print plate, not a modal */
+#stage{
+  background:rgba(5,5,4,.94);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:20px;
+}
+#stage::before{
+  content:'';position:absolute;inset:18px;pointer-events:none;border:1px solid #2f2c26;
+  clip-path:polygon(0 0,100% 0,100% 100%,0 100%);
+}
+#stage::after{
+  content:'';position:absolute;inset:31px;pointer-events:none;
+  background:linear-gradient(90deg,#514b3d 0 18px,transparent 18px calc(100% - 18px),#514b3d calc(100% - 18px)) top/100% 1px no-repeat,
+             linear-gradient(90deg,#514b3d 0 18px,transparent 18px calc(100% - 18px),#514b3d calc(100% - 18px)) bottom/100% 1px no-repeat;
+  opacity:.34;
+}
+.stg{width:min(570px,100%);max-width:570px;position:relative;z-index:1;padding:18px 12px}
+.stg .kick{letter-spacing:.43em;color:#7f786d}
+.stg h1{font:700 38px/.96 var(--display);letter-spacing:.015em;text-transform:uppercase}
+.stg h1.sm{font-size:31px}
+.stg p{font-size:15px;color:#bcb4a7}
+.stg .go{border-radius:0;background:#161511;border-color:#4b473c;padding:12px 25px;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px))}
+.stage-art{width:140px;height:140px;display:grid;place-items:center;margin:0 auto 13px;position:relative}
+.stage-art::before,.stage-art::after{content:'';position:absolute;inset:5px;border:1px solid currentColor;opacity:.13;transform:rotate(4deg)}
+.stage-art::after{transform:rotate(-5deg);inset:13px;opacity:.08}
+.stage-art svg{width:132px!important;height:132px!important;position:relative;z-index:1;overflow:visible}
+.stage-domain{width:128px;height:128px;display:grid;place-items:center;margin:0 auto 14px;position:relative}
+.stage-domain::before{content:'';position:absolute;inset:2px;border:1px solid currentColor;transform:rotate(45deg);opacity:.25}
+.stage-domain svg{width:112px!important;height:112px!important;position:relative;z-index:1}
+
+/* side sheets feel like field notes */
+.sh{background:#0d0d0c;border-left-color:#37342c}
+.shhead{border-bottom-color:#302e28;background:#11110f}
+.shhead h2{letter-spacing:.3em}
+.row{border-bottom-color:#292720}
+.row svg{width:38px;height:38px}
+.rc,.btn,textarea{border-radius:0;background:#141411;border-color:#302e28}
+.ach .bx{border-radius:0}
+.tg{border-radius:1px}.tg i{border-radius:1px}
+
+/* mobile is an intentionally different composition */
+@media (max-width:860px){
+  :root{--hdr:48px;--grid:76px}
+  #mrail{padding:7px 10px;background:#0c0c0b;border-bottom-color:#2e2c26}
+  #mrail .gbtn{border-radius:0;background:#121210;border-color:#2e2c26;padding:7px 9px}
+  #bench{padding:8px 9px 9px}
+  #bench::before{top:39px;width:90%}
+  .bench-caption{margin-bottom:7px;padding:0 1px}
+  .benchrow{gap:6px;max-width:390px}
+  .slot,.result{width:76px;height:76px;min-width:76px}
+  .slot-art,.result-art{width:44px;height:44px}
+  .slot-art svg,.result-art svg{width:44px!important;height:44px!important}
+  .slot .sn,.result .sn{font-size:7.5px;max-width:69px}
+  .op{font-size:18px}.op.arrow{font-size:13px}
+  .hintline{margin-top:6px;font-size:10.5px;min-height:13px}
+  .collection-head{padding:11px 10px 7px;align-items:center}
+  .collection-head::after{left:10px;right:10px}
+  .collection-head h1{font-size:18px}
+  .collection-head span{font-size:7.5px;letter-spacing:.13em;max-width:45%}
+  #tools{padding:7px 10px 8px;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  #search{grid-column:1/-1;width:100%;max-width:none;padding:7px 9px;font-size:11px;margin:0}
+  .chip{padding:7px 4px;text-align:center;font-size:8.5px;letter-spacing:.1em}
+  #grid{padding:9px 9px 72px;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .el{min-height:88px;padding:6px 3px 6px}
+  .el-art{width:50px;height:50px}
+  .el-art svg{width:49px!important;height:49px!important}
+  .el .en{font-size:7.2px;letter-spacing:.045em;padding:0 1px}
+  .sh{width:100%;border-left:0}
+  .stage-art{width:116px;height:116px}.stage-art svg{width:110px!important;height:110px!important}
+  .stage-domain{width:110px;height:110px}.stage-domain svg{width:96px!important;height:96px!important}
+  .stg h1{font-size:30px}.stg h1.sm{font-size:25px}
+  .stg p{font-size:14px}
+  .bignum{font-size:40px}
+}
+
+@media (max-width:560px){
+  header{padding:0 8px}
+  .brand .mk{width:25px;height:28px}
+  .hstat{gap:5px}
+  .pill{padding:7px 7px;font-size:9.5px}
+  .iconbtn{width:31px;height:31px}
+  .bench-caption{font-size:7px;letter-spacing:.16em;gap:10px}
+  #benchCue{font-size:6.8px;letter-spacing:.09em}
+  #mrail{gap:5px}
+  .collection-head h1{font-size:17px}
+  .dcard{padding:9px 10px 9px 9px;gap:9px}
+  .dcard-art{width:58px;height:58px;padding-right:7px}
+  .dcard-art svg.big{width:51px!important;height:51px!important}
+  .dc-n{font-size:16px}.dc-f{font-size:11.5px}
+}
+
+@media (max-width:390px){
+  :root{--grid:70px}
+  .slot,.result{width:70px;height:70px;min-width:70px}
+  .slot-art,.result-art{width:40px;height:40px}
+  .slot-art svg,.result-art svg{width:40px!important;height:40px!important}
+  .benchrow{gap:5px}.op{font-size:16px}.op.arrow{font-size:11px}
+  .el{min-height:82px}.el-art{width:46px;height:46px}.el-art svg{width:45px!important;height:45px!important}
+}
+
+@media (min-width:1120px){
+  :root{--grid:92px}
+  .benchrow{max-width:620px}
+  .slot,.result{width:96px;height:96px;min-width:96px}
+  #bench{padding-top:11px;padding-bottom:12px}
+  #grid,#tools,.collection-head{padding-left:max(18px,calc((100% - 1120px)/2));padding-right:max(18px,calc((100% - 1120px)/2))}
+  .collection-head::after{left:max(18px,calc((100% - 1120px)/2));right:max(18px,calc((100% - 1120px)/2))}
+}
+#card{display:grid;gap:6px}
+
+/* ═══ RIZO JUICE PASS — the board should feel alive ═════════════════════ */
+:root{--world-ink:var(--rizo)}
+
+/* sound is never an invisible setting again */
+#bSound{position:relative}
+#bSound.alive::before{content:'';position:absolute;right:3px;top:3px;width:4px;height:4px;background:var(--ok);transform:rotate(45deg);box-shadow:0 0 8px var(--ok)}
+#bSound.muted{color:var(--bad);border-color:#472424}
+#bSound.muted .waves{display:none}
+#bSound.muted::after{content:'';position:absolute;width:18px;height:1px;background:currentColor;transform:rotate(-45deg)}
+
+/* global reaction layer */
+#reactionFX{position:fixed;inset:0;z-index:620;pointer-events:none;overflow:hidden}
+.pickghost{position:fixed;width:52px;height:52px;display:grid;place-items:center;filter:drop-shadow(0 4px 10px #000);will-change:transform,opacity}
+.pickghost svg{width:50px!important;height:50px!important;overflow:visible}
+.rxring{position:fixed;width:34px;height:34px;border:2px solid currentColor;transform:translate(-50%,-50%) rotate(45deg);opacity:.9;animation:rxring .5s cubic-bezier(.1,.72,.26,1) forwards;box-shadow:0 0 18px currentColor}
+.rxring.major{width:46px;height:46px;border-width:3px;animation-duration:.74s;box-shadow:0 0 30px currentColor}
+@keyframes rxring{0%{transform:translate(-50%,-50%) rotate(45deg) scale(.28);opacity:1}72%{opacity:.48}100%{transform:translate(-50%,-50%) rotate(225deg) scale(4.2);opacity:0}}
+
+/* tactile screen response */
+@keyframes kickHit{0%,100%{transform:none}24%{transform:translateY(1px) scale(.999)}48%{transform:translateY(-1px)}}
+@keyframes kickFail{0%,100%{transform:none}20%{transform:translateX(-3px)}40%{transform:translateX(3px)}62%{transform:translateX(-2px)}82%{transform:translateX(1px)}}
+@keyframes kickMajor{0%,100%{transform:none}18%{transform:scale(1.004)}42%{transform:translateY(2px) scale(.998)}68%{transform:translateY(-1px)}}
+#app.kick-hit{animation:kickHit .23s ease-out}
+#app.kick-fail{animation:kickFail .25s ease-out}
+#app.kick-major{animation:kickMajor .4s cubic-bezier(.18,.8,.25,1)}
+
+/* ingredient placement */
+@keyframes slotHit{0%{transform:scale(.88);box-shadow:inset 0 0 0 1px #777,0 0 0 currentColor}55%{transform:scale(1.045);box-shadow:inset 0 0 0 1px #777,0 0 20px currentColor}100%{transform:none}}
+.slot.slot-hit{animation:slotHit .25s cubic-bezier(.15,.9,.25,1)}
+
+/* the two ingredients physically commit to a reaction before the answer */
+#bench.reacting{z-index:2}
+#bench.reacting #slotA{animation:fuseA .19s cubic-bezier(.2,.8,.25,1) both}
+#bench.reacting #slotB{animation:fuseB .19s cubic-bezier(.2,.8,.25,1) both}
+#bench.reacting .op{animation:opHot .19s steps(2,end) infinite;color:var(--ink)}
+#bench.reacting .result{animation:reactorWake .19s ease-out both}
+#bench.reacting::after{content:'REACTION';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-4deg);z-index:0;font:800 46px/1 var(--display);letter-spacing:.18em;color:var(--mix-a,var(--ink3));opacity:.055;pointer-events:none;white-space:nowrap}
+@keyframes fuseA{0%{transform:none}70%{transform:translateX(8px) rotate(1deg) scale(1.03)}100%{transform:translateX(5px) scale(.98)}}
+@keyframes fuseB{0%{transform:none}70%{transform:translateX(-8px) rotate(-1deg) scale(1.03)}100%{transform:translateX(-5px) scale(.98)}}
+@keyframes opHot{0%{opacity:.35;transform:scale(.85)}100%{opacity:1;transform:scale(1.15)}}
+@keyframes reactorWake{0%{box-shadow:inset 0 0 0 1px #282720}100%{box-shadow:inset 0 0 0 1px var(--mix-b,#777),0 0 26px rgba(255,255,255,.08)}}
+
+/* a newborn result stamps into the bench instead of merely appearing */
+.result.fresh-result{isolation:isolate}
+.result.fresh-result::before{opacity:.75!important;animation:freshLine 1.1s ease-out}
+.result.fresh-result .result-art{animation:freshArt .48s cubic-bezier(.1,1.15,.25,1)}
+.result.fresh-result .sn{animation:freshName .6s cubic-bezier(.1,.85,.2,1)}
+@keyframes freshArt{0%{transform:scale(.2) rotate(-12deg);opacity:0;filter:blur(5px)}60%{transform:scale(1.14) rotate(2deg);opacity:1;filter:blur(0)}100%{transform:none}}
+@keyframes freshName{0%{opacity:0;letter-spacing:.35em}100%{opacity:1}}
+@keyframes freshLine{0%{transform:scaleX(0);transform-origin:left}100%{transform:scaleX(1)}}
+
+/* current discovery briefly stains the physical board */
+body.world-hit #bench{box-shadow:inset 0 -2px 0 var(--world-ink),0 6px 28px -24px var(--world-ink)}
+body.world-hit #collectionTitle{text-shadow:0 0 18px var(--world-ink)}
+
+/* RIZO HEAT is ephemeral: momentum, not a second currency */
+#chain{position:fixed;left:50%;top:auto;bottom:calc(18px + env(safe-area-inset-bottom));z-index:660;transform:translate(-50%,-12px) rotate(-1deg);pointer-events:none;opacity:0;min-width:220px;max-width:calc(100vw - 28px);text-align:center;background:#0b0b0a;box-shadow:inset 0 0 0 1px var(--heat,var(--accent)),6px 7px 0 rgba(0,0,0,.35);padding:8px 16px 7px;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+#chain.on{animation:chainIn 1.65s cubic-bezier(.12,.8,.2,1) forwards}
+.chain-k{font:800 12px/1 var(--mono);letter-spacing:.18em;color:var(--heat,var(--accent));text-transform:uppercase}
+.chain-s{margin-top:4px;font:650 8px/1.2 var(--mono);letter-spacing:.18em;color:var(--ink2);text-transform:uppercase}
+@keyframes chainIn{0%{opacity:0;transform:translate(-50%,-18px) rotate(-2deg) scale(.82)}14%{opacity:1;transform:translate(-50%,0) rotate(1deg) scale(1.04)}22%,72%{opacity:1;transform:translate(-50%,0) rotate(-1deg) scale(1)}100%{opacity:0;transform:translate(-50%,-8px) rotate(-1deg) scale(.97)}}
+
+/* discovery card hierarchy */
+.dc-copy{flex:1;min-width:0}
+.dc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.dc-ix{font:600 7px/1 var(--mono);letter-spacing:.17em;color:#6f695f;white-space:nowrap}
+.dcard{transform-origin:50% 0}
+.dcard .dcard-art{animation:cardPlate .34s cubic-bezier(.12,1,.3,1)}
+@keyframes cardPlate{0%{transform:scale(.5) rotate(-7deg);opacity:0}65%{transform:scale(1.08) rotate(2deg);opacity:1}100%{transform:none}}
+
+/* first-run seal: four elements orbit the RIZO mark like a printed ritual */
+.origin-seal{width:124px;height:124px;margin:0 auto 8px;position:relative;display:grid;place-items:center}
+.origin-seal::before,.origin-seal::after{content:'';position:absolute;inset:5px;border:1px solid currentColor;opacity:.28;transform:rotate(45deg);animation:sealTurn 8s linear infinite}
+.origin-seal::after{inset:18px;opacity:.16;animation-direction:reverse;animation-duration:5s}
+.origin-seal .mark{width:94px!important;height:94px!important;margin:0!important;filter:drop-shadow(0 0 18px rgba(0,194,255,.18))}
+.origin-four{display:flex;justify-content:center;gap:10px;margin:15px auto 13px}
+.origin-piece{width:56px;height:56px;display:grid;place-items:center;background:#11110f;box-shadow:inset 0 0 0 1px #3a3730;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));animation:originPiece 2.4s ease-in-out infinite}
+.origin-piece:nth-child(2){animation-delay:-.6s}.origin-piece:nth-child(3){animation-delay:-1.2s}.origin-piece:nth-child(4){animation-delay:-1.8s}
+.origin-piece svg{width:43px!important;height:43px!important}
+.origin-law{margin-top:14px!important;font:800 10px/1 var(--mono)!important;letter-spacing:.32em!important;color:var(--rizo)!important}
+@keyframes sealTurn{to{transform:rotate(405deg)}}
+@keyframes originPiece{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#stage .go{transition:transform .12s,box-shadow .12s,border-color .12s}
+#stage .go:hover{transform:translateY(-2px);box-shadow:0 7px 0 #000;border-color:var(--rizo)}
+#stage .go:active{transform:translateY(1px);box-shadow:0 2px 0 #000}
+
+/* make ordinary element taps feel authored rather than web-button-ish */
+.el{touch-action:manipulation}
+.el::before{transition:opacity .12s,transform .12s}
+.el:active .el-art{transform:scale(.92) rotate(-2deg)}
+.el-art{transition:transform .12s cubic-bezier(.2,.8,.3,1)}
+
+.reduced #reactionFX,.reduced #chain{display:none!important}
+.reduced #app,.reduced .slot,.reduced .result,.reduced .origin-seal::before,.reduced .origin-seal::after,.reduced .origin-piece,.reduced .dcard-art{animation:none!important}
+
+@media(max-width:560px){
+  #chain{top:auto;bottom:calc(12px + env(safe-area-inset-bottom));min-width:190px;padding:7px 12px}
+  .chain-k{font-size:10px}.chain-s{font-size:7px}
+  .origin-seal{width:104px;height:104px}.origin-seal .mark{width:80px!important;height:80px!important}
+  .origin-four{gap:6px;margin-top:12px}.origin-piece{width:48px;height:48px}.origin-piece svg{width:37px!important;height:37px!important}
+  #bench.reacting::after{font-size:30px;letter-spacing:.12em}
+  .dc-ix{font-size:6.5px}
+}
+
+.moment-stamp{display:inline-block;margin-top:18px;padding:6px 9px;border:1px solid currentColor;font:700 8px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;opacity:.72;transform:rotate(-1deg);box-shadow:4px 4px 0 #000}
+#stage.on .stage-domain{animation:domainBreach .8s cubic-bezier(.12,1,.24,1)}
+#stage.on .stage-art{animation:landmarkDrop .62s cubic-bezier(.12,1.15,.24,1)}
+@keyframes domainBreach{0%{transform:scale(.2) rotate(-24deg);opacity:0}48%{transform:scale(1.18) rotate(5deg);opacity:1}72%{transform:scale(.96) rotate(-2deg)}100%{transform:none}}
+@keyframes landmarkDrop{0%{transform:translateY(-34px) scale(1.35) rotate(-8deg);opacity:0}58%{transform:translateY(3px) scale(.96) rotate(2deg);opacity:1}100%{transform:none}}
+.reduced #stage .stage-domain,.reduced #stage .stage-art{animation:none!important}
+
+.el.birth{animation:tileBorn .58s cubic-bezier(.12,1.1,.24,1)}
+.el.birth .el-art{animation:tileGlyph .58s cubic-bezier(.12,1.2,.22,1)}
+@keyframes tileBorn{0%{opacity:0;transform:translateY(12px) rotate(-2deg);box-shadow:inset 0 0 0 1px var(--domain)}55%{opacity:1;transform:translateY(-3px) rotate(1deg);box-shadow:inset 0 0 0 1px var(--domain),0 0 22px var(--domain)}100%{transform:none}}
+@keyframes tileGlyph{0%{transform:scale(.25) rotate(-14deg)}64%{transform:scale(1.15) rotate(3deg)}100%{transform:none}}
+.reduced .el.birth,.reduced .el.birth .el-art{animation:none!important}
+
+#pFound.count-pop{animation:countPop .42s cubic-bezier(.12,1.15,.22,1)}
+@keyframes countPop{0%{transform:scale(.88);border-color:var(--world-ink)}45%{transform:scale(1.12);color:var(--world-ink);box-shadow:0 0 16px var(--world-ink)}100%{transform:none}}
+.reduced #pFound.count-pop{animation:none!important}
+
+/* ═══ RIZO JUICE V4 — audio certainty + escalating first-session heat ═════ */
+#bSound.locked:not(.muted){border-color:#665a24;color:#d9c568}
+#bSound.locked:not(.muted)::before{content:'!';position:absolute;right:2px;top:1px;width:8px;height:8px;font:900 7px/8px var(--mono);text-align:center;color:#0b0b09;background:#d9c568;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+#bSound.alive::before{content:''!important}
+.btn.mini{padding:7px 9px;font-size:8px;letter-spacing:.12em;white-space:nowrap}
+
+/* Heat changes the *room*, not the score. It falls away by itself. */
+body.heat-mode #bench{box-shadow:inset 0 -2px 0 var(--world-ink),0 8px 34px -25px var(--world-ink)}
+body.heat-mode #gridwrap::before{opacity:.055;animation:heatScan 1.15s linear infinite}
+body.heat-mode .brand .mk{filter:drop-shadow(0 0 8px var(--world-ink))}
+body.heat-high #gridwrap::before{opacity:.10;animation-duration:.72s}
+body.heat-high #bench{animation:heatBench .9s steps(2,end) infinite}
+@keyframes heatScan{0%{transform:translateY(-12%)}100%{transform:translateY(112%)}}
+@keyframes heatBench{0%,100%{filter:none}50%{filter:brightness(1.06)}}
+.reduced body.heat-mode #gridwrap::before,.reduced body.heat-high #bench{animation:none!important}
+
+/* The second ingredient now lands before the reaction commits. The bench
+   visibly compresses, charges, then breaks open into the result. */
+#bench.reacting #slotA{animation-duration:.30s;animation-fill-mode:both}
+#bench.reacting #slotB{animation-duration:.30s;animation-fill-mode:both}
+#bench.reacting .op{animation-duration:.15s}
+#bench.reacting .result{animation-duration:.30s}
+#bench.reacting-hot .result{box-shadow:inset 0 0 0 2px var(--mix-b,#777),0 0 30px var(--mix-a,#777);transform:scale(1.04)}
+#bench.reacting-hot .op.arrow{transform:scale(1.25);color:var(--mix-b,#fff)}
+@keyframes fuseA{0%{transform:none}45%{transform:translateX(5px) rotate(-2deg) scale(1.02)}82%{transform:translateX(17px) rotate(3deg) scale(1.07)}100%{transform:translateX(13px) rotate(1deg) scale(.96)}}
+@keyframes fuseB{0%{transform:none}45%{transform:translateX(-5px) rotate(2deg) scale(1.02)}82%{transform:translateX(-17px) rotate(-3deg) scale(1.07)}100%{transform:translateX(-13px) rotate(-1deg) scale(.96)}}
+
+.rxcore{position:fixed;width:18px;height:18px;z-index:4;transform:translate(-50%,-50%) rotate(45deg);border:2px solid var(--a);box-shadow:0 0 0 1px #0b0b09,0 0 18px var(--b);animation:rxCore .70s cubic-bezier(.1,.8,.2,1) forwards}
+.rxcore i{position:absolute;left:50%;top:50%;width:3px;height:42px;background:var(--a);transform-origin:50% 50%;opacity:.75}
+.rxcore i:nth-child(1){transform:translate(-50%,-50%) rotate(0deg)}
+.rxcore i:nth-child(2){background:var(--b);transform:translate(-50%,-50%) rotate(60deg)}
+.rxcore i:nth-child(3){width:2px;background:#eee7da;transform:translate(-50%,-50%) rotate(120deg)}
+@keyframes rxCore{0%{opacity:0;transform:translate(-50%,-50%) rotate(0) scale(.2)}22%{opacity:1;transform:translate(-50%,-50%) rotate(90deg) scale(.9)}58%{opacity:1;transform:translate(-50%,-50%) rotate(190deg) scale(1.5)}76%{opacity:.8;transform:translate(-50%,-50%) rotate(250deg) scale(.65)}100%{opacity:0;transform:translate(-50%,-50%) rotate(360deg) scale(3.4)}}
+.reduced .rxcore{display:none!important}
+
+/* BREAK THE SEAL is an action, not a dismiss button. */
+#stage.origin-breaking .origin-seal{animation:sealBreak .46s cubic-bezier(.12,.9,.22,1) forwards}
+#stage.origin-breaking .origin-seal::before{animation:sealRingBreak .44s ease-out forwards}
+#stage.origin-breaking .origin-seal::after{animation:sealRingBreak2 .44s ease-out forwards}
+#stage.origin-breaking .origin-piece{animation:originScatter .44s cubic-bezier(.12,.82,.2,1) forwards}
+#stage.origin-breaking .origin-piece:nth-child(1){--sx:-34px;--sy:-24px;--sr:-20deg}
+#stage.origin-breaking .origin-piece:nth-child(2){--sx:28px;--sy:-32px;--sr:17deg}
+#stage.origin-breaking .origin-piece:nth-child(3){--sx:-27px;--sy:29px;--sr:14deg}
+#stage.origin-breaking .origin-piece:nth-child(4){--sx:35px;--sy:25px;--sr:-18deg}
+#stage.origin-breaking .origin-law{animation:lawStrike .40s steps(2,end) forwards}
+#stage.origin-breaking .go{pointer-events:none;border-color:var(--rizo);color:var(--rizo);box-shadow:0 0 24px rgba(0,194,255,.18)}
+@keyframes sealBreak{0%{transform:none;filter:none}35%{transform:scale(.91) rotate(-6deg);filter:brightness(1.4)}62%{transform:scale(1.18) rotate(8deg);filter:brightness(2)}100%{transform:scale(2.7) rotate(28deg);filter:blur(6px);opacity:0}}
+@keyframes sealRingBreak{0%{transform:rotate(45deg) scale(1);opacity:.28}100%{transform:rotate(180deg) scale(3.1);opacity:0}}
+@keyframes sealRingBreak2{0%{transform:rotate(45deg) scale(1);opacity:.16}100%{transform:rotate(-140deg) scale(2.3);opacity:0}}
+@keyframes originScatter{0%{transform:none;opacity:1}35%{transform:translate(0,3px) scale(.88);opacity:1}100%{transform:translate(var(--sx),var(--sy)) rotate(var(--sr)) scale(.3);opacity:0}}
+@keyframes lawStrike{0%,40%{opacity:1;letter-spacing:.32em}55%{opacity:.2;letter-spacing:.5em}72%{opacity:1}100%{opacity:0;letter-spacing:.62em}}
+.reduced #stage.origin-breaking .origin-seal,.reduced #stage.origin-breaking .origin-piece,.reduced #stage.origin-breaking .origin-law{animation:none!important}
+
+/* New discoveries punch their name through the room for a split second. This
+   is deliberately typographic/ink-like instead of generic confetti. */
+.worldstamp{position:fixed;left:50%;top:48%;z-index:1;max-width:92vw;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:clip;text-transform:uppercase;color:var(--stamp);font:900 clamp(42px,12vw,132px)/.82 var(--display);letter-spacing:.045em;opacity:0;mix-blend-mode:screen;transform:translate(-50%,-50%) rotate(-4deg) scale(.72);animation:worldStamp .8s cubic-bezier(.08,.82,.22,1) forwards;filter:blur(.15px)}
+.worldstamp.major{font-size:clamp(62px,16vw,176px);letter-spacing:.02em;animation-duration:1.02s}
+@keyframes worldStamp{0%{opacity:0;transform:translate(-50%,-50%) rotate(-8deg) scale(.55)}16%{opacity:.17;transform:translate(-50%,-50%) rotate(2deg) scale(1.04)}31%{opacity:.10;transform:translate(-50%,-50%) rotate(-2deg) scale(.98)}100%{opacity:0;transform:translate(-50%,-56%) rotate(-1deg) scale(1.14)}}
+.reduced .worldstamp{display:none!important}
+
+/* ═══ RIZO ORIGIN V5 — authorship, pacing, signal ════════════════════════ */
+/* Once the player has invested in the world, the logo quietly becomes a door. */
+.brand{position:relative;border:0;background:none;color:inherit;text-align:left;padding:0}
+.brand.signal-ready{cursor:pointer}
+.brand.signal-ready::after{
+  content:'';position:absolute;left:21px;top:2px;width:6px;height:6px;background:var(--rizo);
+  transform:rotate(45deg);box-shadow:0 0 0 1px #09090a,0 0 10px var(--rizo);
+  animation:signalPing 2.8s ease-in-out infinite;
+}
+.brand.signal-ready .mk{filter:drop-shadow(0 0 7px rgba(0,194,255,.35))}
+@keyframes signalPing{0%,70%,100%{opacity:.25;transform:rotate(45deg) scale(.72)}78%{opacity:1;transform:rotate(45deg) scale(1.25)}88%{opacity:.45;transform:rotate(45deg) scale(.9)}}
+
+/* Being stuck should make the hint lamp feel alive without giving the answer. */
+#bHint.asking{border-color:#665a24;color:#d9c568;animation:lampAsk 1.7s ease-in-out infinite}
+@keyframes lampAsk{0%,100%{box-shadow:none;transform:none}45%{box-shadow:0 0 15px rgba(217,197,104,.18);transform:rotate(-2deg)}58%{transform:rotate(2deg)}}
+
+/* Give newborns enough screen time to register as events rather than flicker. */
+.result.fresh-result .result-art{animation-duration:.78s}
+.result.fresh-result .sn{animation-duration:.92s}
+.worldstamp{animation-duration:1.08s}
+.worldstamp.major{animation-duration:1.38s}
+.dcard{animation-duration:.30s}
+.dcard .dcard-art{animation-duration:.52s}
+
+/* Signature discoveries are authored beats. Only a handful get this treatment. */
+.moment-wrap.signature{position:relative;isolation:isolate}
+.signature-art{margin-top:4px;margin-bottom:18px}
+.signature-art::before,.signature-art::after{transition:none}
+.moment-echo{
+  margin:15px auto 0;max-width:360px;font:800 9px/1.35 var(--mono);letter-spacing:.25em;
+  text-transform:uppercase;opacity:0;animation:echoLand .9s .62s cubic-bezier(.12,.9,.24,1) forwards;
+}
+@keyframes echoLand{0%{opacity:0;letter-spacing:.5em;transform:translateY(8px)}55%{opacity:1;letter-spacing:.22em;transform:translateY(-1px)}100%{opacity:.78;letter-spacing:.25em;transform:none}}
+.moment-domain-open{
+  margin:10px auto 0;width:max-content;max-width:92%;padding:5px 8px;border:1px solid currentColor;
+  font:800 8px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;opacity:.72;
+  animation:domainTag .7s .78s cubic-bezier(.12,.9,.24,1) both;
+}
+@keyframes domainTag{0%{opacity:0;transform:translateY(6px) scaleX(.82)}100%{opacity:.72;transform:none}}
+
+/* LIFE: two visible beats, then a slower breathing hold. */
+#stage.on .sig-life{animation:lifeArrival 1.35s cubic-bezier(.12,1,.22,1)}
+#stage.on .sig-life::before,#stage.on .sig-life::after{border-radius:50%;animation:lifeRing 1.25s .2s ease-out 2}
+#stage.on .sig-life svg{animation:lifeBeat 1.05s .32s ease-in-out 2}
+@keyframes lifeArrival{0%{transform:scale(.18);opacity:0;filter:blur(8px)}38%{transform:scale(1.2);opacity:1;filter:none}54%{transform:scale(.94)}68%,100%{transform:none}}
+@keyframes lifeRing{0%{transform:scale(.35);opacity:.55}70%{transform:scale(1.45);opacity:.12}100%{transform:scale(1.7);opacity:0}}
+@keyframes lifeBeat{0%,100%{transform:scale(1)}18%{transform:scale(1.12)}30%{transform:scale(.98)}42%{transform:scale(1.08)}58%{transform:scale(1)}}
+
+/* HUMAN: a slight look-back motion instead of another generic drop. */
+#stage.on .sig-human svg{animation:lookBack 1.45s .22s cubic-bezier(.16,.9,.3,1) both}
+@keyframes lookBack{0%{transform:translateX(-16px) rotate(-5deg);opacity:0}45%{transform:translateX(4px) rotate(2deg);opacity:1}65%{transform:translateX(-2px)}100%{transform:none}}
+
+/* TIME / RITUAL: controlled, mechanical rhythm. */
+#stage.on .sig-time{animation:timeTick 1.7s steps(6,end)}
+#stage.on .sig-ritual{animation:ritualRepeat 1.5s ease-in-out}
+@keyframes timeTick{0%{transform:rotate(-5deg);opacity:.25}18%{transform:rotate(3deg);opacity:1}36%{transform:rotate(-2deg)}54%{transform:rotate(1deg)}100%{transform:none}}
+@keyframes ritualRepeat{0%{transform:scale(.75) rotate(-8deg);opacity:0}33%{transform:scale(1.08) rotate(3deg);opacity:1}48%{transform:scale(.94) rotate(-2deg)}65%{transform:scale(1.03) rotate(1deg)}100%{transform:none}}
+
+/* CHAOS deliberately misregisters like a bad screen-print. */
+#stage.on .sig-chaos{animation:chaosMisprint 1.1s steps(2,end)}
+@keyframes chaosMisprint{0%{transform:translate(-9px,6px) rotate(-7deg);filter:blur(3px);opacity:.2}28%{transform:translate(7px,-4px) rotate(5deg);opacity:1}52%{transform:translate(-4px,2px) rotate(-3deg)}76%{transform:translate(2px,-1px) rotate(1deg)}100%{transform:none;filter:none}}
+
+/* UNIVERSE expands beyond its plate; RIZO resolves back into the mark. */
+#stage.on .sig-universe{animation:universeOpen 1.8s cubic-bezier(.08,.82,.2,1)}
+#stage.on .sig-rizo{animation:rizoArrival 1.65s cubic-bezier(.08,.9,.2,1);filter:drop-shadow(0 0 22px rgba(0,194,255,.28))}
+@keyframes universeOpen{0%{transform:scale(.15);opacity:0}45%{transform:scale(1.28);opacity:1}70%{transform:scale(.96)}100%{transform:none}}
+@keyframes rizoArrival{0%{transform:scale(2.6) rotate(19deg);opacity:0;filter:blur(10px)}38%{transform:scale(.86) rotate(-4deg);opacity:1;filter:none}58%{transform:scale(1.09) rotate(2deg)}100%{transform:none}}
+
+/* The signal drawer is not a store popup. It reads like lore first, portal second. */
+.signal-head{display:flex;gap:14px;align-items:center;padding:2px 0 18px;border-bottom:1px solid var(--line)}
+.signal-head .signal-mark{width:54px;height:60px;flex:0 0 auto;color:var(--rizo);filter:drop-shadow(0 0 12px rgba(0,194,255,.25))}
+.signal-title{font:800 15px/1.15 var(--sans);letter-spacing:.08em;color:var(--ink)}
+.signal-tx{margin-top:14px;padding:15px 14px 13px;border:1px solid #302f2a;background:#11110f;box-shadow:5px 6px 0 #060606;position:relative;overflow:hidden}
+.signal-tx::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--rizo);opacity:.65}
+.signal-tx>span{display:block;font:700 8px/1 var(--mono);letter-spacing:.23em;color:var(--rizo);margin-bottom:8px}
+.signal-tx>b{display:block;font:800 15px/1.15 var(--sans);letter-spacing:.07em;color:var(--ink)}
+.signal-tx>p{margin:8px 0 0;font:400 12px/1.5 var(--sans);color:var(--ink2)}
+.signal-tx.hot{border-color:#31525c;box-shadow:5px 6px 0 #060606,0 0 24px rgba(0,194,255,.05)}
+.signal-portal{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.signal-portal p{font:400 12px/1.5 var(--sans);color:var(--ink3);margin:0 0 8px}
+.signal-link{display:inline-flex;align-items:center;text-decoration:none;color:var(--rizo);border-color:#28505c}
+.signal-link:hover{color:#dff8ff;border-color:var(--rizo)}
+
+.reduced .brand.signal-ready::after,.reduced #bHint.asking,.reduced .moment-echo,.reduced .moment-domain-open,.reduced #stage .signature-art,.reduced #stage .signature-art svg{animation:none!important}
+
+@media(max-width:560px){
+  .brand.signal-ready::after{left:19px;top:1px}
+  .moment-echo{font-size:7.5px;letter-spacing:.2em;margin-top:12px}
+  .signal-head{gap:11px}.signal-head .signal-mark{width:45px;height:50px}.signal-title{font-size:13px}
+  .signal-tx{padding:13px 12px 12px}.signal-tx>b{font-size:13px}
+}
+
+/* V6 continuity: stacked achievements are supporting notes, not one fused slab. */
+#card .dcard + .dcard{margin-top:8px}
+
+/* ═══ V7 — ADAPTIVE WORLD / MUSIC DIRECTOR ═══════════════════════════════ */
+.smart-chip{color:var(--rizo);border-color:#24424a}
+.smart-chip.on{color:#dff9ff;border-color:#3a7686;background:#102026;box-shadow:inset 0 -1px 0 rgba(0,194,255,.16)}
+.smart-btn .smart-bolt{width:8px;color:var(--rizo);font:800 15px/1 var(--mono);transform:rotate(-8deg)}
+.smart-btn.sel{border-color:#31535b;background:#111d20}
+#grid.smart-grid::before{
+  content:'SMART SORT // LIVE PIECES FIRST';position:absolute;right:18px;top:4px;z-index:0;pointer-events:none;
+  font:600 7px/1 var(--mono);letter-spacing:.18em;color:var(--rizo);opacity:.16;
+}
+#grid.smart-grid .el{animation:smartSettle .24s cubic-bezier(.2,.8,.3,1) both}
+#grid.smart-grid .el:nth-child(4n+2){animation-delay:.018s}
+#grid.smart-grid .el:nth-child(4n+3){animation-delay:.036s}
+#grid.smart-grid .el:nth-child(4n+4){animation-delay:.054s}
+@keyframes smartSettle{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.domain-index{border-color:#31535b!important;background:#102024!important;color:#d7f7ff!important}
+.domain-index .domain-stack{color:var(--rizo);font:700 14px/1 var(--mono);width:12px;text-align:center}
+.compact-unknown{min-width:34px!important;justify-content:center}
+
+.domain-picker-intro{border:1px solid #292d2d;background:#101414;padding:13px;margin-bottom:12px}
+.domain-picker-intro p{margin:2px 0 0;color:var(--ink2);font-size:12px}
+.domain-picker-actions,.domain-picker-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.domain-picker-actions{margin-bottom:15px}
+.domain-subhead{padding:10px 2px 7px}
+.domain-picker-grid.newest{margin-bottom:9px}
+.domain-card{
+  min-height:82px;position:relative;text-align:left;padding:11px 10px 10px 13px;background:#121210;border:1px solid #302e28;
+  color:var(--ink);clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));
+}
+.domain-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--domain,var(--ink3));opacity:.72}
+.domain-card:active{transform:scale(.98)}
+.domain-card b{display:block;margin:3px 0 5px;font:700 13px/1 var(--display);letter-spacing:.08em;color:var(--domain,var(--ink));text-transform:uppercase}
+.domain-card small{display:block;font:500 7.5px/1.25 var(--mono);letter-spacing:.12em;color:var(--ink3)}
+.domain-card em{position:absolute;right:7px;top:7px;font:600 6.5px/1 var(--mono);letter-spacing:.12em;color:var(--domain);font-style:normal}
+.domain-card.complete{background:#151713}
+.domain-glyph{display:block;width:12px;height:12px;transform:rotate(45deg);border:1px solid var(--domain);opacity:.8}
+.domain-glyph i{display:block;width:4px;height:4px;margin:3px;background:var(--domain)}
+.domain-symbol{display:block;color:var(--ink3);font:800 16px/1 var(--mono)}
+.smart-domain{--domain:var(--rizo);background:#0e1a1e;border-color:#2e5964}
+.smart-domain b{color:var(--rizo)}
+
+@media (max-width:860px){
+  body.smart-nav #mrail{overflow:visible;display:grid;grid-template-columns:minmax(88px,1.15fr) repeat(3,minmax(0,1fr));gap:5px}
+  body.smart-nav #mrail .gbtn{min-width:0;width:100%;padding:7px 7px;overflow:hidden}
+  body.smart-nav #mrail .gname{font-size:8px;letter-spacing:.07em}
+  body.smart-nav #mrail .gnum{font-size:7px}
+  body.smart-nav #mrail .gdot{width:6px;height:6px}
+  body.smart-nav #chipFav{display:none}
+  body.smart-nav #tools{grid-template-columns:repeat(4,1fr)}
+  #grid.smart-grid::before{right:10px;top:3px;font-size:6px}
+}
+@media (max-width:420px){
+  body.smart-nav #mrail{grid-template-columns:92px repeat(3,minmax(0,1fr))}
+  body.smart-nav #mrail .gnum{display:none}
+  .domain-picker-actions,.domain-picker-grid{grid-template-columns:1fr 1fr;gap:6px}
+  .domain-card{min-height:74px;padding:9px 8px 8px 11px}.domain-card b{font-size:11px}.domain-card small{font-size:6.8px}
+}
+.reduced #grid.smart-grid .el{animation:none!important}
+
+/* The room darkens by degree, not by a level banner. The soundtrack is the
+   main narrator; these are only peripheral cues the eye can feel. */
+body[data-room="curious"] #gridwrap::before{opacity:.012}
+body[data-room="lab"] #gridwrap::before{opacity:.022}
+body[data-room="unsettled"] #gridwrap::before{opacity:.030}
+body[data-room="descent"] #gridwrap::before{opacity:.040}
+body[data-room="below"] #gridwrap::before{opacity:.052;transform:scale(1.015)}
+body[data-room="descent"] .brand .mk,body[data-room="below"] .brand .mk{filter:drop-shadow(0 0 5px rgba(236,232,224,.10))}
+
+/* ═══ V7 — discovery print variation ══════════════════════════════════════
+   The same reward language, several physical registrations. Repetition is
+   useful for recognition; perfect repetition is what makes a UI feel canned. */
+.worldstamp.stamp-v1{animation-name:worldStampV1}
+.worldstamp.stamp-v2{animation-name:worldStampV2}
+.worldstamp.stamp-v3{animation-name:worldStampV3}
+@keyframes worldStampV1{
+  0%{opacity:0;transform:translate(-55%,-46%) rotate(9deg) scale(.48) skewX(-5deg)}
+  17%{opacity:.18;transform:translate(-49%,-50%) rotate(-2deg) scale(1.08) skewX(1deg)}
+  34%{opacity:.095;transform:translate(-51%,-49%) rotate(1deg) scale(.99)}
+  100%{opacity:0;transform:translate(-46%,-58%) rotate(3deg) scale(1.17)}
+}
+@keyframes worldStampV2{
+  0%{opacity:0;transform:translate(-50%,-55%) rotate(-2deg) scaleX(.42) scaleY(.86)}
+  14%{opacity:.16;transform:translate(-50%,-49%) rotate(1deg) scaleX(1.12) scaleY(1.03)}
+  30%{opacity:.11;transform:translate(-50%,-50%) rotate(-1deg) scale(.98)}
+  100%{opacity:0;transform:translate(-50%,-53%) rotate(-3deg) scale(1.2)}
+}
+@keyframes worldStampV3{
+  0%{opacity:0;transform:translate(-44%,-50%) rotate(-11deg) scale(.62);letter-spacing:.16em}
+  12%{opacity:.19;transform:translate(-52%,-50%) rotate(4deg) scale(1.04);letter-spacing:.025em}
+  25%{opacity:.08;transform:translate(-49%,-50%) rotate(-2deg) scale(1.01)}
+  100%{opacity:0;transform:translate(-54%,-57%) rotate(-4deg) scale(1.12);letter-spacing:.07em}
+}
+.dcard-v1{animation-name:cardinV1}
+.dcard-v2{animation-name:cardinV2}
+.dcard-v1 .dcard-art{animation-name:cardPlateV1}
+.dcard-v2 .dcard-art{animation-name:cardPlateV2}
+@keyframes cardinV1{from{opacity:0;transform:translate(-9px,-8px) rotate(-.5deg) scale(.975)}to{opacity:1;transform:none}}
+@keyframes cardinV2{from{opacity:0;transform:translate(8px,-10px) rotate(.55deg) scale(.965)}to{opacity:1;transform:none}}
+@keyframes cardPlateV1{0%{transform:scale(.48) rotate(8deg);opacity:0}62%{transform:scale(1.1) rotate(-2deg);opacity:1}100%{transform:none}}
+@keyframes cardPlateV2{0%{transform:scale(.54) translateY(7px) rotate(-2deg);opacity:0}58%{transform:scale(1.06) translateY(-2px) rotate(1deg);opacity:1}100%{transform:none}}
+.reduced .worldstamp.stamp-v1,.reduced .worldstamp.stamp-v2,.reduced .worldstamp.stamp-v3,.reduced .dcard-v1,.reduced .dcard-v2{animation:none!important}
+
+/* ═══ V8 — CARE / RELATIONAL UNIFICATION ═════════════════════════════════
+   The board remembers what the player actually learned. Philosophy is carried
+   by state and behavior first; the copy only names what the mechanics proved. */
+.el.scar:not(.sel){opacity:.56}
+.el.scar:not(.sel) .el-art{position:relative;filter:grayscale(.72);opacity:.62}
+.el.scar:not(.sel) .el-art::after{
+  content:'×';position:absolute;right:1px;top:1px;width:14px;height:14px;display:grid;place-items:center;
+  border:1px solid #554b45;background:#171411;color:#8f7468;font:800 9px/1 var(--mono);letter-spacing:0;
+  transform:rotate(-7deg);opacity:.78
+}
+.el.scar:not(.sel) .en{color:#766f65}
+.el.scar:not(.sel):hover{opacity:.78}
+
+.result.confluence-result{
+  box-shadow:inset 0 0 0 1px #59645f,0 0 0 1px rgba(255,255,255,.018),0 0 22px rgba(130,176,165,.045)
+}
+.result.confluence-result .tag{color:#a4b9b3}
+.relation-beat{
+  width:min(100%,660px);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  gap:4px 8px;align-items:center;text-align:center;font:600 9px/1.25 var(--mono);letter-spacing:.07em;color:var(--ink3)
+}
+.relation-beat b{grid-column:1/-1;color:var(--ink);font-size:9px;letter-spacing:.19em}
+.relation-beat span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.relation-beat i{font-style:normal;color:var(--accent);font-weight:800;white-space:nowrap}
+
+.route-badge{
+  display:inline-block;vertical-align:1px;margin-left:5px;padding:2px 4px;border:1px solid #455653;
+  color:#9eb7b0;font:700 6.5px/1 var(--mono);letter-spacing:.12em
+}
+.recipe-ledger{display:flex;align-items:flex-start}
+.recipe-label{flex:1 0 100%;padding:7px 0 1px;font:700 7px/1 var(--mono);letter-spacing:.18em;color:var(--ink3)}
+.recipe-label.relation{color:#9eb7b0}
+.rc.relation-route{border-color:#3b4c48;background:#111716}
+
+.signal-tx.relation{border-color:#354d48;background:linear-gradient(135deg,#11110f 0%,#111816 100%)}
+.signal-tx.relation::before{background:linear-gradient(to bottom,var(--rizo) 0 46%,#91b6a8 46% 54%,var(--rizo) 54%)}
+.signal-tx.breath{border-color:#343c3a;background:linear-gradient(155deg,#11110f,#121615)}
+
+/* CONFLUENCE: two motions enter from opposite sides and settle into one plate. */
+#stage.on .sig-confluence{animation:confluenceMeet 1.72s cubic-bezier(.16,.86,.24,1)}
+#stage.on .sig-confluence::before{animation:confluenceLeft 1.55s ease-out}
+#stage.on .sig-confluence::after{animation:confluenceRight 1.55s ease-out}
+@keyframes confluenceMeet{
+  0%{opacity:0;transform:scale(.72)}
+  28%{opacity:1;transform:scale(1.07)}
+  48%{transform:scale(.96)}
+  68%,100%{transform:none}
+}
+@keyframes confluenceLeft{0%{opacity:.45;transform:translateX(-42px) rotate(-8deg)}65%{opacity:.18;transform:translateX(0)}100%{opacity:0}}
+@keyframes confluenceRight{0%{opacity:.45;transform:translateX(42px) rotate(8deg)}65%{opacity:.18;transform:translateX(0)}100%{opacity:0}}
+
+@media(max-width:560px){
+  .relation-beat{grid-template-columns:1fr;gap:2px;font-size:8px}
+  .relation-beat b{grid-column:1;font-size:8px}
+  .relation-beat i{order:3}.relation-beat span{white-space:normal}
+}
+.reduced .el.scar .el-art::after,.reduced #stage .sig-confluence,.reduced #stage .sig-confluence::before,.reduced #stage .sig-confluence::after{animation:none!important}
+
+/* V8 — once MISTAKE exists, an old dead-end is no longer drawn only as damage.
+   The scar remains legible, but the warmer inset says the player has learned how
+   to use it: same event, different relationship. */
+.el.scar.material{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rizo) 24%,transparent)}
+.el.scar.material .el-art{filter:grayscale(.45) contrast(.96)}
+.el.scar.material .el-art::after{color:var(--rizo);opacity:.72}
+
+/* ═══ V11 PHASE 2 — THE LIVING WORLD ════════════════════════════════════
+   The board is the world. Two surfaces do the work:
+
+     #worldfield   a fixed layer behind the whole app — the far edge of the
+                   room. It only exists once the player has made something
+                   that implies distance.
+     #worldscape   the scene sitting behind the workbench, where the horizon
+                   is. Structure is SVG; anything that repeats lives on one
+                   shared canvas.
+
+   Everything persistent is low contrast on purpose. This is memory, not a
+   second game board. Birth events are allowed to be loud for a moment. */
+
+/* ── the far edge ──────────────────────────────────────────────────────── */
+#worldfield{
+  position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;
+  transition:opacity 2.4s ease;
+  --f-deep:0;--f-distort:0;
+}
+#worldfield.f-on{opacity:1}
+#worldfield>div{position:absolute;inset:0}
+.wf-depth{
+  background:radial-gradient(125% 80% at 50% 118%,rgba(32,44,62,calc(.46 * var(--f-deep))) 0%,rgba(9,9,10,0) 64%);
+  opacity:calc(.3 + .7 * var(--f-deep));
+}
+#worldfield.f-space .wf-depth{
+  background:
+    radial-gradient(130% 86% at 50% 118%,rgba(34,46,66,.34) 0%,rgba(9,9,10,0) 64%),
+    radial-gradient(90% 60% at 18% 6%,rgba(46,34,60,.16) 0%,rgba(9,9,10,0) 70%);
+}
+/* A real field, not nine dots. One 210px tile repeats into hundreds of stars,
+   which costs a single paint and reads as depth the moment SPACE exists. */
+.wf-stars{
+  opacity:0;transition:opacity 3s ease;
+  inset:-220px -220px auto -220px;height:calc(100% + 440px);
+  background-repeat:repeat;background-size:210px 210px;
+  background-image:
+    radial-gradient(1.4px 1.4px at 18px 24px,#e6ecee 45%,transparent 55%),
+    radial-gradient(1px 1px at 74px 12px,#aab6ba 45%,transparent 55%),
+    radial-gradient(1px 1px at 126px 48px,#c8d2d6 45%,transparent 55%),
+    radial-gradient(1.6px 1.6px at 168px 30px,#f0f5f6 45%,transparent 55%),
+    radial-gradient(1px 1px at 38px 92px,#9aa6aa 45%,transparent 55%),
+    radial-gradient(1px 1px at 104px 118px,#b8c2c6 45%,transparent 55%),
+    radial-gradient(1.2px 1.2px at 186px 96px,#dde5e7 45%,transparent 55%),
+    radial-gradient(1px 1px at 12px 156px,#8e9a9e 45%,transparent 55%),
+    radial-gradient(1px 1px at 88px 182px,#c0cacd 45%,transparent 55%),
+    radial-gradient(1.3px 1.3px at 150px 168px,#e2eaec 45%,transparent 55%),
+    radial-gradient(1px 1px at 196px 140px,#a4b0b4 45%,transparent 55%);
+}
+#worldfield.f-stars .wf-stars{opacity:.20}
+#worldfield.f-space .wf-stars{opacity:.42;will-change:transform;animation:wfDrift 320s linear infinite}
+#worldfield.f-strange .wf-stars{animation-duration:150s}
+#worldfield.f-band .wf-stars{opacity:.5}
+/* The galaxy is a smear of light across the room, not a sticker. */
+#worldfield.f-band::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(102deg,transparent 30%,rgba(146,164,190,.05) 44%,rgba(178,190,214,.075) 50%,rgba(120,140,172,.04) 57%,transparent 70%);
+}
+@keyframes wfDrift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-210px,210px,0)}}
+/* A black hole does not sit in the room. It bends the light around itself, so
+   the readable part is the rim, not the hole. */
+.wf-lens{opacity:0;transition:opacity 2.6s ease}
+#worldfield.f-lens .wf-lens{
+  opacity:calc(.42 + .4 * var(--f-distort));
+  background:radial-gradient(11vmin 11vmin at 79% 70%,
+      rgba(0,0,0,.95) 0 26%,
+      rgba(0,0,0,.88) 31%,
+      rgba(150,178,216,.36) 35%,
+      rgba(98,130,180,.15) 42%,
+      rgba(50,70,108,.06) 55%,
+      transparent 68%);
+}
+/* the accretion smear turns; the hole itself stays exactly where it is */
+#worldfield.f-lens .wf-lens::after{
+  content:'';position:absolute;left:79%;top:70%;width:26vmin;height:26vmin;margin:-13vmin 0 0 -13vmin;
+  border-radius:50%;
+  background:conic-gradient(rgba(160,190,228,.10),transparent 24%,rgba(120,150,200,.07) 48%,transparent 72%,rgba(160,190,228,.09));
+  -webkit-mask-image:radial-gradient(closest-side,transparent 0 52%,#000 62%,transparent 96%);
+  mask-image:radial-gradient(closest-side,transparent 0 52%,#000 62%,transparent 96%);
+  will-change:transform;animation:wfLens 52s linear infinite;
+}
+@keyframes wfLens{to{transform:rotate(360deg)}}
+
+/* Once the board has been signed, the mark under the collection stops hiding. */
+body[data-world-age="signed"] #gridwrap::before{opacity:.034}
+
+/* ── the scene ─────────────────────────────────────────────────────────── */
+#worldscape{
+  position:absolute;z-index:0;inset:0;overflow:hidden;pointer-events:none;
+  color:#8b857b;opacity:.78;transition:opacity 1.4s ease;
+  --sea:#4d7382;--earth:#8a7455;--rock:#6a6156;--lava:#c06a43;--life:#7c9470;
+  --city:#a0957f;--electric:#6f9cb0;--ice:#9db4bd;--sky:#7d8890;
+  --w-wind:0;--w-swell:0;--w-heat:0;--w-organic:0;--w-civil:0;--w-industry:0;
+  --w-deep:0;--w-distort:0;--w-strange:0;--w-cold:0;--w-density:0;--w-misfires:0;
+  --w-sway-dur:9.5s;--w-swell-dur:8.6s;
+}
+/* Density is earned, and it is measured in world — not in the counter. Build a
+   sea and a volcano early and you get to look at them. */
+#worldscape{opacity:calc(.28 + .68 * var(--w-density,0))}
+/* The era only tints the mood. */
+#worldscape[data-age="dirt"]{filter:saturate(.82)}
+#worldscape[data-age="deep"],#worldscape[data-age="signed"]{filter:saturate(1.06)}
+
+#worldscape .ws-art{position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform}
+#worldscape .ws-art g{opacity:0;transition:opacity 1.5s ease,transform 1.5s cubic-bezier(.16,.8,.24,1)}
+#worldscape .ws-art path,#worldscape .ws-art circle{vector-effect:non-scaling-stroke}
+#worldscape .ws-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#worldscape .ws-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+
+/* RIZO does not arrive as a logo. It arrives as a bad second pass on the press. */
+#worldscape .ws-print{
+  position:absolute;inset:0;opacity:0;pointer-events:none;mix-blend-mode:screen;
+  transition:opacity 2.6s ease;
+  background:
+    radial-gradient(120% 66% at 30% 112%,rgba(0,194,255,.055),transparent 58%),
+    radial-gradient(90% 54% at 84% 108%,rgba(255,122,26,.035),transparent 62%),
+    repeating-linear-gradient(94deg,rgba(0,194,255,.022) 0 2px,transparent 2px 11px);
+}
+#worldscape.w-rizo .ws-print{
+  opacity:calc(.34 + .46 * var(--w-misfires,0));
+  animation:wsMisreg calc(19s - 7s * var(--w-misfires,0)) ease-in-out infinite alternate;
+}
+/* strangeness pulls the second impression further off register */
+#worldscape.w-rizo{--w-misreg:calc(2px + 5px * var(--w-misfires,0) + 3px * var(--w-strange,0))}
+@keyframes wsMisreg{from{transform:translate(0,0)}to{transform:translate(var(--w-misreg,2.5px),calc(-.6 * var(--w-misreg,2.5px)))}}
+
+/* ── celestial ─────────────────────────────────────────────────────────── */
+#worldscape .l-celestial{opacity:0}
+#worldscape.w-stars .l-celestial,#worldscape.w-night .l-celestial{opacity:1}
+#worldscape .c-sun{fill:none;stroke:#b79656;stroke-width:1.2;opacity:0;transition:opacity 1.6s ease}
+#worldscape .c-moon{fill:none;stroke:#93a2ad;stroke-width:1.3;opacity:0;transition:opacity 1.6s ease}
+#worldscape.w-night .c-moon{opacity:.55}
+#worldscape.w-night .c-sun{opacity:0}
+#worldscape:not(.w-night) .c-sun{opacity:.3}
+/* the moon is the reason the sea has a heartbeat */
+#worldscape.w-tide .c-moon{animation:wsMoonPull calc(var(--w-swell-dur) * 2.4) ease-in-out infinite alternate}
+@keyframes wsMoonPull{from{transform:translateY(0);opacity:.42}to{transform:translateY(-3px);opacity:.56}}
+
+/* ── depth / terrain ───────────────────────────────────────────────────── */
+#worldscape .l-far{fill:#565046;opacity:0;transform:translateY(10px)}
+#worldscape.w-ridge .l-far{opacity:.24;transform:translateY(0)}
+#worldscape .l-mountain .mt-body{fill:#6d6556;stroke:#9c8c72;stroke-width:.7}
+#worldscape .l-mountain .mt-cap{fill:#8e9aa0;opacity:0;transition:opacity 1.8s ease}
+#worldscape .l-mountain{transform:translateY(26px)}
+#worldscape.w-mountain .l-mountain{opacity:.32;transform:translateY(0)}
+#worldscape.w-snowcap .mt-cap{opacity:.62}
+
+#worldscape .l-glacier{fill:var(--ice);opacity:0;transform:translateX(-14px)}
+#worldscape.w-frozen .l-glacier,#worldscape.w-icecap .l-glacier{opacity:.22;transform:translateX(0)}
+
+#worldscape .l-volcano .vo-body{fill:#5a4e45;stroke:#a07a5c;stroke-width:.8}
+#worldscape .l-volcano .vo-mouth{fill:var(--lava);opacity:.55}
+#worldscape .l-volcano .vo-flow{fill:none;stroke:var(--lava);stroke-width:1.4;opacity:0;transition:opacity 2s ease}
+#worldscape .l-volcano .vo-plume{fill:none;stroke:#6f6a66;stroke-width:1.1;opacity:.34}
+#worldscape .l-volcano .vo-vent{fill:none;stroke:#9fb0b4;stroke-width:1.1;opacity:0;transition:opacity 2s ease}
+#worldscape.w-steamVent .vo-vent{opacity:.44;animation:wsVent 6.2s ease-in-out infinite alternate}
+@keyframes wsVent{from{transform:translate(0,0) scaleY(.9);opacity:.3}to{transform:translate(-5px,-7px) scaleY(1.25);opacity:.52}}
+#worldscape.w-volcano .l-volcano{opacity:.38}
+#worldscape.w-volcano .vo-plume{animation:wsPlume 9s ease-in-out infinite alternate}
+/* At night the mountain stops being rock and becomes the thing inside it. */
+#worldscape.w-glow .vo-mouth{opacity:.92;filter:drop-shadow(0 0 5px rgba(200,110,60,.55))}
+#worldscape.w-glow .vo-flow{opacity:.7}
+#worldscape.w-glow .l-volcano{opacity:.5}
+@keyframes wsPlume{from{transform:translate(0,0) scaleY(1);opacity:.26}to{transform:translate(6px,-5px) scaleY(1.1);opacity:.42}}
+
+/* ── water ─────────────────────────────────────────────────────────────── */
+#worldscape .l-sea{opacity:0;transform:translateY(16px)}
+#worldscape.w-sea .l-sea{opacity:.42;transform:translateY(0)}
+#worldscape .sea-deep{fill:url(#wsDeep);stroke:none}
+#worldscape .sea-mid{fill:url(#wsMid);stroke:none}
+#worldscape .sea-line{fill:none;stroke:var(--sea);stroke-width:1.3}
+#worldscape .sea-line2{stroke-width:1;opacity:.6}
+#worldscape.w-sea .sea-line2{animation:wsWaterLine2 calc(var(--w-swell-dur) * 1.7) ease-in-out infinite alternate}
+@keyframes wsWaterLine2{from{transform:translateX(0)}to{transform:translateX(calc(18px + 26px * var(--w-swell)))}}
+#worldscape .sea-glint{fill:none;stroke:#b9ccd2;stroke-width:1.4;opacity:0;transition:opacity 1.8s ease}
+#worldscape .sea-floe{fill:var(--ice);opacity:0;transition:opacity 2s ease}
+#worldscape.w-sea .sea-line{animation:wsWaterLine var(--w-swell-dur) ease-in-out infinite alternate}
+#worldscape.w-sea .sea-mid{animation:wsWaterBack calc(var(--w-swell-dur) * 1.35) ease-in-out infinite alternate}
+@keyframes wsWaterLine{from{transform:translateX(0)}to{transform:translateX(calc(-26px - 34px * var(--w-swell)))}}
+@keyframes wsWaterBack{from{transform:translate(0,0)}to{transform:translate(calc(30px + 30px * var(--w-swell)),calc(-1px - 2px * var(--w-swell)))}}
+/* storm does not add rain to the sea; it changes how the sea behaves */
+#worldscape.w-rough .l-sea{opacity:.52}
+#worldscape.w-rough .sea-line{stroke-width:1.5;animation-timing-function:cubic-bezier(.6,0,.4,1)}
+#worldscape.w-rough .sea-deep{animation:wsChop 2.5s ease-in-out infinite alternate}
+#worldscape.w-rough .sea-line2{stroke-width:1.4;opacity:.85}
+@keyframes wsChop{from{transform:translateY(0) scaleY(1)}to{transform:translateY(-3px) scaleY(1.05)}}
+#worldscape.w-reflect .sea-glint{opacity:.42;animation:wsGlint 7s ease-in-out infinite alternate}
+@keyframes wsGlint{from{opacity:.14;transform:translateX(0)}to{opacity:.36;transform:translateX(-7px)}}
+#worldscape.w-frozen .sea-floe{opacity:.55}
+#worldscape.w-frozen .sea-line{stroke:var(--ice);opacity:.6}
+#worldscape.w-frozen .sea-mid{animation-duration:26s}
+
+#worldscape .l-river{fill:none;stroke:var(--sea);stroke-width:1.6;stroke-linecap:round;opacity:0;
+  stroke-dasharray:190;stroke-dashoffset:190}
+#worldscape.w-river .l-river{opacity:.34;stroke-dashoffset:0;transition:opacity 1.4s ease,stroke-dashoffset 2.2s ease-out}
+#worldscape.w-river .l-river path{animation:wsFlow 5.5s linear infinite}
+#worldscape.w-riverIce .l-river{stroke:var(--ice);opacity:.26}
+#worldscape.w-riverIce .l-river path{animation:none;stroke-dasharray:none}
+@keyframes wsFlow{from{stroke-dasharray:12 7;stroke-dashoffset:0}to{stroke-dasharray:12 7;stroke-dashoffset:-38}}
+
+#worldscape .l-shore{fill:none;stroke:#6d6458;stroke-width:.9;opacity:0}
+#worldscape.w-ground .l-shore{opacity:.26}
+#worldscape .sh-mark{stroke:var(--life);opacity:0;transition:opacity 2s ease}
+#worldscape.w-shoreLife .sh-mark{opacity:.55;stroke-width:1.2}
+#worldscape.w-harbour .sh-mark{stroke:var(--city);opacity:.66;stroke-width:1.5}
+
+/* ── life ──────────────────────────────────────────────────────────────── */
+/* Before LIFE the world only moves because something pushed it. After LIFE it
+   is allowed to move on its own. One breath on the whole scene sells that
+   better than fifty little creatures would. */
+#worldscape.w-life .ws-art{animation:wsBreath calc(11s - 3s * var(--w-organic)) ease-in-out infinite alternate;transform-origin:50% 100%}
+@keyframes wsBreath{from{transform:scale(1)}to{transform:scale(1.006)}}
+
+#worldscape .l-forest .fr-canopy{fill:var(--life);opacity:.72}
+#worldscape .l-forest .fr-trunks{fill:none;stroke:#6d6252;stroke-width:1.4}
+#worldscape .l-forest .fr-edge{fill:var(--life);opacity:.3}
+#worldscape .l-forest{opacity:0;transform:translateY(12px) scaleY(.7);transform-origin:50% 202px}
+#worldscape.w-forest .l-forest{opacity:.46;transform:none}
+#worldscape.w-sway .l-forest{animation:wsSway var(--w-sway-dur) ease-in-out infinite alternate;transform-origin:50% 202px}
+@keyframes wsSway{from{transform:skewX(0deg)}to{transform:skewX(calc(-1.4deg * (0.4 + var(--w-wind))))}}
+#worldscape.w-drip .fr-canopy{fill:#6f8a63;opacity:.62}
+/* A burned forest is not a deleted forest. The board keeps both. */
+#worldscape.w-scar .fr-trunks{stroke:#7a5a3f}
+#worldscape.w-scar .fr-edge{opacity:.14;fill:#6b5b4a}
+/* The city eats into the tree line. It does not replace it. */
+#worldscape.w-clearing .fr-edge{opacity:.1}
+#worldscape.w-clearing .l-forest{translate:-14px 0}
+
+/* The monkey that kept the fire. The person fades into the city later; the
+   fire they lit does not. */
+#worldscape .l-camp{opacity:0}
+#worldscape.w-camp .l-camp{opacity:.5}
+#worldscape .cp-fire{fill:var(--lava);opacity:.8}
+#worldscape .cp-ring{fill:none;stroke:#6d6458;stroke-width:1.1;opacity:.7}
+#worldscape.w-camp .cp-fire{animation:wsCamp 3.4s ease-in-out infinite alternate;transform-origin:286px 202px}
+#worldscape.w-night .l-camp{opacity:.78}
+#worldscape.w-night .cp-fire{filter:drop-shadow(0 0 4px rgba(200,110,60,.5))}
+@keyframes wsCamp{from{transform:scaleY(.86) scaleX(1.04)}to{transform:scaleY(1.12) scaleX(.94)}}
+#worldscape .l-figure{fill:none;stroke:var(--ink2);stroke-width:1.2;stroke-linecap:round;opacity:0;transform:translateY(6px)}
+#worldscape.w-human .l-figure{opacity:.44;transform:none}
+#worldscape.w-city .l-figure{opacity:.24}
+
+/* ── people ────────────────────────────────────────────────────────────── */
+#worldscape .l-settle{fill:none;stroke:var(--city);stroke-width:1.2;opacity:0;transform:translateY(8px)}
+#worldscape.w-settle .l-settle{opacity:.36;transform:none}
+#worldscape .l-city{opacity:0;transform:translateY(20px)}
+#worldscape.w-city .l-city{opacity:.38;transform:none}
+#worldscape .ct-block{fill:none;stroke:var(--city);stroke-width:1.15}
+#worldscape .ct-mast{fill:none;stroke:var(--city);stroke-width:1;opacity:0;transition:opacity 1.6s ease}
+#worldscape .ct-win{fill:none;stroke:#c8bb9c;stroke-width:2;stroke-linecap:butt;opacity:0;transition:opacity 2s ease}
+#worldscape .ct-stack{fill:none;stroke:#7d7464;stroke-width:1.1;opacity:0;transition:opacity 1.8s ease}
+/* ELECTRICITY does not appear next to the city. It turns the city on. */
+#worldscape.w-lit .ct-win{opacity:.48}
+#worldscape.w-lamps .ct-win{opacity:.85;stroke:#e8d5a0}
+#worldscape.w-lamps .l-city{opacity:.46}
+#worldscape.w-stacks .ct-stack{opacity:.7}
+#worldscape.w-traffic .ct-mast{opacity:.62}
+
+#worldscape .l-pylon{fill:none;stroke:#78716a;stroke-width:1;opacity:0;transform:translateY(10px)}
+#worldscape.w-machine .l-pylon{opacity:.28;transform:none}
+#worldscape.w-power .l-pylon{stroke:var(--electric);opacity:.4}
+
+#worldscape .l-grid{fill:none;stroke:var(--electric);stroke-width:.9;opacity:0}
+#worldscape .gr-line{stroke-dasharray:8 7}
+#worldscape .gr-drop{stroke-width:.8}
+#worldscape.w-machine .l-grid{opacity:.22}
+#worldscape.w-power .l-grid{opacity:.36;animation:wsCircuit 9s linear infinite}
+#worldscape.w-traffic .l-grid{opacity:.44}
+@keyframes wsCircuit{to{stroke-dashoffset:-60}}
+/* AI: the grid stops waiting to be told. */
+#worldscape.w-autonomous .l-grid{animation:wsCircuit 5.5s linear infinite,wsThink 13s ease-in-out infinite}
+@keyframes wsThink{0%,74%,100%{opacity:.3}80%{opacity:.62}86%{opacity:.22}92%{opacity:.5}}
+
+#worldscape .l-sign{fill:none;stroke:var(--rizo);stroke-width:1.1;opacity:0;transform:translateY(8px)}
+#worldscape.w-rizo .l-sign{opacity:.5;transform:none}
+
+/* ── the room stops being a room ───────────────────────────────────────── */
+#worldscape.w-open .l-far{opacity:.08}
+#worldscape.w-open .l-mountain{opacity:.22}
+#worldscape.w-open::after{
+  content:'';position:absolute;left:0;right:0;top:0;height:56%;pointer-events:none;
+  background:linear-gradient(180deg,rgba(9,9,10,.55),rgba(9,9,10,0));
+}
+#worldscape.w-space{filter:saturate(.86)}
+#worldscape.w-chaos .ws-art{animation-name:wsBreath,wsSlip;animation-duration:9s,23s;animation-iteration-count:infinite,infinite}
+@keyframes wsSlip{0%,88%,100%{transform:translateX(0) skewX(0)}90%{transform:translateX(2px) skewX(.5deg)}92%{transform:translateX(-3px) skewX(-.4deg)}94%{transform:translateX(1px)}}
+
+/* ── ambient beats ─────────────────────────────────────────────────────── */
+#worldscape.amb-bolt .ws-flash{animation:wsSkyFlash .82s ease-out}
+#worldscape.amb-bolt .l-cloud{animation:wsCloudHit .8s ease-out}
+@keyframes wsCloudHit{0%{opacity:.5}18%{opacity:.9}100%{opacity:.22}}
+#worldscape.amb-window .ct-win{animation:wsWindowFlicker 2.4s steps(1,end)}
+@keyframes wsWindowFlicker{0%,100%{opacity:.72}12%{opacity:.3}16%{opacity:.8}52%{opacity:.5}56%{opacity:.78}}
+#worldscape.amb-breath .ws-art{animation:wsBreathDeep 2.6s ease-in-out}
+@keyframes wsBreathDeep{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}
+#worldscape.amb-stir .l-figure{animation:wsStir 2.4s ease-in-out}
+@keyframes wsStir{0%,100%{transform:translateX(0)}50%{transform:translateX(9px)}}
+#worldscape.amb-gust .l-cloud{animation:wsGust 2.6s ease-out}
+@keyframes wsGust{0%{transform:translateX(0)}100%{transform:translateX(22px)}}
+#worldscape.amb-drift .l-celestial{animation:wsFloat 2.6s ease-in-out}
+@keyframes wsFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#worldscape.amb-slip .ws-print{animation:wsSlipPrint 2.4s steps(2,end)}
+@keyframes wsSlipPrint{0%,100%{transform:translate(0,0);opacity:.55}30%{transform:translate(-4px,2px);opacity:.8}60%{transform:translate(3px,-2px);opacity:.4}}
+
+/* ── clouds / rain / weather ───────────────────────────────────────────── */
+#worldscape .l-cloud{fill:none;stroke:var(--sky);stroke-width:1.25;opacity:0}
+#worldscape .cl-a,#worldscape .cl-b,#worldscape .cl-c{transition:opacity 1.6s ease}
+#worldscape.w-cloud .l-cloud{opacity:calc(.18 + .22 * var(--w-wind))}
+#worldscape.w-rain .l-cloud{opacity:.34}
+#worldscape.w-storm .l-cloud{opacity:.62;stroke:#7b858a;stroke-width:1.6}
+#worldscape.w-storm .cl-a,#worldscape.w-storm .cl-b,#worldscape.w-storm .cl-c{translate:0 8px}
+#worldscape.w-storm{filter:brightness(.88) contrast(1.06)}
+#worldscape.w-night .l-cloud{stroke:#5c666d}
+/* Clouds only travel if there is wind to carry them. */
+#worldscape.w-cloud .cl-a{animation:wsCloudA calc(38s - 22s * var(--w-wind)) linear infinite}
+#worldscape.w-cloud .cl-b{animation:wsCloudB calc(46s - 24s * var(--w-wind)) linear infinite}
+#worldscape.w-cloud .cl-c{animation:wsCloudA calc(58s - 26s * var(--w-wind)) linear infinite}
+@keyframes wsCloudA{from{transform:translateX(-70px)}to{transform:translateX(1220px)}}
+@keyframes wsCloudB{from{transform:translateX(-140px)}to{transform:translateX(1200px)}}
+
+/* ── BIRTH EVENTS ──────────────────────────────────────────────────────── */
+/* Loud for a moment, then the world settles into its persistent state. The
+   body flag lets the rest of the UI stand down while the world speaks. */
+body.world-birth #gridwrap::before{opacity:.008}
+#worldscape.w-settling .ws-art g{transition-duration:1.1s}
+
+#worldscape[class*=" b-"] .ws-art g,#worldscape[class^="b-"] .ws-art g{transition-duration:.9s}
+
+#worldscape.b-sea .l-sea{opacity:.66!important;animation:wsSeaBirth 2.7s cubic-bezier(.1,.78,.2,1)}
+@keyframes wsSeaBirth{0%{transform:translateY(64px) scaleY(.3);opacity:0}
+  42%{transform:translateY(-11px) scaleY(1.18);opacity:.8}
+  68%{transform:translateY(4px) scaleY(.97)}
+  100%{transform:none;opacity:.66}}
+#worldscape.b-sea .sea-line{animation:wsSeaBirth 2.7s cubic-bezier(.1,.78,.2,1)}
+
+#worldscape.b-tide .l-sea{animation:wsTideBirth 2.4s ease-in-out}
+@keyframes wsTideBirth{0%,100%{transform:translateY(0)}40%{transform:translateY(-9px)}70%{transform:translateY(3px)}}
+#worldscape.b-tide .c-moon{opacity:.8!important;animation:wsMoonHit 2.4s ease-out}
+@keyframes wsMoonHit{0%{transform:scale(1.5);opacity:.95}100%{transform:none;opacity:.42}}
+
+#worldscape.b-river .l-river{opacity:.6!important;stroke-dashoffset:0;animation:wsRiverBirth 2.2s ease-out}
+@keyframes wsRiverBirth{from{stroke-dashoffset:190}to{stroke-dashoffset:0}}
+
+#worldscape.b-mountain .l-mountain{opacity:.52!important;animation:wsMassBirth 2.6s cubic-bezier(.12,.82,.2,1)}
+#worldscape.b-mountain .l-far{animation:wsMassBirth 2.6s .12s cubic-bezier(.12,.82,.2,1)}
+@keyframes wsMassBirth{0%{transform:translateY(72px)}64%{transform:translateY(-5px)}100%{transform:none}}
+
+#worldscape.b-volcano .l-volcano{opacity:.76!important;animation:wsVolcanoBirth 3.2s cubic-bezier(.14,.8,.22,1)}
+#worldscape.b-volcano .vo-mouth{animation:wsMouthBirth 3s ease-out}
+#worldscape.b-volcano .vo-plume{opacity:.85!important;animation:wsPlumeBirth 3.2s ease-out}
+#worldscape.b-volcano .ws-flash{animation:wsEmberFlash 3.2s ease-out}
+@keyframes wsVolcanoBirth{0%{transform:translateY(86px)}46%{transform:translateY(-6px)}62%{transform:translateY(2px)}100%{transform:none}}
+@keyframes wsMouthBirth{0%,40%{opacity:.2}52%{opacity:1}100%{opacity:.55}}
+@keyframes wsPlumeBirth{0%,42%{opacity:0;transform:translateY(16px) scale(.4)}70%{opacity:.9;transform:translateY(-6px) scale(1.25)}100%{opacity:.34;transform:none}}
+@keyframes wsEmberFlash{0%,44%{opacity:0}50%{opacity:.16;background:#c8703f}100%{opacity:0;background:#c8703f}}
+
+#worldscape.b-quake .ws-art{animation:wsQuake 1.5s cubic-bezier(.36,.07,.19,.97)}
+@keyframes wsQuake{0%,100%{transform:translate(0,0)}
+  8%{transform:translate(-5px,2px)}18%{transform:translate(5px,-2px)}30%{transform:translate(-4px,-1px)}
+  44%{transform:translate(3px,2px)}60%{transform:translate(-2px,1px)}78%{transform:translate(1px,-1px)}}
+
+#worldscape.b-rain .l-cloud{opacity:.6!important;animation:wsCloudGather 2.2s ease-out}
+@keyframes wsCloudGather{0%{transform:translateY(-16px) scaleX(.6);opacity:0}100%{transform:none;opacity:.6}}
+#worldscape.b-storm .l-cloud{opacity:.75!important;animation:wsStormRoll 3s ease-in-out}
+@keyframes wsStormRoll{0%{transform:translateX(-30px) scaleX(.7);opacity:.2}40%{transform:translateX(6px) scaleX(1.1);opacity:.8}100%{transform:none;opacity:.5}}
+#worldscape.b-storm .ws-flash{animation:wsSkyFlash 1.1s 1.4s ease-out}
+#worldscape.b-bolt .ws-flash{animation:wsBolt 1.5s steps(1,end)}
+@keyframes wsBolt{0%{opacity:0}4%{opacity:.42}8%{opacity:.02}13%{opacity:.5}19%{opacity:0}26%{opacity:.24}32%{opacity:0}100%{opacity:0}}
+@keyframes wsSkyFlash{0%{opacity:.30}12%{opacity:.06}20%{opacity:.22}100%{opacity:0}}
+#worldscape.b-cloud .l-cloud{opacity:.5!important;animation:wsCloudGather 2s ease-out}
+#worldscape.b-wind .l-cloud{opacity:.5!important;animation:wsGust 1.9s cubic-bezier(.1,.8,.2,1)}
+#worldscape.b-wind .l-forest{animation:wsSwayHit 1.9s ease-out}
+@keyframes wsSwayHit{0%{transform:skewX(0)}30%{transform:skewX(-4deg)}60%{transform:skewX(2deg)}100%{transform:none}}
+
+#worldscape.b-ice .l-glacier{opacity:.44!important;animation:wsFrostBirth 2.1s cubic-bezier(.2,.7,.2,1)}
+#worldscape.b-ice .sea-floe{opacity:.7!important;animation:wsFrostBirth 2.1s .2s cubic-bezier(.2,.7,.2,1)}
+@keyframes wsFrostBirth{0%{transform:translateX(-70px);opacity:0}100%{transform:none;opacity:.44}}
+#worldscape.b-fire .ws-flash{animation:wsHeatFlash 1.5s ease-out}
+@keyframes wsHeatFlash{0%{opacity:.14;background:#c8703f}100%{opacity:0;background:#c8703f}}
+#worldscape.b-heat .ws-art{animation:wsShimmer 2s ease-in-out}
+@keyframes wsShimmer{0%,100%{transform:skewX(0)}25%{transform:skewX(.35deg)}75%{transform:skewX(-.35deg)}}
+
+/* LIFE lands after its ceremony clears, so it gets the whole board. */
+#worldscape.b-life .ws-art{animation:wsFirstBreath 3s cubic-bezier(.2,.7,.2,1)}
+@keyframes wsFirstBreath{0%{transform:scale(1)}22%{transform:scale(1.028)}48%{transform:scale(.996)}70%{transform:scale(1.012)}100%{transform:scale(1)}}
+#worldscape.b-life .l-shore{opacity:.9!important}
+#worldscape.b-life .l-shore .sh-mark{opacity:1!important;stroke:var(--life);stroke-width:2.2;
+  transform-origin:50% 202px;animation:wsSprout 3.2s cubic-bezier(.16,.84,.24,1)}
+#worldscape.b-life .l-shore path:first-child{stroke:var(--life);stroke-width:1.6;
+  stroke-dasharray:1200;stroke-dashoffset:1200;animation:wsRun 3.2s cubic-bezier(.2,.7,.2,1) forwards}
+#worldscape.b-life .l-forest{opacity:.5!important;animation:wsGrow 3.2s .4s cubic-bezier(.12,.9,.24,1) backwards}
+#worldscape.b-life .ws-flash{animation:wsLifeGlow 3.2s ease-out}
+@keyframes wsSprout{0%{transform:scaleY(0);opacity:0}55%{transform:scaleY(2.1);opacity:1}100%{transform:none;opacity:.55}}
+@keyframes wsRun{to{stroke-dashoffset:0}}
+@keyframes wsLifeGlow{0%{opacity:0;background:#7c9470}30%{opacity:.10;background:#7c9470}100%{opacity:0;background:#7c9470}}
+#worldscape.b-grow .l-forest{opacity:.55!important;animation:wsGrow 1.9s cubic-bezier(.12,.9,.24,1)}
+@keyframes wsGrow{0%{transform:translateY(18px) scaleY(.2);opacity:0}100%{transform:none;opacity:.55}}
+#worldscape.b-forest .l-forest{opacity:.62!important;animation:wsSpread 2.5s cubic-bezier(.12,.86,.22,1)}
+@keyframes wsSpread{0%{transform:translateY(14px) scaleX(.18) scaleY(.3);opacity:0;transform-origin:0 202px}
+  60%{transform:scaleX(1.05) scaleY(1.08);opacity:.8}100%{transform:none;opacity:.62}}
+#worldscape.b-stir .l-figure{opacity:.6!important;animation:wsStirBirth 2s ease-out}
+@keyframes wsStirBirth{0%{transform:translateX(-18px);opacity:0}100%{transform:none;opacity:.6}}
+#worldscape.b-shore .sh-mark{opacity:.8!important;animation:wsSprout 1.8s ease-out}
+
+#worldscape.b-human .l-figure{opacity:.85!important;animation:wsArrive 2.5s cubic-bezier(.14,.8,.2,1)}
+@keyframes wsArrive{0%{transform:translateY(12px) scale(.4);opacity:0}55%{transform:translateY(-3px) scale(1.15);opacity:1}100%{transform:none;opacity:.85}}
+#worldscape.b-settle .l-settle{opacity:.6!important;animation:wsRaise 1.9s cubic-bezier(.12,.86,.22,1)}
+@keyframes wsRaise{0%{transform:translateY(20px);opacity:0}100%{transform:none;opacity:.6}}
+#worldscape.b-bridge .l-grid{opacity:.4!important;animation:wsSpan 2s cubic-bezier(.16,.8,.2,1)}
+@keyframes wsSpan{0%{transform:scaleX(0);transform-origin:0 50%;opacity:0}100%{transform:none;opacity:.4}}
+
+/* CITY: a readable construction moment, then it stays alive quietly. */
+#worldscape.b-city .l-city{opacity:.68!important}
+#worldscape.b-city .ct-block{animation:wsBuild 2.2s cubic-bezier(.1,.82,.2,1)}
+#worldscape.b-city .ct-win{opacity:.85!important;animation:wsLightUp 3s steps(1,end)}
+@keyframes wsBuild{0%{transform:translateY(78px) scaleY(.1);transform-origin:50% 202px}
+  52%{transform:translateY(-4px) scaleY(1.06)}100%{transform:none}}
+@keyframes wsLightUp{0%,56%{opacity:0}62%{opacity:.3}68%{opacity:.1}74%{opacity:.6}82%{opacity:.4}100%{opacity:.85}}
+
+/* ELECTRICITY propagates through what is already there. */
+#worldscape.b-power .l-grid{opacity:.64!important;animation:wsSurge 2.6s cubic-bezier(.2,.8,.2,1)}
+#worldscape.b-power .l-pylon{opacity:.55!important;animation:wsSurge 2.6s .1s ease-out}
+#worldscape.b-power .ct-win{opacity:.9!important;animation:wsLightUp 2.6s .5s steps(1,end)}
+@keyframes wsSurge{0%{stroke-dasharray:2 90;stroke-dashoffset:120;opacity:.2}
+  50%{stroke-dasharray:12 6;opacity:.9}100%{stroke-dasharray:8 7;stroke-dashoffset:0;opacity:.64}}
+#worldscape.b-machine .l-pylon{opacity:.5!important;animation:wsRaise 2.2s cubic-bezier(.12,.86,.22,1)}
+#worldscape.b-machine .l-grid{opacity:.4!important;animation:wsSurge 2.2s ease-out}
+#worldscape.b-stacks .ct-stack{opacity:.9!important;animation:wsRaise 2.2s ease-out}
+#worldscape.b-signal .l-grid{opacity:.55!important;animation:wsCircuit 1.1s linear 2}
+#worldscape.b-signal .ct-mast{opacity:.9!important;animation:wsPing 2s ease-out}
+@keyframes wsPing{0%{opacity:0;transform:translateY(10px)}40%{opacity:1}100%{opacity:.5;transform:none}}
+#worldscape.b-ai .l-grid{opacity:.6!important;animation:wsThinkHard 2.8s steps(1,end)}
+@keyframes wsThinkHard{0%{opacity:.2}14%{opacity:.7}22%{opacity:.15}36%{opacity:.62}44%{opacity:.1}58%{opacity:.75}70%{opacity:.25}100%{opacity:.6}}
+#worldscape.b-ai .ws-print{opacity:.5!important;animation:wsSlipPrint 2.8s steps(3,end)}
+
+/* ── celestial births ──────────────────────────────────────────────────── */
+#worldscape.b-night .ws-art{animation:wsDusk 2.4s ease-in-out}
+@keyframes wsDusk{0%{opacity:1;transform:translateY(-3px)}55%{opacity:.72}100%{opacity:1;transform:none}}
+#worldscape.b-moon .c-moon{opacity:.9!important;animation:wsMoonHit 2.4s cubic-bezier(.16,.8,.2,1)}
+#worldscape.b-sun .c-sun{opacity:.7!important;animation:wsSunHit 2.2s cubic-bezier(.16,.8,.2,1)}
+@keyframes wsSunHit{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.3);opacity:.9}100%{transform:none;opacity:.7}}
+#worldscape.b-sky .ws-flash{animation:wsSkyOpen 2.2s ease-out}
+@keyframes wsSkyOpen{0%{opacity:.1}100%{opacity:0}}
+#worldscape.b-stars .ws-flash,#worldscape.b-space .ws-flash{animation:wsSkyOpen 2.6s ease-out}
+#worldscape.b-space .l-far{animation:wsRecede 3s cubic-bezier(.2,.7,.2,1)}
+@keyframes wsRecede{0%{transform:translateY(0) scaleY(1);opacity:.16}55%{transform:translateY(8px) scaleY(.9);opacity:.05}100%{transform:none;opacity:.1}}
+#worldscape.b-universe .ws-art{animation:wsUnbound 3.4s cubic-bezier(.2,.7,.2,1)}
+@keyframes wsUnbound{0%{transform:scale(1);opacity:1}40%{transform:scale(1.06);opacity:.55}100%{transform:scale(1);opacity:1}}
+#worldscape.b-hole .ws-art{animation:wsBend 3s cubic-bezier(.3,.1,.2,1)}
+@keyframes wsBend{0%,100%{transform:none}45%{transform:perspective(600px) rotateY(7deg) scale(.97)}}
+#worldscape.b-bang .ws-flash{animation:wsBang 3.6s cubic-bezier(.1,.9,.2,1)}
+@keyframes wsBang{0%{opacity:0}6%{opacity:.92}16%{opacity:.3}30%{opacity:.1}100%{opacity:0}}
+#worldscape.b-bang .ws-art{animation:wsReform 3.6s cubic-bezier(.1,.9,.2,1)}
+@keyframes wsReform{0%{transform:scale(.25);opacity:0}22%{transform:scale(1.08);opacity:1}100%{transform:none;opacity:1}}
+#worldscape.b-time .ws-art{animation:wsTick 2.4s steps(6,end)}
+@keyframes wsTick{0%{transform:translateX(0)}50%{transform:translateX(3px)}100%{transform:translateX(0)}}
+#worldscape.b-chaos .ws-art{animation:wsDesync 2.6s steps(4,end)}
+@keyframes wsDesync{0%,100%{transform:none;filter:none}
+  20%{transform:translate(-6px,2px) skewX(1.4deg)}40%{transform:translate(5px,-3px) skewX(-1deg);filter:invert(.08)}
+  60%{transform:translate(-3px,1px)}80%{transform:translate(2px,0) skewX(.6deg)}}
+#worldscape.b-rizo .ws-print{opacity:.9!important;animation:wsSign 3s cubic-bezier(.1,.8,.2,1)}
+@keyframes wsSign{0%{opacity:0;transform:translate(-14px,8px)}45%{opacity:1;transform:translate(4px,-3px)}100%{opacity:.55;transform:none}}
+#worldscape.b-rizo .l-sign{opacity:.8!important;animation:wsRaise 3s cubic-bezier(.12,.86,.22,1)}
+
+/* ── the player chose stillness ────────────────────────────────────────── */
+.reduced #worldscape .ws-art,.reduced #worldscape .ws-art *,
+.reduced #worldscape .ws-print,.reduced #worldfield,.reduced #worldfield *{
+  animation:none!important;transition:none!important;
+}
+.reduced #worldscape .ws-flash{display:none!important}
+.reduced #worldscape .ws-fx{display:none!important}
+
+/* ── phones ────────────────────────────────────────────────────────────── */
+@media (max-width:860px){
+  /* a phone bench is short: the same scene needs a little less weight */
+  #worldscape{opacity:calc(.26 + .6 * var(--w-density,0))}
+}
+@media (max-width:560px){
+  /* The bench is short on a phone. Pull the scene's important mass toward the
+     centre so the city and the volcano are not cropped off the ends. */
+  /* A phone bench has almost no middle. Everything low and human moves into
+     the left strip beside the first slot; the machinery and the volcano share
+     the right. The trees end up on the mountain's foot, which is where they
+     would have grown anyway. */
+  #worldscape .l-forest{translate:-238px 0}
+  #worldscape.w-clearing .l-forest{translate:-250px 0}
+  #worldscape .l-settle{translate:-196px 0}
+  #worldscape .l-figure{translate:-238px 0}
+  #worldscape .l-camp{translate:-238px 0}
+  #worldscape .l-city{translate:-46px 0}
+  #worldscape .l-pylon{translate:-34px 0}
+  #worldscape .l-volcano{translate:-46px 0}
+  #worldscape .l-sign{translate:-54px 0}
+  #worldscape .c-sun,#worldscape .c-moon{translate:-26px 0}
+  #worldscape .l-river{translate:-40px 0}
+  #worldfield .wf-lens{background-position:62% 26%}
+}

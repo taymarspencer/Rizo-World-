@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RIZO ORIGIN</title>
+<meta name="description" content="Fire. Water. Earth. Air. Put two things together and find out how far it goes.">
+<meta name="theme-color" content="#090908">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="RIZO ORIGIN">
+<meta property="og:description" content="Four things. Everything else is up to you.">
+<meta property="og:image" content="https://rizogod.pages.dev/assets/icon-512.png">
+<meta property="og:url" content="https://rizogod.pages.dev/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/rizo.css?v=11">
+</head>
+<body class="preboot">
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <span id="brandMark" style="display:block;color:var(--ink)"></span>
+      <span class="wordmark">RIZO <i>ORIGIN</i></span>
+    </div>
+    <div class="hstat">
+      <button class="pill" id="pSecret" style="display:none" title="Things that were not supposed to be findable"></button>
+      <button class="pill" id="pFound" title="Your record">FOUND <b>4</b></button>
+      <button class="iconbtn" id="bSound" title="Sound"></button>
+      <button class="iconbtn" id="bHint" title="Hint (H)"></button>
+      <button class="iconbtn" id="bBook" title="Discoveries (E)"></button>
+      <button class="iconbtn" id="bAch"  title="Achievements"></button>
+      <button class="iconbtn" id="bMenu" title="The board"></button>
+    </div>
+  </header>
+
+  <main>
+    <nav id="rail" aria-label="Domains"></nav>
+    <section id="work">
+      <div id="bench">
+        <div id="worldscape" aria-hidden="true"></div>
+        <div class="bench-caption"><span>THE WORKBENCH</span><span id="benchCue">ONE THING. THEN ANOTHER.</span></div>
+        <div class="benchrow">
+          <button class="slot" id="slotA" aria-label="First ingredient"><span class="ph">PICK ONE</span></button>
+          <span class="op" aria-hidden="true">+</span>
+          <button class="slot" id="slotB" aria-label="Second ingredient"><span class="ph">PICK ONE</span></button>
+          <span class="op arrow" aria-hidden="true">→</span>
+          <button class="result empty" id="res" aria-label="Reaction result"><span class="ph">?</span></button>
+        </div>
+        <div class="hintline" id="hintline" role="status" aria-live="polite"></div>
+      </div>
+
+      <div id="gridwrap">
+        <div id="mrail" aria-label="Domains"></div>
+        <div class="collection-head"><h1 id="collectionTitle">The elements</h1><span id="collectionCount">FOUR TO BEGIN.</span></div>
+        <div id="tools">
+          <input id="search" placeholder="Find a discovery…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search discoveries">
+          <button class="chip smart-chip" id="chipSmart" data-f="smart" style="display:none">SMART</button>
+          <button class="chip on" id="chipAll" data-f="all">ALL</button>
+          <button class="chip" id="chipNew" data-f="new">NEW</button>
+          <button class="chip" id="chipFav" data-f="fav" aria-label="Favourites">FAV</button>
+          <button class="chip" id="chipRecent" data-f="recent">RECENT</button>
+        </div>
+        <div id="grid" role="group" aria-label="Discovered elements"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="ink"></div>
+<div id="reactionFX" aria-hidden="true"></div>
+<div id="chain" aria-live="polite"></div>
+<div id="card"></div>
+<div id="flash"></div>
+<div id="stage"></div>
+<div id="sheet"></div>
+
+<script src="js/data/groups.js"></script>
+<script src="js/data/elements.js"></script>
+<script src="js/data/recipes.js"></script>
+<script src="js/data/achievements.js"></script>
+<script src="js/art/mark.js"></script>
+<script src="js/art/glyphs.js"></script>
+<script src="js/art/plates-natural.js"></script>
+<script src="js/art/plates-civil.js"></script>
+<script src="js/art/plates-strange.js"></script>
+<script src="js/art/plates-landmarks.js"></script>
+<script src="js/art/plates-deep.js"></script>
+<script src="js/art/render.js"></script>
+<script src="js/engine/audio.js?v=11"></script>
+<script src="js/engine/game.js?v=11"></script>
+<script src="js/ui/ui.js?v=11"></script>
+<script src="js/ui/world.js?v=11"></script>
+<script src="js/ui/moments.js?v=11"></script>
+<script src="js/ui/sheets.js?v=11"></script>
+<script src="js/main.js?v=11"></script>
+<script>
+  document.getElementById('bSound').innerHTML = window.RizoUI.ICON.sound;
+  document.getElementById('bHint').innerHTML = window.RizoUI.ICON.hint;
+  document.getElementById('bBook').innerHTML = window.RizoUI.ICON.book;
+  document.getElementById('bAch').innerHTML  = window.RizoUI.ICON.cup;
+  document.getElementById('bMenu').innerHTML = window.RizoUI.ICON.menu;
+</script>
+</body>
+</html>
