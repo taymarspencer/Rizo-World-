@@ -10,12 +10,12 @@
     {
       "name": "wave start uses the shared cinematic hierarchy",
       "passed": true,
-      "detail": "{'kind': 'wave-start', 'count': 1, 'priority': 2, 'untilReal': 1.2199999999999998, 'hidden': False, 'className': 'defense-moment moment-wave-start tone-info', 'text': '\u2248RIZO DEFENSEWAVE 1Easy now. Watch where the first ones drift.', 'shellMoment': 'wave-start', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
+      "detail": "{'kind': 'wave-start', 'count': 1, 'priority': 2, 'untilReal': 1.153336, 'hidden': False, 'className': 'defense-moment moment-wave-start tone-info', 'text': '\u2248RIZO DEFENSEWAVE 1 \u2022 KNOCK KNOCKOwn a bend. One Rizo can hit the road twice.', 'shellMoment': 'wave-start', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
     },
     {
       "name": "high-priority boss moments are not replaced by packet noise",
       "passed": true,
-      "detail": "{'boss': {'kind': 'boss', 'count': 2, 'priority': 7, 'untilReal': 1.9665999999999997, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss', 'text': '!RIZO DEFENSECROWN BALLOONBOSS ENTRANCE', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}, 'afterPacket': {'kind': 'boss', 'count': 2, 'priority': 7, 'untilReal': 1.9665999999999997, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss', 'text': '!RIZO DEFENSECROWN BALLOONBOSS ENTRANCE', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}}"
+      "detail": "{'boss': {'kind': 'boss', 'count': 2, 'priority': 7, 'untilReal': 1.883336, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss', 'text': '!RIZO DEFENSECROWN BALLOONBOSS ENTRANCE', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}, 'afterPacket': {'kind': 'boss', 'count': 2, 'priority': 7, 'untilReal': 1.883336, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss', 'text': '!RIZO DEFENSECROWN BALLOONBOSS ENTRANCE', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}}"
     },
     {
       "name": "cinematic sample has no runtime errors",
@@ -25,27 +25,27 @@
     {
       "name": "actual boss spawn triggers entrance treatment",
       "passed": true,
-      "detail": "{'kind': 'boss', 'count': 1, 'priority': 7, 'untilReal': 1.8166, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss', 'text': '!WAVE 10 \u2022 BOSS ENTRANCETHE WARDENCALLS HEAVY GUARDS', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
+      "detail": "{'kind': 'boss', 'count': 1, 'priority': 7, 'untilReal': 1.8333, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss', 'text': '!WAVE 10 \u2022 BOSS ENTRANCETHE WARDENCALLS HEAVY GUARDS', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
     },
     {
       "name": "gate damage gets a readable danger moment",
       "passed": true,
-      "detail": "{'kind': 'danger', 'count': 1, 'priority': 6, 'untilReal': 1.2000000000000002, 'hidden': False, 'className': 'defense-moment moment-danger tone-danger', 'text': '\u2665RIZO DEFENSEGATE CRITICAL \u2022 5 HEARTSTHE EMBER GATE IS ONE BAD LEAK FROM TROUBLE.', 'shellMoment': 'danger', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
+      "detail": "{'kind': 'danger', 'count': 1, 'priority': 6, 'untilReal': 1.216608, 'hidden': False, 'className': 'defense-moment moment-danger tone-danger', 'text': '\u2665RIZO DEFENSEGATE CRITICAL \u2022 5 HEARTSTHE EMBER GATE IS ONE BAD LEAK FROM TROUBLE.', 'shellMoment': 'danger', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
     },
     {
       "name": "perfect wave gets higher-order clear treatment",
       "passed": true,
-      "detail": "{'kind': 'money', 'count': 1, 'priority': 5, 'untilReal': 2.516668, 'hidden': False, 'className': 'defense-moment moment-money tone-valid dismissible', 'text': '\ud83e\ude99WAVE 1 CLEAR+46 GOLDPERFECT \u2022 NOTHING TOUCHED THE GATE\u00d7', 'shellMoment': 'money', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
+      "detail": "{'kind': 'money', 'count': 1, 'priority': 6, 'untilReal': 2.433268, 'hidden': False, 'className': 'defense-moment moment-money tone-perfect dismissible', 'text': '\u2605WAVE 1 CLEARPERFECT CLEAR+46 GOLD \u2022 NOTHING TOUCHED THE GATE\u00d7', 'shellMoment': 'money', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': False}"
     },
     {
       "name": "banking enters one terminal state before recap",
       "passed": true,
-      "detail": "{'moment': {'kind': 'bank', 'count': 2, 'priority': 10, 'untilReal': 1.5999, 'hidden': False, 'className': 'defense-moment moment-bank tone-money', 'text': '\u25c7RIZO DEFENSERUN BANKEDCLEARED 1 \u2022 WAVE 2 EXCLUDED', 'shellMoment': 'bank', 'stagePulse': True, 'ending': True, 'endingReason': 'banked', 'reducedMotion': False}, 'snap': {'map': 'grove', 'currentWave': 2, 'clearedWave': 1, 'reachedWave': 2, 'contract': None, 'maxTowers': 10, 'wave': 2, 'lives': 20, 'cash': 266, 'worldPerkUsed': False, 'phase': 'run-complete', 'paused': False, 'autoPaused': False, 'waveTotal': 9, 'waveResolved': 0, 'lowFx': False, 'performanceLow': False, 'frameMs': 17.469606065450197, 'frameP95': 16.7, 'frameP99': 16.7, 'frameStress': 0, 'governorTier': 0, 'simStepP95': 0, 'simStepWorst': 0, 'simBacklogEvents': 0, 'maxCatchUpObserved': 0, 'lastSimSteps': 0, 'simAccumulator': 0, 'presentationFrames': 1, 'rendererMode': 'dom', 'canvasFrames': 0, 'canvasFallbacks': 0, 'canvasRenderer': None, 'renderTier': 0, 'potatoFx': False, 'renderTierChanges': 0, 'densityCap': 14, 'poolStats': {'enemy': 0, 'projectile': 0, 'impact': 0, 'enemyCreated': 0, 'enemyAcquired': 0, 'projectileCreated': 0, 'projectileAcquired': 0, 'impactCreated': 0, 'impactAcquired': 0}, 'visualWrites': {'enemyPosition': 0, 'enemyClass': 0, 'enemyHealth': 0, 'enemyState': 0, 'projectilePosition': 0}, 'peakAlive': 0, 'spawnWaitReason': 'countdown', 'lastSpawnedEnemyId': None, 'ashUntil': 0, 'moonRevealUntil': 0, 'intelOpen': False, 'enemyStats': {'spawned': {}, 'popped': {}, 'leaked': {}, 'heartLoss': 0, 'counters': {'armorBreaks': 0, 'armorShreds': 0, 'reveals': 0, 'phaseLocks': 0, 'bossInterrupts': 0}}, 'hudRenderCount': 8, 'rosterRenderCount': 5, 'trayRenderCount': 0, 'intelRenderCount': 0, 'checkpointWrites': 3, 'pendingIncome': 0, 'pendingIncomeEvents': 0, 'lastIncomeBatch': None, 'cashWriteCount': 2, 'targetScans': 0, 'targetSnapshotBuilds': 0, 'realClock': 0.31660000000000005, 'simulationClock': 0, 'visualBudget': {'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'weatherParticleScale': 1, 'projectileEmissionHz': 10, 'presentationFps': 60}, 'childSpawnsReleased': 0, 'nextChildReleaseAtReal': 0.2999, 'maxActiveEnemiesObserved': 0, 'maxProjectileNodesObserved': 0, 'maxLogicalProjectilesObserved': 0, 'visibleProjectileCount': 0, 'coalescedVisualShots': 0, 'coalescedLogicalShots': 0, 'droppedCosmetics': 0, 'maxEffectNodesObserved': 0, 'childSpawnQueue': 0, 'packetIndex': 0, 'packetCount': 2, 'lastInputCancelReason': None, 'frameDiscontinuities': 0, 'cinematicMomentKind': 'bank', 'cinematicMomentCount': 2, 'gateFlame': {'armed': False, 'readyAt': 0, 'until': 0, 'progress': 0.86, 'ticks': 0}, 'ending': True, 'endingReason': 'banked', 'projectiles': [], 'towers': [{'id': 'tower-1', 'petId': 'PET-8E91D0E9A103', 'variant': 'classic', 'copy': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 0, 'cost': 0, 'spent': 0, 'openingPerkApplied': False, 'placedAtReal': 0.2999, 'kills': 0, 'damage': 0, 'shots': 0, 'targetMode': 'first', 'doctrine': None, 'superForm': None, 'readyAt': 0, 'nextUpgradeCost': 110, 'sellRefund': 0, 'canUndo': False}], 'enemies': []}}"
+      "detail": "{'moment': {'kind': 'bank', 'count': 2, 'priority': 10, 'untilReal': 1.6333, 'hidden': False, 'className': 'defense-moment moment-bank tone-money', 'text': '\u25c7RIZO DEFENSERUN BANKEDCLEARED 1 \u2022 WAVE 2 EXCLUDED', 'shellMoment': 'bank', 'stagePulse': True, 'ending': True, 'endingReason': 'banked', 'reducedMotion': False}, 'snap': {'map': 'grove', 'currentWave': 2, 'clearedWave': 1, 'reachedWave': 2, 'contract': None, 'maxTowers': 10, 'wave': 2, 'lives': 20, 'cash': 266, 'worldPerkUsed': False, 'phase': 'run-complete', 'paused': False, 'autoPaused': False, 'waveTotal': 7, 'waveResolved': 0, 'lowFx': False, 'performanceLow': False, 'frameMs': 21.64100156953839, 'frameP95': 16.7, 'frameP99': 16.7, 'frameStress': 4.94, 'governorTier': 0, 'simStepP95': 0, 'simStepWorst': 0, 'simBacklogEvents': 0, 'maxCatchUpObserved': 0, 'lastSimSteps': 0, 'simAccumulator': 0, 'presentationFrames': 1, 'rendererMode': 'dom', 'canvasFrames': 0, 'canvasFallbacks': 0, 'canvasRenderer': None, 'renderTier': 0, 'potatoFx': False, 'renderTierChanges': 0, 'densityCap': 14, 'poolStats': {'enemy': 0, 'projectile': 0, 'impact': 0, 'enemyCreated': 0, 'enemyAcquired': 0, 'projectileCreated': 0, 'projectileAcquired': 0, 'impactCreated': 0, 'impactAcquired': 0}, 'visualWrites': {'enemyPosition': 0, 'enemyClass': 0, 'enemyHealth': 0, 'enemyState': 0, 'projectilePosition': 0}, 'peakAlive': 0, 'spawnWaitReason': 'countdown', 'lastSpawnedEnemyId': None, 'ashUntil': 0, 'moonRevealUntil': 0, 'intelOpen': False, 'enemyStats': {'spawned': {}, 'popped': {}, 'leaked': {}, 'heartLoss': 0, 'counters': {'armorBreaks': 0, 'armorShreds': 0, 'reveals': 0, 'phaseLocks': 0, 'bossInterrupts': 0}}, 'hudRenderCount': 8, 'rosterRenderCount': 5, 'trayRenderCount': 0, 'intelRenderCount': 0, 'checkpointWrites': 3, 'pendingIncome': 0, 'pendingIncomeEvents': 0, 'lastIncomeBatch': None, 'cashWriteCount': 2, 'targetScans': 0, 'targetSnapshotBuilds': 0, 'realClock': 0.34989999999999993, 'simulationClock': 0, 'visualBudget': {'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'weatherParticleScale': 1, 'projectileEmissionHz': 10, 'presentationFps': 60}, 'childSpawnsReleased': 0, 'nextChildReleaseAtReal': 0.33329999999999993, 'maxActiveEnemiesObserved': 0, 'maxProjectileNodesObserved': 0, 'maxLogicalProjectilesObserved': 0, 'visibleProjectileCount': 0, 'coalescedVisualShots': 0, 'coalescedLogicalShots': 0, 'droppedCosmetics': 0, 'maxEffectNodesObserved': 0, 'childSpawnQueue': 0, 'packetIndex': 0, 'packetCount': 2, 'lastInputCancelReason': None, 'frameDiscontinuities': 0, 'cinematicMomentKind': 'bank', 'cinematicMomentCount': 2, 'gateFlame': {'armed': False, 'readyAt': 0, 'until': 0, 'progress': 0.86, 'ticks': 0}, 'ending': True, 'endingReason': 'banked', 'projectiles': [], 'towers': [{'id': 'tower-1', 'petId': 'PET-3D655A39DA7D', 'variant': 'classic', 'copy': 1, 'x': 0.35000000000000003, 'y': 0.14, 'upgrade': 0, 'cost': 0, 'spent': 0, 'openingPerkApplied': False, 'placedAtReal': 0.33329999999999993, 'kills': 0, 'damage': 0, 'shots': 0, 'targetMode': 'first', 'doctrine': None, 'superForm': None, 'structureType': None, 'totalProduced': 0, 'beaconBuffed': False, 'readyAt': 0, 'nextUpgradeCost': 110, 'sellRefund': 0, 'canUndo': False, 'mapBond': None}], 'enemies': []}}"
     },
     {
       "name": "bank cinematic preserves cleared/reached exploit protection",
       "passed": true,
-      "detail": "{'id': 'DEFENSE-RUN-D8016B865671', 'at': 1786426274319, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'banked', 'mvpPetId': 'PET-8E91D0E9A103', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+      "detail": "{'id': 'DEFENSE-RUN-9B443F56A89F', 'at': 1789265038946, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 0, 'leaks': 0, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'banked', 'mvpPetId': 'PET-3D655A39DA7D', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
     },
     {
       "name": "banking cinematic has no runtime errors",
@@ -55,12 +55,12 @@
     {
       "name": "final defeat is visible before teardown",
       "passed": true,
-      "detail": "{'kind': 'defeat', 'count': 3, 'priority': 10, 'untilReal': 1.949868, 'hidden': False, 'className': 'defense-moment moment-defeat tone-danger', 'text': '\u00d7RIZO DEFENSEGATE DOWNCLEARED 1 \u2022 REACHED 2', 'shellMoment': 'defeat', 'stagePulse': True, 'ending': True, 'endingReason': 'gate', 'reducedMotion': False}"
+      "detail": "{'kind': 'defeat', 'count': 3, 'priority': 10, 'untilReal': 1.9666679999999999, 'hidden': False, 'className': 'defense-moment moment-defeat tone-danger', 'text': '\u00d7RIZO DEFENSEGATE DOWNCLEARED 1 \u2022 REACHED 2', 'shellMoment': 'defeat', 'stagePulse': True, 'ending': True, 'endingReason': 'gate', 'reducedMotion': False}"
     },
     {
       "name": "defeat cinematic never credits the unfinished wave",
       "passed": true,
-      "detail": "{'id': 'DEFENSE-RUN-3F57FAB0F7B8', 'at': 1786426276093, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-5E70BFEEB99B', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
+      "detail": "{'id': 'DEFENSE-RUN-2D1086200F19', 'at': 1789265040921, 'mapId': 'grove', 'wave': 1, 'clearedWave': 1, 'reachedWave': 2, 'kills': 0, 'heartLoss': 1, 'leaks': 1, 'bosses': 0, 'perfect': True, 'perfectWaveCount': 1, 'ended': 'gate', 'mvpPetId': 'PET-C75F27C97187', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 0, 'powerPaths': 0, 'controlPaths': 0, 'contractId': '', 'contractDate': '', 'contractComplete': False}"
     },
     {
       "name": "defeat cinematic has no runtime errors",
@@ -70,17 +70,17 @@
     {
       "name": "reduced-motion preserves information without camera animation",
       "passed": true,
-      "detail": "{'kind': 'boss', 'count': 1, 'priority': 7, 'untilReal': 0.5766680000000001, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss reduced', 'text': '!RIZO DEFENSEREDUCED MOTION BOSS', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': True, 'animation': 'none', 'duration': '1e-06s'}"
+      "detail": "{'kind': 'boss', 'count': 1, 'priority': 7, 'untilReal': 0.5934, 'hidden': False, 'className': 'defense-moment moment-boss tone-boss reduced', 'text': '!RIZO DEFENSEREDUCED MOTION BOSS', 'shellMoment': 'boss', 'stagePulse': True, 'ending': False, 'endingReason': None, 'reducedMotion': True, 'animation': 'none', 'duration': '1e-05s'}"
     },
     {
       "name": "cinematic treatment stays inside 320x568 and never blocks input",
       "passed": true,
-      "detail": "{'host': {'left': 18.390625, 'right': 301.609375, 'top': 244.90625, 'bottom': 293.6875}, 'card': {'left': 22.638900756835938, 'right': 297.36106872558594, 'top': 237.63796997070312, 'bottom': 284.9557800292969}, 'vw': 320, 'vh': 568, 'pointer': 'none'}"
+      "detail": "{'host': {'left': 19.203125, 'right': 300.796875, 'top': 156.84375, 'bottom': 205.625}, 'card': {'left': 23.427032470703125, 'right': 296.5729675292969, 'top': 149.57546997070312, 'bottom': 196.89328002929688}, 'vw': 320, 'vh': 568, 'pointer': 'none'}"
     },
     {
       "name": "cinematic stress reuses one DOM host without node leakage",
       "passed": true,
-      "detail": "{'before': 96, 'after': 96, 'hosts': 1, 'count': 100}"
+      "detail": "{'before': 105, 'after': 105, 'hosts': 1, 'count': 100}"
     },
     {
       "name": "cinematic stress has no runtime errors",

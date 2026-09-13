@@ -1,0 +1,23 @@
+PASS Worker-I stylesheet is present in audited browser document 
+PASS deploy hook plays Worker-I deploy animation {'cls': 'defense-tower defense-variant-toxic defense-tier-base defense-upgrade-0 defense-mastery-0 feel-idle-breathe defense-range-label-low feel-deployed', 'nodeAnim': 'rtd-feel-deploy', 'rizoAnim': 'rtd-feel-idle-breathe', 'vibes': [25, [7, 12, 7]], 'osc': 2}
+PASS deploy emits haptic and procedural-audio activity {'vibes': [25, [7, 12, 7]], 'osc': 2}
+PASS selection has tactile body punctuation {'cls': 'defense-tower defense-variant-toxic defense-tier-base defense-upgrade-0 defense-mastery-0 feel-idle-breathe defense-range-label-low selected feel-selected', 'anim': 'rtd-feel-select', 'vibes': 3, 'osc': 3}
+PASS upgrade transformation is visible before cleanup {'cls': 'defense-tower defense-variant-toxic defense-tier-charged defense-upgrade-1 defense-mastery-0 feel-idle-breathe defense-range-label-low selected just-upgraded feel-upgraded', 'rizoAnim': 'rtd-feel-upgrade', 'burst': True, 'burstAnim': 'rtd-feel-burst-shell', 'vibes': 3, 'osc': 10}
+PASS non-baseline Rizo gets authored attack language {'cls': 'defense-tower defense-variant-toxic defense-tier-charged defense-upgrade-1 defense-mastery-0 feel-idle-breathe defense-range-label-low selected just-upgraded feel-upgraded firing attack-toxic', 'anim': 'rtd-feel-toxic'}
+PASS boss phase has authored windup hook {'cls': 'defense-enemy balloon-boss boss-crown skin-clean damaged boss-telegraph telegraph-guards feel-boss-windup boss-entering', 'anim': 'rtd-feel-boss-windup', 'play': 'running', 'clock': 0.06666666666666667}
+PASS pause freezes Worker-I boss motion and simulation {'paused': {'phase': 'paused', 'shellPhase': 'paused', 'anim': 'rtd-feel-boss-windup', 'play': 'paused', 'clock': 0.06666666666666667}, 'frozen': 0.06666666666666667}
+PASS resume restarts motion and simulation {'phase': 'combat', 'play': 'running', 'clock': 0.19999999999999998}
+PASS 2x lowers presentation pressure instead of increasing sensory spam {'1x': {'maxVisibleProjectiles': 16, 'maxImpactEffects': 5, 'weatherParticleScale': 0.42, 'projectileEmissionHz': 6, 'presentationFps': 30}, '2x': {'maxVisibleProjectiles': 10, 'maxImpactEffects': 3, 'weatherParticleScale': 0.24, 'projectileEmissionHz': 6, 'presentationFps': 30}}
+PASS primary feel path has no runtime errors 
+PASS Worker-I CSS stays contained at 320x568 {'scrollW': 320, 'clientW': 320, 'p': {'l': 11.1875, 'r': 308.8125, 't': 147.40625, 'b': 476.84375, 'w': 297.625, 'h': 329.4375}}
+PASS no runtime errors at 320x568 
+PASS Worker-I CSS stays contained at 390x844 {'scrollW': 390, 'clientW': 390, 'p': {'l': 13.59375, 'r': 376.40625, 't': 392.359375, 'b': 738.4375, 'w': 362.8125, 'h': 346.078125}}
+PASS no runtime errors at 390x844 
+PASS Worker-I CSS stays contained at 844x390 {'scrollW': 844, 'clientW': 844, 'p': {'l': 619.40625, 'r': 830.40625, 't': 5.59375, 'b': 336.015625, 'w': 211, 'h': 330.421875}}
+PASS no runtime errors at 844x390 
+PASS user reduced-motion setting suppresses Worker-I movement {'body': 'rizo-handmade reduce-motion life-night defense-viewport-lock ui-locked', 'node': 'none', 'rizo': 'none'}
+PASS OS reduced-motion media query suppresses Worker-I movement {'node': 'none', 'rizo': 'none', 'media': True}
+PASS unrelated Arcade system still launches {'hidden': False, 'text': '\n\nCOACH TAPE 03POWER TAPE23.90 PTS\n\n\n        \n        \n        STREAK 0OVERDRIVE 0%\n        COACH CALLHOOK\n        JABBODYHOOK\n        COACH: HOOK\n      \n\n\nThe '}
+PASS Arcade smoke has no runtime errors 
+
+21/21 Worker-I integrated browser checks passed

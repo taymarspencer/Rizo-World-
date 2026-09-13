@@ -1,0 +1,61 @@
+{
+  "passed": 11,
+  "total": 11,
+  "results": [
+    {
+      "name": "explicit empty crew keeps Captain only",
+      "passed": true,
+      "detail": "[{'id': 'PET-973D54F348CF', 'source': 'active'}]"
+    },
+    {
+      "name": "Captain-only run launches and can deploy",
+      "passed": true,
+      "detail": "crew=['PET-973D54F348CF'] universal=['defense-tool-basic', 'defense-structure-factory', 'defense-structure-beacon'] placed=1 cash=220->220"
+    },
+    {
+      "name": "saved config normalizes to one loaner maximum",
+      "passed": true,
+      "detail": "[{'id': 'PET-9F36D30653A1', 'source': 'active'}, {'id': 'defense-crew-violet', 'source': 'guest'}]"
+    },
+    {
+      "name": "1x to 2x keeps frozen crew unchanged",
+      "passed": true,
+      "detail": "base=['PET-379E8594D107', 'defense-tool-basic', 'defense-structure-factory', 'defense-structure-beacon', 'HOUSE-4', 'HOUSE-5', 'HOUSE-2'] speed={'maxVisibleProjectiles': 10, 'maxImpactEffects': 3, 'weatherParticleScale': 0.24, 'projectileEmissionHz': 6, 'presentationFps': 30}"
+    },
+    {
+      "name": "pause freezes simulation without changing crew",
+      "passed": true,
+      "detail": "clock=0.36666666666666664->0.36666666666666664"
+    },
+    {
+      "name": "resume returns combat and preserves crew",
+      "passed": true,
+      "detail": "phase=countdown"
+    },
+    {
+      "name": "checkpoint restore preserves placed owned Rizo",
+      "passed": true,
+      "detail": "ids=['PET-0397304B6A71', 'defense-tool-basic', 'defense-structure-factory', 'defense-structure-beacon', 'HOUSE-4', 'HOUSE-1', 'HOUSE-2'] towers=[{'id': 'tower-1', 'petId': 'HOUSE-4', 'variant': 'shadow', 'copy': 1, 'x': 0.43000000000000005, 'y': 0.22000000000000003, 'upgrade': 0, 'cost': 150, 'spent': 150, 'openingPerkApplied': False, 'placedAtReal': -inf, 'kills': 0, 'damage': 0, 'shots': 0, 'targetMode': 'first', 'doctrine': None, 'superForm': None, 'structureType': None, 'totalProduced': 0, 'beaconBuffed': False, 'readyAt': 0, 'nextUpgradeCost': 110, 'sellRefund': 105, 'canUndo': False, 'mapBond': None}]"
+    },
+    {
+      "name": "320x568 roster lobby is scrollable with usable roster control",
+      "passed": true,
+      "detail": "{'scrollHeight': 1972, 'clientHeight': 550, 'overflow': 'auto', 'buttonHeight': 115.5625, 'buttonWidth': 223.40625, 'play': True}"
+    },
+    {
+      "name": "owned Rizo mastery is surfaced in roster lobby",
+      "passed": true,
+      "detail": "ERREMOVEOWNED \u2022 ROOTHOUSE 3UNTESTEDROOTHOLDREMOVEYOUR HOUSE \u2022 BUILD FOR THIS TRAILDIFFERENT RIZOS, DIFFERENT ANSWERS5 AVAILABLEOWNED \u2022 BURNHOUSE 1GATEKEEPERBURNPRESSUREREMOVEOWNED \u2022 SLOW / SETUPHOUSE 2UNTESTEDSLOWFIRE COUNTERREMOVEOWNED \u2022 ROOTHOUSE 3UNTESTEDROOTHOLDREMOVEOWNED \u2022 CRITICALHOUSE 4UNTESTEDCRITEXECUTEADDOWNED \u2022 PROFITHOUSE 5UNTESTEDPROFITSTALLADDTRAIL LOANERS RETIRED \u2022 YOUR HOUSE NOW SUPPLIES THE CREW.Captain deploys free. Bring the crew that answers this trail.BACKMOREPLAY PINE BEND"
+    },
+    {
+      "name": "unrelated Defense records surface still launches",
+      "passed": true,
+      "detail": "{'shown': True, 'text': 'RIZO DEFENSE \u2022 PERMANENT RECORDSTHE GATE REMEMBERS.Medals, contracts, run history, and field mastery record what happened. Mastery unlocks presentation onl"
+    },
+    {
+      "name": "audit produced no runtime errors",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

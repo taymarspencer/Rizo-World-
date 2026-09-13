@@ -61,7 +61,7 @@ with sync_playwright() as p:
     snap=page.evaluate('RizoRuntimeQA.arcadeSnapshotForQA()')
     record('Power whiffs do not count as landed hits',snap['hits']==0,str(snap))
     record('Power rejects duplicate taps in one timing window',snap['hits']<=1,str(snap['hits']))
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Runaway fairness: no forced head-on opening, and hunters visibly wait before pressure starts.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("maze")');page.wait_for_timeout(60)
@@ -71,7 +71,7 @@ with sync_playwright() as p:
     record('Runaway gives a readable hunter wake-up grace',a['hunters']==b['hunters'],f"{a['hunters']} -> {b['hunters']}")
     page.keyboard.press('ArrowLeft');page.wait_for_timeout(40);c=page.evaluate('RizoRuntimeQA.arcadeSnapshotForQA().maze')
     record('Runaway records real direction input',c['inputs']>=1,str(c['inputs']))
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     # Maze cannot farm its automatically eaten opening pellets without player intent.
     page.evaluate(SETUP_STATE);before=page.evaluate('RizoRuntimeQA.snapshot()');page.evaluate('RizoRuntimeQA.startMiniGame("maze")');page.wait_for_timeout(760)
@@ -87,7 +87,7 @@ with sync_playwright() as p:
     modes=['power','spark','forage','rush','walk','rhythm','memory','glide','breaker','maze']
     for _ in range(2):
         for mode in modes:
-            page.evaluate(f'RizoRuntimeQA.startMiniGame("{mode}")');page.wait_for_timeout(12);page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+            page.evaluate(f'RizoRuntimeQA.startMiniGame("{mode}")');page.wait_for_timeout(12);page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
     final_snap=page.evaluate('RizoRuntimeQA.arcadeSnapshotForQA()')
     record('20 rapid cabinet swaps leave Arcade inactive and clean',not final_snap['active'],str(final_snap['mode']))
 

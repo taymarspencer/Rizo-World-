@@ -5,7 +5,7 @@
     {
       "name": "tower surface contained 320x568",
       "passed": true,
-      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 243.78125, 'bottom': 476.84375, 'w': 297.625, 'h': 233.0625}"
+      "detail": "{'left': 12, 'right': 308, 'top': 231.796875, 'bottom': 493.0625, 'w': 296, 'h': 261.265625}"
     },
     {
       "name": "tower type floor 320x568",
@@ -20,7 +20,7 @@
     {
       "name": "field-menu surface contained 320x568",
       "passed": true,
-      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 151.890625, 'bottom': 476.84375, 'w': 297.625, 'h': 324.953125}"
+      "detail": "{'left': 12, 'right': 308, 'top': 231.796875, 'bottom': 493.0625, 'w': 296, 'h': 261.265625}"
     },
     {
       "name": "field-menu type floor 320x568",
@@ -35,7 +35,7 @@
     {
       "name": "powers surface contained 320x568",
       "passed": true,
-      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+      "detail": "{'left': 12, 'right': 308, 'top': 345.15625, 'bottom': 493.0625, 'w': 296, 'h': 147.90625}"
     },
     {
       "name": "powers type floor 320x568",
@@ -50,7 +50,7 @@
     {
       "name": "intel surface contained 320x568",
       "passed": true,
-      "detail": "{'left': 11.1875, 'right': 308.8125, 'top': 283.75, 'bottom': 476.84375, 'w': 297.625, 'h': 193.09375}"
+      "detail": "{'left': 12, 'right': 308, 'top': 298.84375, 'bottom': 493.0625, 'w': 296, 'h': 194.21875}"
     },
     {
       "name": "intel type floor 320x568",
@@ -100,7 +100,7 @@
     {
       "name": "tower surface contained 390x844",
       "passed": true,
-      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 505.375, 'bottom': 738.4375, 'w': 362.8125, 'h': 233.0625}"
+      "detail": "{'left': 12, 'right': 378, 'top': 374.828125, 'bottom': 763.0625, 'w': 366, 'h': 388.234375}"
     },
     {
       "name": "tower type floor 390x844",
@@ -115,7 +115,7 @@
     {
       "name": "field-menu surface contained 390x844",
       "passed": true,
-      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 444.484375, 'bottom': 738.4375, 'w': 362.8125, 'h': 293.953125}"
+      "detail": "{'left': 12, 'right': 378, 'top': 447.984375, 'bottom': 763.0625, 'w': 366, 'h': 315.078125}"
     },
     {
       "name": "field-menu type floor 390x844",
@@ -130,7 +130,7 @@
     {
       "name": "powers surface contained 390x844",
       "passed": true,
-      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+      "detail": "{'left': 12, 'right': 378, 'top': 615.15625, 'bottom': 763.0625, 'w': 366, 'h': 147.90625}"
     },
     {
       "name": "powers type floor 390x844",
@@ -145,7 +145,7 @@
     {
       "name": "intel surface contained 390x844",
       "passed": true,
-      "detail": "{'left': 13.59375, 'right': 376.40625, 'top': 545.34375, 'bottom': 738.4375, 'w': 362.8125, 'h': 193.09375}"
+      "detail": "{'left': 12, 'right': 378, 'top': 568.84375, 'bottom': 763.0625, 'w': 366, 'h': 194.21875}"
     },
     {
       "name": "intel type floor 390x844",
@@ -160,7 +160,7 @@
     {
       "name": "field-guide modal contained 390x844",
       "passed": true,
-      "detail": "{'left': 14, 'right': 376, 'top': 50.15625, 'bottom': 793.828125, 'w': 362, 'h': 743.671875}"
+      "detail": "{'left': 14, 'right': 376, 'top': 16, 'bottom': 828, 'w': 362, 'h': 812}"
     },
     {
       "name": "field-guide modal type floor 390x844",
@@ -180,7 +180,7 @@
     {
       "name": "lobby modal contained 390x844",
       "passed": true,
-      "detail": "{'left': 14, 'right': 376, 'top': 159.703125, 'bottom': 684.296875, 'w': 362, 'h': 524.59375}"
+      "detail": "{'left': 14, 'right': 376, 'top': 14, 'bottom': 842, 'w': 362, 'h': 828}"
     },
     {
       "name": "lobby modal type floor 390x844",
@@ -195,7 +195,7 @@
     {
       "name": "tower surface contained 844x390",
       "passed": true,
-      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 336.015625, 'w': 211, 'h': 330.421875}"
+      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}"
     },
     {
       "name": "tower type floor 844x390",
@@ -210,7 +210,7 @@
     {
       "name": "field-menu surface contained 844x390",
       "passed": true,
-      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 336.015625, 'w': 211, 'h': 330.421875}"
+      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}"
     },
     {
       "name": "field-menu type floor 844x390",
@@ -225,7 +225,7 @@
     {
       "name": "powers surface contained 844x390",
       "passed": true,
-      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}"
     },
     {
       "name": "powers type floor 844x390",
@@ -240,7 +240,7 @@
     {
       "name": "intel surface contained 844x390",
       "passed": true,
-      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 336.015625, 'w': 211, 'h': 330.421875}"
+      "detail": "{'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}"
     },
     {
       "name": "intel type floor 844x390",
@@ -290,7 +290,7 @@
     {
       "name": "tower surface contained 768x1024",
       "passed": true,
-      "detail": "{'left': 74, 'right': 694, 'top': 662.359375, 'bottom': 896.03125, 'w': 620, 'h': 233.671875}"
+      "detail": "{'left': 74, 'right': 694, 'top': 532.3125, 'bottom': 896.03125, 'w': 620, 'h': 363.71875}"
     },
     {
       "name": "tower type floor 768x1024",
@@ -305,7 +305,7 @@
     {
       "name": "field-menu surface contained 768x1024",
       "passed": true,
-      "detail": "{'left': 74, 'right': 694, 'top': 626.078125, 'bottom': 896.03125, 'w': 620, 'h': 269.953125}"
+      "detail": "{'left': 74, 'right': 694, 'top': 614.078125, 'bottom': 896.03125, 'w': 620, 'h': 281.953125}"
     },
     {
       "name": "field-menu type floor 768x1024",
@@ -320,7 +320,7 @@
     {
       "name": "powers surface contained 768x1024",
       "passed": true,
-      "detail": "{'left': 0, 'right': 0, 'top': 0, 'bottom': 0, 'w': 0, 'h': 0}"
+      "detail": "{'left': 74, 'right': 694, 'top': 765.25, 'bottom': 896.03125, 'w': 620, 'h': 130.78125}"
     },
     {
       "name": "powers type floor 768x1024",
@@ -335,7 +335,7 @@
     {
       "name": "intel surface contained 768x1024",
       "passed": true,
-      "detail": "{'left': 74, 'right': 694, 'top': 702.9375, 'bottom': 896.03125, 'w': 620, 'h': 193.09375}"
+      "detail": "{'left': 74, 'right': 694, 'top': 698.9375, 'bottom': 896.03125, 'w': 620, 'h': 197.09375}"
     },
     {
       "name": "intel type floor 768x1024",
@@ -370,7 +370,7 @@
     {
       "name": "lobby modal contained 768x1024",
       "passed": true,
-      "detail": "{'left': 164, 'right': 604, 'top': 226.65625, 'bottom': 797.34375, 'w': 440, 'h': 570.6875}"
+      "detail": "{'left': 164, 'right': 604, 'top': 14, 'bottom': 1022, 'w': 440, 'h': 1008}"
     },
     {
       "name": "lobby modal type floor 768x1024",

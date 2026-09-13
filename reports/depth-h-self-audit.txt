@@ -1,0 +1,31 @@
+PASS opening requires a first placement before wave start PLACE FIRST
+PASS tapping a roster card enters visible placement mode mini-world defense-world map-grove fx-full placement-mode
+PASS placement resolver exposes valid open ground {'x': 0.31999999999999995, 'y': 0.18}
+PASS field tap completes real UI placement {'towers': 1, 'waveDisabled': False}
+PASS placed Rizo is selectable with a normal locator click 
+PASS upgrade purchase advances the selected Rizo {'before': 0, 'after': 1}
+PASS upgrade spend gets signed immediate gold feedback −110
+PASS level-three investment exposes an upgrade path choice 
+PASS Powers button communicates that unlocked powers wait for live combat {'class': 'defense-abilities-button defense-action-circle', 'count': 'WAIT'}
+PASS Powers button opens the grouped ability tray GROUPED POWERS
+0 READY • 1 POWER
+RIZO 01 • LV 3
+RALLY
+START A WAVE
+›
+PASS speed control begins at 1× 1×
+PASS visible speed control cycles directly to 2× 2×
+PASS START WAVE begins an active wave {'wave': 1, 'phase': 'countdown'}
+PASS unlocked power becomes READY once combat is live {'class': 'defense-abilities-button defense-action-circle ready ready-arrival', 'count': '1'}
+PASS main wave control pauses the run {'phase': 'paused', 'label': 'RESUME'}
+PASS main wave control resumes without resetting the wave {'phase': 'combat', 'wave': 1, 'speed': '2×'}
+PASS boss event owns the battlefield HUD {'bossHidden': False, 'waveVisibility': 'hidden'}
+PASS primary portrait path emits no runtime errors []
+PASS 320×568 shell remains fully contained {'x': 8, 'y': 0, 'width': 304, 'height': 568, 'top': 0, 'right': 312, 'bottom': 568, 'left': 8}
+PASS 320×568 recurring command targets remain thumb-sized [{'w': 46.9375, 'h': 44, 'left': 12, 'right': 58.9375, 'top': 47.828125, 'bottom': 91.828125}, {'w': 46.9375, 'h': 44, 'left': 61.8125, 'right': 108.75, 'top': 47.828125, 'bottom': 91.828125}, {'w': 46.9375, 'h': 44, 'left': 111.625, 'right': 158.5625, 'top': 47.828125, 'bottom': 91.828125}, {'w': 46.9375, 'h': 44, 'left': 161.4375, 'right': 208.375, 'top': 47.828125, 'bottom': 91.828125}, {'w': 46.9375, 'h': 44, 'left': 211.25, 'right': 258.1875, 'top': 47.828125, 'bottom': 91.828125}, {'w': 46.9375, 'h': 44, 'left': 261.0625, 'right': 308, 'top': 47.828125, 'bottom': 91.828125}]
+PASS 320×568 battlefield keeps substantial visual authority 0.5272337147887324
+PASS compact phone boot emits no runtime errors []
+PASS reduced-motion preference suppresses Worker H repeating animations {'wave': 'none', 'power': 'none'}
+PASS all canonical Defense maps still launch independently {'grove': {'world': True, 'map': 'grove', 'wave': '0', 'selected': 'grove', 'errors': []}, 'ember': {'world': True, 'map': 'ember', 'wave': '0', 'selected': 'ember', 'errors': []}, 'moon': {'world': True, 'map': 'moon', 'wave': '0', 'selected': 'moon', 'errors': []}, 'storm': {'world': True, 'map': 'storm', 'wave': '0', 'selected': 'storm', 'errors': []}, 'blizzard': {'world': True, 'map': 'blizzard', 'wave': '0', 'selected': 'blizzard', 'errors': []}, 'eclipse': {'world': True, 'map': 'eclipse', 'wave': '0', 'selected': 'eclipse', 'errors': []}}
+
+24/24 Worker H deliberate self-audit checks passed

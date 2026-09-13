@@ -1,0 +1,127 @@
+=== node syntax ===
+=== core ===
+PASS phase model gates actions coherently
+PASS gameplay density is invariant across quality and speed
+PASS 2x speed reduces visual pressure independently of combat math
+PASS imminent child spawns reserve density without trusting the whole buffer
+PASS golden income is capped
+PASS phase 5 economy constants are centralized
+PASS deployment pricing escalates canonically and duplicates cost extra
+PASS Golden active income diminishes across duplicates and stops scaling after wave 40
+PASS upgrade pricing and derived investment are explicit
+PASS opening-world discount is derived into canonical investment
+PASS wave and permanent rewards are map-invariant
+PASS late run cash growth is normalized without touching the opening curve
+PASS wave plans are capped and packetized
+PASS boss waves reserve a final entrance packet and a pre-boss breath
+PASS v76 simulation contract is fixed at 30Hz with bounded catch-up
+PASS wave grammar flattens top-level count and creates recovery valleys
+PASS run rewards use cleared accomplishments and soften late farming
+PASS checkpoint signatures detect casual tampering across derived surfaces
+PASS v5 checkpoint signatures cover opening-economy state
+PASS v7 checkpoint signatures cover Super Rizo form
+PASS v6 checkpoint signatures cover Gate Flame tactical state
+PASS legacy v4 checkpoint signatures remain verifiable for v67 migration
+PASS legacy v3 checkpoint signatures remain verifiable after the packet-clock migration
+PASS legacy v2 checkpoint signatures remain verifiable for migration
+PASS whole-save signatures detect progression edits
+PASS whole-save signatures cover arcade and unlock progression
+PASS phase transitions form one explicit runtime state machine
+PASS phase action permissions prevent contradictory build and combat states
+PASS clamps reject impossible imported numbers
+PASS opening is an explicit ten-wave score with contrasting threats
+PASS v8 signs projectile continuation and keeps v7 verifiable
+
+31/31 core tests passed.
+=== static ===
+PASS production QA uses a single gated namespace 
+PASS legacy QA namespaces are not assigned 
+PASS no direct QA helper globals 
+PASS currentWave and clearedWave state exist 
+PASS whole-save envelope is signed 
+PASS verified save backup recovery exists 
+PASS invalid checkpoints fail closed 
+PASS checkpoint canonicalization rejects unknown pet ids 
+PASS completion verifies full resolution 
+PASS child queue blocks completion 
+PASS rewards calculate from clearedWave 
+PASS zero-clear runs cannot advance mastery 
+PASS run outcomes are explicit 
+PASS history migration preserves reached wave 
+PASS golden bonus only has one implementation 
+PASS gameplay density uses centralized invariant core 
+PASS explicit upgrade costs are active 
+PASS simulation and control clocks are separated 
+PASS v76 uses fixed 30hz simulation with bounded catch-up 
+PASS presentation interpolates simulation snapshots 
+PASS adaptive governor tracks p95 and degrades presentation first 
+PASS logical projectile simulation is decoupled from visual emission 
+PASS speed and quality do not secretly thin gameplay density 
+PASS manual wave boundaries remain default with optional auto waves 
+PASS target refresh uses simulation time and cached references 
+PASS split children use deterministic game-time release 
+PASS child buffer is not sorted every frame 
+PASS density reserves imminent child spawns 
+PASS boss entries have no density bypass 
+PASS 2x visual budgets lower effects 
+PASS income flush cadence uses wall time 
+PASS v87 checkpoint migrates v80 and older data 
+PASS new service worker cache matches build 
+PASS index build metadata matches v87 
+PASS index loads active defense assets 
+PASS defense css has no important declarations 
+PASS no uncontrolled defense z-index literals 
+PASS media query count reduced count=30
+PASS important count materially reduced count=252
+PASS stylesheet smaller than original bytes=287259
+PASS obsolete per-world starting cash removed 
+PASS phase 5 economy is centralized in core 
+PASS late economy uses normalized bounty and late deployment growth 
+PASS all maps share one starting-cash contract 
+PASS map reward multipliers no longer inflate defense economy 
+PASS canonical enemy and boss/heavy kill rewards remain defined count=15 rewards=[6, 8, 15, 10, 18, 36, 18, 44, 30, 56, 62, 180, 180, 180, 190]
+PASS deployment cost is canonical and not duplicated in runtime 
+PASS planning refund and undo use centralized wall-time rules 
+PASS combat economy permissions use phase model with live upgrades 
+PASS world opening perks are explicit and one-shot 
+PASS Golden global and active income use capped core functions 
+PASS v5 checkpoint signature covers opening economy state 
+PASS bosses reserve a dedicated final packet entrance 
+PASS obsolete runtime spawn pacing workarounds are removed 
+PASS phase transitions are explicit and validated 
+PASS persistent phase HUD shows active and cleared waves separately 
+PASS context overlays use one manager with inert background 
+PASS context keyboard handling traps focus and handles Escape 
+PASS portrait shell has an explicit minmax column contract 
+PASS short portrait preserves hearts, gold, wave and phase 
+PASS large cash is compacted only at HUD presentation 
+PASS boot recovery is inline and survives external runtime failure 
+PASS automatic install gate is disabled at launch 
+PASS service worker core runtime is network first 
+PASS service worker optional shell cannot fail update atomically 
+PASS service worker converges after complete shell cache 
+PASS deployment MIME and cache headers are explicit 
+PASS all active local assets exist refs=88 missing=[]
+PASS phase 7 structural world feature layer is canonical 
+PASS all six worlds define authored terrain feature identities 
+PASS generic landmark rule no longer flattens authored silhouettes position:absolute; left:var(--landmark-x); top:var(--landmark-y); translate:-50% -50%; z-index:2; filter:drop-shadow(0 4px 0 rgb(24 25 22 / .28));
+PASS road fill weight is reduced from legacy width 
+PASS adaptive gameplay contrast variables exist for all worlds outline=7 halo=8
+PASS tower and enemy geometry share bounded world scale 
+PASS selected tower uses dedicated ground range surface 
+PASS placement pockets carry world identity classes 
+PASS route markers are quiet until explicit trace state 
+PASS development-style world labels are visually removed 
+PASS tower grounding uses foot shadow and pedestal contracts 
+PASS phase 7 adds no defense important override debt 
+
+80/80 static checks passed
+=== service worker ===
+PASS runtime JS is network-first even with poisoned cache
+PASS runtime JS falls back to repaired cache offline
+PASS navigation is network-first and cache-backed offline
+PASS worker has versioned release cache and optional best-effort install
+
+4/4 service-worker policy checks passed
+=== Worker-I !important count ===
+IMPORTANT_COUNT 0

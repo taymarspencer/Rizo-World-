@@ -1,0 +1,79 @@
+WORKER J FINAL DELIBERATE SELF-AUDIT + HOSTILE FOLLOW-UP
+Date: 2026-09-12
+
+Authoritative context re-read:
+- ASTRA_CONTEXT.md
+- _multiagent/RTD_MASTER_VISION.md
+- _multiagent/RTD_SHARED_CONTRACT.md
+- _multiagent/WORKER_MANIFEST_TEMPLATE.md
+
+Scope rule honored: QA/performance/save safety/integration only. No gameplay redesign.
+
+PRIMARY FEATURE PATH
+PASS 41/41: python3 tests/browser-first-ten.py
+- authored waves 1-10 resolve at 1x/2x/low-power
+- boss + escorts coexist
+- powers purchase/use
+- earned cash stays nonnegative
+- idle failure does not credit fatal wave
+- guest crew cannot steal permanent MVP/mastery
+- projectile continuation and real v86 checkpoint migration remain valid
+
+HOSTILE ACTION / INVALID STATE
+PASS 21/21: python3 tests/browser-worker-j-hostile.py
+- START, upgrade, sell, completion, bank/end spam
+- pause during countdown and packet-break transitions
+- speed switching and high-wave density stress
+- restart during queued effects
+- malformed signed checkpoint scheduler/count/phase/progress states
+- max-wave ceiling replay attempt
+- phone resize smoke
+
+VERIFIED HOSTILE DEFECTS FIXED
+- duplicate restored enemy IDs
+- impossible packet cursor/queue mismatch
+- impossible waveResolved/waveTotal accounting
+- wave auto-credit with unresolved accounting
+- reachedWave gap > clearedWave + 1
+- unfinished noncombat-labeled checkpoint skipping a wave
+- stale combat state for an already-cleared wave deadlocking
+- wave 250 replay-start after wave 250 clear
+
+SAVE / MIGRATION / LIFECYCLE
+PASS 10/10: python3 tests/browser-worker-j-qa.py
+PASS 53/53: python3 tests/worker-j-integration-risk-audit.py
+PASS 31/31: node tests/defense-core.test.js
+PASS 80/80: python3 tests/static-defense-audit.py
+PASS 4/4: node tests/service-worker-policy.test.js
+PASS 7/7: node tests/worker-j-defense-guard.test.js
+- checkpoint schema v9 stays backward-compatible with v2-v8 verification/migration
+- real v86 signed checkpoint migrates
+- projectile checkpoint cap remains 32
+- tactical v9 tampering fails closed
+- background suspension pauses combat and welcome-back UI remains explicit
+
+DETERMINISM / PERFORMANCE
+PASS 7/7: python3 tests/browser-worker-j-determinism.py --pair speed
+- exact 1x = 2x authored-wave outcomes
+PASS 7/7: python3 tests/browser-worker-j-determinism.py --pair low
+- exact 2x = low-power authored-wave outcomes
+PASS hostile wave-249 stress
+- active enemy peak <= 14
+- fixed-step catch-up <= 4
+PASS wave plans 50/100/150/200/249/250 stay within authored enemy/packet limits
+
+PHONE / SURFACES / UNRELATED DEFENSE SYSTEMS
+PASS hostile resize checks: 320x568, 390x844, 430x932, 844x390
+PASS 77/77: python3 tests/browser-defense-integration.py
+PASS 76/76 from dedicated responsive surface audit: python3 tests/browser-defense-surfaces.py
+PASS 11/11: python3 tests/browser-v78-canvas-flow.py
+PASS 17/17: python3 tests/browser-v80-strategy-feel.py
+PASS 5/5 from launch/recovery audit: python3 tests/browser-launch-recovery.py
+
+KNOWN LIMITATIONS / HANDOFF
+- No physical iPhone/WebKit/PWA device was available. Chromium phone geometry and lifecycle guards are green, but physical Safari/PWA launch/background/resume remains a final-integrator check.
+- Baseline MAX_SUPPORTED_WAVE remains 250. Worker J hardens the ceiling but does not implement Worker F's effectively-infinite Endless product scope.
+- Factory, Beacon, final roster/loadout, interactive-map mechanics and other A-I product work remain intentionally outside Worker J jurisdiction.
+- Any future persisted tactical state must be serialized, signed, normalized, restored and regression-tested atomically.
+
+Final Worker J status: hostile safety defects reproduced in scope were fixed and regression-gated; no known remaining correctness/save/performance defect in Worker J jurisdiction under available automated coverage.

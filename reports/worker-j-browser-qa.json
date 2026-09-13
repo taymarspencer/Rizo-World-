@@ -1,0 +1,56 @@
+{
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "name": "checkpoint builder caps in-flight projectiles",
+      "passed": true,
+      "detail": "logical=120 saved=32 cap=32"
+    },
+    {
+      "name": "checkpoint normalizer caps signed oversized projectile payloads",
+      "passed": true,
+      "detail": "normalized=32"
+    },
+    {
+      "name": "checkpoint round trip restores only referentially valid in-flight projectiles",
+      "passed": true,
+      "detail": "saved=32 restored=32"
+    },
+    {
+      "name": "v8 checkpoint remains migratable after v9 schema bump",
+      "passed": true,
+      "detail": "{'migrated': 'migrated', 'migratedReady': 12, 'current': 'sanitized', 'currentReady': 0}"
+    },
+    {
+      "name": "v9 tactical timer tamper fails closed",
+      "passed": true,
+      "detail": "{'migrated': 'migrated', 'migratedReady': 12, 'current': 'sanitized', 'currentReady': 0}"
+    },
+    {
+      "name": "real v86 signed checkpoint migrates to the current schema without losing run credit/queue state",
+      "passed": true,
+      "detail": "{'ok': True, 'version': 10, 'wave': 1, 'cleared': 0, 'cash': 110}"
+    },
+    {
+      "name": "runtime suspension auto-pauses active Defense",
+      "passed": true,
+      "detail": "{'before': 'countdown', 'interrupted': 'paused', 'suspended': {'changed': True, 'suspendedAt': 1789265198880, 'reason': 'worker-j-background'}}"
+    },
+    {
+      "name": "paused interruption does not advance simulation clock",
+      "passed": true,
+      "detail": "before=0 after=0"
+    },
+    {
+      "name": "return-to-foreground visibly surfaces the pause without resuming combat",
+      "passed": true,
+      "detail": "{'runtime': {'changed': True, 'suspendedAt': 0, 'reason': ''}, 'surface': {'surfaced': False, 'paused': True, 'autoPaused': False}, 'message': 'AUTO-PAUSED \u2022 WELCOME BACKThe trail stayed frozen while RIZO.GAME was away. Tap \u25b6 when you are ready.'}"
+    },
+    {
+      "name": "Worker J browser guard has no runtime errors",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

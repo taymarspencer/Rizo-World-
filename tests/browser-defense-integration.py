@@ -118,7 +118,7 @@ with sync_playwright() as p:
     record('zero-wave imported mastery is removed',not migrated['scores']['defenseMastery'],str(migrated['scores']['defenseMastery']))
     contract=migrated['scores']['defenseContracts'][0]
     record('contract completion is derived from cleared progress',contract['bestWave']==0 and not contract['completed'] and not contract['perfect'],str(contract))
-    record('permanent wave records are clamped to supported maximum',migrated['scores']['defense']==250 and migrated['scores']['defenseMaps']['grove']==250,str({'best':migrated['scores']['defense'],'map':migrated['scores']['defenseMaps']['grove']}))
+    record('permanent wave records are clamped to supported maximum',migrated['scores']['defense']==9999 and migrated['scores']['defenseMaps']['grove']==9999,str({'best':migrated['scores']['defense'],'map':migrated['scores']['defenseMaps']['grove']}))
     page.close()
 
     # Whole-save signatures, legacy migration, and unverified-state sanitation
@@ -140,7 +140,7 @@ with sync_playwright() as p:
     start_defense(page); page.evaluate('RizoRuntimeQA.defensePlaceNextForQA()')
     normalized=page.evaluate('''(()=>{let c=RizoRuntimeQA.defenseBuildCheckpointForQA("corrupt-but-signed");c.currentWave=9999;c.clearedWave=9999;c.cash=999999999;c.kills=999999999;c.totalDamage=1e20;c.towers[0].upgrade=999;c.towers[0].spent=999999;c.towers[0].cost=999999;c.towers.push({...c.towers[0],id:"unknown-tower",petId:"not-a-real-pet"});c.enemies=[{id:"evil",type:"unknown",hp:999999,reward:999999}];c.spawnQueue=["unknown","puff"];c=RizoRuntimeQA.defenseSignCheckpointForQA(c);return RizoRuntimeQA.defenseNormalizeCheckpointForQA(c)})()''')
     tower=normalized['towers'][0]
-    record('signed corrupted values are clamped',normalized['currentWave']==250 and normalized['clearedWave']==250 and normalized['cash']==2000000 and normalized['kills']==100000,str({k:normalized[k] for k in ['currentWave','clearedWave','cash','kills','totalDamage','validationStatus']}))
+    record('signed corrupted values are clamped',normalized['currentWave']==9999 and normalized['clearedWave']==9999 and normalized['cash']==2000000 and normalized['kills']==1000000 and normalized['totalDamage']==1000000000000,str({k:normalized[k] for k in ['currentWave','clearedWave','cash','kills','totalDamage','validationStatus']}))
     record('derived tower spending is recalculated',tower['upgrade']==4 and tower['spent']==1250 and tower['cost']==0,str(tower))
     record('unknown enemy, queue, and pet IDs are rejected',len(normalized['enemies'])==0 and normalized['spawnQueue']==['puff'] and len(normalized['towers'])==1,str({'enemies':normalized['enemies'],'spawnQueue':normalized['spawnQueue'],'towers':len(normalized['towers'])}))
     tampered=page.evaluate('''(()=>{const c=RizoRuntimeQA.defenseBuildCheckpointForQA("tamper");c.currentWave=200;c.clearedWave=199;c.cash=999999;c.kills=99999;c.totalDamage=999999999;c.towers[0].upgrade=4;c.spawnQueue=["puff"];return RizoRuntimeQA.defenseNormalizeCheckpointForQA(c)})()''')
@@ -193,13 +193,13 @@ with sync_playwright() as p:
 
     page,errors=new_page(browser,True)
     start_defense(page)
-    page.evaluate('RizoRuntimeQA.defensePlaceNextForQA();RizoRuntimeQA.defenseLoadQueueForQA(2,"shell",1,1)')
+    page.evaluate('RizoRuntimeQA.defensePlaceNextForQA();RizoRuntimeQA.defenseLoadQueueForQA(2,"shell",1,1);RizoRuntimeQA.defenseSetCashForQA(400)')
     before=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
     placed=page.evaluate('RizoRuntimeQA.defensePlaceNextForQA()')
     sold=page.evaluate('RizoRuntimeQA.defenseSellLastForQA()')
     upgraded=page.evaluate('RizoRuntimeQA.defenseBuyUpgradeForQA()')
     after=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
-    record('combat locks placement and selling while allowing live upgrades',len(before['towers'])==len(after['towers'])==placed and sold is False and upgraded is True and after['cash']<before['cash'],str({'before':{'towers':len(before['towers']),'cash':before['cash']},'after':{'towers':len(after['towers']),'cash':after['cash']},'sell':sold,'upgrade':upgraded}))
+    record('combat permits paid reinforcements and upgrades but locks selling',len(before['towers'])+1==len(after['towers'])==placed and sold is False and upgraded is True and after['cash']<before['cash'],str({'before':{'towers':len(before['towers']),'cash':before['cash']},'after':{'towers':len(after['towers']),'cash':after['cash']},'sell':sold,'upgrade':upgraded}))
     page.close()
 
     page,errors=new_page(browser,True)
@@ -248,18 +248,29 @@ with sync_playwright() as p:
         record(f'{speed}x scheduler sample has no runtime errors',not errors,'; '.join(errors[:3]))
         page.close()
     scans_1x=scan_samples[1]['targetScans'];scans_2x=scan_samples[2]['targetScans']
-    record('2x speed does not double real-time target scans',scans_2x<=scans_1x+2,str({'1x':scans_1x,'2x':scans_2x}))
+    record('2x keeps the same bounded targeting cadence per simulation second',abs(scans_2x-2*scans_1x)<=3 and scans_2x<=35,str({'1x':scans_1x,'2x':scans_2x}))
     record('2x advances simulation without accelerating control clocks',abs(scan_samples[1]['realClock']-scan_samples[2]['realClock'])<.12 and scan_samples[2]['simulationClock']-scan_samples[1]['simulationClock']>1.9,str({'1x':{'real':scan_samples[1]['realClock'],'sim':scan_samples[1]['simulationClock']},'2x':{'real':scan_samples[2]['realClock'],'sim':scan_samples[2]['simulationClock']}}))
     record('2x visual budget lowers projectiles and impacts',core['visualNormal2x']['maxVisibleProjectiles']<core['visualNormal1x']['maxVisibleProjectiles'] and core['visualNormal2x']['maxImpactEffects']<core['visualNormal1x']['maxImpactEffects'],str({'1x':core['visualNormal1x'],'2x':core['visualNormal2x']}))
 
     page,errors=new_page(browser,True)
     start_defense(page)
     page.evaluate('RizoRuntimeQA.defenseSetRunForQA({phase:"combat"});RizoRuntimeQA.defenseSetSpeedForQA(2);RizoRuntimeQA.defenseClearQueueForQA();for(let i=0;i<8;i++)RizoRuntimeQA.defenseSpawnForQA("fleet",.1+i*.002,99999,99999);for(let i=0;i<6;i++)RizoRuntimeQA.defenseQueueChildForQA("fleet",.01)')
+    # Deterministic form of "gradual, not bursting": the scheduler releases at most one
+    # queued child per fixed simulation frame. The previous form ticked a fixed real
+    # duration and asserted an absolute release count, but start_defense() runs the
+    # real animation loop first and leaves a nondeterministic fixed-step accumulator,
+    # so one .02s tick could advance anywhere from 1 to 5 frames (observed releases
+    # 0-4 in the same build). Measure releases against the frames that actually ran.
+    child_before=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
     page.evaluate('RizoRuntimeQA.defenseTickForQA(.02)')
     child_first=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
+    frames_run=round((child_first['simulationClock']-child_before['simulationClock'])*30)
+    released_now=child_first['childSpawnsReleased']-child_before['childSpawnsReleased']
     page.evaluate('for(let i=0;i<100;i++)RizoRuntimeQA.defenseTickForQA(.01)')
     child_later=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
-    record('split children release gradually instead of bursting in one frame',child_first['childSpawnsReleased']<=2 and child_first['childSpawnQueue']>=4,str({'released':child_first['childSpawnsReleased'],'queued':child_first['childSpawnQueue']}))
+    record('split children release gradually instead of bursting in one frame',
+           frames_run>=1 and released_now<=frames_run and child_first['childSpawnQueue']>=6-frames_run,
+           str({'framesRun':frames_run,'released':released_now,'queued':child_first['childSpawnQueue']}))
     record('split children cannot bypass the active density cap',len(child_later['enemies'])<=child_later['densityCap'] and child_later['maxActiveEnemiesObserved']<=child_later['densityCap'],str({'active':len(child_later['enemies']),'peak':child_later['maxActiveEnemiesObserved'],'cap':child_later['densityCap'],'queued':child_later['childSpawnQueue']}))
     record('child scheduler sample has no runtime errors',not errors,'; '.join(errors[:3]))
     page.close()

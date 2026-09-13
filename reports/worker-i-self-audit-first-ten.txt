@@ -1,0 +1,43 @@
+PASS mixed-1x has no runtime errors []
+PASS mixed-1x respects enemy and logical projectile budgets {'peak': 9, 'shots': 2, 'stepP95ms': 0.19999999995343387}
+PASS mixed-1x genuinely resolves waves 1–10 [(1, 20, 11.13), (2, 20, 10.73), (3, 20, 14.07), (4, 20, 15.97), (5, 20, 12.6), (6, 20, 18.7), (7, 20, 22.03), (8, 20, 18), (9, 20, 22.2), (10, 20, 43.43)]
+PASS mixed-1x uses earned money without negative balances 
+PASS mixed-1x boss and escorts share the field 
+PASS mixed-1x uses purchased field powers 
+PASS mixed-1x kills the Warden 
+PASS mixed-2x has no runtime errors []
+PASS mixed-2x respects enemy and logical projectile budgets {'peak': 9, 'shots': 2, 'stepP95ms': 0.1000000000349246}
+PASS mixed-2x genuinely resolves waves 1–10 [(1, 20, 11.13), (2, 20, 10.73), (3, 20, 14.07), (4, 20, 15.97), (5, 20, 12.6), (6, 20, 18.7), (7, 20, 22.03), (8, 20, 18), (9, 20, 22.2), (10, 20, 43.43)]
+PASS mixed-2x uses earned money without negative balances 
+PASS mixed-2x boss and escorts share the field 
+PASS mixed-2x uses purchased field powers 
+PASS mixed-2x kills the Warden 
+PASS mixed-2x-low has no runtime errors []
+PASS mixed-2x-low respects enemy and logical projectile budgets {'peak': 9, 'shots': 2, 'stepP95ms': 0.09999999997671694}
+PASS mixed-2x-low genuinely resolves waves 1–10 [(1, 20, 11.13), (2, 20, 10.73), (3, 20, 14.07), (4, 20, 15.97), (5, 20, 12.6), (6, 20, 18.7), (7, 20, 22.03), (8, 20, 18), (9, 20, 22.2), (10, 20, 43.43)]
+PASS mixed-2x-low uses earned money without negative balances 
+PASS mixed-2x-low boss and escorts share the field 
+PASS mixed-2x-low uses purchased field powers 
+PASS mixed-2x-low kills the Warden 
+PASS classic-1x has no runtime errors []
+PASS classic-1x respects enemy and logical projectile budgets {'peak': 11, 'shots': 2, 'stepP95ms': 0.20000000001164153}
+PASS classic-1x genuinely resolves waves 1–10 [(1, 20, 19.7), (2, 20, 16), (3, 18, 29), (4, 18, 30.2), (5, 18, 15.8), (6, 18, 23.4), (7, 18, 27.83), (8, 18, 21.33), (9, 14, 30.6), (10, 3, 48.2)]
+PASS classic-1x uses earned money without negative balances 
+PASS classic-1x boss and escorts share the field 
+PASS classic-1x uses purchased field powers 
+PASS idle-1x has no runtime errors []
+PASS idle-1x respects enemy and logical projectile budgets {'peak': 8, 'shots': 1, 'stepP95ms': 0}
+PASS inaction fails without crediting the fatal wave 
+PASS 1x and 2x have identical full-wave outcomes 
+PASS low-power presentation preserves identical full-wave outcomes 
+PASS crowd chain and heavy coverage outperform copies on this route 
+PASS pause and restored countdown preserve clock and spawn deadline 
+PASS unfinished countdown earns no completion 
+PASS in-flight projectiles survive signed checkpoint restoration 
+PASS tampering with saved projectile damage is rejected 
+PASS real v86 signed checkpoint migrates with cash, towers and wave credit intact 
+PASS legacy pending packets keep their original composition 
+PASS guest crew cannot become permanent run MVP {'id': 'DEFENSE-RUN-80D95DABED4F', 'at': 1789254777245, 'mapId': 'grove', 'wave': 10, 'clearedWave': 10, 'reachedWave': 10, 'kills': 50, 'heartLoss': 0, 'leaks': 0, 'bosses': 1, 'perfect': True, 'perfectWaveCount': 10, 'ended': 'banked', 'mvpPetId': 'PET-E3053CA9E778', 'mvpName': 'RIZO 01', 'mvpVariant': 'classic', 'mvpDamage': 10, 'powerPaths': 1, 'controlPaths': 1, 'contractId': '', 'contractDate': '', 'contractComplete': False}
+PASS guest crew cannot steal boss mastery credit {'PET-E3053CA9E778': {'petId': 'PET-E3053CA9E778', 'name': 'RIZO 01', 'variant': 'classic', 'runs': 1, 'waves': 10, 'bestWave': 10, 'pops': 2, 'damage': 10, 'bosses': 1, 'powerPaths': 1, 'controlPaths': 0, 'lastAt': 1789254777245}}
+
+41/41 first-ten checks passed

@@ -1,0 +1,111 @@
+{
+  "passed": 21,
+  "failed": 0,
+  "results": [
+    {
+      "name": "start-wave spam cannot advance or duplicate an active wave",
+      "passed": true,
+      "detail": "{'currentWave': 1, 'clearedWave': 0, 'phase': 'countdown', 'packetCount': 2, 'waveTotal': 6}"
+    },
+    {
+      "name": "pause during countdown survives speed spam and freezes simulation",
+      "passed": true,
+      "detail": "{'phase': 'paused', 'speedAfter': {'maxVisibleProjectiles': 16, 'maxImpactEffects': 4, 'weatherParticleScale': 0.46, 'projectileEmissionHz': 8, 'presentationFps': 60}, 'clock': 0.03333333333333333, 'resumed': 0.16666666666666666}"
+    },
+    {
+      "name": "pause during packet-break freezes the transition and resumes the same phase",
+      "passed": true,
+      "detail": "{'reached': 'packet-break', 'heldClock': 2.500000000000001, 'resume': 'packet-break', 'after': 'combat'}"
+    },
+    {
+      "name": "upgrade spam stops at max level without extra charges",
+      "passed": true,
+      "detail": "{'upgrade': 4, 'cash': 98750}"
+    },
+    {
+      "name": "sell is rejected during combat and paused combat",
+      "passed": true,
+      "detail": "{'combat': False, 'paused': False, 'towers': 1}"
+    },
+    {
+      "name": "sell spam cannot duplicate a refund",
+      "passed": true,
+      "detail": "{'first': True, 'second': False, 'cash': 10000}"
+    },
+    {
+      "name": "wave-complete spam cannot duplicate wave gold or clear credit",
+      "passed": true,
+      "detail": "{'cleared': 1, 'cash': 266, 'repeatAccepts': 0}"
+    },
+    {
+      "name": "bank/end spam grants one run record and one permanent reward event",
+      "passed": true,
+      "detail": "{'accepted': 1, 'historyDelta': 1, 'gamesDelta': 1, 'embersDelta': 11}"
+    },
+    {
+      "name": "restart during queued effects cannot poison the next Defense run",
+      "passed": true,
+      "detail": "{'active': True, 'mode': 'defense', 'wave': 0, 'effects': 0}"
+    },
+    {
+      "name": "checkpoint normalization canonicalizes duplicate enemy ids",
+      "passed": true,
+      "detail": "['enemy-2', 'enemy-2-1']"
+    },
+    {
+      "name": "checkpoint normalization repairs impossible packet indexes without losing queued threats",
+      "passed": true,
+      "detail": "{'packetIndex': 0, 'packetEnemyIndex': 0, 'packets': 1, 'schedulerRemaining': 6, 'spawnQueue': 6}"
+    },
+    {
+      "name": "checkpoint normalization keeps wave resolution counts internally possible",
+      "passed": true,
+      "detail": "{'resolved': 0, 'outstanding': 7, 'total': 7}"
+    },
+    {
+      "name": "missing unresolved threats cannot auto-credit a wave after restore",
+      "passed": true,
+      "detail": "{'currentWave': 1, 'clearedWave': 0, 'phase': 'countdown', 'waveTotal': 6, 'waveResolved': 0}"
+    },
+    {
+      "name": "unfinished checkpoint mislabeled noncombat is forced paused and cannot skip a wave",
+      "passed": true,
+      "detail": "{'normalizedPhase': 'paused', 'startReturn': 1, 'current': 1, 'cleared': 0}"
+    },
+    {
+      "name": "checkpoint cannot jump reached progress more than one wave past cleared progress",
+      "passed": true,
+      "detail": "{'current': 1, 'cleared': 0, 'phase': 'paused'}"
+    },
+    {
+      "name": "stale combat payload for an already-cleared wave is stripped instead of deadlocking",
+      "passed": true,
+      "detail": "{'phase': 'wave-complete', 'queue': 0, 'enemies': 0, 'total': 0}"
+    },
+    {
+      "name": "max supported wave cannot be replay-started after it is cleared",
+      "passed": true,
+      "detail": "{'before': {'currentWave': 9999, 'clearedWave': 9999, 'phase': 'wave-complete'}, 'after': {'currentWave': 9999, 'clearedWave': 9999, 'phase': 'wave-complete'}}"
+    },
+    {
+      "name": "late/endless-range authored plans stay inside the hard planned-enemy budget",
+      "passed": true,
+      "detail": "[{'wave': 50, 'total': 12, 'packets': 4}, {'wave': 100, 'total': 14, 'packets': 4}, {'wave': 150, 'total': 14, 'packets': 4}, {'wave': 200, 'total': 14, 'packets': 4}, {'wave': 249, 'total': 32, 'packets': 3}, {'wave': 250, 'total': 14, 'packets': 4}]"
+    },
+    {
+      "name": "late-wave stress respects active-enemy and catch-up budgets",
+      "passed": true,
+      "detail": "{'peak': 14, 'cap': 14, 'catchUp': 2, 'projectiles': 1}"
+    },
+    {
+      "name": "phone-size resizes keep critical Defense surfaces usable without horizontal overflow",
+      "passed": true,
+      "detail": "[{'inner': [320, 568], 'scroll': 320, 'shell': {'w': 304, 'h': 568, 'left': 8, 'right': 312, 'top': 0, 'bottom': 568}, 'stage': {'w': 296, 'h': 353.75, 'left': 12, 'right': 308, 'top': 95.65625, 'bottom': 449.40625}, 'run': {'w': 112.5, 'h': 50, 'left': 187.109375, 'right': 299.609375, 'top': 391.015625, 'bottom': 441.015625}}, {'inner': [390, 844], 'scroll': 390, 'shell': {'w': 374, 'h': 844, 'left': 8, 'right': 382, 'top': 0, 'bottom': 844}, 'stage': {'w': 366, 'h': 616.75, 'left': 12, 'right': 378, 'top': 102.65625, 'bottom': 719.40625}, 'run': {'w': 112.5, 'h': 50, 'left': 257.109375, 'right': 369.609375, 'top': 661.015625, 'bottom': 711.015625}}, {'inner': [430, 932], 'scroll': 430, 'shell': {'w': 414, 'h': 932, 'left': 8, 'right': 422, 'top': 0, 'bottom': 932}, 'stage': {'w': 406, 'h': 704.75, 'left': 12, 'right': 418, 'top': 102.65625, 'bottom': 807.40625}, 'run': {'w': 112.5, 'h': 50, 'left': 297.109375, 'right': 409.609375, 'top': 749.015625, 'bottom': 799.015625}}, {'inner': [844, 390], 'scroll': 844, 'shell': {'w': 828, 'h': 390, 'left': 8, 'right': 836, 'top': 0, 'bottom': 390}, 'stage': {'w': 424.234375, 'h': 378.8125, 'left': 188.78125, 'right': 613.015625, 'top': 5.59375, 'bottom': 384.40625}, 'run': {'w': 112.5, 'h': 54, 'left': 485.71875, 'right': 598.21875, 'top': 315.609375, 'bottom': 369.609375}}]"
+    },
+    {
+      "name": "hostile-order browser run has no runtime errors",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

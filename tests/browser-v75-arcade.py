@@ -31,7 +31,7 @@ with sync_playwright() as p:
             before=page.locator('#miniPet').evaluate('(n)=>parseFloat(n.style.top)||0');page.locator('#miniArena').click(position={'x':180,'y':300});page.wait_for_timeout(160);after=page.locator('#miniPet').evaluate('(n)=>parseFloat(n.style.top)||0');record('skybound flap changes flight state',after<before+5,f'{before}->{after}')
         if mode=='breaker':
             page.locator('#miniArena').click(position={'x':320,'y':350});page.wait_for_timeout(60);left=page.locator('#miniPet').evaluate('(n)=>n.style.left');record('ember breaker moves Rizo paddle',left.startswith('82') or left.startswith('8'),left)
-        page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+        page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
         page.wait_for_timeout(35)
     record('arcade smoke run has no page errors', not errors, '; '.join(errors[:5]))
 

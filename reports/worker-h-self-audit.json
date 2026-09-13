@@ -1,0 +1,260 @@
+{
+  "checks": [
+    {
+      "name": "opening requires a first placement before wave start",
+      "pass": true,
+      "detail": "PLACE FIRST"
+    },
+    {
+      "name": "tapping a roster card enters visible placement mode",
+      "pass": true,
+      "detail": "mini-world defense-world map-grove fx-full placement-mode"
+    },
+    {
+      "name": "placement resolver exposes valid open ground",
+      "pass": true,
+      "detail": {
+        "x": 0.31999999999999995,
+        "y": 0.18
+      }
+    },
+    {
+      "name": "field tap completes real UI placement",
+      "pass": true,
+      "detail": {
+        "towers": 1,
+        "waveDisabled": false
+      }
+    },
+    {
+      "name": "placed Rizo is selectable with a normal locator click",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "upgrade purchase advances the selected Rizo",
+      "pass": true,
+      "detail": {
+        "before": 0,
+        "after": 1
+      }
+    },
+    {
+      "name": "upgrade spend gets signed immediate gold feedback",
+      "pass": true,
+      "detail": "\u2212110"
+    },
+    {
+      "name": "level-three investment exposes an upgrade path choice",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "Powers button communicates that unlocked powers wait for live combat",
+      "pass": true,
+      "detail": {
+        "class": "defense-abilities-button defense-action-circle",
+        "count": "WAIT"
+      }
+    },
+    {
+      "name": "Powers button opens the grouped ability tray",
+      "pass": true,
+      "detail": "GROUPED POWERS\n0 READY \u2022 1 POWER\nRIZO 01 \u2022 LV 3\nRALLY\nSTART A WAVE\n\u203a"
+    },
+    {
+      "name": "speed control begins at 1\u00d7",
+      "pass": true,
+      "detail": "1\u00d7"
+    },
+    {
+      "name": "visible speed control cycles directly to 2\u00d7",
+      "pass": true,
+      "detail": "2\u00d7"
+    },
+    {
+      "name": "START WAVE begins an active wave",
+      "pass": true,
+      "detail": {
+        "wave": 1,
+        "phase": "countdown"
+      }
+    },
+    {
+      "name": "unlocked power becomes READY once combat is live",
+      "pass": true,
+      "detail": {
+        "class": "defense-abilities-button defense-action-circle ready ready-arrival",
+        "count": "1"
+      }
+    },
+    {
+      "name": "main wave control pauses the run",
+      "pass": true,
+      "detail": {
+        "phase": "paused",
+        "label": "RESUME"
+      }
+    },
+    {
+      "name": "main wave control resumes without resetting the wave",
+      "pass": true,
+      "detail": {
+        "phase": "combat",
+        "wave": 1,
+        "speed": "2\u00d7"
+      }
+    },
+    {
+      "name": "boss event owns the battlefield HUD",
+      "pass": true,
+      "detail": {
+        "bossHidden": false,
+        "waveVisibility": "hidden"
+      }
+    },
+    {
+      "name": "primary portrait path emits no runtime errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "320\u00d7568 shell remains fully contained",
+      "pass": true,
+      "detail": {
+        "x": 8,
+        "y": 0,
+        "width": 304,
+        "height": 568,
+        "top": 0,
+        "right": 312,
+        "bottom": 568,
+        "left": 8
+      }
+    },
+    {
+      "name": "320\u00d7568 recurring command targets remain thumb-sized",
+      "pass": true,
+      "detail": [
+        {
+          "w": 46.9375,
+          "h": 44,
+          "left": 12,
+          "right": 58.9375,
+          "top": 47.828125,
+          "bottom": 91.828125
+        },
+        {
+          "w": 46.9375,
+          "h": 44,
+          "left": 61.8125,
+          "right": 108.75,
+          "top": 47.828125,
+          "bottom": 91.828125
+        },
+        {
+          "w": 46.9375,
+          "h": 44,
+          "left": 111.625,
+          "right": 158.5625,
+          "top": 47.828125,
+          "bottom": 91.828125
+        },
+        {
+          "w": 46.9375,
+          "h": 44,
+          "left": 161.4375,
+          "right": 208.375,
+          "top": 47.828125,
+          "bottom": 91.828125
+        },
+        {
+          "w": 46.9375,
+          "h": 44,
+          "left": 211.25,
+          "right": 258.1875,
+          "top": 47.828125,
+          "bottom": 91.828125
+        },
+        {
+          "w": 46.9375,
+          "h": 44,
+          "left": 261.0625,
+          "right": 308,
+          "top": 47.828125,
+          "bottom": 91.828125
+        }
+      ]
+    },
+    {
+      "name": "320\u00d7568 battlefield keeps substantial visual authority",
+      "pass": true,
+      "detail": 0.5272337147887324
+    },
+    {
+      "name": "compact phone boot emits no runtime errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "reduced-motion preference suppresses Worker H repeating animations",
+      "pass": true,
+      "detail": {
+        "wave": "none",
+        "power": "none"
+      }
+    },
+    {
+      "name": "all canonical Defense maps still launch independently",
+      "pass": true,
+      "detail": {
+        "grove": {
+          "world": true,
+          "map": "grove",
+          "wave": "0",
+          "selected": "grove",
+          "errors": []
+        },
+        "ember": {
+          "world": true,
+          "map": "ember",
+          "wave": "0",
+          "selected": "ember",
+          "errors": []
+        },
+        "moon": {
+          "world": true,
+          "map": "moon",
+          "wave": "0",
+          "selected": "moon",
+          "errors": []
+        },
+        "storm": {
+          "world": true,
+          "map": "storm",
+          "wave": "0",
+          "selected": "storm",
+          "errors": []
+        },
+        "blizzard": {
+          "world": true,
+          "map": "blizzard",
+          "wave": "0",
+          "selected": "blizzard",
+          "errors": []
+        },
+        "eclipse": {
+          "world": true,
+          "map": "eclipse",
+          "wave": "0",
+          "selected": "eclipse",
+          "errors": []
+        }
+      }
+    }
+  ],
+  "notes": [],
+  "passed": 24,
+  "total": 24,
+  "all_passed": true
+}

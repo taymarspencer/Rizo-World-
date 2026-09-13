@@ -1,0 +1,13 @@
+PASS canvas renderer becomes the production combat presentation path {'rendererMode': 'canvas', 'canvasRenderer': {'enabled': True, 'width': 362, 'height': 391, 'dpr': 2, 'frames': 0, 'enemies': 0, 'projectiles': 0, 'effects': 0, 'resizes': 1}}
+PASS canvas backing store keeps crisp normal-quality balloons without exceeding 2x {'enabled': True, 'width': 362, 'height': 391, 'dpr': 2, 'frames': 0, 'enemies': 0, 'projectiles': 0, 'effects': 0, 'resizes': 1}
+PASS next-wave preview is glanceable instead of exposing packet internals NEXT • WAVE 1 | KNOCK KNOCK | Own a bend. One Rizo can hit the road twice.
+PASS manual wave button reads like an intentional start action START WAVE 1
+PASS canvas enemies do not allocate moving DOM balloon nodes {'dom': 0, 'canvas': 1}
+PASS rapid fire remains logical while visual tracer emission is bounded on canvas {'rapid': {'requested': 48, 'logical': 48, 'visible': 1, 'coalescedVisual': 47, 'coalescedLogical': 0, 'budget': {'maxVisibleProjectiles': 26, 'maxImpactEffects': 8, 'weatherParticleScale': 1, 'projectileEmissionHz': 10, 'presentationFps': 60}}, 'dom': 0}
+PASS canvas receives presentation frames {'canvasFrames': 11, 'renderer': {'enabled': True, 'width': 362, 'height': 391, 'dpr': 2, 'frames': 11, 'enemies': 1, 'projectiles': 1, 'effects': 1, 'resizes': 1}}
+PASS stress lowers presentation quality without changing gameplay density {'before': (0, 14, 2), 'after': (2, 14, 1.08)}
+PASS immediate-update controls exist in global shell and settings {'global': {'bar': True, 'button': True}, 'settings': 1}
+PASS canvas flow test has no runtime errors []
+PASS canvas context loss rehydrates live combat into DOM fallback {'fallback': {'rendererMode': 'dom', 'enemyNodes': 1, 'projectileNodes': 0, 'canvasFallbacks': 1}, 'errors': []}
+
+11/11 v78 canvas/flow checks passed

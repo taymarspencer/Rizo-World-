@@ -23,7 +23,7 @@ with sync_playwright() as p:
             record(f'{mode} contained {w}x{h}',contained,rect)
             record(f'{mode} usable playfield {w}x{h}',arena_ok,arena)
             record(f'{mode} quit reachable {w}x{h}',quit_ok,quit_rect)
-            page.evaluate('RizoRuntimeQA.finishMiniGame(true)');page.wait_for_timeout(30)
+            page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})');page.wait_for_timeout(30)
         record(f'no arcade runtime errors {w}x{h}',not errors,'; '.join(errors[:4]))
         page.close()
     browser.close()

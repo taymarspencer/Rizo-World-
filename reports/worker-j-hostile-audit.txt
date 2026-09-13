@@ -1,0 +1,70 @@
+WORKER J HOSTILE ACTION-ORDER / INVALID-STATE AUDIT
+Date: 2026-09-12
+Scope: correctness, stability, performance, save safety, integration hazards only. No gameplay redesign.
+
+HOSTILE GATE
+PASS 21/21: python3 tests/browser-worker-j-hostile.py
+
+LEGAL ACTION-ORDER ABUSE THAT HELD
+- 30x START spam cannot advance or duplicate an active wave.
+- Pause during countdown freezes simulation while speed is spammed; resume continues normally.
+- Pause exactly during packet-break freezes the transition, resumes packet-break, then continues combat.
+- Upgrade spam stops at level 4 with no extra charges.
+- Selling is rejected during combat and paused combat.
+- Planning sell can refund once only; repeated sell does not duplicate cash.
+- Repeated wave completion calls do not duplicate wave gold or clear credit.
+- 12x bank/end requests accept one finalization only; one history row, one game increment, one Ember reward event.
+- Restart during a queued cinematic/upgrade effect does not poison the next Defense run.
+- Repeated speed switching near wave 249 preserves the 14 active-enemy cap and <=4 fixed-step catch-up budget.
+- Phone resizes at 320x568, 390x844, 430x932 and 844x390 keep critical Defense surfaces usable with no horizontal document overflow.
+
+VERIFIED DEFECTS FOUND AND FIXED
+1. Duplicate restored enemy IDs.
+   Risk: enemyMap target aliasing could make restored projectile/status references ambiguous.
+   Fix: normalizeDefenseCheckpoint canonicalizes restored enemy IDs uniquely.
+
+2. Contradictory packet cursor vs spawnQueue.
+   Risk: a correctly signed malformed checkpoint could restore packetIndex past all packets while spawnQueue still contained threats, permanently stalling the scheduler.
+   Fix: normalizer derives packet remainder, compares it with spawnQueue, preserves the more conservative threat set, rebuilds a coherent packet when necessary, and records a validation warning.
+
+3. Impossible waveResolved / waveTotal accounting.
+   Risk: signed malformed continuation could restore counts such as resolved=100000,total=0 and create impossible completion state.
+   Fix: normalizer constrains resolution accounting against canonical outstanding threats and the checkpoint wave-entity budget.
+
+4. Missing unresolved threats could auto-credit a wave.
+   Risk: queue/enemy arrays could be empty while waveResolved < waveTotal; prior isWaveFullyResolved only inspected scheduler/live arrays, so the wave could clear anyway.
+   Fix: completion now additionally requires waveResolved >= waveTotal.
+
+5. Reached/cleared wave gap could jump permanent credit.
+   Risk: a signed currentWave far ahead of clearedWave could eventually set clearedWave directly to that far-ahead value.
+   Fix: trusted checkpoint reached progress is constrained to clearedWave + 1.
+
+6. Unfinished checkpoint mislabeled planning/wave-complete could skip the unfinished wave.
+   Risk: START could overwrite the unfinished queue and advance currentWave again; eventual completion could jump cleared progress.
+   Fix: unfinished tactical continuation is forced to PAUSED even if its saved phase is noncombat.
+
+7. Already-cleared progress carrying stale combat payload could deadlock.
+   Risk: currentWave <= clearedWave prevents completeDefenseWave, leaving restored combat with no legal clear transition.
+   Fix: stale combat payload for already-cleared progress is stripped and restored to a noncombat cleared/planning state.
+
+8. Wave 250 could be replay-started after wave 250 was already cleared.
+   Risk: currentWave remained 250 due the hard clamp, but combat could start again and could never receive normal sequential clear credit.
+   Fix: startDefenseWave rejects starts once clearedWave >= MAX_SUPPORTED_WAVE.
+
+REGRESSION PROOF AFTER FIXES
+PASS 53/53: python3 tests/worker-j-integration-risk-audit.py
+PASS 10/10: python3 tests/browser-worker-j-qa.py
+PASS 7/7: python3 tests/browser-worker-j-determinism.py --pair speed (exact 1x = 2x outcomes)
+PASS 7/7: python3 tests/browser-worker-j-determinism.py --pair low (exact 2x = low-power outcomes)
+PASS 41/41: python3 tests/browser-first-ten.py
+PASS 77/77: python3 tests/browser-defense-integration.py
+PASS 11/11: python3 tests/browser-v78-canvas-flow.py
+PASS 17/17: python3 tests/browser-v80-strategy-feel.py
+
+ENDLESS / CEILING STRESS
+- Authored plans at waves 50, 100, 150, 200, 249 and 250 remain within MAX_PLANNED_ENEMIES and packet budgets.
+- Synthetic wave-249 runtime stress with repeated speed changes stayed within active-density and catch-up budgets.
+- The current baseline still hard-caps at wave 250. Worker J prevents replay/duplicate-credit behavior at that ceiling; implementing the master vision's effectively-infinite Endless progression is Worker F/final-integrator scope.
+
+ENVIRONMENT LIMIT
+- No physical iPhone/WebKit/PWA device is available in this environment. Chromium phone viewports and lifecycle/recovery guards are green; final integration should still perform physical Safari/PWA launch/background/resume validation.

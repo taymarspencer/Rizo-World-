@@ -2,12 +2,12 @@
   {
     "name": "authored packets use breath-aware spawn grammar",
     "passed": true,
-    "detail": "{'early': [(0.63, 2.375, 5), (0.6799999999999999, 0, 3)], 'late': [(0.3025, 1.875, 10), (0.335, 0, 7)]}"
+    "detail": "{'early': [(0.95, 2.2, 3), (0.72, 0, 3)], 'late': [(0.34, 2.25, 9), (0.32, 0, 8)]}"
   },
   {
     "name": "late difficulty stays composition-led instead of count runaway",
     "passed": true,
-    "detail": "[8, 13, 10, 16, 16, 17]"
+    "detail": "[6, 10, 9, 16, 16, 17]"
   },
   {
     "name": "packet grammar sample has no runtime errors",
@@ -17,7 +17,7 @@
   {
     "name": "30 fps-like callbacks still drive deterministic 30 Hz simulation",
     "passed": true,
-    "detail": "{'simSeconds': 0.9999999999999999, 'presentationFrames': 31}"
+    "detail": "{'simSeconds': 0.9999999999999999, 'presentationFrames': 30}"
   },
   {
     "name": "2x advances exact game time without changing the fixed step",

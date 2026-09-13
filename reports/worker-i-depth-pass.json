@@ -1,0 +1,250 @@
+[
+  {
+    "name": "investment visibly increases attack body weight",
+    "passed": true,
+    "detail": {
+      "base": 5.0,
+      "max": 6.5
+    }
+  },
+  {
+    "name": "enemy hit recoil follows attack direction",
+    "passed": true,
+    "detail": {
+      "x": -1.39,
+      "y": 1.58,
+      "dx": -0.11223982403671465,
+      "dy": 0.12691764939159483,
+      "hasNode": true
+    }
+  },
+  {
+    "name": "investment/hit sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "POWER ability has authored body language",
+    "passed": true,
+    "detail": {
+      "power": "rtd-feel-ability-power",
+      "control": "rtd-feel-ability-control"
+    }
+  },
+  {
+    "name": "CONTROL ability has authored body language",
+    "passed": true,
+    "detail": {
+      "power": "rtd-feel-ability-power",
+      "control": "rtd-feel-ability-control"
+    }
+  },
+  {
+    "name": "active body performance freezes on pause",
+    "passed": true,
+    "detail": "paused"
+  },
+  {
+    "name": "reduced motion removes new doctrine body performance",
+    "passed": true,
+    "detail": "none"
+  },
+  {
+    "name": "doctrine motion sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "crown has distinct entrance + phase motion",
+    "passed": true,
+    "detail": {
+      "arrival": {
+        "body": "rtd-feel-boss-enter-crown",
+        "stage": "rtd-feel-stage-crown",
+        "classes": "defense-stage-frame feel-boss-arrival feel-boss-crown moment-pulse moment-heavy"
+      },
+      "phase": {
+        "r": {
+          "enemyId": "enemy-2",
+          "bossId": "crown",
+          "kind": "guards",
+          "until": 1.55,
+          "interruptible": true
+        },
+        "stage": "rtd-feel-phase-crown",
+        "classes": "defense-stage-frame moment-pulse moment-heavy feel-boss-phase feel-boss-crown"
+      }
+    }
+  },
+  {
+    "name": "crown boss sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "vortex has distinct entrance + phase motion",
+    "passed": true,
+    "detail": {
+      "arrival": {
+        "body": "rtd-feel-boss-enter-vortex",
+        "stage": "rtd-feel-stage-vortex",
+        "classes": "defense-stage-frame feel-boss-arrival feel-boss-vortex moment-pulse moment-heavy"
+      },
+      "phase": {
+        "r": {
+          "enemyId": "enemy-2",
+          "bossId": "vortex",
+          "kind": "vortex",
+          "until": 1.25,
+          "interruptible": true
+        },
+        "stage": "rtd-feel-phase-vortex",
+        "classes": "defense-stage-frame moment-pulse moment-heavy feel-boss-phase feel-boss-vortex"
+      }
+    }
+  },
+  {
+    "name": "vortex boss sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "mirror has distinct entrance + phase motion",
+    "passed": true,
+    "detail": {
+      "arrival": {
+        "body": "rtd-feel-boss-enter-mirror",
+        "stage": "rtd-feel-stage-mirror",
+        "classes": "defense-stage-frame feel-boss-arrival feel-boss-mirror moment-pulse moment-heavy"
+      },
+      "phase": {
+        "r": {
+          "enemyId": "enemy-2",
+          "bossId": "mirror",
+          "kind": "mirror",
+          "until": 1.35,
+          "interruptible": false
+        },
+        "stage": "rtd-feel-phase-mirror",
+        "classes": "defense-stage-frame moment-pulse moment-heavy feel-boss-phase feel-boss-mirror"
+      }
+    }
+  },
+  {
+    "name": "mirror boss sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "apex has distinct entrance + phase motion",
+    "passed": true,
+    "detail": {
+      "arrival": {
+        "body": "rtd-feel-boss-enter-apex",
+        "stage": "rtd-feel-stage-apex",
+        "classes": "defense-stage-frame feel-boss-arrival feel-boss-apex moment-pulse moment-heavy"
+      },
+      "phase": {
+        "r": {
+          "enemyId": "enemy-2",
+          "bossId": "apex",
+          "kind": "apex",
+          "until": 1.1,
+          "interruptible": true
+        },
+        "stage": "rtd-feel-phase-apex",
+        "classes": "defense-stage-frame moment-pulse moment-heavy feel-boss-phase feel-boss-apex"
+      }
+    }
+  },
+  {
+    "name": "apex boss sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "boss motion identities are non-repetitive",
+    "passed": true,
+    "detail": [
+      [
+        "rtd-feel-boss-enter-crown",
+        "rtd-feel-stage-crown",
+        "rtd-feel-phase-crown"
+      ],
+      [
+        "rtd-feel-boss-enter-vortex",
+        "rtd-feel-stage-vortex",
+        "rtd-feel-phase-vortex"
+      ],
+      [
+        "rtd-feel-boss-enter-mirror",
+        "rtd-feel-stage-mirror",
+        "rtd-feel-phase-mirror"
+      ],
+      [
+        "rtd-feel-boss-enter-apex",
+        "rtd-feel-stage-apex",
+        "rtd-feel-phase-apex"
+      ]
+    ]
+  },
+  {
+    "name": "feel depth stays contained at 320x568",
+    "passed": true,
+    "detail": {
+      "doc": 0,
+      "body": 0
+    }
+  },
+  {
+    "name": "320x568 sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "feel depth stays contained at 390x844",
+    "passed": true,
+    "detail": {
+      "doc": 0,
+      "body": 0
+    }
+  },
+  {
+    "name": "390x844 sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "feel depth stays contained at 844x390",
+    "passed": true,
+    "detail": {
+      "doc": 0,
+      "body": 0
+    }
+  },
+  {
+    "name": "844x390 sample has no runtime errors",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "ability audio profile covers every Rizo variant",
+    "passed": true,
+    "detail": ""
+  },
+  {
+    "name": "ability activation uses variant/doctrine signature",
+    "passed": true,
+    "detail": ""
+  },
+  {
+    "name": "field-leader doctrine and Super state feed Defense score",
+    "passed": true,
+    "detail": ""
+  },
+  {
+    "name": "boss audio cue is identity-aware at lifecycle hooks",
+    "passed": true,
+    "detail": ""
+  }
+]

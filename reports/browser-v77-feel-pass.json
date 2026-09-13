@@ -2,7 +2,7 @@
   {
     "name": "grove field stays square",
     "passed": true,
-    "detail": "[358.8125, 358.8125]"
+    "detail": "[362, 362]"
   },
   {
     "name": "grove road and gameplay use one route",
@@ -13,7 +13,7 @@
     "name": "grove visible balloon body follows trail",
     "passed": true,
     "detail": {
-      "maxErrorPx": 0.208
+      "maxErrorPx": 0.182
     }
   },
   {
@@ -24,7 +24,7 @@
   {
     "name": "ember field stays square",
     "passed": true,
-    "detail": "[358.8125, 358.8125]"
+    "detail": "[362, 362]"
   },
   {
     "name": "ember road and gameplay use one route",
@@ -35,7 +35,7 @@
     "name": "ember visible balloon body follows trail",
     "passed": true,
     "detail": {
-      "maxErrorPx": 0.178
+      "maxErrorPx": 0.198
     }
   },
   {
@@ -46,7 +46,7 @@
   {
     "name": "moon field stays square",
     "passed": true,
-    "detail": "[358.8125, 358.8125]"
+    "detail": "[362, 362]"
   },
   {
     "name": "moon road and gameplay use one route",
@@ -57,7 +57,7 @@
     "name": "moon visible balloon body follows trail",
     "passed": true,
     "detail": {
-      "maxErrorPx": 0.21
+      "maxErrorPx": 0.193
     }
   },
   {
@@ -68,7 +68,7 @@
   {
     "name": "storm field stays square",
     "passed": true,
-    "detail": "[358.8125, 358.8125]"
+    "detail": "[362, 362]"
   },
   {
     "name": "storm road and gameplay use one route",
@@ -79,7 +79,7 @@
     "name": "storm visible balloon body follows trail",
     "passed": true,
     "detail": {
-      "maxErrorPx": 0.22
+      "maxErrorPx": 0.19
     }
   },
   {
@@ -90,7 +90,7 @@
   {
     "name": "blizzard field stays square",
     "passed": true,
-    "detail": "[358.8125, 358.8125]"
+    "detail": "[362, 362]"
   },
   {
     "name": "blizzard road and gameplay use one route",
@@ -101,7 +101,7 @@
     "name": "blizzard visible balloon body follows trail",
     "passed": true,
     "detail": {
-      "maxErrorPx": 0.227
+      "maxErrorPx": 0.185
     }
   },
   {
@@ -112,7 +112,7 @@
   {
     "name": "eclipse field stays square",
     "passed": true,
-    "detail": "[358.8125, 358.8125]"
+    "detail": "[362, 362]"
   },
   {
     "name": "eclipse road and gameplay use one route",
@@ -123,7 +123,7 @@
     "name": "eclipse visible balloon body follows trail",
     "passed": true,
     "detail": {
-      "maxErrorPx": 0.228
+      "maxErrorPx": 0.205
     }
   },
   {
@@ -132,10 +132,19 @@
     "detail": []
   },
   {
+    "name": "boss entrance is a visible authored arrival",
+    "passed": true,
+    "detail": {
+      "enteringErrorPx": 10.002,
+      "entering": true
+    }
+  },
+  {
     "name": "boss body follows the canonical trail",
     "passed": true,
     "detail": {
-      "errorPx": 0.191
+      "errorPx": 0.381,
+      "entering": false
     }
   },
   {
@@ -149,26 +158,30 @@
     "detail": [
       {
         "id": "tower-1",
-        "petId": "PET-A8209EE151CE",
+        "petId": "PET-356036A2747E",
         "variant": "classic",
         "copy": 1,
         "x": 0.32,
-        "y": 0.18000000000000002,
+        "y": 0.1799999999999999,
         "upgrade": 0,
         "cost": 0,
         "spent": 0,
         "openingPerkApplied": false,
-        "placedAtReal": 0.016599999999999965,
+        "placedAtReal": 0.049976,
         "kills": 0,
         "damage": 0,
         "shots": 0,
         "targetMode": "first",
         "doctrine": null,
         "superForm": null,
+        "structureType": null,
+        "totalProduced": 0,
+        "beaconBuffed": false,
         "readyAt": 0,
         "nextUpgradeCost": 110,
         "sellRefund": 0,
-        "canUndo": true
+        "canUndo": true,
+        "mapBond": null
       }
     ]
   },
@@ -187,7 +200,7 @@
     "passed": true,
     "detail": {
       "font": "ui-rounded, \"SF Pro Rounded\", \"Arial Rounded MT Bold\", system-ui, -apple-system, sans-serif",
-      "buttonRadius": "14px",
+      "buttonRadius": "11px",
       "buttonShadow": "rgb(17, 16, 20) 0px 3px 0px 0px, rgba(0, 0, 0, 0.13) 0px 7px 14px 0px",
       "impactBorder": "0px",
       "impactFilter": "none",
@@ -199,7 +212,7 @@
     "passed": true,
     "detail": {
       "font": "ui-rounded, \"SF Pro Rounded\", \"Arial Rounded MT Bold\", system-ui, -apple-system, sans-serif",
-      "buttonRadius": "14px",
+      "buttonRadius": "11px",
       "buttonShadow": "rgb(17, 16, 20) 0px 3px 0px 0px, rgba(0, 0, 0, 0.13) 0px 7px 14px 0px",
       "impactBorder": "0px",
       "impactFilter": "none",

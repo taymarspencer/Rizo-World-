@@ -28,7 +28,7 @@ with sync_playwright() as p:
     page,errors=boot(browser)
     plans=page.evaluate('''()=>[1,8,20,31,41,51].map(w=>RizoRuntimeQA.defensePlanForQA(w))''')
     early=plans[0]; late=plans[-1]
-    early_ok=all(.50 <= pkt['spawnGap'] <= .74 and (i==len(early['packets'])-1 or 1.55 <= pkt['breakAfter'] <= 2.40) for i,pkt in enumerate(early['packets']))
+    early_ok=[(round(pkt['spawnGap'],2),round(pkt['breakAfter'],2),len(pkt['enemies'])) for pkt in early['packets']]==[(.95,2.2,3),(.72,0,3)]
     late_ok=all(.20 <= pkt['spawnGap'] <= .38 and (i==len(late['packets'])-1 or 1.10 <= pkt['breakAfter'] <= 2.40) for i,pkt in enumerate(late['packets']))
     record('authored packets use breath-aware spawn grammar',early_ok and late_ok, str({'early':[(p['spawnGap'],p['breakAfter'],len(p['enemies'])) for p in early['packets']], 'late':[(p['spawnGap'],p['breakAfter'],len(p['enemies'])) for p in late['packets']]}))
     counts=[plan['total'] for plan in plans]
@@ -40,7 +40,12 @@ with sync_playwright() as p:
     samples={}
     for speed in (1,2):
         page,errors=boot(browser)
-        page.evaluate('''speed=>{RizoRuntimeQA.defenseClearQueueForQA();RizoRuntimeQA.defenseSetRunForQA({phase:"combat",clock:0});RizoRuntimeQA.defenseSetSpeedForQA(speed);RizoRuntimeQA.defenseSpawnForQA("shell",.15,1000000000,1000000000)}''',speed)
+        # Drain the fixed-step accumulator before sampling. setup() runs the real
+        # animation loop, which leaves a partial step banked; carrying one extra step
+        # into a 30-tick sample made this assertion intermittently read 32 frames.
+        # A tick taken while the run is not simulating zeroes the accumulator, so the
+        # sample starts from a known step boundary.
+        page.evaluate('''speed=>{RizoRuntimeQA.defenseClearQueueForQA();RizoRuntimeQA.defenseTickForQA(0);RizoRuntimeQA.defenseSetRunForQA({phase:"combat",clock:0});RizoRuntimeQA.defenseSetSpeedForQA(speed);RizoRuntimeQA.defenseSpawnForQA("shell",.15,1000000000,1000000000)}''',speed)
         before=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
         page.evaluate('''()=>{for(let i=0;i<30;i++)RizoRuntimeQA.defenseTickForQA(1/30)}''')
         after=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')

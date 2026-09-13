@@ -1,0 +1,20 @@
+Worker H final post-self-audit regression summary
+Date: 2026-09-12
+
+PASS node --check game-v79-defense.js
+PASS defense-core.test.js — 31/31
+PASS static-defense-audit.py — 80/80
+PASS service-worker-policy.test.js — 4/4
+PASS browser-defense-integration.py — 77/77
+PASS browser-defense-surfaces.py — 76/76
+PASS browser-launch-recovery.py — 5/5
+PASS browser-first-ten.py — 41/41
+PASS browser-v78-canvas-flow.py — 11/11
+PASS browser-v80-strategy-feel.py — 17/17
+PASS worker-h-self-audit.py — 24/24
+
+Verified H-owned fixes during deliberate audit:
+1. Excluded .defense-tower from the generic active-state translate so pointer-down feedback cannot overwrite field anchoring and destabilize selection.
+2. Removed geometric movement from START WAVE idle breathing; the cue now pulses shadow only, keeping the touch target stationary.
+
+No unresolved H-owned test failure remains.

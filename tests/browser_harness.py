@@ -2,6 +2,12 @@ from pathlib import Path
 import re, base64, mimetypes
 ROOT = Path(__file__).resolve().parents[1]
 
+# Every stylesheet index.html actually loads gets inlined, in document order. Keep
+# this as a named constant: it replaced a hard-coded filename list that silently
+# stopped covering each new specialist layer, and a bare inline pattern here is a
+# magnet for merge damage when several branches add a stylesheet link at once.
+STYLESHEET_LINK_RE = r'<link href="\./([A-Za-z0-9_.-]+\.css)" rel="stylesheet"'
+
 def _embed_asset_refs(text):
     cache={}
     pattern=re.compile(r"\./assets/[A-Za-z0-9_./-]+\.(?:png|webp|svg|jpg|jpeg|gif)",re.I)
@@ -18,8 +24,12 @@ def _embed_asset_refs(text):
 
 def build_inline_app(qa=False, embed_assets=False):
     html=(ROOT/'index.html').read_text()
+    # Derive the stylesheet list from index.html instead of hard-coding it.
+    # A hard-coded list silently stopped exercising every new specialist layer
+    # (Worker I flagged exactly this blind spot); reading the real document keeps
+    # browser regression coverage honest as stylesheets are added or reordered.
     local_css = {}
-    for name in ['launch-v79-defense-alive.css','v81-art.css','arcade-v75.css','arcade-v83.css','arcade-v84-depth.css','rizo-v85-handmade.css']:
+    for name in re.findall(STYLESHEET_LINK_RE, html):
         path=ROOT/name
         if path.exists():
             text=path.read_text()
