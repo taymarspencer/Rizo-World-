@@ -1,0 +1,19 @@
+PASS landscape command buttons stay inside their deck {'d': {'x': 13.59375, 'y': 5.59375, 'w': 168.796875, 'h': 330.421875, 'right': 182.390625, 'bottom': 336.015625}, 's': {'x': 188.78125, 'y': 5.59375, 'w': 424.234375, 'h': 378.8125, 'right': 613.015625, 'bottom': 384.40625}, 'w': {'x': 213.484375, 'y': 7.59375, 'w': 374.8125, 'h': 374.8125, 'right': 588.296875, 'bottom': 382.40625}, 'c': {'x': 621.796875, 'y': 15.171875, 'w': 206.21875, 'h': 84, 'right': 828.015625, 'bottom': 99.171875}, 'wave': {'x': 446.53125, 'y': 315.609375, 'w': 151.6875, 'h': 54, 'right': 598.21875, 'bottom': 369.609375}, 'controlsInside': True, 'waveInside': True, 'rosterOwned': True, 'stolen': 0, 'total': 25}
+PASS landscape START WAVE owns a dedicated battlefield position {'x': 446.53125, 'y': 315.609375, 'w': 151.6875, 'h': 54, 'right': 598.21875, 'bottom': 369.609375}
+PASS landscape roster owns its own touch surface {'x': 621.796875, 'y': 15.171875, 'w': 206.21875, 'h': 84, 'right': 828.015625, 'bottom': 99.171875}
+PASS landscape command deck steals zero sampled battlefield touches 0/25
+PASS landscape strategy pass has no runtime errors []
+PASS first placed Rizo remains the Field Leader {'leader': {'id': 'tower-1', 'petId': 'PET-602F353E7E3C', 'name': 'RIZO 01', 'doctrine': None, 'upgrade': 0, 'superForm': None}, 'towers': ['tower-1', 'tower-2']}
+PASS default wave intel hides enemy counts NEXT • WAVE 1 | KNOCK KNOCK | Own a bend. One Rizo can hit the road twice.
+PASS SELL asks for confirmation instead of instantly deleting a Rizo SELL RIZO 01? | You get 0 🪙 back. This Rizo leaves the field. | KEEP RIZO | YES, SELL
+PASS canceling SELL keeps the Rizo 
+PASS pausing cancels an armed Ember Pod placement {'before': True, 'after': {'armed': False, 'readyAt': 0, 'until': 0, 'progress': 0.86, 'ticks': 0}, 'reason': 'pause'}
+PASS Ember Pod cooldown and position survive checkpoint restore {'first': {'armed': False, 'readyAt': 38.1, 'until': 12.1, 'progress': 0.43, 'ticks': 1}, 'restored': {'armed': False, 'readyAt': 38.1, 'until': 12.1, 'progress': 0.43, 'ticks': 1}}
+PASS consumer-state strategy pass has no runtime errors []
+PASS late waves contain durable Ceramic/Lead-style threats {'total': 12, 'types': ['boss', 'brick', 'fleet', 'lead', 'puff', 'shell']}
+PASS heavy threats preserve the bounded enemy-count budget {'total': 12, 'flattened': 12}
+PASS 10 matching Rizos can sacrifice into one Super Rizo {'before': 10, 'after': [{'id': 'tower-1', 'petId': 'PET-D5A5FD45F9AF', 'variant': 'classic', 'copy': 1, 'x': 0.27, 'y': 0.14, 'upgrade': 4, 'cost': 0, 'spent': 0, 'openingPerkApplied': False, 'placedAtReal': 0.09990999999999996, 'kills': 0, 'damage': 0, 'shots': 0, 'targetMode': 'first', 'doctrine': 'power', 'superForm': 'power', 'readyAt': 0, 'nextUpgradeCost': 640, 'sellRefund': 0, 'canUndo': True}]}
+PASS Super Rizo has an unmistakable upgraded visual class defense-tower defense-variant-classic defense-tier-apex defense-upgrade-4 defense-mastery-0 feel-idle-breathe defense-super-power defense-doctrine-power defense-range-label-low selected feel-upgraded
+PASS Super Rizo pass has no runtime errors []
+
+17/17 v80 strategy/feel checks passed

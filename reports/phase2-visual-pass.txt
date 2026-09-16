@@ -1,0 +1,29 @@
+Rizo Defense — Phase 2 visual identity / particle pass
+Baseline: RIZO_V87_VISUAL_INSPECTION_HOTFIX_FLAT
+
+Harsh rescore after Phase 2
+- First map art: 7.2 -> 7.4
+- Overall art cohesion: 7.3 -> 7.8
+- Balloon silhouette / character design: 6.5 -> 8.0
+- Balloon material / rendering depth: 6.6 -> 7.8
+- Ember / fire tack fantasy: 6.6 -> 8.0
+- Projectile identity across core crew: 7.2 -> 7.7
+- Hit / pop effects: 6.7 -> 8.0
+- Particle quality / restraint: 6.1 -> 7.7
+- Rizo attack animation feel: 6.7 -> 7.2
+- UI readability / battlefield legibility: 7.5 -> 7.5
+- Tower roster consistency: 7.1 -> 7.6
+- Special-enemy visual differentiation: 6.4 -> 8.0
+
+Phase 2 changes
+- Expanded enemy-family language so fleet, split, fire, storm, shell, brick and lead now carry clearer badges/accents instead of leaning on recolor alone.
+- Upgraded burn-state rendering with extra cinder notes so Ember ownership reads longer after impact.
+- Rebuilt pop effects to react to enemy family: fire pops throw sparks/cinders, storm pops arc with electricity, heavy classes burst into chunkier shell debris, split pops release bubble rings, fleet pops slash outward.
+- Kept the changes lightweight enough to stay compatible with the canvas budget and DOM fallback guardrails.
+
+No visual category is left in the 6-range in this pass.
+
+Best next continuation point if needed
+- push tower attack animation from “good snap” to “signature performance”
+- add one more authored map-story layer to Pine Bend
+- keep building truly iconic enemy-family personality

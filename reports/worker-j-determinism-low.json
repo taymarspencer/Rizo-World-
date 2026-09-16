@@ -1,0 +1,786 @@
+{
+  "mixed-2x": {
+    "waves": [
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 1,
+        "clear": 1,
+        "seconds": 12.4,
+        "lives": 20,
+        "cash": 112,
+        "spent": 190,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 2
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 4
+          }
+        ],
+        "peak": 5,
+        "maxFront": 0.28,
+        "bossWithEscort": false,
+        "kills": 6,
+        "spawned": {
+          "puff": 6
+        },
+        "resolved": 6,
+        "total": 6
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 2,
+        "clear": 2,
+        "seconds": 11.87,
+        "lives": 20,
+        "cash": 107,
+        "spent": 300,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 7
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 6
+          }
+        ],
+        "peak": 5,
+        "maxFront": 0.31,
+        "bossWithEscort": false,
+        "kills": 13,
+        "spawned": {
+          "puff": 10,
+          "fleet": 3
+        },
+        "resolved": 7,
+        "total": 7
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 3,
+        "clear": 3,
+        "seconds": 29.13,
+        "lives": 18,
+        "cash": 206,
+        "spent": 300,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 14
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 6
+          }
+        ],
+        "peak": 8,
+        "maxFront": 1,
+        "bossWithEscort": false,
+        "kills": 20,
+        "spawned": {
+          "puff": 15,
+          "fleet": 5,
+          "split": 2
+        },
+        "resolved": 9,
+        "total": 9
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 4,
+        "clear": 4,
+        "seconds": 34.2,
+        "lives": 15,
+        "cash": 311,
+        "spent": 300,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 19
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 7
+          }
+        ],
+        "peak": 7,
+        "maxFront": 1,
+        "bossWithEscort": false,
+        "kills": 26,
+        "spawned": {
+          "puff": 18,
+          "fleet": 8,
+          "split": 2,
+          "shell": 2
+        },
+        "resolved": 8,
+        "total": 8
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 5,
+        "clear": 5,
+        "seconds": 16.1,
+        "lives": 15,
+        "cash": 195,
+        "spent": 590,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 27
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 3
+          }
+        ],
+        "peak": 8,
+        "maxFront": 0.69,
+        "bossWithEscort": false,
+        "kills": 38,
+        "spawned": {
+          "puff": 18,
+          "fleet": 20,
+          "split": 2,
+          "shell": 2
+        },
+        "resolved": 12,
+        "total": 12
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 6,
+        "clear": 6,
+        "seconds": 24.1,
+        "lives": 15,
+        "cash": 240,
+        "spent": 770,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 38
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 7
+          }
+        ],
+        "peak": 8,
+        "maxFront": 0.53,
+        "bossWithEscort": false,
+        "kills": 53,
+        "spawned": {
+          "puff": 23,
+          "fleet": 25,
+          "split": 5,
+          "shell": 4
+        },
+        "resolved": 15,
+        "total": 15
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 7,
+        "clear": 7,
+        "seconds": 24.03,
+        "lives": 15,
+        "cash": 368,
+        "spent": 880,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 48
+          },
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 9
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          }
+        ],
+        "peak": 6,
+        "maxFront": 0.66,
+        "bossWithEscort": false,
+        "kills": 65,
+        "spawned": {
+          "puff": 25,
+          "fleet": 30,
+          "split": 6,
+          "shell": 5,
+          "fire": 3
+        },
+        "resolved": 12,
+        "total": 12
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 8,
+        "clear": 8,
+        "seconds": 19.5,
+        "lives": 15,
+        "cash": 436,
+        "spent": 1060,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 58
+          },
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 11
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          }
+        ],
+        "peak": 6,
+        "maxFront": 0.48,
+        "bossWithEscort": false,
+        "kills": 77,
+        "spawned": {
+          "puff": 28,
+          "fleet": 34,
+          "split": 7,
+          "shell": 6,
+          "fire": 3,
+          "storm": 3
+        },
+        "resolved": 12,
+        "total": 12
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 9,
+        "clear": 9,
+        "seconds": 31.07,
+        "lives": 10,
+        "cash": 289,
+        "spent": 1460,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 68
+          },
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 14
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 9
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 1
+          }
+        ],
+        "peak": 10,
+        "maxFront": 1,
+        "bossWithEscort": false,
+        "kills": 92,
+        "spawned": {
+          "puff": 33,
+          "fleet": 39,
+          "split": 10,
+          "shell": 8,
+          "fire": 4,
+          "storm": 5
+        },
+        "resolved": 18,
+        "total": 18
+      },
+      {
+        "casts": 2,
+        "bosses": 0,
+        "wave": 10,
+        "clear": 10,
+        "seconds": 45.3,
+        "lives": 3,
+        "cash": 370,
+        "spent": 1680,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 75
+          },
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 19
+          },
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 11
+          },
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 3
+          }
+        ],
+        "peak": 8,
+        "maxFront": 1,
+        "bossWithEscort": true,
+        "kills": 108,
+        "spawned": {
+          "puff": 36,
+          "fleet": 46,
+          "split": 12,
+          "shell": 10,
+          "fire": 5,
+          "storm": 6,
+          "boss:crown": 1
+        },
+        "resolved": 17,
+        "total": 17
+      }
+    ],
+    "cash": 370,
+    "peak": 10,
+    "projectiles": 3,
+    "simStepP95": 0.10000000055879354,
+    "scans": 5534,
+    "renderer": "dom"
+  },
+  "mixed-2x-low": {
+    "waves": [
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 1,
+        "clear": 1,
+        "seconds": 12.4,
+        "lives": 20,
+        "cash": 112,
+        "spent": 190,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 2
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 4
+          }
+        ],
+        "peak": 5,
+        "maxFront": 0.28,
+        "bossWithEscort": false,
+        "kills": 6,
+        "spawned": {
+          "puff": 6
+        },
+        "resolved": 6,
+        "total": 6
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 2,
+        "clear": 2,
+        "seconds": 11.87,
+        "lives": 20,
+        "cash": 107,
+        "spent": 300,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 7
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 6
+          }
+        ],
+        "peak": 5,
+        "maxFront": 0.31,
+        "bossWithEscort": false,
+        "kills": 13,
+        "spawned": {
+          "puff": 10,
+          "fleet": 3
+        },
+        "resolved": 7,
+        "total": 7
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 3,
+        "clear": 3,
+        "seconds": 29.13,
+        "lives": 18,
+        "cash": 206,
+        "spent": 300,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 14
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 6
+          }
+        ],
+        "peak": 8,
+        "maxFront": 1,
+        "bossWithEscort": false,
+        "kills": 20,
+        "spawned": {
+          "puff": 15,
+          "fleet": 5,
+          "split": 2
+        },
+        "resolved": 9,
+        "total": 9
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 4,
+        "clear": 4,
+        "seconds": 34.2,
+        "lives": 15,
+        "cash": 311,
+        "spent": 300,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 19
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 7
+          }
+        ],
+        "peak": 7,
+        "maxFront": 1,
+        "bossWithEscort": false,
+        "kills": 26,
+        "spawned": {
+          "puff": 18,
+          "fleet": 8,
+          "split": 2,
+          "shell": 2
+        },
+        "resolved": 8,
+        "total": 8
+      },
+      {
+        "casts": 0,
+        "bosses": 0,
+        "wave": 5,
+        "clear": 5,
+        "seconds": 16.1,
+        "lives": 15,
+        "cash": 195,
+        "spent": 590,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 27
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 3
+          }
+        ],
+        "peak": 8,
+        "maxFront": 0.69,
+        "bossWithEscort": false,
+        "kills": 38,
+        "spawned": {
+          "puff": 18,
+          "fleet": 20,
+          "split": 2,
+          "shell": 2
+        },
+        "resolved": 12,
+        "total": 12
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 6,
+        "clear": 6,
+        "seconds": 24.1,
+        "lives": 15,
+        "cash": 240,
+        "spent": 770,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 38
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 7
+          }
+        ],
+        "peak": 8,
+        "maxFront": 0.53,
+        "bossWithEscort": false,
+        "kills": 53,
+        "spawned": {
+          "puff": 23,
+          "fleet": 25,
+          "split": 5,
+          "shell": 4
+        },
+        "resolved": 15,
+        "total": 15
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 7,
+        "clear": 7,
+        "seconds": 24.03,
+        "lives": 15,
+        "cash": 368,
+        "spent": 880,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 48
+          },
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 9
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          }
+        ],
+        "peak": 6,
+        "maxFront": 0.66,
+        "bossWithEscort": false,
+        "kills": 65,
+        "spawned": {
+          "puff": 25,
+          "fleet": 30,
+          "split": 6,
+          "shell": 5,
+          "fire": 3
+        },
+        "resolved": 12,
+        "total": 12
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 8,
+        "clear": 8,
+        "seconds": 19.5,
+        "lives": 15,
+        "cash": 436,
+        "spent": 1060,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 58
+          },
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 11
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 8
+          }
+        ],
+        "peak": 6,
+        "maxFront": 0.48,
+        "bossWithEscort": false,
+        "kills": 77,
+        "spawned": {
+          "puff": 28,
+          "fleet": 34,
+          "split": 7,
+          "shell": 6,
+          "fire": 3,
+          "storm": 3
+        },
+        "resolved": 12,
+        "total": 12
+      },
+      {
+        "casts": 1,
+        "bosses": 0,
+        "wave": 9,
+        "clear": 9,
+        "seconds": 31.07,
+        "lives": 10,
+        "cash": 289,
+        "spent": 1460,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 68
+          },
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 14
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 9
+          },
+          {
+            "v": "classic",
+            "u": 0,
+            "k": 1
+          }
+        ],
+        "peak": 10,
+        "maxFront": 1,
+        "bossWithEscort": false,
+        "kills": 92,
+        "spawned": {
+          "puff": 33,
+          "fleet": 39,
+          "split": 10,
+          "shell": 8,
+          "fire": 4,
+          "storm": 5
+        },
+        "resolved": 18,
+        "total": 18
+      },
+      {
+        "casts": 2,
+        "bosses": 0,
+        "wave": 10,
+        "clear": 10,
+        "seconds": 45.3,
+        "lives": 3,
+        "cash": 370,
+        "spent": 1680,
+        "towers": [
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 75
+          },
+          {
+            "v": "classic",
+            "u": 2,
+            "k": 19
+          },
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 11
+          },
+          {
+            "v": "classic",
+            "u": 1,
+            "k": 3
+          }
+        ],
+        "peak": 8,
+        "maxFront": 1,
+        "bossWithEscort": true,
+        "kills": 108,
+        "spawned": {
+          "puff": 36,
+          "fleet": 46,
+          "split": 12,
+          "shell": 10,
+          "fire": 5,
+          "storm": 6,
+          "boss:crown": 1
+        },
+        "resolved": 17,
+        "total": 17
+      }
+    ],
+    "cash": 370,
+    "peak": 10,
+    "projectiles": 3,
+    "simStepP95": 0.09999999962747097,
+    "scans": 5534,
+    "renderer": "dom"
+  }
+}

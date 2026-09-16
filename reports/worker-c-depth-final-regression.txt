@@ -1,0 +1,20 @@
+WORKER C — DEPTH & FLATNESS PASS FINAL REGRESSION
+
+PASS node --check game-v79-defense.js
+PASS defense-core.test.js — 31/31
+PASS service-worker-policy.test.js — 4/4
+PASS static-defense-audit.py — 80/80
+PASS browser-worker-c-roster.py — 13/13
+PASS browser-worker-c-audit.py — 11/11
+PASS browser-worker-c-depth.py — 13/13
+PASS browser-defense-integration.py — 77/77
+PASS browser-defense-surfaces.py — 76/76
+PASS browser-v80-strategy-feel.py — 17/17
+PASS browser-v78-canvas-flow.py — 11/11
+PASS browser-launch-recovery.py — 5/5
+PASS browser-v77-feel-pass.py — 33/33
+EXPECTED LEGACY TEST DEBT browser-first-ten.py — 38/41
+  Only failures: mixed-1x / mixed-2x / mixed-2x-low "kills the Warden".
+  The legacy mixed strategy hard-codes the retired three-loaner opening. It still
+  resolves waves 1–10 identically at 1x/2x/low-power and passes checkpoint,
+  projectile, guest MVP, and guest mastery safeguards.

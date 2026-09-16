@@ -47,8 +47,19 @@ with sync_playwright() as p:
     page,errors=boot(browser,'grove')
     page.evaluate("RizoRuntimeQA.defenseSpawnBossForQA('crown')")
     page.evaluate("()=>{RizoRuntimeQA.defenseSetEnemiesForQA(.5);RizoRuntimeQA.defenseSetRunForQA({phase:'combat'});RizoRuntimeQA.defenseTickForQA(.02)}")
-    boss_err=page.evaluate('''()=>{const world=document.querySelector('#defenseWorld'),enemy=document.querySelector('.defense-enemy.balloon-boss'),body=enemy.querySelector('.balloon-body'),wr=world.getBoundingClientRect(),br=body.getBoundingClientRect(),state=RizoRuntimeQA.defenseSnapshotForQA().enemies.at(-1),pt=RizoRuntimeQA.defenseMapPointForQA('grove',state.progress);return Math.hypot((br.left+br.width/2)-(wr.left+pt.x*wr.width),(br.top+br.height/2)-(wr.top+pt.y*wr.height))}''')
-    record('boss body follows the canonical trail',boss_err<=1.35,{'errorPx':round(boss_err,3)})
+    BOSS_ERR='''()=>{const world=document.querySelector('#defenseWorld'),enemy=document.querySelector('.defense-enemy.balloon-boss'),body=enemy.querySelector('.balloon-body'),wr=world.getBoundingClientRect(),br=body.getBoundingClientRect(),state=RizoRuntimeQA.defenseSnapshotForQA().enemies.at(-1),pt=RizoRuntimeQA.defenseMapPointForQA('grove',state.progress);return {err:Math.hypot((br.left+br.width/2)-(wr.left+pt.x*wr.width),(br.top+br.height/2)-(wr.top+pt.y*wr.height)),entering:enemy.classList.contains('boss-entering')}}'''
+    entering=page.evaluate(BOSS_ERR)
+    # The boss entrance is authored transient motion (it drops in and settles), so the
+    # anchor rule is verified once the entrance is over. Assert both halves: the
+    # entrance visibly displaces the body, and it lands exactly back on the trail. A
+    # future entrance that never settles would fail the second check.
+    for _ in range(40):
+        page.evaluate('RizoRuntimeQA.defenseTickForQA(1/30)')
+    page.wait_for_timeout(1000)
+    page.evaluate('RizoRuntimeQA.defenseTickForQA(1/30)')
+    settled=page.evaluate(BOSS_ERR)
+    record('boss entrance is a visible authored arrival',entering['entering'] and entering['err']>1.35,{'enteringErrorPx':round(entering['err'],3),'entering':entering['entering']})
+    record('boss body follows the canonical trail',(not settled['entering']) and settled['err']<=1.35,{'errorPx':round(settled['err'],3),'entering':settled['entering']})
     page.close()
 
     # Touch drag: pointerdown is owned immediately and a field-directed move commits.

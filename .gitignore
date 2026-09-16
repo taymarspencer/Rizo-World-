@@ -1,7 +1,1 @@
-# Local interpreter caches
 __pycache__/
-*.py[cod]
-
-# Operating-system metadata
-.DS_Store
-Thumbs.db

@@ -1,0 +1,38 @@
+Rizo Defense — Phase 1 After Phase 1
+Hostile art / consistency inspection
+Baseline inspected: v87-first-ten-visual-nuance
+
+Immediate-fix rule:
+- Any category below 6.0 was repaired before freeze.
+
+Initial harsh scores -> rescored after hotfix
+- First map art: 7.2 -> 7.2
+- Overall art cohesion: 7.1 -> 7.3
+- Balloon silhouette / character design: 5.4 -> 6.5
+- Balloon material / rendering depth: 5.8 -> 6.6
+- Ember / fire tack fantasy: 4.9 -> 6.6
+- Projectile identity across core crew: 7.0 -> 7.2
+- Hit / pop effects: 6.6 -> 6.7
+- Particle quality / restraint: 6.0 -> 6.1
+- Rizo attack animation feel: 6.6 -> 6.7
+- UI readability / battlefield legibility: 7.5 -> 7.5
+- Tower roster consistency: 7.0 -> 7.1
+- Special-enemy visual differentiation: 6.2 -> 6.4
+
+What was actually fixed in this inspection hotfix
+- Balloons now have stronger body shape, a clearer neck/knot/string read, extra seam/cheek detail, and light enemy-type personality in the face.
+- Burned balloons now carry better scorch, ember and soot treatment.
+- Ember projectiles now read as a real burning tack/flame shard instead of a generic orange shot.
+- Ember impacts were upgraded with a scorched ring, flame tongues and cinder/smoke notes.
+- DOM fallback got matching Ember projectile / impact polish.
+
+Harsh notes still holding the game below an all-8 bar
+- Balloons are now passable but still not iconic enough. Some enemy classes still lean “cute placeholder with polish” rather than “signature Rizo Defense enemy.”
+- Particles are acceptable, but still the least authored layer. They clarify combat, but they do not yet create memorable spectacle.
+- Rizo combat motion is improved, but still more snap/recoil than full performance animation.
+- Pine Bend works, but it still has room for stronger authored focal moments and route storytelling.
+
+Recommended Phase 2 continuation point
+- Enemy family pass: make base/fleet/lead/brick/shell/split/storm feel like a designed lineup, not one base balloon with variants.
+- Ember prestige pass: push lingering cinders, hotter impact beats, and stronger burn-state ownership.
+- Particle prestige pass: make pops, DOT states and kill moments feel like deliberate authored punctuation.

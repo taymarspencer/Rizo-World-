@@ -7,7 +7,7 @@ function test(name, fn) { tests.push({name, fn}); }
 
 test('phase model gates actions coherently', () => {
   assert.equal(core.phaseAllows(core.PHASES.PLANNING, 'place'), true);
-  assert.equal(core.phaseAllows(core.PHASES.COMBAT, 'place'), false);
+  assert.equal(core.phaseAllows(core.PHASES.COMBAT, 'place'), true);
   assert.equal(core.phaseAllows(core.PHASES.COMBAT, 'ability'), true);
   assert.equal(core.phaseAllows(core.PHASES.PACKET_BREAK, 'upgrade'), true);
   assert.equal(core.phaseAllows(core.PHASES.PAUSED, 'ability'), false);
@@ -243,7 +243,7 @@ test('phase action permissions prevent contradictory build and combat states', (
   const P=core.PHASES;
   assert.equal(core.phaseAllows(P.PLANNING,'place'),true);
   assert.equal(core.phaseAllows(P.PLANNING,'sell'),true);
-  assert.equal(core.phaseAllows(P.COMBAT,'place'),false);
+  assert.equal(core.phaseAllows(P.COMBAT,'place'),true);
   assert.equal(core.phaseAllows(P.COMBAT,'sell'),false);
   assert.equal(core.phaseAllows(P.COMBAT,'ability'),true);
   assert.equal(core.phaseAllows(P.COMBAT,'upgrade'),true);
@@ -257,6 +257,68 @@ test('clamps reject impossible imported numbers', () => {
   assert.equal(core.clampInteger(Infinity, 0, 10, 3), 3);
   assert.equal(core.clampInteger(999, 0, 10, 3), 10);
   assert.equal(core.clampNumber(-30, 0, 10, 3), 0);
+});
+
+test('opening is an explicit ten-wave score with contrasting threats', () => {
+  const plans=Array.from({length:10},(_,i)=>core.createWavePlan({wave:i+1}));
+  assert.equal(new Set(plans.map(p=>p.announcement.title)).size,10);
+  assert.ok(core.flattenPackets(plans[0].packets).every(e=>e==='puff'));
+  assert.ok(core.flattenPackets(plans[2].packets).includes('split'));
+  assert.ok(core.flattenPackets(plans[3].packets).includes('shell'));
+  assert.equal(plans[4].packets.length,3);
+  assert.ok(plans[4].packets.every(p=>p.enemies.every(e=>e==='fleet')));
+  assert.ok(core.flattenPackets(plans[7].packets).includes('storm'));
+  const final=core.flattenPackets(plans[9].packets),boss=final.findIndex(e=>e.type==='boss');
+  assert.ok(boss>0 && boss<final.length-5);
+  assert.equal(core.createWavePlan({wave:11}).modifier,'recovery');
+  for(const p of plans)for(const packet of p.packets)assert.ok(packet.enemies.length<=12 && packet.breakAfter<=2.4);
+});
+
+test('waves 11 through 30 form an authored second chapter with support introductions and boss set pieces', () => {
+  const plans=Array.from({length:20},(_,i)=>core.createWavePlan({wave:i+11}));
+  assert.equal(new Set(plans.map(plan=>plan.announcement.title)).size,20);
+  assert.equal(core.createWavePlan({wave:17}).modifier,'support');
+  assert.ok(core.flattenPackets(core.createWavePlan({wave:17}).packets).includes('relay'));
+  assert.ok(core.flattenPackets(core.createWavePlan({wave:18}).packets).includes('mender'));
+  const maw=core.flattenPackets(core.createWavePlan({wave:20}).packets).find(entry=>entry?.type==='boss');
+  const mirror=core.flattenPackets(core.createWavePlan({wave:30}).packets).find(entry=>entry?.type==='boss');
+  assert.equal(maw?.bossId,'vortex');
+  assert.equal(mirror?.bossId,'mirror');
+});
+
+test('endless remixes mechanics deterministically without unbounded screen density', () => {
+  const checkpoints=[31,40,50,75,100,250,9999];
+  for(const wave of checkpoints){
+    const a=core.createWavePlan({wave,weather:'storm'}),b=core.createWavePlan({wave,weather:'storm'});
+    assert.deepEqual(a,b);
+    assert.equal(a.chapter,'endless');
+    assert.ok(a.plannedEnemyCount<=34);
+    assert.ok(a.packets.every(packet=>packet.enemies.length<=13));
+  }
+  const firstBoss=core.flattenPackets(core.createWavePlan({wave:40}).packets).at(-1);
+  const laterBoss=core.flattenPackets(core.createWavePlan({wave:100}).packets).at(-1);
+  assert.equal(firstBoss.type,'boss');
+  assert.equal(firstBoss.intensity,0);
+  assert.equal(laterBoss.type,'boss');
+  assert.ok(laterBoss.intensity>=2);
+  const gauntlet=core.createWavePlan({wave:75});
+  const enemies=core.flattenPackets(gauntlet.packets);
+  assert.equal(gauntlet.modifier,'gauntlet');
+  assert.ok(enemies.includes('relay') && enemies.includes('mender'));
+});
+
+test('endless supports four-digit runs without clamping progression metadata at legacy 250', () => {
+  assert.equal(core.LIMITS.MAX_SUPPORTED_WAVE,9999);
+  assert.equal(core.LIMITS.MAX_REASONABLE_PERFECT_WAVES,9999);
+  assert.ok(core.LIMITS.MAX_REASONABLE_KILLS>=1_000_000);
+  assert.equal(core.createWavePlan({wave:9999}).wave,9999);
+});
+
+test('v8 signs projectile continuation and keeps v7 verifiable', () => {
+  const cp={keeperId:'k',currentWave:10,clearedWave:9,towers:[],enemies:[],spawnQueue:[],wavePackets:[],projectiles:[{towerId:'t',targetId:'e',damage:12}],savedAt:123};
+  cp.signature=core.createSaveSignature(cp,7);assert.ok(core.verifySaveSignature(cp));
+  cp.signature=core.createSaveSignature(cp,8);assert.ok(core.verifySaveSignature(cp));
+  cp.projectiles[0].damage=99;assert.equal(core.verifySaveSignature(cp),false);
 });
 
 let passed = 0;

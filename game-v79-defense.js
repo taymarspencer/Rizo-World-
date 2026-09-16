@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v86-launch-hotfix";
+  const RIZO_RUNTIME_BUILD = "v87-first-ten-visual-nuance";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -571,7 +571,7 @@
     habitatScene: $("#habitatScene"), gardenVisitor: $("#gardenVisitor"), visitorSprite: $("#visitorSprite"), visitorAccessory: $("#visitorAccessory"), visitorName: $("#visitorName"), weatherFx: $("#weatherFx"), denCareTrace: $("#denCareTrace"), moodChip: $("#moodChip"), sceneMenuButton: $("#sceneMenuButton"), thoughtBubble: $("#thoughtBubble"), petTapTarget: $("#petTapTarget"), eggActor: $("#eggActor"), petActor: $("#petActor"), petSprite: $("#petSprite"), faceFx: $("#faceFx"), statusFx: $("#statusFx"), accessoryLayer: $("#accessoryLayer"), tapCombo: $("#tapCombo"), petName: $("#petName"), petDescriptor: $("#petDescriptor"), petLevel: $("#petLevel"), growthTitle: $("#growthTitle"), growthText: $("#growthText"), growthBar: $("#growthBar"), needGrid: $("#needGrid"), careName: $("#careName"), sleepActionText: $("#sleepActionText"),
     hungerText: $("#hungerText"), moodText: $("#moodText"), energyText: $("#energyText"), hygieneText: $("#hygieneText"), hungerBar: $("#hungerBar"), moodBar: $("#moodBar"), energyBar: $("#energyBar"), hygieneBar: $("#hygieneBar"),
     questTitle: $("#questTitle"), questBar: $("#questBar"), questText: $("#questText"), questClaim: $("#questClaim"), memoryTitle: $("#memoryTitle"), memoryText: $("#memoryText"), journalJump: $("#journalJump"), moreCareButton: $("#moreCareButton"),
-    bestPower: $("#bestPower"), bestSpark: $("#bestSpark"), bestForage: $("#bestForage"), bestRush: $("#bestRush"), bestWalk: $("#bestWalk"), bestRhythm: $("#bestRhythm"), bestMemory: $("#bestMemory"), bestGlide: $("#bestGlide"), bestBreaker: $("#bestBreaker"), bestMaze: $("#bestMaze"), bestDefense: $("#bestDefense"), expeditionStatus: $("#expeditionStatus"), expeditionOptions: $("#expeditionOptions"), expeditionClaim: $("#expeditionClaim"),
+    miniPause: $("#miniPause"), miniPausePanel: $("#miniPausePanel"), bestPower: $("#bestPower"), bestSpark: $("#bestSpark"), bestForage: $("#bestForage"), bestRush: $("#bestRush"), bestWalk: $("#bestWalk"), bestRhythm: $("#bestRhythm"), bestMemory: $("#bestMemory"), bestGlide: $("#bestGlide"), bestBreaker: $("#bestBreaker"), bestMaze: $("#bestMaze"), bestDefense: $("#bestDefense"), expeditionStatus: $("#expeditionStatus"), expeditionOptions: $("#expeditionOptions"), expeditionClaim: $("#expeditionClaim"),
     closetActor: $("#closetActor"), closetSprite: $("#closetSprite"), closetAccessory: $("#closetAccessory"), closetName: $("#closetName"), closetVariant: $("#closetVariant"), shopList: $("#shopList"),
     profileActor: $("#profileActor"), profileSprite: $("#profileSprite"), profileAccessory: $("#profileAccessory"), profileRarity: $("#profileRarity"), profileName: $("#profileName"), profileBio: $("#profileBio"), renameButton: $("#renameButton"), journalContent: $("#journalContent"),
     farmContent: $("#farmContent"),
@@ -811,7 +811,7 @@
       season: { xp: 0, level: 1 },
       expedition: { active: false, ready: false, type: null, endAt: 0, result: null },
       loreUnlocked: ["keeper"],
-      settings: { sound: true, soundVolume: .85, music: true, musicVolume: .85, haptics: true, reducedMotion: false, defenseFx: "auto", defenseUiScale: "standard", defenseSignatures: true, defenseAutoStart: false, defenseWaveIntel: "simple", adPreview: false },
+      settings: { sound: true, soundVolume: .85, music: true, musicVolume: .85, haptics: true, reducedMotion: false, defenseFx: "auto", defenseUiScale: "standard", defenseSignatures: true, defenseAutoStart: false, defenseWaveIntel: "simple", defenseRosterIds: [], defenseRosterConfigured: false, adPreview: false },
       musicHistory: { emberBag: [], emberLast: null },
       meta: { totalHatched: 0, totalTaps: 0, totalCareActions: 0, totalGames: 0, totalWalks: 0, deaths: 0, recoveries: 0, rebirths: 0, bondEggs: 0, nextPetNumber: 1, capsules: 0, pity: 0, refusals: 0, overloads: 0, retroSignal: 0, shadowFinds: 0, unlockScenes: [], backupPrompts: [], lastBackupAt: 0 }
     };
@@ -956,6 +956,8 @@
     merged.settings.defenseSignatures = merged.settings.defenseSignatures !== false;
     merged.settings.defenseAutoStart = Boolean(merged.settings.defenseAutoStart);
     merged.settings.defenseWaveIntel = ["off", "simple", "full"].includes(merged.settings.defenseWaveIntel) ? merged.settings.defenseWaveIntel : "simple";
+    merged.settings.defenseRosterIds = Array.isArray(merged.settings.defenseRosterIds) ? [...new Set(merged.settings.defenseRosterIds.filter(id => typeof id === "string" && id.length <= 80))].slice(0, 3) : [];
+    merged.settings.defenseRosterConfigured = Boolean(merged.settings.defenseRosterConfigured);
     merged.settings.adPreview = Boolean(merged.settings.adPreview);
     merged.settings.soundVolume = clamp(Number(merged.settings.soundVolume ?? .85), 0, 1);
     merged.settings.musicVolume = clamp(Number(merged.settings.musicVolume ?? .85), 0, 1);
@@ -1952,11 +1954,117 @@
   }
 
   const DEFENSE_LOBBY_ICONS=Object.freeze({grove:"🌲",ember:"🔥",moon:"🌙",storm:"⚡",blizzard:"❄️",eclipse:"🌑"});
+  const DEFENSE_ROSTER_WING_SLOTS=3;
+  const DEFENSE_GUEST_CREW=Object.freeze([
+    Object.freeze({variant:"violet",name:"SHORT CIRCUIT",role:"CHAIN"}),
+    Object.freeze({variant:"frost",name:"COLD SHOULDER",role:"CONTROL"}),
+    Object.freeze({variant:"obsidian",name:"DEAD WEIGHT",role:"ARMOR"})
+  ]);
+  const DEFENSE_ROSTER_IDENTITY=Object.freeze({
+    classic:{tags:["BALANCED","RALLY"]},ember:{tags:["BURN","PRESSURE"]},toxic:{tags:["POISON","ATTRITION"]},violet:{tags:["CHAIN","PACKS"]},
+    moss:{tags:["ROOT","HOLD"]},bubblegum:{tags:["PUSH","RESET"]},frost:{tags:["SLOW","FIRE COUNTER"]},glitch:{tags:["BURST","REVEAL"]},
+    obsidian:{tags:["ARMOR","SPLASH"]},aurora:{tags:["AURA","REVEAL"]},golden:{tags:["PROFIT","STALL"]},diamond:{tags:["PIERCE","ARMOR"]},
+    shadow:{tags:["CRIT","EXECUTE"]},retro:{tags:["RAPID","REWIND"]}
+  });
+  function defenseRosterIdentity(pet){const variant=pet?.variant||pet?.hiddenVariant||"classic";return DEFENSE_ROSTER_IDENTITY[variant]||DEFENSE_ROSTER_IDENTITY.classic;}
+  function defenseRosterTrainingEdge(pet){
+    const skills=pet?.skills||{},entries=[["POWER-TRAINED",Number(skills.power)||0],["QUICK-TRAINED",Number(skills.speed)||0],["SHARP-EYE",Number(skills.instinct)||0],["STURDY CORE",Number(skills.stamina)||0]].sort((a,b)=>b[1]-a[1]);
+    return entries[0][1]>=5?entries[0][0]:"FRESH HAND";
+  }
+  function defenseMasteryLean(record){
+    const power=Math.max(0,Number(record?.powerPaths)||0),control=Math.max(0,Number(record?.controlPaths)||0),total=power+control;
+    if(total<2)return"NO PATH HABIT";if(power>=control*1.5)return"POWER-LEANING";if(control>=power*1.5)return"CONTROL-LEANING";return"SPLIT-PATH";
+  }
+  function defenseRosterTrailFit(pet,mapId){
+    const perk=typeof DEFENSE_WORLD_OPENING_PERKS!=="undefined"?DEFENSE_WORLD_OPENING_PERKS[mapId]:null,variant=pet?.variant||pet?.hiddenVariant||"classic";
+    return Boolean(perk?.variants?.includes(variant));
+  }
+  function defenseRosterRead(rows,mapId){
+    const selected=(rows||[]).filter(row=>row?.pet),captain=selected.find(row=>row.source==="active")||selected[0]||null,crew=selected.filter(row=>row.source!=="active"),toolTags=[];
+    for(const row of crew)for(const tag of defenseRosterIdentity(row.pet).tags)if(!toolTags.includes(tag))toolTags.push(tag);
+    const fits=selected.filter(row=>defenseRosterTrailFit(row.pet,mapId)),captainVariant=captain?.pet?.variant||captain?.pet?.hiddenVariant||"classic",powerActive=(typeof DEFENSE_ABILITIES!=="undefined"?(DEFENSE_ABILITIES[captainVariant]||DEFENSE_ABILITIES.classic)?.active:null)||"FIELD POWER",controlActive=(typeof DEFENSE_CONTROL_ABILITIES!=="undefined"?(DEFENSE_CONTROL_ABILITIES[captainVariant]||DEFENSE_CONTROL_ABILITIES.classic)?.active:null),captainPower=controlActive&&controlActive!==powerActive?`${powerActive} / ${controlActive}`:powerActive,opening=typeof DEFENSE_WORLD_OPENING_PERKS!=="undefined"?DEFENSE_WORLD_OPENING_PERKS[mapId]:null;
+    return{captainPower,tools:toolTags.slice(0,5),fits,openingLabel:opening?.label||"BALANCED OPENING",hasOpeningDeal:Boolean(opening?.variants?.length)};
+  }
+  function defenseRosterReadMarkup(rows,mapId){
+    const read=defenseRosterRead(rows,mapId),fitNames=read.fits.map(row=>row.pet.name),tools=read.tools.length?read.tools.join(" • "):"CAPTAIN-ONLY",fitRoster=fitNames.length?`${fitNames.slice(0,2).join(" + ")}${fitNames.length>2?` +${fitNames.length-2}`:""}`:"NO MATCH",fitCopy=read.hasOpeningDeal?`${read.openingLabel} • ${fitRoster}`:`${read.openingLabel} • ANY CREW`;
+    return`<div class="defense-roster-read" data-defense-roster-read><span><small>CAPTAIN FIELD POWER</small><b>${escapeHTML(read.captainPower)}</b></span><span><small>CREW TOOLS</small><b>${escapeHTML(tools)}</b></span><span class="${read.hasOpeningDeal&&fitNames.length?"ready":"quiet"}"><small>TRAIL OPENING</small><b>${escapeHTML(fitCopy)}</b></span></div>`;
+  }
+  function defenseOwnedRosterEntries(){
+    const rows=[{pet:state.pet,source:"active",rosterIndex:-1}];
+    for(const [rosterIndex,pet] of (state.farm?.roster||[]).entries())rows.push({pet,source:"house",rosterIndex});
+    return rows.filter(row=>row.pet?.alive!==false&&row.pet?.stage!=="egg");
+  }
+  function defenseGuestRosterEntry(variant){
+    const guest=DEFENSE_GUEST_CREW.find(item=>item.variant===variant);if(!guest)return null;
+    const pet={...state.pet,id:`defense-crew-${guest.variant}`,name:guest.name,variant:guest.variant,hiddenVariant:guest.variant,stage:"kid",alive:true,defenseGuest:true,accessory:null,skills:{power:0,speed:0,instinct:0,stamina:0,luck:0}};
+    return{pet,source:"guest",rosterIndex:-1};
+  }
+  function defenseFullRosterRegistry(){
+    const rows=defenseOwnedRosterEntries();
+    for(const guest of DEFENSE_GUEST_CREW){const row=defenseGuestRosterEntry(guest.variant);if(row)rows.push(row);}
+    return new Map(rows.map(row=>[row.pet.id,row]));
+  }
+  // Restoration registry: every id that can legally stand on the field, including
+  // universal tools/structures that are deliberately absent from the crew roster.
+  function defenseRestorableRegistry(){
+    const registry=defenseFullRosterRegistry();
+    for(const row of defenseUniversalRows())registry.set(row.pet.id,row);
+    return registry;
+  }
+  function defenseGuestAccessAllowed(){return defenseOwnedRosterEntries().filter(row=>row.source==="house").length<2;}
+  function defenseDefaultWingIds(){
+    const house=defenseOwnedRosterEntries().filter(row=>row.source==="house").slice(0,DEFENSE_ROSTER_WING_SLOTS).map(row=>row.pet.id);
+    if(defenseGuestAccessAllowed()&&house.length<DEFENSE_ROSTER_WING_SLOTS)house.push("defense-crew-violet");
+    return house.slice(0,DEFENSE_ROSTER_WING_SLOTS);
+  }
+  function defenseConfiguredWingIds(){
+    const registry=defenseFullRosterRegistry(),houseIds=new Set(defenseOwnedRosterEntries().filter(row=>row.source==="house").map(row=>row.pet.id)),guestAllowed=defenseGuestAccessAllowed();
+    const raw=Array.isArray(state.settings?.defenseRosterIds)?state.settings.defenseRosterIds:[];let guestCount=0;
+    const ids=[];
+    for(const id of raw){const row=registry.get(id);if(!row||ids.includes(id)||id===state.pet?.id)continue;if(row.source!=="house"&&row.source!=="guest")continue;if(row.source==="house"&&!houseIds.has(id))continue;if(row.source==="guest"){if(!guestAllowed||guestCount>=1)continue;guestCount+=1;}ids.push(id);if(ids.length>=DEFENSE_ROSTER_WING_SLOTS)break;}
+    return ids.length||state.settings?.defenseRosterConfigured?ids:defenseDefaultWingIds();
+  }
+  function defenseConfiguredRoster(){
+    const registry=defenseFullRosterRegistry(),captain=defenseOwnedRosterEntries().find(row=>row.source==="active")||null,rows=[];
+    if(captain)rows.push(captain);
+    for(const id of defenseConfiguredWingIds()){const row=registry.get(id);if(row)rows.push(row);}
+    return rows;
+  }
+  function defenseSetConfiguredWingIds(ids,{persist=true}={}){
+    state.settings.defenseRosterIds=[...new Set((ids||[]).filter(id=>typeof id==="string"))].slice(0,DEFENSE_ROSTER_WING_SLOTS);
+    state.settings.defenseRosterConfigured=true;
+    if(persist)saveState(true);
+    return defenseConfiguredWingIds();
+  }
+  function toggleDefenseRosterPick(id){
+    const registry=defenseFullRosterRegistry(),row=registry.get(id);if(!row||row.source==="active")return false;if(row.source!=="house"&&row.source!=="guest")return false;
+    if(readDefenseCheckpoint())return false;
+    let ids=[...defenseConfiguredWingIds()],index=ids.indexOf(id);
+    if(index>=0)ids.splice(index,1);else{
+      if(row.source==="guest"){if(!defenseGuestAccessAllowed())return false;ids=ids.filter(existing=>registry.get(existing)?.source!=="guest");}
+      if(ids.length>=DEFENSE_ROSTER_WING_SLOTS)return false;
+      ids.push(id);
+    }
+    defenseSetConfiguredWingIds(ids);return true;
+  }
+  function defenseRosterLobbyMarkup(checkpoint=null,mapId=defenseResolvedMapId(pendingDefenseMapChoice)){
+    const configured=defenseConfiguredRoster(),selected=new Set(configured.map(row=>row.pet.id)),captain=configured.find(row=>row.source==="active"),house=defenseOwnedRosterEntries().filter(row=>row.source==="house"),locked=Boolean(checkpoint),guestAllowed=defenseGuestAccessAllowed(),wingCount=Math.max(0,configured.length-(captain?1:0));
+    const card=(row,{captainCard=false,selectable=true}={})=>{
+      const variant=VARIANTS.find(item=>item.id===(row.pet.variant||row.pet.hiddenVariant))||VARIANTS[0],stats=defenseTowerStats(row.pet),mastery=state.scores?.defenseMastery?.[row.pet.id],title=mastery?defenseMasteryTitle(mastery):row.source==="guest"?"TRIAL ONLY":"UNTESTED",lean=row.source==="guest"?"NO PERMANENT RECORD":defenseMasteryLean(mastery),training=row.source==="guest"?"":defenseRosterTrainingEdge(row.pet),detail=training&&training!=="FRESH HAND"?`${title} • ${training}`:title,isSelected=selected.has(row.pet.id),trailFit=defenseRosterTrailFit(row.pet,mapId),tag=captainCard?"CAPTAIN":row.source==="guest"?"LOANER":"OWNED",action=isSelected&&!captainCard?"REMOVE":isSelected?"LOCKED":"ADD",identity=defenseRosterIdentity(row.pet);
+      return`<button type="button" class="defense-roster-build-card ${captainCard?"captain":""} ${row.source==="guest"?"guest":"owned"} ${isSelected?"selected":""} ${trailFit?"trail-fit":""}" ${selectable&&!captainCard&&!locked?`data-defense-roster-pick="${escapeHTML(row.pet.id)}"`:"disabled"} style="--roster-color:${variant.color}" aria-pressed="${isSelected}" title="${escapeHTML(row.pet.name)} • ${identity.tags.join(" • ")}${trailFit?" • OPENING DEAL MATCH":""}">${petMarkup({pet:row.pet,extraClass:"defense-roster-build-pet",context:"thumbnail",label:row.pet.name})}<span><small>${tag} • ${escapeHTML(stats.profile.label)}</small><b>${escapeHTML(row.pet.name)}</b><em>${escapeHTML(detail)}</em><u>${identity.tags.map(item=>`<i>${escapeHTML(item)}</i>`).join("")}${trailFit?`<i class="trail">TRAIL FIT</i>`:""}</u>${mastery&&row.source!=="guest"&&lean!=="NO PATH HABIT"?`<strong>${escapeHTML(lean)}</strong>`:""}</span><i>${action}</i></button>`;
+    };
+    const selectedCards=configured.map(row=>card(row,{captainCard:row.source==="active",selectable:row.source!=="active"})).join("");
+    const empty=Array.from({length:Math.max(0,DEFENSE_ROSTER_WING_SLOTS-wingCount)},()=>`<span class="defense-roster-empty"><b>+</b><small>OPEN CREW SLOT</small></span>`).join("");
+    const ownedPool=house.length?house.map(row=>card(row)).join(""):`<p class="defense-roster-empty-copy">Raise or discover another Rizo and it can join this crew.</p>`;
+    const guests=guestAllowed?DEFENSE_GUEST_CREW.map(item=>card(defenseGuestRosterEntry(item.variant))).join(""):"";
+    const guestCopy=guestAllowed?`<div class="defense-roster-pool-head"><span><small>TRIAL LOANER</small><b>ONE TEMPORARY TRIAL SLOT</b></span><em>NO MVP • NO MASTERY</em></div><div class="defense-roster-pool guest-pool">${guests}</div>`:`<p class="defense-roster-graduated">TRAIL LOANERS RETIRED • YOUR HOUSE NOW SUPPLIES THE CREW.</p>`;
+    return`<section class="defense-roster-builder ${locked?"locked":""}"><div class="defense-roster-builder-head"><span><small>DEFENSE CREW</small><b>${escapeHTML(state.pet?.name||"RIZO")} LEADS EVERY RUN</b></span><em>${wingCount}/${DEFENSE_ROSTER_WING_SLOTS} CREW SLOTS</em></div>${locked?`<p class="defense-roster-lock-note">A run is checkpointed. Resume or discard it before changing this crew.</p>`:""}${defenseRosterReadMarkup(configured,mapId)}<div class="defense-roster-selected">${selectedCards}${empty}</div><div class="defense-roster-pool-head"><span><small>YOUR HOUSE • BUILD FOR THIS TRAIL</small><b>DIFFERENT RIZOS, DIFFERENT ANSWERS</b></span><em>${house.length} AVAILABLE</em></div><div class="defense-roster-pool">${ownedPool}</div>${guestCopy}</section>`;
+  }
   function defenseWorldLobbyMarkup(choice = pendingDefenseMapChoice) {
     const best=Math.max(0,Math.floor(Number(state.scores?.defense)||0),0),unlocked=defenseUnlockedMaps(),resolvedId=defenseResolvedMapId(choice),resolved=DEFENSE_MAPS[resolvedId]||DEFENSE_MAPS.grove,perMap=state.scores?.defenseMaps||{},checkpoint=readDefenseCheckpoint(),resolvedBest=Math.max(0,Math.floor(Number(perMap[resolvedId])||0));
     const worlds=DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],locked=best<map.unlockWave,selected=resolvedId===id,mapBest=Math.max(0,Math.floor(Number(perMap[id])||0)),status=locked?`${map.unlockWave}`:mapBest?`${mapBest}`:"NEW";return`<button type="button" class="defense-world-pick ${selected?"selected":""} ${locked?"locked":""}" ${locked?"disabled":`data-defense-lobby-map="${id}"`} style="--map-accent:${defenseMapAccent(id)}" aria-label="${locked?`World ${map.level} locked until Wave ${map.unlockWave}`:`Choose World ${map.level}, ${escapeHTML(map.name)}`}" aria-pressed="${selected&&!locked?"true":"false"}"><small>${map.level}</small><b>${DEFENSE_LOBBY_ICONS[id]||map.icon}</b><span>${locked?"🔒 ":""}${status}</span></button>`;}).join("");
     const resume=checkpoint?`<button class="defense-lobby-resume-simple" type="button" data-resume-defense-run><span>▶</span><div><small>CONTINUE RUN</small><b>${escapeHTML((DEFENSE_MAPS[checkpoint.mapId]||DEFENSE_MAPS.grove).name)} • WAVE ${checkpoint.currentWave||checkpoint.clearedWave+1}</b></div><i>›</i></button>`:"";
-    return`<div class="modal-card defense-world-lobby defense-world-lobby-simple rizo-defense-lobby v79-simple"><div class="defense-lobby-brand v79"><img src="./assets/rizo-full-mark.png" alt=""/><div><small>RIZO DEFENSE</small><b>CHOOSE A TRAIL</b></div><em>${unlocked.length}/${DEFENSE_MAP_ORDER.length} OPEN</em></div>${resume}<section class="defense-world-hero" style="--map-accent:${defenseMapAccent(resolvedId)}"><div class="defense-world-hero-map"><strong>${DEFENSE_LOBBY_ICONS[resolvedId]||resolved.icon}</strong>${defenseMiniRouteMarkup(resolved)}<i>WORLD ${resolved.level}</i></div><div class="defense-world-hero-copy"><small>${escapeHTML(resolved.routeType)} TRAIL</small><h2>${escapeHTML(resolved.name)}</h2><p>${escapeHTML(resolved.strategy)}</p><div><span>♥ ${resolved.lives}</span><span>🪙 ${BASE_DEFENSE_STARTING_CASH}</span><span>${resolvedBest?`BEST ${resolvedBest}`:"NEW TRAIL"}</span></div></div></section><div class="defense-world-picks" aria-label="Choose Defense world">${worlds}</div><p class="defense-lobby-one-line">Tap a Rizo, then grass — or drag one onto the field. Protect the Gate.</p><div class="modal-buttons defense-lobby-actions v79"><button type="button" data-close-modal>BACK</button><button type="button" data-defense-lobby-more>MORE</button><button class="primary" type="button" data-enter-defense-world="${escapeHTML(resolvedId)}">PLAY ${escapeHTML(resolved.name).toUpperCase()}</button></div></div>`;
+    return`<div class="modal-card defense-world-lobby defense-world-lobby-simple rizo-defense-lobby v79-simple"><div class="defense-lobby-brand v79"><img src="./assets/rizo-full-mark.png" alt=""/><div><small>RIZO DEFENSE</small><b>CHOOSE A TRAIL</b></div><em>${unlocked.length}/${DEFENSE_MAP_ORDER.length} OPEN</em></div>${resume}<section class="defense-world-hero" style="--map-accent:${defenseMapAccent(resolvedId)}"><div class="defense-world-hero-map"><strong>${DEFENSE_LOBBY_ICONS[resolvedId]||resolved.icon}</strong>${defenseMiniRouteMarkup(resolved)}<i>WORLD ${resolved.level}</i></div><div class="defense-world-hero-copy"><small>${escapeHTML(resolved.routeType)} TRAIL</small><h2>${escapeHTML(resolved.name)}</h2><p>${escapeHTML(resolved.strategy)}</p><div><span>♥ ${resolved.lives}</span><span>🪙 ${BASE_DEFENSE_STARTING_CASH}</span><span>${resolvedBest?`BEST ${resolvedBest}`:"NEW TRAIL"}</span></div></div></section><div class="defense-world-picks" aria-label="Choose Defense world">${worlds}</div>${defenseRosterLobbyMarkup(checkpoint,resolvedId)}<p class="defense-lobby-one-line">Captain deploys free. Bring the crew that answers this trail.</p><div class="modal-buttons defense-lobby-actions v79"><button type="button" data-close-modal>BACK</button><button type="button" data-defense-lobby-more>MORE</button><button class="primary" type="button" data-enter-defense-world="${escapeHTML(resolvedId)}">PLAY ${escapeHTML(resolved.name).toUpperCase()}</button></div></div>`;
   }
 
   function showDefenseWorldExtras(){
@@ -2061,7 +2169,7 @@
 
   // ===== UI RENDER PIPELINE =====
   function renderSharedUI() {
-    document.body.classList.toggle("reduce-motion", Boolean(state.settings.reducedMotion));
+    document.body.classList.toggle("reduce-motion", reducedMotionActive());
     document.body.classList.toggle("defense-signatures-off", !state.settings.defenseSignatures);
     document.body.classList.toggle("defense-ui-compact", state.settings.defenseUiScale === "compact");
     document.body.classList.toggle("defense-ui-large", state.settings.defenseUiScale === "large");
@@ -2262,17 +2370,27 @@
   }
 
   function renderArcade() {
-    el.bestPower.textContent = formatNumber(state.scores.power);
-    el.bestSpark.textContent = formatNumber(state.scores.spark);
-    el.bestForage.textContent = formatNumber(state.scores.forage);
-    if (el.bestRush) el.bestRush.textContent = formatNumber(state.scores.rush);
-    if (el.bestWalk) el.bestWalk.textContent = formatNumber(state.scores.walk);
-    if (el.bestRhythm) el.bestRhythm.textContent = formatNumber(state.scores.rhythm);
-    if (el.bestMemory) el.bestMemory.textContent = formatNumber(state.scores.memory);
-    if (el.bestGlide) el.bestGlide.textContent = formatNumber(state.scores.glide);
-    if (el.bestBreaker) el.bestBreaker.textContent = formatNumber(state.scores.breaker);
-    if (el.bestMaze) el.bestMaze.textContent = formatNumber(state.scores.maze);
-    if (el.bestDefense) el.bestDefense.textContent = formatNumber(state.scores.defense);
+    // Personal bests and their labels both come from ARCADE_GAMES, so the board
+    // can never show an engineering id where a product name belongs. Defense
+    // reports a wave, not a point total, and is marked as such.
+    for(const mode of ARCADE_MODES){
+      const cell=$(`[data-arcade-best="${mode}"]`);
+      if(!cell)continue;
+      const value=cell.querySelector("b"),label=cell.querySelector("span");
+      if(value)value.textContent=arcadeBestValue(mode);
+      if(label)label.textContent=ARCADE_GAMES[mode].best==="wave"?`${ARCADE_GAMES[mode].name} • WAVE`:ARCADE_GAMES[mode].name;
+      cell.classList.toggle("score-cell-wave",ARCADE_GAMES[mode].best==="wave");
+    }
+    // The decision is made on the shelf, so put the decision information there:
+    // what you have already done, what it costs, and how long it takes.
+    for(const mode of ARCADE_MODES){
+      const meta=$(`[data-arcade-meta="${mode}"]`);
+      if(!meta)continue;
+      const game=ARCADE_GAMES[mode],affordable=(state.pet?.energy??0)>=game.energy;
+      meta.innerHTML=`<span class="meta-best"><small>${arcadeBestLabel(mode)}</small><b>${arcadeBestValue(mode)}</b></span>`
+        +`<span class="meta-energy${affordable?"":" short"}"><small>ENERGY</small><b>${game.energy}</b></span>`
+        +`<span class="meta-length"><small>RUN</small><b>${arcadeRunLength(mode)}</b></span>`;
+    }
     const defenseCard = $(".defense-card");
     if (defenseCard) {
       let badge = defenseCard.querySelector(".defense-milestone-badge");
@@ -3728,17 +3846,130 @@
     }
   }
 
-  const ARCADE_MODE_RULES = Object.freeze({
-    power:{duration:24,energy:15}, spark:{duration:24,energy:10}, forage:{duration:28,energy:11}, rush:{duration:30,energy:15},
-    walk:{duration:40,energy:8}, rhythm:{duration:27,energy:12}, memory:{duration:44,energy:7}, glide:{duration:36,energy:10},
-    breaker:{duration:46,energy:11}, maze:{duration:54,energy:10}, defense:{duration:0,energy:8}
+  // ===== SHARED ARCADE LAYER =====
+  // One authoritative record per arcade mode. The cabinet card, the minigame
+  // shell header, the personal-best grid, the results modal art and the run
+  // rules all read from here, so a mode can never be called EMBER FORGE on the
+  // shelf and "BREAKER" on the score board. Internal mode ids stay internal.
+  const ARCADE_GAMES = Object.freeze({
+    power:{name:"POWER TAPE", kicker:"COACH TAPE 03", art:"🥊", duration:24, energy:15, unit:"PTS", best:"points", family:"training",
+      hint:"The coach calls JAB, BODY, or HOOK. Hit the right strike on the moving window—and do nothing when the bag feints."},
+    spark:{name:"SPARK STASH", kicker:"DON'T GET GREEDY", art:"★", duration:24, energy:10, unit:"PTS", best:"points", family:"spark",
+      hint:"Catch clean signals to build an unbanked stash. BANK it before a miss or Shadow signal wipes the risky part."},
+    forage:{name:"FOREST LUNCH", kicker:"PICKY LITTLE MENACE", art:"🍓", duration:28, energy:11, unit:"PTS", best:"points", family:"forest",
+      hint:"Pick the requested food before its row reaches PACK HERE. Tap a lane or use ← →. Prisms pay +7 but do not pack the ticket."},
+    rush:{name:"RIZO COURIER", kicker:"ROOFTOP DELIVERY", art:"🔥", duration:30, energy:15, unit:"PTS", best:"points", family:"street",
+      hint:"Grab ◆, clear two rooftops, then LAND at the numbered door. Tap / Space to jump; tap again in the air for height and bonus stamps."},
+    walk:{name:"RAIN WALK", kicker:"LIVING FOREST", art:"☂", duration:40, energy:8, unit:"PTS", best:"points", family:"forest",
+      hint:"Tap finds to fill your pockets; tap hazards to hop them. Your route leads to its own encounter. Keyboard: Space inspects, 1 / 2 chooses."},
+    rhythm:{name:"EMBER BEAT", kicker:"FOUR-LANE RHYTHM", art:"♫", duration:27, energy:12, unit:"PTS", best:"points", family:"stage",
+      hint:"Tap the matching lane when its note reaches the bright hit line. Timing and lane both matter."},
+    memory:{name:"LOST SIGNAL", kicker:"CORRUPTED BROADCAST", art:"▦", duration:44, energy:7, unit:"PTS", best:"points", family:"signal",
+      hint:"Memorize the transmission, then obey the corruption rule. Later rounds stack reverse, opposite, and rotation logic."},
+    glide:{name:"SKYBOUND", kicker:"CENTER-LINE FLIGHT", art:"☁", duration:36, energy:10, unit:"PTS", best:"points", family:"air",
+      hint:"Tap or press Space to flap through shifting wind. Thread gate centers to charge a Thermal Burst that bends the physics in your favor."},
+    breaker:{name:"EMBER FORGE", kicker:"FORGE THE MARK", art:"✦", duration:46, energy:11, unit:"PTS", best:"points", family:"forge",
+      hint:"Drag Rizo under the ember orb — the paddle tracks your thumb. Read authored wall patterns and crack CORE blocks to collapse nearby bricks."},
+    maze:{name:"RIZO RUNAWAY", kicker:"MAZE-CHASE INSTINCT", art:"⌗", duration:54, energy:10, unit:"PTS", best:"points", family:"chase",
+      hint:"Swipe or use the arrows. Eat the Ember trail. Prism Seeds flip the hunt so Rizo can tag the Shadows."},
+    defense:{name:"RIZO DEFENSE", kicker:"ENDLESS ROSTER STRATEGY", art:"🎈", duration:0, energy:8, unit:"POPS", best:"wave", family:"defense",
+      hint:"Your strongest unlocked world is chosen automatically. Drag a Rizo—or tap one, then tap grass—to defend the illustrated trail."}
   });
+  const ARCADE_MODES = Object.freeze(Object.keys(ARCADE_GAMES));
+  // Legacy alias. Existing call sites and QA hooks keep reading duration/energy
+  // from here; the values are now derived rather than duplicated.
+  const ARCADE_MODE_RULES = Object.freeze(Object.fromEntries(ARCADE_MODES.map(mode=>[mode,{duration:ARCADE_GAMES[mode].duration,energy:ARCADE_GAMES[mode].energy}])));
+  function arcadeGame(mode){ return ARCADE_GAMES[mode] || null; }
+  function arcadeName(mode){ return ARCADE_GAMES[mode]?.name || String(mode||"ARCADE").toUpperCase(); }
+  function arcadeArt(mode){ return ARCADE_GAMES[mode]?.art || "★"; }
+  function arcadeRunLength(mode){
+    const seconds=ARCADE_GAMES[mode]?.duration||0;
+    return seconds>0?`${seconds}s`:"ENDLESS";
+  }
+  function arcadeBestLabel(mode){ return ARCADE_GAMES[mode]?.best==="wave"?"BEST WAVE":"BEST"; }
+  function arcadeBestValue(mode){
+    const raw=Math.max(0,Math.floor(Number(state?.scores?.[mode])||0));
+    return ARCADE_GAMES[mode]?.best==="wave"?(raw?`W${raw}`:"—"):formatNumber(raw);
+  }
   function miniDuration(mode) { return (ARCADE_MODE_RULES[mode]?.duration ?? 15) * 1000; }
   function miniEnergyNeeded(mode) { return ARCADE_MODE_RULES[mode]?.energy ?? 12; }
 
+  // ===== SHARED ARCADE FREEZE =====
+  // One credit-back clock for every interruption an arcade run can survive: an
+  // ad break, the app being backgrounded, and the player's own pause menu. Runs
+  // are timestamp-based (mini.endAt), so any frozen interval has to be handed
+  // back or a phone call silently ends the run. Sources stack: a notification
+  // during an ad must not thaw the run early.
+  function arcadeFrozen(){ return Boolean(mini?.pauseSources && Object.keys(mini.pauseSources).length); }
+
+  // Deadlines the arcade stores as absolute now() stamps: buffs, invulnerability
+  // windows, spawn/wind timers, coach calls. Frozen time has to be handed back to
+  // every one of them or a pause silently burns a Thermal Burst or an i-frame.
+  // Discovery is by naming convention so a future mini.somethingUntil is covered
+  // automatically; anything that is not a wall-clock run deadline is listed here.
+  const ARCADE_CLOCK_EXEMPT = Object.freeze(new Set([
+    "endAt",            // credited explicitly (Infinity for Defense)
+    "pauseAt",          // walk fork's own pause stamp, credited explicitly
+    "freezeAt",         // the freeze bookkeeping itself
+    "rhythmAudioStartAt" // AudioContext time, not now(); rescheduled on thaw
+  ]));
+  function arcadeDeadlineKeys(){
+    return Object.keys(mini || {}).filter(key => /(?:Until|At)$/.test(key) && !ARCADE_CLOCK_EXEMPT.has(key));
+  }
+  function creditArcadeDeadlines(frozenFor, frozenAt){
+    if(!mini || !(frozenFor > 0)) return 0;
+    let credited = 0;
+    for(const key of arcadeDeadlineKeys()){
+      const value = mini[key];
+      if(typeof value !== "number" || !Number.isFinite(value) || value <= 0) continue;
+      // A deadline that had already expired when the freeze began stays expired;
+      // only one still pending gets the frozen interval back.
+      if(value <= frozenAt) continue;
+      mini[key] = value + frozenFor;
+      credited += 1;
+    }
+    return credited;
+  }
+  function arcadeFreeze(source="menu"){
+    if(!mini?.active) return false;
+    mini.pauseSources ||= {};
+    if(mini.pauseSources[source]) return false;
+    const first=!arcadeFrozen();
+    mini.pauseSources[source]=true;
+    arcadeHoldJobs(source);
+    if(!first) return true;
+    mini.freezeAt=now();
+    mini.pausedByAd=true;
+    if(mini.mode==="rhythm"){ mini.rhythmPauseClock=rhythmClockNow(); stopRhythmVoices(); }
+    return true;
+  }
+  function arcadeThaw(source="menu"){
+    if(!mini?.active) return false;
+    mini.pauseSources ||= {};
+    if(!mini.pauseSources[source]) return false;
+    delete mini.pauseSources[source];
+    arcadeReleaseJobs(source);
+    if(arcadeFrozen()) return false;
+    const frozenAt=mini.freezeAt||now();
+    const frozenFor=Math.max(0, now()-frozenAt);
+    if(Number.isFinite(mini.endAt)) mini.endAt+=frozenFor;
+    creditArcadeDeadlines(frozenFor, frozenAt);
+    // The walk fork pauses on its own timestamp; keep it aligned so a fork left
+    // open across a background does not double-credit or lose the pause.
+    if(mini.pausedByFork && mini.pauseAt) mini.pauseAt+=frozenFor;
+    if(mini.mode==="rhythm"){
+      mini.rhythmStartClock+=Math.max(0, rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));
+      scheduleRhythmAudio(Math.max(0, rhythmClockNow()-mini.rhythmStartClock));
+    }
+    mini.pausedByAd=false;
+    mini.freezeAt=0;
+    mini.lastFrame=performance.now();
+    return true;
+  }
+
   function startMiniGame(mode, options = {}) {
     if (!canCare()) return;
-    if (!["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze", "defense"].includes(mode)) return;
+    if (!ARCADE_MODES.includes(mode)) return;
     const energyNeeded = miniEnergyNeeded(mode);
     if (state.pet.energy < energyNeeded) { toast(`NEED ${energyNeeded} ENERGY • RIZO HAS ${Math.floor(state.pet.energy)}`); sfx("no"); return; }
     clearToasts();
@@ -3747,28 +3978,31 @@
       active: true, mode, score: 0, hits: 0, playerInputs: 0, endAt: mode === "defense" ? Infinity : now() + miniDuration(mode), timer: null,
       mover: null, currentGood: true, frame: null, intervals: [], entities: [], pausedByAd: false,
       pauseAt: 0, lastFrame: performance.now(), lane: 1, needle: .06, needleDir: 1,
-      needleSpeed: .72, jumpY: 0, jumpV: 0, hearts: 3, invulnerableUntil: 0,
-      distanceCarry: 0, treasureRolls: 0, combo: 1, timeouts: [],
+      // Shared arcade state: one lives model, one freeze model, one end reason.
+      lives: 3, maxLives: 3, endReason: "", pauseSources: {}, freezeAt: 0, paused: false,
+      jobs: new Map(), jobHolds: {},
+      needleSpeed: .72, jumpY: 0, jumpV: 0, invulnerableUntil: 0,
+      distanceCarry: 0, treasureRolls: 0, combo: 1,
       pausedByFork: false, walkForkShown: false, walkPath: null, walkDecisionIndex: 0,
-      walkDistance: 0, walkRisk: 0, walkLuck: 0, walkChoices: [],
+      walkDistance: 0, walkRisk: 0, walkLuck: 0, walkChoices: [], walkNotes: [], walkEncounter: null, walkEnding: "", walkFindCount: 0,
       rhythmStreak: 0, rhythmMaxStreak: 0, rhythmMisses: 0, rhythmBlankTaps: 0,
       rhythmJudgements: { perfect:0, great:0, good:0, miss:0 }, rhythmTrack: null, rhythmChart: [], rhythmChartIndex: 0,
       rhythmStartClock: 0, rhythmLeadIn: 3.7, rhythmReady: false, rhythmTravel: 1.6, rhythmVoices: [], rhythmGain: null,
-      memoryRound: 0, memorySequence: [], memoryInput: 0, memoryShowing: false, memoryLives: 3, memoryMode: "forward", memoryBestRound: 0,
+      memoryRound: 0, memorySequence: [], memoryInput: 0, memoryShowing: false, memoryMode: "forward", memoryBestRound: 0,
       memoryShift: 0, memoryRuleDepth: 1,
       powerStreak: 0, powerBestStreak: 0, powerZone: .5, powerZoneTarget: .5, powerHeat: 0, powerGuardAt: 0, powerGuardUntil: 0, powerGuardReads: 0, powerTapLockUntil: 0, powerEngaged: false,
       powerCall: "jab", powerCallAt: 0, powerCallsRead: 0, powerWrongCalls: 0,
       sparkStreak: 0, sparkBestStreak: 0, sparkType: "normal", sparkExpiresAt: 0, sparkAvoided: 0, sparkFeverUntil: 0, sparkFrenzies: 0,
       sparkStash: 0, sparkBanked: 0, sparkBanks: 0, sparkLost: 0, sparkAutoBanked: false,
       forageOrder: [], forageOrderIndex: 0, forageStreak: 0, forageBestStreak: 0,
-      forageContract: "picky", forageOrdersDone: 0, forageRestraint: 0, forageRushUntil: 0,
+      forageRows: 0, forageNextAt: 0, forageFeedbackUntil: 0, forageMistakes: 0, forageContract: "picky", forageOrdersDone: 0, forageRestraint: 0, forageRushUntil: 0,
       rushAirJumps: 0, rushStreak: 0, rushBestStreak: 0, rushClears: 0,
-      rushParcel: false, rushParcelClears: 0, rushDeliveries: 0, rushPackagesLost: 0,
-      glideY: .5, glideV: 0, glideSpawnAt: 0, glideStreak: 0, glideBestStreak: 0, glideClears: 0, glideHearts: 3, glideInvulnerableUntil: 0, glideWind: 0, glideWindAt: 0, glideGateCount: 0,
+      rushRoute: 0, rushRoad: 0, rushTips: 0, rushLandingUntil: 0, rushParcel: false, rushParcelClears: 0, rushDeliveries: 0, rushPackagesLost: 0,
+      glideY: .5, glideV: 0, glideSpawnAt: 0, glideStreak: 0, glideBestStreak: 0, glideClears: 0, glideInvulnerableUntil: 0, glideWind: 0, glideWindAt: 0, glideGateCount: 0,
       glideDraft: 0, glideThermals: 0, glideThermalUntil: 0,
-      breakerX: .5, breakerBall: null, breakerLevel: 1, breakerStreak: 0, breakerBestStreak: 0, breakerHearts: 3, breakerBoostUntil: 0, breakerPierceUntil: 0, breakerResetAt: 0, breakerBoardPending: false, breakerMoves: 0,
+      breakerX: .5, breakerGrab: null, breakerBricks: 0, breakerBall: null, breakerLevel: 1, breakerStreak: 0, breakerBestStreak: 0, breakerBoostUntil: 0, breakerPierceUntil: 0, breakerResetAt: 0, breakerBoardPending: false, breakerMoves: 0,
       breakerCores: 0, breakerCoresBroken: 0, breakerPatternName: "",
-      mazeLevel: 1, mazeLives: 3, mazeCombo: 0, mazeBestCombo: 0, mazePellets: 0, mazeHunts: 0, mazeHunterTags: 0, mazeGrid: [], mazePlayer: null, mazeHunters: [], mazeMoveCarry: 0, mazeHunterCarry: 0, mazeHuntUntil: 0, mazeInvulnerableUntil: 0, mazeHunterWakeAt: 0, mazeInputs: 0, mazePointerStart: null,
+      mazeLevel: 1, mazeCombo: 0, mazeBestCombo: 0, mazePellets: 0, mazeHunts: 0, mazeHunterTags: 0, mazeGrid: [], mazePlayer: null, mazeHunters: [], mazeMoveCarry: 0, mazeHunterCarry: 0, mazeHuntUntil: 0, mazeInvulnerableUntil: 0, mazeHunterWakeAt: 0, mazeInputs: 0, mazePointerStart: null,
       mazeTurnHistory: [], mazeFavoriteDir: "",
       defense: null, defenseDrag: null, defenseMapChoice: options?.mapId || "auto",
       defenseResume: options?.resumeCheckpoint || null,
@@ -3785,24 +4019,14 @@
       mini.walkBiome = chooseWalkBiome();
       mini.walkWeather = chooseWalkWeather(mini.walkBiome);
     }
-    const details = {
-      power: { kicker: "COACH TAPE 03", title: "POWER TAPE", hint: "The coach calls JAB, BODY, or HOOK. Hit the right strike on the moving window—and do nothing when the bag feints." },
-      spark: { kicker: "DON'T GET GREEDY", title: "SPARK STASH", hint: "Catch clean signals to build an unbanked stash. BANK it before a miss or Shadow signal wipes the risky part." },
-      forage: { kicker: "PICKY LITTLE MENACE", title: "FOREST LUNCH", hint: "Move lanes and complete Rizo's exact lunch ticket. Wrong food ruins the chain; mushrooms ruin the mood." },
-      rush: { kicker: "ROOFTOP DELIVERY", title: "RIZO COURIER", hint: "Double-jump the skyline. Grab a package, then clear two obstacles clean to deliver it before you eat pavement." },
-      walk: { kicker: "LIVING FOREST", title: "RAIN WALK", hint: "Walk beside your actual Rizo, inspect discoveries, and choose what kind of story the trail becomes." },
-      rhythm: { kicker: "FOUR-LANE RHYTHM", title: "EMBER BEAT", hint: "Tap the matching lane when its note reaches the bright hit line. Timing and lane both matter." },
-      memory: { kicker: "CORRUPTED BROADCAST", title: "LOST SIGNAL", hint: "Memorize the transmission, then obey the corruption rule. Later rounds stack reverse, opposite, and rotation logic." },
-      glide: { kicker: "CENTER-LINE FLIGHT", title: "SKYBOUND", hint: "Tap to flap through shifting wind. Thread gate centers to charge a Thermal Burst that bends the physics in your favor." },
-      breaker: { kicker: "FORGE THE MARK", title: "EMBER FORGE", hint: "Move Rizo under the ember orb. Read authored wall patterns and crack CORE blocks to collapse nearby bricks." },
-      maze: { kicker: "MAZE-CHASE INSTINCT", title: "RIZO RUNAWAY", hint: "Swipe or use the arrows. Eat the Ember trail. Prism Seeds flip the hunt so Rizo can tag the Shadows." },
-      defense: { kicker: "ENDLESS ROSTER STRATEGY", title: "RIZO DEFENSE", hint: "Your strongest unlocked world is chosen automatically. Drag a Rizo—or tap one, then tap grass—to defend the illustrated trail." }
-    }[mode];
+    const details = ARCADE_GAMES[mode];
     el.miniKicker.textContent = details.kicker;
-    el.miniTitle.textContent = details.title;
+    el.miniTitle.textContent = details.name;
     el.miniHint.textContent = details.hint;
     el.miniTimer.textContent = mode === "defense" ? "ENDLESS" : (miniDuration(mode) / 1000).toFixed(1);
-    el.miniScore.textContent = mode === "defense" ? "0 POPS" : "0 PTS";
+    el.miniScore.textContent = `0 ${details.unit}`;
+    closeArcadePause(true);
+    if (el.miniPause) el.miniPause.hidden = false;
     lastOverlayFocus = document.activeElement;
     el.miniGameOverlay.hidden = false;
     el.miniGameOverlay.classList.toggle("defense-active", mode === "defense");
@@ -3825,7 +4049,7 @@
       el.miniArena.innerHTML = `<div class="mini-world power-world power-dx">
         <div class="training-floor"></div>${miniPetMarkup("power-rizo")}
         <div id="trainingBag" class="training-bag"><i></i><b class="face-mark-stage"><img src="./assets/rizo-full-mark.png" alt=""></b><span id="bagCracks" class="bag-cracks"></span></div>
-        <div class="power-hud"><span>STREAK <b id="powerStreak">0</b></span><span>OVERDRIVE <b id="powerHeat">0%</b></span></div>
+        <div class="power-hud" data-mini-readout><span>STREAK <b id="powerStreak">0</b></span><span>OVERDRIVE <b id="powerHeat">0%</b></span></div>
         <div class="power-coach"><small>COACH CALL</small><b id="powerCall">JAB</b></div>
         <div class="power-techniques" aria-label="Strike type"><button type="button" data-power-tech="jab">JAB</button><button type="button" data-power-tech="body">BODY</button><button type="button" data-power-tech="hook">HOOK</button></div>
         <div class="timing-console"><div class="timing-track"><i id="timingPerfectZone" class="timing-perfect"></i><b id="timingNeedle"></b></div><strong id="timingCallout">READ THE CALL</strong></div>
@@ -3833,22 +4057,21 @@
       updatePowerZoneVisual();
     }
     if (mode === "spark") {
-      el.miniArena.innerHTML = `<div class="mini-world spark-world spark-dx"><div class="spark-sky"></div>${miniPetMarkup("spark-rizo")}<button id="miniTarget" class="spark-orb" type="button" aria-label="Catch spark">★</button><div class="spark-trail" id="sparkTrail"></div><div class="spark-hud"><span>STASH <b id="sparkStash">0</b></span><span>BANKED <b id="sparkBanked">0</b></span></div><button class="spark-bank" id="sparkBank" type="button" data-spark-bank>BANK STASH</button><div id="sparkRule" class="spark-rule">CATCH • THEN DECIDE WHEN TO BANK</div></div>`;
+      el.miniArena.innerHTML = `<div class="mini-world spark-world spark-dx"><div class="spark-sky"></div>${miniPetMarkup("spark-rizo")}<button id="miniTarget" class="spark-orb" type="button" aria-label="Catch spark">★</button><div class="spark-trail" id="sparkTrail"></div><div class="spark-hud" data-mini-readout><span>STASH <b id="sparkStash">0</b></span><span class="spark-chain">CHAIN <b id="sparkStreak">0</b><em id="sparkRisk">x1</em></span><span>BANKED <b id="sparkBanked">0</b></span></div><button class="spark-bank" id="sparkBank" type="button" data-spark-bank><b>BANK STASH</b><small id="sparkPayout">NOTHING TO BANK</small></button><div id="sparkRule" class="spark-rule">CATCH • THEN DECIDE WHEN TO BANK</div></div>`;
       el.miniTarget = $("#miniTarget");
       moveSparkTarget();
     }
     if (mode === "forage") {
       mini.forageOrder = buildForageOrder();
-      el.miniArena.innerHTML = `<div class="mini-world forage-world forage-dx"><div class="forage-lanes"><i></i><i></i></div><div id="forageDrops" class="forage-drops"></div>${miniPetMarkup("forage-rizo")}<div id="forageOrder" class="forage-order"></div><div id="forageTicketState" class="forage-ticket-state">PACK THE TICKET</div><div class="forage-chain">LUNCH CHAIN <b id="forageStreak">0</b></div><div class="lane-labels"><span>LEFT</span><span>MIDDLE</span><span>RIGHT</span></div></div>`;
+      el.miniArena.innerHTML = `<div class="mini-world forage-world forage-dx"><div class="forage-lanes"><i></i><i></i></div><div id="forageDrops" class="forage-drops"></div>${miniPetMarkup("forage-rizo")}<div id="forageOrder" class="forage-order"></div><div id="forageTicketState" class="forage-ticket-state">PACK THE TICKET</div><div class="forage-chain">LUNCH CHAIN <b id="forageStreak">0</b></div><div class="forage-catch-line"><span>PACK HERE</span></div><div class="lane-labels"><span>← LEFT</span><span>MIDDLE</span><span>RIGHT →</span></div></div>`;
       setForageLane(1); updateForageOrderHUD();
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd) spawnForageItem(); }, 690);
-      mini.intervals.push(interval);
+      mini.intervals.push(queueMiniInterval(() => { if (mini.active) spawnForageItem(); }, 120));
       spawnForageItem();
     }
     if (mode === "rush") {
-      el.miniArena.innerHTML = `<div class="mini-world rush-world rush-dx"><div class="rush-clouds"></div><div class="rush-hills"></div><div class="rush-ground"></div><div id="rushEntities"></div>${miniPetMarkup("rush-rizo")}<div id="rushHearts" class="rush-hearts">♥ ♥ ♥</div><div class="rush-streak">CLEAN <b id="rushStreak">0</b></div><div class="rush-delivery" id="rushDelivery">NO PACKAGE • FIND ◆</div><div class="rush-callout">TAP • AIR TAP • DELIVER THE PACKAGE</div></div>`;
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd) spawnRushEntity(); }, 1160);
-      mini.intervals.push(interval);
+      el.miniArena.innerHTML = `<div class="mini-world rush-world rush-dx"><div class="rush-clouds"></div><div class="rush-hills"></div><div class="rush-ground"></div><div id="rushEntities"></div>${miniPetMarkup("rush-rizo")}<div id="rushHearts" class="rush-hearts" data-mini-readout>♥ ♥ ♥</div><div class="rush-streak" data-mini-readout>CLEAN <b id="rushStreak">0</b></div><div class="rush-delivery" id="rushDelivery" data-mini-readout>FIND ◆ • KEEP THE PACKAGE SAFE</div><div class="rush-callout" id="rushCallout">PICK UP ◆ • JUMP THE ROOFTOPS</div><div class="rush-route" id="rushRoute" data-mini-readout></div><span class="rush-parcel-tag" aria-hidden="true">◆</span><div class="rush-receipt" id="rushReceipt" data-mini-readout></div></div>`;
+      renderLives("rushHearts");
+      mini.intervals.push(queueMiniInterval(() => { if (mini.active) spawnRushEntity(); }, 180));
       spawnRushEntity(true);
     }
     if (mode === "walk") {
@@ -3860,12 +4083,14 @@
         <div class="walk-layer walk-mid" data-walk-speed=".43"></div>
         <div class="walk-layer walk-near" data-walk-speed=".82"></div>
         <div class="walk-path"></div><div id="walkFinds"></div>${miniPetMarkup("walk-rizo")}
-        <div class="walk-distance"><i id="walkDistanceBar"></i></div>
+        <div class="walk-distance"><i id="walkDistanceBar"></i></div><div id="walkNotes" class="walk-notes" data-mini-readout><b>POCKET FINDS</b><span>◇ ◇ ◇</span><small>3 DIFFERENT FINDS → A STRANGER ENDING</small></div>
         <div id="walkCaption" class="walk-caption"><b>${escapeHTML(biome.name)} • ${escapeHTML(weather.label)}</b><span>${escapeHTML(walkIntroLine())}</span></div>
       </div>`;
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd && !mini.pausedByFork) spawnWalkFind(); }, 1450);
-      mini.intervals.push(interval);
+      // The walk fork is a deliberate design pause with its own clock credit, so
+      // it still suppresses spawns separately from the shared hold.
+      mini.intervals.push(queueMiniInterval(() => { if (mini.active && !mini.pausedByFork) spawnWalkFind(); }, 1450));
       spawnWalkFind();
+      setWalkCaption(mini.walkBiome.name, "TAP A FIND TO INSPECT IT. TAP LOGS AND PUDDLES TO HOP OVER.");
     }
     if (mode === "rhythm") {
       const track=mini.rhythmTrack || EMBER_BEAT_TRACKS[0];
@@ -3874,8 +4099,8 @@
       startRhythmPerformance();
     }
     if (mode === "maze") {
-      el.miniArena.innerHTML = `<div class="mini-world maze-world"><div class="maze-hud"><span id="mazeLives">♥ ♥ ♥</span><span>MAZE <b id="mazeLevel">1</b></span><span>CHAIN <b id="mazeCombo">0</b></span></div><div id="mazeBoard" class="maze-board"></div><div id="mazeCallout" class="maze-callout">EAT THE EMBER TRAIL</div><div class="maze-controls" aria-label="Runaway directions"><button type="button" data-maze-dir="up" aria-label="Move up">▲</button><button type="button" data-maze-dir="left" aria-label="Move left">◀</button><button type="button" data-maze-dir="down" aria-label="Move down">▼</button><button type="button" data-maze-dir="right" aria-label="Move right">▶</button></div></div>`;
-      buildMazeLevel(true);
+      el.miniArena.innerHTML = `<div class="mini-world maze-world"><div class="maze-hud" data-mini-readout><span id="mazeLives">♥ ♥ ♥</span><span>MAZE <b id="mazeLevel">1</b></span><span>CHAIN <b id="mazeCombo">0</b></span></div><div id="mazeBoard" class="maze-board"></div><div id="mazeCallout" class="maze-callout">EAT THE EMBER TRAIL</div><div class="maze-controls" aria-label="Runaway directions"><button type="button" data-maze-dir="up" aria-label="Move up">▲</button><button type="button" data-maze-dir="left" aria-label="Move left">◀</button><button type="button" data-maze-dir="down" aria-label="Move down">▼</button><button type="button" data-maze-dir="right" aria-label="Move right">▶</button></div></div>`;
+      buildMazeLevel(true); renderLives("mazeLives");
     }
     if (mode === "defense") {
       if (!mini.defenseResume || !restoreDefenseCheckpoint(mini.defenseResume)) {
@@ -3884,19 +4109,19 @@
       }
     }
     if (mode === "memory") {
-      el.miniArena.innerHTML = `<div class="mini-world memory-world memory-dx lost-signal"><div class="memory-stars"></div>${miniPetMarkup("memory-rizo")}<div class="memory-top"><span id="memoryRule">CLEAN SIGNAL</span><span id="memoryHearts">♥ ♥ ♥</span></div><div class="memory-frequency">96.3 <i>RIZO PIRATE RADIO</i></div><div class="memory-board" id="memoryBoard">${[0,1,2,3].map(index=>`<button type="button" class="memory-rune rune-${index}" data-memory-rune="${index}" aria-label="Signal rune ${index+1}">${["☾","✦","◆","∞"][index]}</button>`).join("")}</div><div id="memoryCallout" class="memory-callout">LISTEN FOR THE CORRUPTION</div></div>`;
-      queueMiniTimeout(startMemoryRound, 500);
+      el.miniArena.innerHTML = `<div class="mini-world memory-world memory-dx lost-signal"><div class="memory-stars"></div>${miniPetMarkup("memory-rizo")}<div class="memory-top" data-mini-readout><span id="memoryRule">CLEAN SIGNAL</span><span id="memoryHearts">♥ ♥ ♥</span></div><div class="memory-frequency">96.3 <i>RIZO PIRATE RADIO</i></div><div class="memory-board" id="memoryBoard">${[0,1,2,3].map(index=>`<button type="button" class="memory-rune rune-${index}" data-memory-rune="${index}" aria-label="Signal rune ${index+1}">${["☾","✦","◆","∞"][index]}</button>`).join("")}</div><div id="memoryCallout" class="memory-callout">LISTEN FOR THE CORRUPTION</div></div>`;
+      renderLives("memoryHearts"); queueMiniTimeout(startMemoryRound, 500);
     }
     if (mode === "glide") {
       mini.glideY = Math.max(90, el.miniArena.clientHeight * .48);
       mini.glideSpawnAt = now() + 900;
       mini.glideWindAt = now() + 5200;
-      el.miniArena.innerHTML = `<div class="mini-world glide-world"><div class="glide-clouds"></div><div id="glideGates"></div>${miniPetMarkup("glide-rizo")}<div class="glide-hud"><span id="glideHearts">♥ ♥ ♥</span><span>THREAD <b id="glideStreak">0</b></span><span>DRAFT <b id="glideDraft">0/3</b></span></div><div id="glideWind" class="glide-wind">CALM AIR</div><div id="glideThermal" class="glide-thermal">CENTER 3 GATES → THERMAL</div><div class="glide-floor"></div></div>`;
-      updateGlidePet();
+      el.miniArena.innerHTML = `<div class="mini-world glide-world"><div class="glide-clouds"></div><div id="glideGates"></div>${miniPetMarkup("glide-rizo")}<div class="glide-hud" data-mini-readout><span id="glideHearts">♥ ♥ ♥</span><span>THREAD <b id="glideStreak">0</b></span><span>DRAFT <b id="glideDraft">0/3</b></span></div><div id="glideWind" class="glide-wind" data-mini-readout>CALM AIR</div><div id="glideThermal" class="glide-thermal" data-mini-readout>CENTER 3 GATES → THERMAL</div><div class="glide-floor"></div></div>`;
+      renderLives("glideHearts"); updateGlidePet();
     }
     if (mode === "breaker") {
-      el.miniArena.innerHTML = `<div class="mini-world breaker-world"><div id="breakerBlocks" class="breaker-blocks"></div><div id="breakerBall" class="breaker-ball">✦</div>${miniPetMarkup("breaker-rizo")}<div class="breaker-hud"><span id="breakerHearts">♥ ♥ ♥</span><span>FORGE <b id="breakerLevel">1</b></span><span>CORE <b id="breakerCoreCount">0</b></span></div><div id="breakerPattern" class="breaker-pattern">LOADING MARK…</div><div id="breakerCallout" class="breaker-callout">BREAK THE CORE • COLLAPSE THE WALL</div></div>`;
-      setBreakerPaddle(.5); buildBreakerBoard(); resetBreakerBall(true);
+      el.miniArena.innerHTML = `<div class="mini-world breaker-world"><div id="breakerBlocks" class="breaker-blocks"></div><div id="breakerBall" class="breaker-ball">✦</div>${miniPetMarkup("breaker-rizo")}<div class="breaker-hud" data-mini-readout><span id="breakerHearts">♥ ♥ ♥</span><span>FORGE <b id="breakerLevel">1</b></span><span>RALLY <b id="breakerStreak">0</b></span><span>CORE <b id="breakerCoreCount">0</b></span></div><div id="breakerPattern" class="breaker-pattern">LOADING MARK…</div><div id="breakerCallout" class="breaker-callout">BREAK THE CORE • COLLAPSE THE WALL</div></div>`;
+      renderLives("breakerHearts"); setBreakerPaddle(.5); buildBreakerBoard(); resetBreakerBall(true);
     }
   }
 
@@ -3954,7 +4179,8 @@
   // Walk decisions pause the clock so reading never costs the player time.
   // Two forks occur per walk and can change the biome, weather and discovery pool.
   function maybeShowWalkFork() {
-    if (mini.mode !== "walk" || !mini.active || mini.pausedByFork || mini.walkDecisionIndex >= 2) return;
+    if (mini.mode !== "walk" || !mini.active || mini.pausedByFork) return;
+    if(mini.walkDecisionIndex>=2){maybeShowWalkEncounter();return;}
     const elapsed = 1 - Math.max(0, mini.endAt - now()) / miniDuration("walk");
     const threshold = mini.walkDecisionIndex === 0 ? .29 : .66;
     if (elapsed < threshold) return;
@@ -3984,6 +4210,8 @@
     mini.endAt += Math.max(0, now() - (mini.pauseAt || now()));
     mini.walkDecisionIndex += 1;
     $(".walk-fork")?.remove();
+    mini.entities.filter(item=>item.kind==="walk").forEach(item=>item.node.remove());
+    mini.entities=mini.entities.filter(item=>item.kind!=="walk");
     if (choice.biome && WALK_BIOMES[choice.biome]) {
       mini.walkBiome = WALK_BIOMES[choice.biome];
       if (choice.biome === "storm") mini.walkWeather = WALK_WEATHER.storm;
@@ -4003,6 +4231,48 @@
     mini.treasureRolls += choice.luck || 0;
     sfx(choice.risk >= 2 ? "event" : "spark");
     haptic(choice.risk >= 2 ? [10,16,10] : 8);
+    spawnWalkFind();
+  }
+
+  const WALK_ENCOUNTERS={
+    meadow:{icon:"🌼",title:"THE FLOWERS ARE FOLLOWING YOU",copy:"Rizo stops. Every flower stops a second later.",safe:"LEAVE ONE A SNACK",bold:"INVITE THEM HOME",ending:"THE GARDEN WALKED YOU HOME",quiet:"ONE FLOWER WAVES GOODBYE"},
+    lantern:{icon:"☾",title:"THE LANTERN KNOWS YOUR NAME",copy:"It flashes once for every thing you put in your pocket.",safe:"SIT BESIDE THE LIGHT",bold:"ANSWER THE SIGNAL",ending:"SOMETHING ANSWERS BACK",quiet:"YOU KEEP ITS LITTLE SECRET"},
+    stream:{icon:"ϟ",title:"A STAR UNDER THE WATER",copy:"The storm goes quiet. Something bright is caught between the stones.",safe:"MARK THE SPOT",bold:"REACH INTO THE STREAM",ending:"YOU BROUGHT THE STORM HOME",quiet:"THE STAR CAN WAIT UNTIL TOMORROW"},
+    ruins:{icon:"◇",title:"YOUR SHADOW TAKES ONE MORE STEP",copy:"Rizo has stopped walking. The other set of footsteps has not.",safe:"BACK AWAY TOGETHER",bold:"SHOW IT YOUR POCKET FINDS",ending:"YOUR SHADOW SAYS THANK YOU",quiet:"TWO SETS OF FOOTSTEPS GO HOME"}
+  };
+  function maybeShowWalkEncounter(){
+    if(mini.walkEncounter||mini.walkEnding||mini.pausedByFork)return;
+    if(1-Math.max(0,mini.endAt-now())/miniDuration("walk")<.80)return;
+    const id=mini.walkChoices[1]||"meadow",story=WALK_ENCOUNTERS[id]||WALK_ENCOUNTERS.meadow;
+    mini.walkEncounter=id;mini.pausedByFork=true;mini.pauseAt=now();
+    const ready=mini.walkNotes.length>=3;
+    const card=document.createElement("div");card.className="walk-fork walk-encounter";
+    card.innerHTML=`<div class="walk-encounter-intro"><i>${story.icon}</i><b>${story.title}</b><p>${story.copy}</p></div><button type="button" class="walk-fork-btn" data-walk-ending="quiet"><b>${story.safe}</b><span>A quiet ending • +6</span></button><button type="button" class="walk-fork-btn" data-walk-ending="bold"><b>${story.bold}</b><span>${ready?"Your 3 different finds fit the story • +18":"Needs 3 different finds. You have "+mini.walkNotes.length+" • risk losing 3 points"}</span></button>`;
+    $("#walkFinds")?.appendChild(card);setWalkCaption("RIZO STOPS", "Take your time. The trail can wait.");sfx("event");haptic([8,16,8]);
+  }
+  function chooseWalkEnding(choice){
+    if(!mini.active||mini.mode!=="walk"||!mini.pausedByFork||!mini.walkEncounter||mini.walkEnding)return;
+    if(!["quiet","bold"].includes(choice))return;
+    const story=WALK_ENCOUNTERS[mini.walkEncounter]||WALK_ENCOUNTERS.meadow;
+    const success=choice==="bold"&&mini.walkNotes.length>=3;
+    const gain=choice==="quiet"?6:success?18:-3;
+    mini.walkEnding=success?story.ending:choice==="quiet"?story.quiet:"RIZO DECIDES YOU HAVE BEEN WEIRD ENOUGH";
+    mini.score=Math.max(0,mini.score+gain);mini.hits+=1;
+    if(success)mini.treasureRolls+=2;
+    mini.endAt+=Math.max(0,now()-mini.pauseAt);mini.pausedByFork=false;
+    $(".walk-encounter")?.remove();
+    mini.entities.filter(item=>item.kind==="walk").forEach(item=>item.node.remove());mini.entities=mini.entities.filter(item=>item.kind!=="walk");
+    $(".walk-world")?.classList.add("walk-homecoming");
+    const notes=$("#walkNotes");if(notes)notes.innerHTML=`<b>${success?"A STRANGE LITTLE SOUVENIR":"A STORY TO TAKE HOME"}</b><span>${story.icon}</span><small>${escapeHTML(mini.walkEnding)}</small>`;
+    setWalkCaption(mini.walkEnding,gain>0?`+${gain} • ${state.pet.name} WALKS A LITTLE CLOSER ON THE WAY BACK.`:"YOU LET IT GO. IT LETS YOU GO.");
+    walkReaction(success?"awe":"celebrate");sfx(success?"reward":gain<0?"no":"spark");haptic(success?[8,16,24]:8);
+  }
+  function rememberWalkFind(data){
+    if(["hazard","obstacle"].includes(data.type)||mini.walkNotes.some(note=>note.label===data.label)||mini.walkNotes.length>=3)return;
+    mini.walkNotes.push({label:data.label,icon:data.icon});
+    const host=$("#walkNotes");
+    if(host)host.innerHTML=`<b>POCKET FINDS ${mini.walkNotes.length}/3</b><span>${mini.walkNotes.map(note=>`<i title="${escapeHTML(note.label)}">${note.icon}</i>`).join("")}${"<i>◇</i>".repeat(3-mini.walkNotes.length)}</span><small>${mini.walkNotes.length===3?"SOMETHING ON THIS TRAIL WILL RECOGNIZE THESE":"KEEP AN EYE OUT FOR SOMETHING DIFFERENT"}</small>`;
+    if(mini.walkNotes.length===3){$(".walk-world")?.classList.add("notes-ready");sfx("perfect");}
   }
 
   function applyWalkWorldTheme() {
@@ -4092,7 +4362,7 @@
       mini.powerWrongCalls+=1;mini.powerStreak=0;mini.powerHeat=clamp(mini.powerHeat-12,0,100);mini.score=Math.max(0,mini.score-2);
       const callout=$("#timingCallout");if(callout){callout.textContent=`WRONG SHOT • COACH SAID ${mini.powerCall.toUpperCase()}`;callout.dataset.grade="wrong";}
       const streak=$("#powerStreak"),heat=$("#powerHeat");if(streak)streak.textContent="0";if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;
-      sfx("no");haptic([12,18,12]);nextPowerCall();return;
+      arcadeSfx("fail");haptic([12,18,12]);nextPowerCall();return;
     }
     mini.powerCallsRead+=1;
     const distance = Math.abs(mini.needle - mini.powerZone);
@@ -4125,7 +4395,7 @@
     if (heat) heat.textContent = `${Math.round(mini.powerHeat)}%`;
     if (cracks) cracks.dataset.crack = String(Math.min(4, Math.floor(mini.hits / 6)));
     if (base === 5) { sfx("perfect"); sensoryBurst(mini.powerStreak >= 4 ? `x${mult}` : "PERFECT", "#16c8ff", 10); haptic([12,20,22]); }
-    else if (base) sfx("hit", base * 3); else { sfx("no"); haptic(18); }
+    else if (base) sfx("hit", base * 3); else { arcadeSfx("fail"); haptic(18); }
   }
 
   function moveSparkTarget(forceType = null) {
@@ -4145,8 +4415,37 @@
     const rule=$("#sparkRule"); if(rule) rule.textContent=frenzy ? "SPARK RUSH • DON'T MISS" : mini.sparkType === "shadow" ? "DECOY • DON'T TAP" : mini.sparkType === "gold" ? "GOLD SIGNAL • GO" : "CATCH THE LIGHT";
   }
 
-  function updateSparkBankHUD(){const stash=$("#sparkStash"),banked=$("#sparkBanked"),bank=$("#sparkBank");if(stash)stash.textContent=String(Math.max(0,Math.floor(mini.sparkStash||0)));if(banked)banked.textContent=String(Math.max(0,Math.floor(mini.sparkBanked||0)));if(bank)bank.disabled=(mini.sparkStash||0)<=0;}
-  function bankSparkStash(auto=false){const held=Math.max(0,Math.floor(mini.sparkStash||0));if(!held)return false;const chain=Math.max(0,mini.sparkStreak||0),mult=auto?1:Math.min(3,1+Math.floor(chain/4));const gain=held*mult;mini.score+=gain;mini.sparkBanked+=gain;mini.sparkStash=0;mini.sparkBanks+=1;if(auto)mini.sparkAutoBanked=true;const trail=$("#sparkTrail");if(trail){trail.textContent=`${auto?"AUTO ":""}BANK x${mult} • +${gain}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}updateSparkBankHUD();sfx("reward");haptic([8,12,8]);return true;}
+  function sparkRiskMultiplier(){ return Math.min(4, 1 + Math.floor(Math.max(0,mini.sparkStreak||0) / 5)); }
+  function sparkBankMultiplier(){ return Math.min(3, 1 + Math.floor(Math.max(0,mini.sparkStreak||0) / 4)); }
+  function updateSparkBankHUD(){
+    const stash=$("#sparkStash"),banked=$("#sparkBanked"),bank=$("#sparkBank"),streak=$("#sparkStreak"),risk=$("#sparkRisk"),payout=$("#sparkPayout");
+    const held=Math.max(0,Math.floor(mini.sparkStash||0)),chain=Math.max(0,mini.sparkStreak||0),bankMult=sparkBankMultiplier();
+    if(stash)stash.textContent=String(held);
+    if(banked)banked.textContent=String(Math.max(0,Math.floor(mini.sparkBanked||0)));
+    if(streak)streak.textContent=String(chain);
+    if(risk){
+      risk.textContent=`x${sparkRiskMultiplier()}`;
+      risk.classList.toggle("hot",chain>=10);
+      risk.classList.toggle("warm",chain>=5&&chain<10);
+    }
+    if(payout)payout.textContent=held?`BANK +${held*bankMult}`:"NOTHING TO BANK";
+    const hud=$(".spark-hud");
+    if(hud)hud.classList.toggle("at-risk",held>=6);
+    if(bank){
+      bank.disabled=held<=0;
+      bank.dataset.mult=String(bankMult);
+      const label=bank.querySelector("b");
+      if(label)label.textContent=bankMult>1?`BANK x${bankMult}`:"BANK STASH";
+    }
+    // Six clean reads in a row arms Spark Rush. Show the fuse, not just the fire.
+    const rule=$("#sparkRule");
+    if(rule&&now()>=(mini.sparkFeverUntil||0)){
+      const toRush=chain?6-(chain%6):6;
+      rule.textContent=chain>=1?`RUSH IN ${toRush===6?6:toRush} • RISK x${sparkRiskMultiplier()}`:"CATCH • THEN DECIDE WHEN TO BANK";
+    }
+  }
+
+  function bankSparkStash(auto=false){const held=Math.max(0,Math.floor(mini.sparkStash||0));if(!held)return false;const mult=auto?1:sparkBankMultiplier();const gain=held*mult;mini.score+=gain;mini.sparkBanked+=gain;mini.sparkStash=0;mini.sparkBanks+=1;if(auto)mini.sparkAutoBanked=true;const trail=$("#sparkTrail");if(trail){trail.textContent=`${auto?"AUTO ":""}BANK x${mult} • +${gain}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}updateSparkBankHUD();sfx("reward");haptic([8,12,8]);return true;}
   function spillSparkStash(reason="SIGNAL LOST"){const lost=Math.max(0,Math.floor(mini.sparkStash||0));if(lost){mini.sparkLost+=lost;mini.sparkStash=0;}mini.sparkStreak=0;updateSparkBankHUD();const trail=$("#sparkTrail");if(trail){trail.textContent=`${reason}${lost?` • -${lost} STASH`:""}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}}
 
   function startSparkFrenzy(){
@@ -4164,9 +4463,9 @@
       const trail=$("#sparkTrail"); if(trail){trail.textContent="GOOD READ +1";trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}
       sfx("perfect");
     } else {
-      spillSparkStash("TOO SLOW");if(mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");}
+      spillSparkStash("TOO SLOW");arcadeSfx("fail");if(mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");}
     }
-    const streak=$("#sparkStreak"); if(streak) streak.textContent=String(mini.sparkStreak);
+    updateSparkBankHUD();
     moveSparkTarget();
   }
 
@@ -4176,15 +4475,15 @@
     if (mini.sparkType === "shadow") {
       mini.score = Math.max(0, mini.score - 2); spillSparkStash("SHADOW STOLE IT");
       if (trail) { trail.textContent = mini.sparkLost ? "SHADOW STOLE THE STASH" : "DECOY -2"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-      pet.classList.add("forage-hit"); queueMiniTimeout(()=>pet.classList.remove("forage-hit"),300); sfx("no"); haptic([16,20,16]);
-      const streak=$("#sparkStreak"); if(streak) streak.textContent="0"; moveSparkTarget(); return;
+      pet.classList.add("forage-hit"); queueMiniTimeout(()=>pet.classList.remove("forage-hit"),300); arcadeSfx("fail"); haptic([16,20,16]);
+      updateSparkBankHUD(); moveSparkTarget(); return;
     }
     const wasFrenzy=now()<mini.sparkFeverUntil;mini.hits += 1; mini.sparkStreak += 1; mini.sparkBestStreak = Math.max(mini.sparkBestStreak, mini.sparkStreak);
-    const mult = Math.min(4, 1 + Math.floor(mini.sparkStreak / 5));
+    const mult = sparkRiskMultiplier();
     const gain = (mini.sparkType === "gold" ? 5 : 1) * (wasFrenzy?2:1); mini.sparkStash += gain;updateSparkBankHUD();
     pet.style.left = `${mini.sparkX + 6}px`; pet.style.top = `${mini.sparkY + 28}px`; pet.classList.add("spark-dash"); queueMiniTimeout(()=>pet.classList.remove("spark-dash"),180);
     if (trail) { trail.textContent = mini.sparkType === "gold" ? `GOLD${wasFrenzy?" RUSH":""} • STASH +${gain}` : wasFrenzy?`RUSH ${mini.sparkStreak} • STASH +${gain}`:mini.sparkStreak > 1 ? `CHAIN ${mini.sparkStreak} • RISK x${mult}` : "STASH +1"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-    const streak=$("#sparkStreak"); if(streak) streak.textContent=String(mini.sparkStreak);
+    updateSparkBankHUD();
     if(!wasFrenzy && mini.sparkStreak>0 && mini.sparkStreak%6===0)startSparkFrenzy();
     sfx(mini.sparkType === "gold" ? "reward" : "spark", mini.hits); haptic(mini.sparkType === "gold" ? [8,10,14] : 8); moveSparkTarget();
   }
@@ -4205,7 +4504,7 @@
     mini.forageOrderIndex+=1;
     if(mini.forageOrderIndex>=mini.forageOrder.length){
       mini.forageOrdersDone+=1;mini.score+=10+Math.min(8,mini.forageOrdersDone*2);mini.treasureRolls+=1;
-      if(mini.forageOrdersDone%2===0){mini.forageRushUntil=now()+3600;sensoryBurst("PICNIC PANIC • PICK FAST","#ffd76a",16);sfx("reward");}
+      if(mini.forageOrdersDone%2===0){mini.forageRushUntil=now()+3600;sensoryBurst("PICNIC PANIC • PICK FAST","#ffd76a",16);arcadeSfx("win");}
       else sensoryBurst(`LUNCH ${mini.forageOrdersDone} PACKED`,`#9eff75`,12);
       mini.forageOrder=buildForageOrder();mini.forageOrderIndex=0;
     }
@@ -4218,90 +4517,191 @@
     if (pet) pet.style.left = `${[16.7,50,83.3][mini.lane]}%`;
   }
 
-  function createForageDrop(lane,{kind="random",wanted=null}={}) {
+  // One readable decision row at a time. Food is chosen for the current ticket,
+  // never for a ticket that will be stale by the time the row reaches Rizo.
+  function createForageDrop(lane,{kind="wanted",wanted=null}={}) {
     const host=$("#forageDrops"); if(!host)return;
-    const wantedId=wanted||mini.forageOrder[mini.forageOrderIndex]; let bad=false,rare=false,food=null;
-    if(kind==="wanted") food=FORAGE_FOODS.find(item=>item.id===wantedId)||FORAGE_FOODS[0];
-    else if(kind==="bad") bad=true;
-    else if(kind==="rare") rare=true;
-    else if(kind==="wrong") {const wrong=FORAGE_FOODS.filter(item=>item.id!==wantedId);food=wrong[Math.floor(Math.random()*wrong.length)]||FORAGE_FOODS[0];}
-    else {const roll=Math.random();bad=roll<.2;rare=!bad&&roll>.93;food=bad||rare?null:FORAGE_FOODS[Math.floor(Math.random()*FORAGE_FOODS.length)];}
-    const node=document.createElement("div");node.className=`forage-drop ${bad?"bad":"good"} ${rare?"rare":""}`;node.textContent=bad?"🍄":rare?"💎":food.icon;node.style.left=`${[16.7,50,83.3][lane]}%`;host.appendChild(node);
-    mini.entities.push({kind:"forage",node,lane,good:!bad,rare,foodId:food?.id||null,y:-48,speed:145+Math.random()*42+Math.min(82,(mini.hits||0)*2.4),caught:false});
+    const wantedId=wanted||mini.forageOrder[mini.forageOrderIndex];
+    const bad=kind==="bad",rare=kind==="rare";
+    const foods=FORAGE_FOODS.filter(food=>kind==="wrong"?food.id!==wantedId:food.id===wantedId);
+    const food=foods[Math.floor(Math.random()*foods.length)]||FORAGE_FOODS[0];
+    const node=document.createElement("div");
+    node.className=`forage-drop ${bad?"bad":"good"} ${rare?"rare":""}`;
+    node.textContent=bad?"🍄":rare?"💎":food.icon;
+    node.style.left=`${[16.7,50,83.3][lane]}%`;
+    node.setAttribute("aria-label",bad?"Mushroom: spoils the chain":rare?"Prism: bonus, no ticket progress":food.name);
+    host.appendChild(node);
+    const panic=now()<mini.forageRushUntil;
+    const travel=panic?1.05:Math.max(1.28,1.85-mini.forageOrdersDone*.09);
+    const y=112,catchY=Math.max(166,el.miniArena.clientHeight-115);
+    mini.entities.push({kind:"forage",node,lane,good:!bad,rare,foodId:bad||rare?null:food.id,y,speed:(catchY-y)/travel,caught:false});
+    node.style.transform=`translate(-50%,${y}px)`;
   }
 
   function spawnForageItem() {
-    const wanted=mini.forageOrder[mini.forageOrderIndex],lanes=[0,1,2].sort(()=>Math.random()-.5),panic=now()<(mini.forageRushUntil||0);
-    const decisionRun=panic||mini.hits>=2&&Math.random()<.42;
-    if(decisionRun){
-      createForageDrop(lanes[0],{kind:"wanted",wanted});
-      createForageDrop(lanes[1],{kind:Math.random()<(panic?.62:.48)?"bad":"wrong",wanted});
-      if(panic)createForageDrop(lanes[2],{kind:Math.random()<.22?"rare":"wrong",wanted});
-      return;
-    }
-    const roll=Math.random();createForageDrop(lanes[0],{kind:roll<.46?"wanted":roll<.63?"wrong":roll<.83?"bad":roll>.96?"rare":"random",wanted});
+    if(now()<mini.forageNextAt||mini.entities.some(item=>item.kind==="forage"&&!item.caught))return;
+    const wanted=mini.forageOrder[mini.forageOrderIndex];
+    const lane=mini.forageRows===0?2:Math.floor(Math.random()*3);
+    mini.forageRows+=1;
+    createForageDrop(lane,{kind:"wanted",wanted});
+    createForageDrop((lane+1)%3,{kind:"wrong",wanted});
+    // A prism is a visible detour: points now, but the lunch still needs its food.
+    createForageDrop((lane+2)%3,{kind:mini.forageRows%4===0?"rare":"bad",wanted});
+  }
+
+  function forageFeedback(copy,good=true){
+    const ticket=$("#forageTicketState");
+    if(ticket){ticket.textContent=copy;ticket.dataset.result=good?"good":"bad";}
+    mini.forageFeedbackUntil=now()+700;
   }
 
   function updateForageGame(dt) {
-    const height = el.miniArena.clientHeight,panic=now()<(mini.forageRushUntil||0),world=$(".forage-world");
+    const height=el.miniArena.clientHeight,panic=now()<mini.forageRushUntil,world=$(".forage-world");
     world?.classList.toggle("picnic-panic",panic);
-    const ticket=$("#forageTicketState");if(ticket)ticket.textContent=panic?"PICNIC PANIC":"PACK THE TICKET";
-    for (const entity of [...mini.entities]) {
-      if (entity.kind !== "forage") continue;
-      entity.y += entity.speed * dt; entity.node.style.transform = `translate(-50%,${entity.y}px) rotate(${entity.y*.15}deg)`;
-      const inCatch = entity.y > height - 152 && entity.y < height - 52;
-      if (!entity.caught && inCatch && entity.lane === mini.lane) {
-        entity.caught = true;
-        if (!entity.good) {
-          mini.score=Math.max(0,mini.score-4);mini.forageStreak=0;sfx("sick");haptic([20,20,20]);$("#miniPet")?.classList.add("forage-hit");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("forage-hit"),320);
-        } else if (entity.rare) {
-          mini.score+=6;mini.hits+=1;mini.treasureRolls+=1;mini.forageStreak+=1;sfx("reward");sensoryBurst("PRISM +6","#bdf7ff",10);
-        } else {
-          const wanted=mini.forageOrder[mini.forageOrderIndex]; mini.hits+=1;
-          if(entity.foodId===wanted){mini.forageStreak+=1;mini.forageBestStreak=Math.max(mini.forageBestStreak,mini.forageStreak);const mult=Math.min(3,1+Math.floor(mini.forageStreak/4));mini.score+=3*mult;advanceForageOrder();sfx("eat");}
-          else {mini.score=Math.max(0,mini.score-1);mini.forageStreak=0;sfx("no");const order=$("#forageOrder");order?.classList.add("wrong");queueMiniTimeout(()=>order?.classList.remove("wrong"),220);}
-          $("#miniPet")?.classList.add("forage-catch");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("forage-catch"),180);
-        }
-        const streak=$("#forageStreak");if(streak)streak.textContent=String(mini.forageStreak);
-        entity.node.classList.add("caught");queueMiniTimeout(()=>entity.node.remove(),160);
-      }
-      if (entity.y > height + 30 || entity.caught) mini.entities = mini.entities.filter(item => item !== entity);
+    const ticket=$("#forageTicketState");
+    if(ticket&&now()>=mini.forageFeedbackUntil){
+      ticket.textContent=panic?"PICNIC PANIC • KEEP PACKING":`LUNCH ${mini.forageOrdersDone+1} • ${mini.forageOrderIndex}/${mini.forageOrder.length} PACKED`;
+      ticket.dataset.result="";
     }
+    const row=mini.entities.filter(item=>item.kind==="forage"&&!item.caught);
+    const catchY=Math.max(166,height-115);
+    for(const item of row){item.y+=item.speed*dt;item.node.style.transform=`translate(-50%,${item.y}px)`;}
+    if(!row.length||row[0].y<catchY)return;
+    const picked=row.find(item=>item.lane===mini.lane);
+    if(picked){
+      const wanted=mini.forageOrder[mini.forageOrderIndex];
+      if(picked.rare){
+        mini.score+=7;mini.hits+=1;mini.treasureRolls+=1;
+        forageFeedback("PRISM +7 • STILL NEED THE FOOD");sfx("reward");
+      }else if(picked.good&&picked.foodId===wanted){
+        mini.hits+=1;mini.forageStreak+=1;mini.forageBestStreak=Math.max(mini.forageBestStreak,mini.forageStreak);
+        const gain=3*Math.min(3,1+Math.floor(mini.forageStreak/4));mini.score+=gain;
+        const completes=mini.forageOrderIndex===mini.forageOrder.length-1;
+        advanceForageOrder();
+        forageFeedback(completes?`LUNCH ${mini.forageOrdersDone} PACKED!`:`THAT'S THE ONE! +${gain}`);
+        sfx(completes?"reward":"eat");haptic(completes?[8,10,16]:8);
+      }else{
+        mini.score=Math.max(0,mini.score-(picked.good?1:4));mini.forageStreak=0;mini.forageMistakes+=1;
+        forageFeedback(picked.good?"WRONG FOOD • SAME REQUEST":"MUSHROOM?! RIZO SENT IT BACK",false);
+        arcadeSfx("fail");haptic([12,16,12]);
+      }
+      const pet=$("#miniPet"),good=picked.rare||picked.good&&picked.foodId===wanted;
+      pet?.classList.add(good?"forage-catch":"forage-hit");
+      queueMiniTimeout(()=>pet?.classList.remove("forage-catch","forage-hit"),280);
+      const streak=$("#forageStreak");if(streak)streak.textContent=String(mini.forageStreak);
+    }
+    for(const item of row){
+      item.caught=true;item.node.classList.add(item===picked?"caught":"passed");
+      queueMiniTimeout(()=>item.node.remove(),180);
+    }
+    mini.entities=mini.entities.filter(item=>!row.includes(item));
+    mini.forageNextAt=now()+(panic?170:320);
   }
 
-  function spawnRushEntity(first = false) {
-    const host = $("#rushEntities"); if (!host) return;
-    const width=el.miniArena.clientWidth,speed=174+Math.min(92,mini.hits*2.6),rightmost=[...mini.entities].filter(item=>item.kind==="rush"&&!item.handled&&["stump","tall"].includes(item.type)).sort((a,b)=>b.x-a.x)[0];
-    const safeGap=Math.max(300,speed*1.2),obstacleTooClose=Boolean(rightmost&&rightmost.x>width-safeGap); let type="flame";
-    if(first) type="stump"; else if(!obstacleTooClose){const roll=Math.random();type=roll<.38?"stump":roll<.53&&mini.hits>=4?"tall":roll>.91?"prism":"flame";}
-    const node=document.createElement("div");node.className=`rush-entity ${type}`;node.textContent=type==="flame"?"✦":type==="prism"?"◆":"";host.appendChild(node);
-    const requiredJump=type==="prism"?108:type==="flame"?(Math.random()<.5?28:82):0;if(type==="flame"||type==="prism")node.style.bottom=`${58+requiredJump*.55}px`;mini.entities.push({kind:"rush",node,type,x:width+(first?70:15),speed,handled:false,requiredJump,nearMissScored:false});
+  // A route is a guaranteed pickup, two authored clears, then a physical door.
+  // All objects share a speed so their jump spacing cannot collapse mid-route.
+  function spawnRushEntity(first=false) {
+    const host=$("#rushEntities");if(!host)return;
+    if(!first&&mini.entities.some(item=>item.kind==="rush"&&item.type==="depot"))return;
+    mini.rushRoute+=1;
+    const width=el.miniArena.clientWidth,route=mini.rushRoute;
+    const speed=210+Math.min(48,(route-1)*12),start=first?width*.80:width+45;
+    const pattern=route%3===1?["stump","stump"]:route%3===2?["stump","tall"]:["tall","stump"];
+    const add=(type,x,requiredJump=0)=>{
+      const node=document.createElement("div");node.className=`rush-entity ${type}`;
+      node.innerHTML=type==="prism"?"◆":type==="flame"?"✦":type==="depot"?`<small>DELIVER</small><b>${String(route).padStart(2,"0")}</b>`:type==="tall"?"<small>↑↑</small>":"<small>↑</small>";
+      node.style.transform=`translateX(${x}px)`;
+      if(type==="flame"||type==="prism")node.style.bottom=`${48+requiredJump+10}px`;
+      host.appendChild(node);
+      mini.entities.push({kind:"rush",node,type,x,speed,handled:false,requiredJump,nearMissScored:false,minClearance:Infinity});
+    };
+    add("prism",start,0);
+    add(pattern[0],start+240);
+    add("flame",start+240,pattern[0]==="tall"?164:126);
+    add(pattern[1],start+570);
+    add("flame",start+570,pattern[1]==="tall"?164:126);
+    add("depot",start+900);
+    const hud=$("#rushRoute");if(hud)hud.textContent=`ROUTE ${String(route).padStart(2,"0")} • ${["BACKSTREET","HIGH RISE","LAST BLOCK"][(route-1)%3]}`;
+    $(".rush-world")?.setAttribute("data-route",String((route-1)%3));
+    rushDeliveryHUD();
   }
 
+  function rushDeliveryHUD(){
+    $(".rush-world")?.classList.toggle("has-parcel",mini.rushParcel);
+    const delivery=$("#rushDelivery");
+    if(delivery)delivery.textContent=mini.rushParcel?`◆ ON BOARD  •  ${"✓".repeat(mini.rushParcelClears)}${"○".repeat(Math.max(0,2-mini.rushParcelClears))}  →  DOOR` : "FIND ◆ • KEEP THE PACKAGE SAFE";
+  }
+  function rushCallout(copy){const node=$("#rushCallout");if(node)node.textContent=copy;}
   function rushJump() {
-    if (mini.jumpY <= 3) { mini.jumpV=515;mini.rushAirJumps=0;sfx("jump");haptic(9);return; }
+    if(mini.lives<=0)return;
+    if(mini.jumpY<=3){mini.jumpV=515;mini.rushAirJumps=0;sfx("jump");haptic(9);return;}
     if(mini.rushAirJumps<1){mini.jumpV=Math.max(395,mini.jumpV+245);mini.rushAirJumps+=1;$("#miniPet")?.classList.add("rush-double");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("rush-double"),220);sfx("spark");haptic([6,8]);}
   }
 
   function updateRushGame(dt) {
-    const width=el.miniArena.clientWidth; mini.jumpV-=1125*dt; mini.jumpY=Math.max(0,mini.jumpY+mini.jumpV*dt);
-    if(mini.jumpY<=0){mini.jumpY=0;mini.jumpV=0;mini.rushAirJumps=0;}
-    const pet=$("#miniPet");if(pet)pet.style.setProperty("--jump-y",`${mini.jumpY}px`);
-    mini.distanceCarry+=dt*3.5;if(mini.distanceCarry>=1){const earned=Math.floor(mini.distanceCarry);mini.score+=earned;mini.distanceCarry-=earned;}
+    if(mini.lives<=0)return;
+    const width=el.miniArena.clientWidth,wasAir=mini.jumpY>0;
+    mini.jumpV-=1125*dt;mini.jumpY=Math.max(0,mini.jumpY+mini.jumpV*dt);
+    const pet=$("#miniPet"),world=$(".rush-world");
+    if(mini.jumpY<=0){
+      mini.jumpY=0;mini.jumpV=0;mini.rushAirJumps=0;
+      if(wasAir){mini.rushLandingUntil=now()+130;pet?.classList.add("rush-land");queueMiniTimeout(()=>pet?.classList.remove("rush-land"),130);}
+    }
+    if(pet)pet.style.setProperty("--jump-y",`${mini.jumpY}px`);
+    const tag=$(".rush-parcel-tag");if(tag)tag.style.bottom=`${74+mini.jumpY}px`;
+    mini.rushRoad+=dt*(210+Math.min(48,(mini.rushRoute-1)*12));
+    world?.style.setProperty("--road",`${-mini.rushRoad}px`);
+    mini.distanceCarry+=dt*2;if(mini.distanceCarry>=1){const earned=Math.floor(mini.distanceCarry);mini.score+=earned;mini.distanceCarry-=earned;}
     const petX=width*.22;
     for(const entity of [...mini.entities]){
-      if(entity.kind!=="rush")continue;entity.x-=entity.speed*dt;entity.node.style.transform=`translateX(${entity.x}px)`;
-      if(!entity.handled&&entity.x<petX+48&&entity.x>petX-45){
-        if(entity.type==="flame"||entity.type==="prism"){
-          const tolerance=entity.type==="prism"?34:26;
-          if(Math.abs(mini.jumpY-(entity.requiredJump||0))<=tolerance){entity.handled=true;mini.hits+=1;const mult=Math.min(4,1+Math.floor(mini.hits/6));const gain=(entity.type==="prism"?4:3)*mult;mini.score+=gain;entity.node.classList.add("collected");sfx(entity.type==="prism"?"reward":"rush",mini.hits);haptic(7);if(entity.type==="prism"){mini.rushParcel=true;mini.rushParcelClears=0;const delivery=$("#rushDelivery");if(delivery)delivery.textContent="PACKAGE LIVE • CLEAR 2";sensoryBurst("PACKAGE PICKED UP","#bdf7ff",10);}}
-        } else {
-          const needed=entity.type==="tall"?92:54;
-          if(mini.jumpY<needed&&now()>mini.invulnerableUntil){entity.handled=true;mini.hearts-=1;mini.rushStreak=0;if(mini.rushParcel){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushPackagesLost+=1;const delivery=$("#rushDelivery");if(delivery)delivery.textContent="PACKAGE LOST • FIND ◆";}mini.invulnerableUntil=now()+950;const hearts=$("#rushHearts");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.hearts?"♥":"♡").join(" ");const streak=$("#rushStreak");if(streak)streak.textContent="0";pet?.classList.add("rush-hurt");queueMiniTimeout(()=>pet?.classList.remove("rush-hurt"),500);sfx("hit");haptic([18,25,18]);if(mini.hearts<=0){mini.endAt=Math.min(mini.endAt,now()+250);}}
+      if(entity.kind!=="rush")continue;
+      const previous=entity.x;entity.x-=entity.speed*dt;entity.node.style.transform=`translateX(${entity.x}px)`;
+      const crosses=entity.x<petX+36&&previous>petX-36;
+      if(!entity.handled&&crosses){
+        if(entity.type==="prism"||entity.type==="flame"){
+          if(Math.abs(mini.jumpY-entity.requiredJump)<(entity.type==="prism"?44:36)){
+            entity.handled=true;entity.node.classList.add("collected");mini.hits+=1;
+            if(entity.type==="prism"){
+              mini.rushParcel=true;mini.rushParcelClears=0;mini.rushTips=0;rushDeliveryHUD();
+              rushCallout("PACKAGE ON BOARD • TWO CLEARS, THEN LAND AT THE DOOR");sfx("reward");haptic([6,10,6]);
+            }else{mini.rushTips+=3;mini.score+=3;rushCallout("AIR MAIL +3 • ONE MORE JUMP IF YOU NEED IT");sfx("spark");}
+          }
+        }else if(entity.type==="depot"){
+          if(mini.rushParcel&&mini.rushParcelClears>=2&&mini.jumpY<44){
+            entity.handled=true;mini.rushDeliveries+=1;mini.rushParcel=false;
+            const gain=14+mini.rushDeliveries*3+mini.rushTips;mini.score+=gain;
+            const receipt=$("#rushReceipt");if(receipt){receipt.textContent=`SIGNED. SEALED. +${gain}`;receipt.classList.add("show");queueMiniTimeout(()=>receipt.classList.remove("show"),1250);}
+            entity.node.classList.add("delivered");rushDeliveryHUD();rushCallout(`DELIVERY ${mini.rushDeliveries} • RIZO DOES NOT RING TWICE.`);arcadeSfx("win");haptic([8,14,22]);
+          }
+        }else{
+          const needed=entity.type==="tall"?94:56;
+          entity.minClearance=Math.min(entity.minClearance,mini.jumpY-needed);
+          if(mini.jumpY<needed){
+            // Contact is never a clean clear, even during the shared i-frames.
+            entity.handled=true;
+            if(now()>mini.invulnerableUntil){
+              loseArcadeLife();mini.rushStreak=0;
+              if(mini.rushParcel){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushPackagesLost+=1;}
+              mini.invulnerableUntil=now()+950;renderLives("rushHearts");rushDeliveryHUD();
+              const streak=$("#rushStreak");if(streak)streak.textContent="0";
+              rushCallout(mini.lives?"PACKAGE DOWN • NEXT PICKUP IS YOUR COMEBACK":"RIZO HAS CLOCKED OUT.");
+              pet?.classList.add("rush-hurt");queueMiniTimeout(()=>pet?.classList.remove("rush-hurt"),500);arcadeSfx("fail");haptic([18,25,18]);
+              if(mini.lives<=0)mini.endAt=Math.min(mini.endAt,now()+350);
+            }
+          }
         }
       }
-      if(!entity.handled&&["stump","tall"].includes(entity.type)&&entity.x<petX-55){entity.handled=true;mini.rushClears+=1;mini.rushStreak+=1;mini.rushBestStreak=Math.max(mini.rushBestStreak,mini.rushStreak);const needed=entity.type==="tall"?92:54,close=mini.jumpY>=needed&&mini.jumpY<=needed+28;const gain=2+Math.min(4,Math.floor(mini.rushStreak/3))+(close?2:0);mini.score+=gain;const streak=$("#rushStreak");if(streak)streak.textContent=String(mini.rushStreak);if(mini.rushParcel){mini.rushParcelClears+=1;const delivery=$("#rushDelivery");if(mini.rushParcelClears>=2){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushDeliveries+=1;const deliveryGain=10+mini.rushDeliveries*2;mini.score+=deliveryGain;if(delivery)delivery.textContent=`DELIVERED #${mini.rushDeliveries} • +${deliveryGain}`;sensoryBurst(`DELIVERY +${deliveryGain}`,"#16c8ff",11);sfx("reward");}else if(delivery)delivery.textContent="PACKAGE LIVE • CLEAR 1";}if(close)sensoryBurst("CLOSE CALL +2","#ffd45a",7);else if(mini.rushStreak%4===0)sensoryBurst(`CLEAN x${mini.rushStreak}`,"#9eff75",8);sfx("perfect");}
-      if(entity.x<-100){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}
+      if(!entity.handled&&["stump","tall"].includes(entity.type)&&entity.x<petX-36){
+        entity.handled=true;mini.rushClears+=1;mini.rushStreak+=1;mini.rushBestStreak=Math.max(mini.rushBestStreak,mini.rushStreak);
+        const close=entity.minClearance>=0&&entity.minClearance<22;mini.score+=close?5:3;
+        if(mini.rushParcel)mini.rushParcelClears=Math.min(2,mini.rushParcelClears+1);
+        const streak=$("#rushStreak");if(streak)streak.textContent=String(mini.rushStreak);rushDeliveryHUD();
+        rushCallout(close?"SHOE SCUFF +5 • BARELY MADE IT":mini.rushParcelClears>=2?"DOOR AHEAD • LAND TO DELIVER":"CLEAN • KEEP IT IN ONE PIECE");sfx("perfect");
+      }
+      if(entity.type==="depot"&&!entity.handled&&entity.x<petX-45){
+        entity.handled=true;if(mini.rushParcel){mini.rushPackagesLost+=1;mini.rushParcel=false;mini.rushParcelClears=0;rushDeliveryHUD();rushCallout("MISSED THE DOOR • LAND BEFORE THE NEXT ONE");sfx("no");}
+      }
+      if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}
     }
   }
 
@@ -4336,15 +4736,18 @@
   }
 
   function spawnWalkFind() {
-    const host=$("#walkFinds"); if(!host)return;
+    const host=$("#walkFinds"); if(!host||mini.walkEnding||mini.pausedByFork)return;
+    if(mini.entities.filter(item=>item.kind==="walk"&&!item.handled).length>=3)return;
     const pool=walkObjectPool();
-    const data=pool[Math.floor(Math.random()*pool.length)] || WALK_OBJECTS.leaf;
+    const opening=[WALK_OBJECTS.leaf,WALK_OBJECTS.friend,WALK_OBJECTS.ember];
+    const data=mini.walkFindCount<3?opening[mini.walkFindCount]:pool[Math.floor(Math.random()*pool.length)]||WALK_OBJECTS.leaf;
+    const first=mini.walkFindCount===0;mini.walkFindCount+=1;
     const node=document.createElement("button");
     node.type="button"; node.className=`walk-find ${data.type} reaction-${data.reaction}`; node.dataset.walkFind=data.label; node.textContent=data.icon; node.setAttribute("aria-label",`Interact with ${data.label}`);
     host.appendChild(node);
     const lane = Math.random() < .25 ? "high" : "ground";
     node.dataset.lane = lane;
-    mini.entities.push({kind:"walk",node,data,x:Math.max(0,el.miniArena.clientWidth+20),speed:82+Math.random()*26+mini.walkRisk*4,handled:false,lane});
+    mini.entities.push({kind:"walk",node,data,x:first?el.miniArena.clientWidth*.62:el.miniArena.clientWidth+20,speed:70+Math.random()*12+mini.walkRisk*4,handled:false,lane});
   }
 
   function walkReaction(reaction, negative = false) {
@@ -4362,14 +4765,15 @@
     const entity=mini.entities.find(item=>item.kind==="walk"&&item.node===node);
     if(!entity||entity.handled)return;
     entity.handled=true;
-    const points = entity.data.type === "obstacle" ? 3 : entity.data.points;
+    const points = entity.data.type === "obstacle" ? 3 : entity.data.type === "hazard" ? 2 : entity.data.points;
+    rememberWalkFind(entity.data);
     mini.score=Math.max(0,mini.score+points);
     mini.hits += points > 0 ? 1 : 0;
     if(entity.data.type==="rare") mini.treasureRolls+=2;
     if(entity.data.type==="obstacle") mini.treasureRolls += .25;
-    const copy=entity.data.type==="hazard"?`${state.pet.name} STEPPED DIRECTLY IN IT.`:entity.data.type==="obstacle"?`${state.pet.name} CLEARED THE LOG. +3`:`${entity.data.label} • ${points>0?"+":""}${points}`;
+    const copy=entity.data.type==="hazard"?`${state.pet.name} HOPS THE PUDDLE. DRY SOCKS. +2`:entity.data.type==="obstacle"?`${state.pet.name} CLEARED THE LOG. +3`:`${entity.data.label} • ${points>0?"+":""}${points}`;
     setWalkCaption(mini.walkBiome.name,copy);
-    walkReaction(entity.data.reaction,points<0);
+    walkReaction(entity.data.type==="hazard"?"jump":entity.data.reaction,points<0);
     sfx(points<0?"sick":entity.data.type==="rare"?"reward":entity.data.type==="obstacle"?"jump":"spark");
     haptic(points<0?[18,18,18]:entity.data.type==="rare"?[8,10,14]:8);
     entity.node.classList.add("collected");
@@ -4409,14 +4813,78 @@
     }
   }
 
+  // ===== PAUSE-AWARE ARCADE SCHEDULER =====
+  // Every delayed gameplay callback in the arcade runs through here. Native
+  // setTimeout keeps counting while a run is frozen, which meant a Lost Signal
+  // sequence, a Rhythm countdown or a delayed round transition would advance
+  // behind the pause panel and land out of sync on resume. Jobs now bank their
+  // remaining delay when the run is held and re-arm with exactly that much left,
+  // so a stacked ad + background + menu hold costs the sequence nothing.
+  let arcadeJobSeq = 0;
+  function arcadeJobs(){ return (mini.jobs ||= new Map()); }
+  function arcadeJobsHeld(){ return Boolean(mini?.jobHolds && Object.keys(mini.jobHolds).length); }
+
+  function armArcadeJob(job){
+    job.armedAt = performance.now();
+    job.timer = setTimeout(() => {
+      job.timer = null;
+      if(!mini?.active){ mini?.jobs?.delete(job.id); return; }
+      // Re-arm a repeating job before running it, so a callback that schedules
+      // more work or ends the run behaves the same as it did under setInterval.
+      if(job.repeat){ job.remaining = job.period; armArcadeJob(job); }
+      else arcadeJobs().delete(job.id);
+      job.callback();
+    }, Math.max(0, job.remaining));
+  }
+
   function queueMiniTimeout(callback, delay) {
-    const id=setTimeout(()=>{
-      mini.timeouts=(mini.timeouts||[]).filter(value=>value!==id);
-      if(mini.active) callback();
-    },delay);
-    mini.timeouts ||= [];
-    mini.timeouts.push(id);
-    return id;
+    const job = { id: ++arcadeJobSeq, callback, remaining: Math.max(0, Number(delay) || 0), period: 0, repeat: false, timer: null, armedAt: 0 };
+    arcadeJobs().set(job.id, job);
+    if(!arcadeJobsHeld()) armArcadeJob(job);
+    return job.id;
+  }
+
+  function queueMiniInterval(callback, period) {
+    const every = Math.max(16, Number(period) || 16);
+    const job = { id: ++arcadeJobSeq, callback, remaining: every, period: every, repeat: true, timer: null, armedAt: 0 };
+    arcadeJobs().set(job.id, job);
+    if(!arcadeJobsHeld()) armArcadeJob(job);
+    return job.id;
+  }
+
+  function clearArcadeJobs(){
+    for(const job of mini?.jobs?.values() || []) if(job.timer != null) clearTimeout(job.timer);
+    mini?.jobs?.clear?.();
+    if(mini) mini.jobHolds = {};
+  }
+
+  // Holds stack by reason exactly like the run clock does, so a notification
+  // arriving mid-ad cannot release the queue early.
+  function arcadeHoldJobs(reason="menu"){
+    if(!mini?.active) return false;
+    mini.jobHolds ||= {};
+    if(mini.jobHolds[reason]) return false;
+    const first = !arcadeJobsHeld();
+    mini.jobHolds[reason] = true;
+    if(!first) return true;
+    const at = performance.now();
+    for(const job of arcadeJobs().values()){
+      if(job.timer == null) continue;
+      clearTimeout(job.timer);
+      job.timer = null;
+      job.remaining = Math.max(0, job.remaining - (at - job.armedAt));
+    }
+    return true;
+  }
+
+  function arcadeReleaseJobs(reason="menu"){
+    if(!mini?.active) return false;
+    mini.jobHolds ||= {};
+    if(!mini.jobHolds[reason]) return false;
+    delete mini.jobHolds[reason];
+    if(arcadeJobsHeld()) return false;
+    for(const job of arcadeJobs().values()) if(job.timer == null) armArcadeJob(job);
+    return true;
   }
 
   function rhythmClockNow() {
@@ -4575,7 +5043,7 @@
   function lightMemoryRune(index,on=true) { const rune=$(`[data-memory-rune="${index}"]`); if(rune)rune.classList.toggle("lit",on); }
   function memoryExpectedSequence(){let base=[...mini.memorySequence];if(mini.memoryMode.includes("reverse"))base.reverse();if(mini.memoryMode.includes("opposite"))base=base.map(value=>3-value);if(mini.memoryMode.includes("rotate")){const shift=mini.memoryShift||1;base=base.map(value=>(value+shift)%4);}return base;}
   function memoryRuleLabel(){return {forward:"CLEAN SIGNAL",reverse:"PLAY BACKWARD",opposite:"PLAY OPPOSITES","reverse-opposite":"BACKWARD + OPPOSITE",rotate:`ROTATE +${mini.memoryShift||1}`,"reverse-rotate":`BACKWARD + ROTATE`}[mini.memoryMode]||String(mini.memoryMode||"SIGNAL").toUpperCase();}
-  function updateMemoryHUD(){const rule=$("#memoryRule"),hearts=$("#memoryHearts");if(rule)rule.textContent=memoryRuleLabel();if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.memoryLives?"♥":"♡").join(" ");}
+  function updateMemoryHUD(){const rule=$("#memoryRule");if(rule)rule.textContent=memoryRuleLabel();renderLives("memoryHearts");}
 
   function startMemoryRound() {
     if(!mini.active||mini.mode!=="memory")return;
@@ -4590,16 +5058,32 @@
   function memoryTap(index) {
     if(!mini.active||mini.mode!=="memory"||mini.memoryShowing)return;
     lightMemoryRune(index,true);queueMiniTimeout(()=>lightMemoryRune(index,false),180);const expectedSequence=memoryExpectedSequence(),expected=expectedSequence[mini.memoryInput];
-    if(index===expected){mini.memoryInput+=1;mini.score+=2+mini.memoryRound;sfx("spark",mini.memoryInput);haptic(6);$("#miniPet")?.classList.add("memory-nod");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-nod"),180);if(mini.memoryInput>=expectedSequence.length){mini.hits+=1;mini.score+=mini.memoryRound*(mini.memoryRuleDepth>1?6:mini.memoryMode==="forward"?2:4);mini.memoryShowing=true;const callout=$("#memoryCallout");if(callout)callout.textContent=`${memoryRuleLabel()} CLEAN • +${mini.memoryRound*(mini.memoryRuleDepth>1?6:4)}`;sfx("reward");queueMiniTimeout(startMemoryRound,720);}}
-    else {mini.score=Math.max(0,mini.score-3);mini.memoryLives-=1;mini.memoryShowing=true;updateMemoryHUD();const callout=$("#memoryCallout");if(callout)callout.textContent=mini.memoryLives>0?"WRONG RUNE • STUDY IT AGAIN":"MEMORY OVERLOADED";$("#miniPet")?.classList.add("memory-confused");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-confused"),420);sfx("no");haptic([15,20,15]);if(mini.memoryLives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}queueMiniTimeout(()=>{mini.memoryInput=0;mini.memoryShowing=true;const speed=Math.max(250,430-mini.memoryRound*16);mini.memorySequence.forEach((value,i)=>{queueMiniTimeout(()=>lightMemoryRune(value,true),i*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),i*speed+220);});queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`TRY • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+100);},520);}
+    if(index===expected){mini.memoryInput+=1;mini.score+=2+mini.memoryRound;sfx("spark",mini.memoryInput);haptic(6);$("#miniPet")?.classList.add("memory-nod");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-nod"),180);if(mini.memoryInput>=expectedSequence.length){mini.hits+=1;mini.score+=mini.memoryRound*(mini.memoryRuleDepth>1?6:mini.memoryMode==="forward"?2:4);mini.memoryShowing=true;const callout=$("#memoryCallout");if(callout)callout.textContent=`${memoryRuleLabel()} CLEAN • +${mini.memoryRound*(mini.memoryRuleDepth>1?6:4)}`;arcadeSfx("win");queueMiniTimeout(startMemoryRound,720);}}
+    else {mini.score=Math.max(0,mini.score-3);loseArcadeLife();mini.memoryShowing=true;updateMemoryHUD();const callout=$("#memoryCallout");if(callout)callout.textContent=mini.lives>0?"WRONG RUNE • STUDY IT AGAIN":"MEMORY OVERLOADED";$("#miniPet")?.classList.add("memory-confused");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-confused"),420);arcadeSfx("fail");haptic([15,20,15]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}queueMiniTimeout(()=>{mini.memoryInput=0;mini.memoryShowing=true;const speed=Math.max(250,430-mini.memoryRound*16);mini.memorySequence.forEach((value,i)=>{queueMiniTimeout(()=>lightMemoryRune(value,true),i*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),i*speed+220);});queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`TRY • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+100);},520);}
+  }
+
+  function renderLives(id="miniLives"){
+    const host=typeof id==="string"?$(`#${id}`):id;
+    if(!host)return "";
+    const max=Math.max(1,Math.floor(mini.maxLives||3)),lives=clamp(Math.floor(mini.lives||0),0,max);
+    const markup=Array(max).fill(0).map((_,i)=>i<lives?"\u2665":"\u2661").join(" ");
+    host.textContent=markup;
+    host.classList.toggle("lives-critical",lives===1);
+    host.classList.toggle("lives-empty",lives<=0);
+    return markup;
+  }
+  function loseArcadeLife(amount=1){
+    mini.lives=Math.max(0,(mini.lives||0)-Math.max(1,amount));
+    if(mini.lives<=0)mini.endReason="death";
+    return mini.lives;
   }
 
   function updateGlidePet(){const pet=$("#miniPet");if(!pet)return;pet.style.top=`${mini.glideY}px`;pet.style.setProperty("--glide-tilt",`${clamp(mini.glideV/18,-18,22)}deg`);}
   function glideFlap(){if(!mini.active||mini.mode!=="glide")return;mini.glideV=now()<mini.glideThermalUntil?-270:-315;sfx("jump");haptic(6);$("#miniPet")?.classList.add("glide-flap");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-flap"),140);}
   function spawnGlideGate(){const host=$("#glideGates");if(!host)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,progress=1-Math.max(0,mini.endAt-now())/miniDuration("glide"),rare=Math.random()<.12,gapH=Math.max(104,148-progress*36-(rare?12:0)),margin=84,gapY=margin+gapH/2+Math.random()*Math.max(1,height-margin*2-gapH);const node=document.createElement("div");node.className=`glide-gate ${rare?"prism":""}`;node.innerHTML=`<i class="top"></i><i class="bottom"></i><b>${rare?"◆":""}</b>`;host.appendChild(node);const entity={kind:"glide",node,x:width+38,width:58,gapY,gapH,speed:128+progress*46+(rare?9:0),scored:false,rare};mini.entities.push(entity);mini.glideGateCount+=1;}
   function updateGlideGateNode(entity){const h=el.miniArena.clientHeight,topH=Math.max(0,entity.gapY-entity.gapH/2),bottomY=Math.min(h,entity.gapY+entity.gapH/2);entity.node.style.transform=`translateX(${entity.x}px)`;entity.node.style.setProperty("--gate-top",`${topH}px`);entity.node.style.setProperty("--gate-bottom",`${Math.max(0,h-bottomY)}px`);}
-  function glideCrash(){if(now()<mini.glideInvulnerableUntil)return;mini.glideHearts-=1;mini.glideStreak=0;mini.glideDraft=0;const draft=$("#glideDraft");if(draft)draft.textContent="0/3";mini.glideInvulnerableUntil=now()+1250;const hearts=$("#glideHearts"),streak=$("#glideStreak");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.glideHearts?"♥":"♡").join(" ");if(streak)streak.textContent="0";$("#miniPet")?.classList.add("glide-hurt");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-hurt"),520);sfx("hit");haptic([18,26,18]);mini.glideY=el.miniArena.clientHeight*.46;mini.glideV=-80;for(const entity of mini.entities.filter(e=>e.kind==="glide")){entity.node.remove();}mini.entities=mini.entities.filter(e=>e.kind!=="glide");mini.glideSpawnAt=now()+1050;if(mini.glideHearts<=0)mini.endAt=Math.min(mini.endAt,now()+450);}
-  function updateGlideGame(dt){const t=now(),height=el.miniArena.clientHeight,width=el.miniArena.clientWidth,thermal=t<mini.glideThermalUntil;if(mini.glideThermalUntil&&t>=mini.glideThermalUntil){mini.glideThermalUntil=0;$(".glide-world")?.classList.remove("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="CENTER 3 GATES → THERMAL";}if(t>=mini.glideWindAt){mini.glideWind=[-72,-38,0,42,76][Math.floor(Math.random()*5)];mini.glideWindAt=t+5200+Math.random()*2200;const wind=$("#glideWind");if(wind)wind.textContent=mini.glideWind<-20?"UPDRAFT ↑":mini.glideWind>20?"DOWNDRAFT ↓":"CALM AIR";}mini.glideV+=((thermal?525:760)+(thermal?mini.glideWind*.35:mini.glideWind))*dt;mini.glideY+=mini.glideV*dt;updateGlidePet();if(t>=mini.glideSpawnAt){spawnGlideGate();mini.glideSpawnAt=t+1450;}const petX=width*.24,petR=22;for(const entity of [...mini.entities]){if(entity.kind!=="glide")continue;entity.x-=entity.speed*dt;updateGlideGateNode(entity);const overlapX=entity.x<petX+petR&&entity.x+entity.width>petX-petR,top=entity.gapY-entity.gapH/2,bottom=entity.gapY+entity.gapH/2;if(overlapX&&(mini.glideY-petR<top||mini.glideY+petR>bottom))glideCrash();if(!entity.scored&&entity.x+entity.width<petX){entity.scored=true;mini.glideClears+=1;mini.glideStreak+=1;mini.glideBestStreak=Math.max(mini.glideBestStreak,mini.glideStreak);const centered=Math.abs(mini.glideY-entity.gapY)<20,gain=((entity.rare?6:3)+(centered?2:0))*(thermal?2:1);mini.score+=gain;const streak=$("#glideStreak");if(streak)streak.textContent=String(mini.glideStreak);if(centered){mini.glideDraft+=entity.rare?2:1;if(mini.glideDraft>=3){mini.glideDraft=0;mini.glideThermalUntil=t+4200;mini.glideThermals+=1;$(".glide-world")?.classList.add("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="THERMAL BURST • PHYSICS SOFTENED • x2";sensoryBurst("THERMAL BURST","#ffd45a",12);sfx("reward");}else{sensoryBurst("CENTER THREAD","#9eff75",8);sfx("perfect");}const draft=$("#glideDraft");if(draft)draft.textContent=`${mini.glideDraft}/3`;}else sfx(entity.rare?"reward":"spark");}if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}}if((mini.glideY<28||mini.glideY>height-48)&&t>=mini.glideInvulnerableUntil)glideCrash();}
+  function glideCrash(){if(now()<mini.glideInvulnerableUntil)return;loseArcadeLife();mini.glideStreak=0;mini.glideDraft=0;const draft=$("#glideDraft");if(draft)draft.textContent="0/3";mini.glideInvulnerableUntil=now()+1250;renderLives("glideHearts");const streak=$("#glideStreak");if(streak)streak.textContent="0";$("#miniPet")?.classList.add("glide-hurt");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-hurt"),520);arcadeSfx("fail");haptic([18,26,18]);mini.glideY=el.miniArena.clientHeight*.46;mini.glideV=-80;for(const entity of mini.entities.filter(e=>e.kind==="glide")){entity.node.remove();}mini.entities=mini.entities.filter(e=>e.kind!=="glide");mini.glideSpawnAt=now()+1050;if(mini.lives<=0)mini.endAt=Math.min(mini.endAt,now()+450);}
+  function updateGlideGame(dt){const t=now(),height=el.miniArena.clientHeight,width=el.miniArena.clientWidth,thermal=t<mini.glideThermalUntil;if(mini.glideThermalUntil&&t>=mini.glideThermalUntil){mini.glideThermalUntil=0;$(".glide-world")?.classList.remove("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="CENTER 3 GATES → THERMAL";}if(t>=mini.glideWindAt){mini.glideWind=[-72,-38,0,42,76][Math.floor(Math.random()*5)];mini.glideWindAt=t+5200+Math.random()*2200;const wind=$("#glideWind");if(wind)wind.textContent=mini.glideWind<-20?"UPDRAFT ↑":mini.glideWind>20?"DOWNDRAFT ↓":"CALM AIR";}mini.glideV+=((thermal?525:760)+(thermal?mini.glideWind*.35:mini.glideWind))*dt;mini.glideY+=mini.glideV*dt;updateGlidePet();if(t>=mini.glideSpawnAt){spawnGlideGate();mini.glideSpawnAt=t+1450;}const petX=width*.24,petR=22;for(const entity of [...mini.entities]){if(entity.kind!=="glide")continue;entity.x-=entity.speed*dt;updateGlideGateNode(entity);const overlapX=entity.x<petX+petR&&entity.x+entity.width>petX-petR,top=entity.gapY-entity.gapH/2,bottom=entity.gapY+entity.gapH/2;if(overlapX&&(mini.glideY-petR<top||mini.glideY+petR>bottom))glideCrash();if(!entity.scored&&entity.x+entity.width<petX){entity.scored=true;mini.glideClears+=1;mini.glideStreak+=1;mini.glideBestStreak=Math.max(mini.glideBestStreak,mini.glideStreak);const centered=Math.abs(mini.glideY-entity.gapY)<20,gain=((entity.rare?6:3)+(centered?2:0))*(thermal?2:1);mini.score+=gain;const streak=$("#glideStreak");if(streak)streak.textContent=String(mini.glideStreak);if(centered){mini.glideDraft+=entity.rare?2:1;if(mini.glideDraft>=3){mini.glideDraft=0;mini.glideThermalUntil=t+4200;mini.glideThermals+=1;$(".glide-world")?.classList.add("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="THERMAL BURST • PHYSICS SOFTENED • x2";sensoryBurst("THERMAL BURST","#ffd45a",12);arcadeSfx("win");}else{sensoryBurst("CENTER THREAD","#9eff75",8);sfx("perfect");}const draft=$("#glideDraft");if(draft)draft.textContent=`${mini.glideDraft}/3`;}else sfx(entity.rare?"reward":"spark");}if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}}if((mini.glideY<28||mini.glideY>height-48)&&t>=mini.glideInvulnerableUntil)glideCrash();}
 
   function setBreakerPaddle(ratio){mini.breakerX=clamp(Number(ratio)||.5,.08,.92);mini.breakerMoves=(mini.breakerMoves||0)+1;const pet=$("#miniPet");if(pet)pet.style.left=`${mini.breakerX*100}%`;}
   const BREAKER_PATTERNS=[
@@ -4611,8 +5095,8 @@
   function buildBreakerBoard(){const host=$("#breakerBlocks");if(!host)return;host.innerHTML="";mini.entities=mini.entities.filter(e=>e.kind!=="breaker-block");const pattern=BREAKER_PATTERNS[(mini.breakerLevel-1)%BREAKER_PATTERNS.length],cols=7,rows=pattern.rows.length,pad=7,arenaW=Math.max(280,el.miniArena.clientWidth),blockW=(arenaW-28-pad*(cols-1))/cols,blockH=28;mini.breakerPatternName=pattern.name;mini.breakerCores=0;for(let row=0;row<rows;row+=1){for(let col=0;col<cols;col+=1){const token=pattern.rows[row]?.[col]||".";if(token===".")continue;const special=token==="P"?"prism":token==="E"?"ember":token==="C"?"core":null,hp=token==="2"?2:(mini.breakerLevel>=4&&token==="1"&&((row+col+mini.breakerLevel)%5===0)?2:1),node=document.createElement("i");node.className=`breaker-block ${hp>1?"armored":""} ${special||""}`;node.style.left=`${14+col*(blockW+pad)}px`;node.style.top=`${54+row*(blockH+7)}px`;node.style.width=`${blockW}px`;node.style.height=`${blockH}px`;node.textContent=special==="prism"?"◆":special==="ember"?"✦":special==="core"?"×":"";host.appendChild(node);if(special==="core")mini.breakerCores+=1;mini.entities.push({kind:"breaker-block",node,row,col,x:14+col*(blockW+pad),y:54+row*(blockH+7),w:blockW,h:blockH,hp,special});}}const level=$("#breakerLevel"),cores=$("#breakerCoreCount"),name=$("#breakerPattern");if(level)level.textContent=String(mini.breakerLevel);if(cores)cores.textContent=String(mini.breakerCores);if(name)name.textContent=pattern.name;}
   function breakerCollapseCore(core){const neighbors=mini.entities.filter(item=>item.kind==="breaker-block"&&item.node?.isConnected&&item!==core&&item.special!=="core"&&Math.abs((item.row??0)-(core.row??0))+Math.abs((item.col??0)-(core.col??0))<=2).slice(0,5);for(const item of neighbors){item.node.classList.add("break","core-collapse");mini.score+=2;queueMiniTimeout(()=>item.node.remove(),150);mini.entities=mini.entities.filter(entry=>entry!==item);}mini.breakerCoresBroken+=1;mini.breakerCores=Math.max(0,mini.breakerCores-1);const cores=$("#breakerCoreCount");if(cores)cores.textContent=String(mini.breakerCores);sensoryBurst("CORE COLLAPSE","#ff5c6c",14);sfx("reward");haptic([10,14,20]);}
   function resetBreakerBall(first=false){const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,angle=(Math.random()*.7-.35);mini.breakerBall={x:width*mini.breakerX,y:height-128,vx:190*Math.sin(angle),vy:-245*Math.cos(angle),r:9,live:false};mini.breakerResetAt=now()+(first?900:720);const ball=$("#breakerBall");if(ball){ball.style.left=`${mini.breakerBall.x}px`;ball.style.top=`${mini.breakerBall.y}px`;}}
-  function breakerLoseBall(){if(now()<mini.breakerResetAt)return;mini.breakerHearts-=1;mini.breakerStreak=0;const hearts=$("#breakerHearts"),streak=$("#breakerStreak");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.breakerHearts?"♥":"♡").join(" ");if(streak)streak.textContent="0";sfx("no");haptic([14,18,14]);if(mini.breakerHearts<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}resetBreakerBall();}
-  function updateBreakerGame(dt){const b=mini.breakerBall;if(!b)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,t=now();if(!b.live){b.x=width*mini.breakerX;b.y=height-128;if(t>=mini.breakerResetAt)b.live=true;}else{const speedBoost=1+Math.min(.22,(mini.breakerLevel-1)*.035);b.x+=b.vx*dt*speedBoost;b.y+=b.vy*dt*speedBoost;if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x+b.r>width){b.x=width-b.r;b.vx=-Math.abs(b.vx);}if(b.y-b.r<38){b.y=38+b.r;b.vy=Math.abs(b.vy);}const paddleX=width*mini.breakerX,paddleY=height-108,paddleHalf=t<mini.breakerBoostUntil?66:48;if(b.vy>0&&b.y+b.r>=paddleY&&b.y-b.r<=paddleY+28&&Math.abs(b.x-paddleX)<=paddleHalf){const offset=clamp((b.x-paddleX)/paddleHalf,-1,1);b.y=paddleY-b.r;b.vy=-Math.max(235,Math.abs(b.vy));b.vx=clamp(b.vx+offset*125,-300,300);mini.breakerStreak+=1;mini.breakerBestStreak=Math.max(mini.breakerBestStreak,mini.breakerStreak);const streak=$("#breakerStreak");if(streak)streak.textContent=String(mini.breakerStreak);sfx("hit");haptic(5);}for(const block of [...mini.entities]){if(block.kind!=="breaker-block"||!block.node.isConnected)continue;if(b.x+b.r<block.x||b.x-b.r>block.x+block.w||b.y+b.r<block.y||b.y-b.r>block.y+block.h)continue;if(t-(block.lastHitAt||0)<70)continue;block.lastHitAt=t;block.hp-=1;if(t>=mini.breakerPierceUntil)b.vy*=-1;mini.score+=block.hp<=0?(block.special?8:2):1;if(block.hp<=0){block.node.classList.add("break");queueMiniTimeout(()=>block.node.remove(),130);mini.entities=mini.entities.filter(item=>item!==block);if(block.special==="prism"){mini.breakerBoostUntil=t+5200;$(".breaker-world")?.classList.add("boost");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("boost"),5200);sensoryBurst("PRISM PADDLE","#bdf7ff",10);sfx("reward");}else if(block.special==="ember"){mini.breakerPierceUntil=t+4200;$(".breaker-world")?.classList.add("fireball");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("fireball"),4200);sensoryBurst("EMBER BALL • PIERCE","#ff9b4e",10);sfx("reward");}else if(block.special==="core"){breakerCollapseCore(block);}else sfx("spark");}else{block.node.classList.remove("armored");block.node.classList.add("cracked");sfx("hit");}break;}if(b.y-b.r>height+20)breakerLoseBall();}const ball=$("#breakerBall");if(ball){ball.style.left=`${b.x}px`;ball.style.top=`${b.y}px`;}const blocks=mini.entities.filter(e=>e.kind==="breaker-block"&&e.node.isConnected);if(!blocks.length&&!mini.breakerBoardPending){mini.breakerBoardPending=true;mini.breakerLevel+=1;mini.score+=12+mini.breakerLevel*2;sensoryBurst(`WALL ${mini.breakerLevel}`,"#ffd54a",12);sfx("reward");queueMiniTimeout(()=>{if(!mini.active||mini.mode!=="breaker")return;mini.breakerBoardPending=false;buildBreakerBoard();resetBreakerBall();},650);}}
+  function breakerLoseBall(){if(now()<mini.breakerResetAt)return;loseArcadeLife();mini.breakerStreak=0;renderLives("breakerHearts");const streak=$("#breakerStreak");if(streak)streak.textContent="0";arcadeSfx("fail");haptic([14,18,14]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}resetBreakerBall();}
+  function updateBreakerGame(dt){const b=mini.breakerBall;if(!b)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,t=now();if(!b.live){b.x=width*mini.breakerX;b.y=height-128;if(t>=mini.breakerResetAt)b.live=true;}else{const speedBoost=1+Math.min(.22,(mini.breakerLevel-1)*.035);b.x+=b.vx*dt*speedBoost;b.y+=b.vy*dt*speedBoost;if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x+b.r>width){b.x=width-b.r;b.vx=-Math.abs(b.vx);}if(b.y-b.r<38){b.y=38+b.r;b.vy=Math.abs(b.vy);}const paddleX=width*mini.breakerX,paddleY=height-108,paddleHalf=t<mini.breakerBoostUntil?66:48;if(b.vy>0&&b.y+b.r>=paddleY&&b.y-b.r<=paddleY+28&&Math.abs(b.x-paddleX)<=paddleHalf){const offset=clamp((b.x-paddleX)/paddleHalf,-1,1);b.y=paddleY-b.r;b.vy=-Math.max(235,Math.abs(b.vy));b.vx=clamp(b.vx+offset*125,-300,300);mini.breakerStreak+=1;mini.breakerBestStreak=Math.max(mini.breakerBestStreak,mini.breakerStreak);const streak=$("#breakerStreak");if(streak)streak.textContent=String(mini.breakerStreak);sfx("hit");haptic(5);}for(const block of [...mini.entities]){if(block.kind!=="breaker-block"||!block.node.isConnected)continue;if(b.x+b.r<block.x||b.x-b.r>block.x+block.w||b.y+b.r<block.y||b.y-b.r>block.y+block.h)continue;if(t-(block.lastHitAt||0)<70)continue;block.lastHitAt=t;block.hp-=1;if(t>=mini.breakerPierceUntil)b.vy*=-1;mini.score+=block.hp<=0?(block.special?8:2):1;if(block.hp<=0){mini.breakerBricks=(mini.breakerBricks||0)+1;block.node.classList.add("break");queueMiniTimeout(()=>block.node.remove(),130);mini.entities=mini.entities.filter(item=>item!==block);if(block.special==="prism"){mini.breakerBoostUntil=t+5200;$(".breaker-world")?.classList.add("boost");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("boost"),5200);sensoryBurst("PRISM PADDLE","#bdf7ff",10);sfx("reward");}else if(block.special==="ember"){mini.breakerPierceUntil=t+4200;$(".breaker-world")?.classList.add("fireball");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("fireball"),4200);sensoryBurst("EMBER BALL • PIERCE","#ff9b4e",10);sfx("reward");}else if(block.special==="core"){breakerCollapseCore(block);}else sfx("spark");}else{block.node.classList.remove("armored");block.node.classList.add("cracked");sfx("hit");}break;}if(b.y-b.r>height+20)breakerLoseBall();}const ball=$("#breakerBall");if(ball){ball.style.left=`${b.x}px`;ball.style.top=`${b.y}px`;}const blocks=mini.entities.filter(e=>e.kind==="breaker-block"&&e.node.isConnected);if(!blocks.length&&!mini.breakerBoardPending){mini.breakerBoardPending=true;mini.breakerLevel+=1;mini.score+=12+mini.breakerLevel*2;sensoryBurst(`WALL ${mini.breakerLevel}`,"#ffd54a",12);arcadeSfx("win");queueMiniTimeout(()=>{if(!mini.active||mini.mode!=="breaker")return;mini.breakerBoardPending=false;buildBreakerBoard();resetBreakerBall();},650);}}
 
 
   const RUNAWAY_MAZE = [
@@ -4637,14 +5121,14 @@
     mini.mazeHunters=starts.map((spot,index)=>{const node=document.createElement("div");node.className=`maze-hunter hunter-${index}`;node.innerHTML="<i></i><b>×</b>";board.appendChild(node);const hunter={...spot,spawnR:spot.r,spawnC:spot.c,dir:index===0?"right":index===1?"left":"down",node,index};mazeActorStyle(node,spot.r,spot.c);return hunter;});
     // Do not award the starting tile for free.
     const startTile=board.querySelector(`[data-maze-cell="${mazeCellKey(8,7)}"]`);if(startTile?.classList.contains("pellet")){startTile.classList.remove("pellet");startTile.innerHTML="";mini.mazeGrid[8][7]=" ";mini.mazePellets-=1;}
-    const level=$("#mazeLevel"),combo=$("#mazeCombo"),lives=$("#mazeLives"),callout=$("#mazeCallout");if(level)level.textContent=String(mini.mazeLevel);if(combo)combo.textContent="0";if(lives)lives.textContent=Array(3).fill(0).map((_,i)=>i<mini.mazeLives?"♥":"♡").join(" ");if(callout)callout.textContent=first?"MOVE FIRST • SHADOWS ARE WAKING":"NEW MAZE • SHADOWS WAKE FASTER";
+    const level=$("#mazeLevel"),combo=$("#mazeCombo"),lives=$("#mazeLives"),callout=$("#mazeCallout");if(level)level.textContent=String(mini.mazeLevel);if(combo)combo.textContent="0";renderLives(lives);if(callout)callout.textContent=first?"MOVE FIRST • SHADOWS ARE WAKING":"NEW MAZE • SHADOWS WAKE FASTER";
   }
   function mazeCollect(){
     const p=mini.mazePlayer,cell=mini.mazeGrid[p.r][p.c];if(cell!=="."&&cell!=="o")return;
     const tile=$("#mazeBoard")?.querySelector(`[data-maze-cell="${mazeCellKey(p.r,p.c)}"]`);mini.mazeGrid[p.r][p.c]=" ";mini.mazePellets=Math.max(0,mini.mazePellets-1);tile?.classList.remove("pellet","power");if(tile)tile.innerHTML="";
     if(cell==="o"){mini.score+=6;mini.mazeHunts+=1;mini.mazeCombo=0;mini.mazeHuntUntil=now()+5400;$(".maze-world")?.classList.add("hunt");const callout=$("#mazeCallout");if(callout)callout.textContent="PRISM HUNT • CHASE THEM";sensoryBurst("HUNT MODE","#bdf7ff",12);sfx("reward");haptic([7,10,7]);}
     else{mini.score+=1;sfx("spark",mini.mazePellets%8);}
-    if(mini.mazePellets<=0){mini.score+=25*mini.mazeLevel;mini.mazeLives=Math.min(3,mini.mazeLives+1);mini.mazeLevel+=1;sensoryBurst(`MAZE ${mini.mazeLevel}`,"#ffd45a",14);sfx("reward");queueMiniTimeout(()=>{if(mini.active&&mini.mode==="maze")buildMazeLevel(false);},520);}
+    if(mini.mazePellets<=0){mini.score+=25*mini.mazeLevel;mini.lives=Math.min(mini.maxLives||3,(mini.lives||0)+1);renderLives("mazeLives");mini.mazeLevel+=1;sensoryBurst(`MAZE ${mini.mazeLevel}`,"#ffd45a",14);arcadeSfx("win");queueMiniTimeout(()=>{if(mini.active&&mini.mode==="maze")buildMazeLevel(false);},520);}
   }
   function mazeHunterTarget(hunter){
     const p=mini.mazePlayer;if(hunter.kind==="ambush"){const predicted=mini.mazeLevel>=2&&mini.mazeFavoriteDir?mini.mazeFavoriteDir:p.dir;const d=MAZE_DIRS[predicted]||MAZE_DIRS.left;return{r:p.r+d.dr*3,c:p.c+d.dc*3};}
@@ -4659,7 +5143,7 @@
   }
   function mazeResetAfterHit(){const p=mini.mazePlayer;p.r=8;p.c=7;p.dir="down";p.nextDir="down";mazeActorStyle(p.node,p.r,p.c);mini.mazeHunters.forEach(h=>{h.r=h.spawnR;h.c=h.spawnC;h.dir=h.index===0?"right":h.index===1?"left":"down";mazeActorStyle(h.node,h.r,h.c);});}
   function mazeCollision(){
-    const p=mini.mazePlayer,t=now();for(const h of mini.mazeHunters){if(h.r!==p.r||h.c!==p.c)continue;if(t<mini.mazeHuntUntil){mini.mazeCombo+=1;mini.mazeBestCombo=Math.max(mini.mazeBestCombo,mini.mazeCombo);mini.mazeHunterTags+=1;const gain=10*Math.min(5,mini.mazeCombo);mini.score+=gain;h.r=h.spawnR;h.c=h.spawnC;mazeActorStyle(h.node,h.r,h.c);const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent=String(mini.mazeCombo);if(callout)callout.textContent=`SHADOW TAG x${mini.mazeCombo} • +${gain}`;sfx("perfect");haptic([8,10,12]);continue;}if(t<mini.mazeInvulnerableUntil)continue;mini.mazeLives-=1;mini.mazeCombo=0;mini.mazeInvulnerableUntil=t+1500;const lives=$("#mazeLives"),combo=$("#mazeCombo"),callout=$("#mazeCallout");if(lives)lives.textContent=Array(3).fill(0).map((_,i)=>i<mini.mazeLives?"♥":"♡").join(" ");if(combo)combo.textContent="0";if(callout)callout.textContent=mini.mazeLives>0?"CAUGHT • ROUTE RESET":"THE SHADOWS GOT RIZO";$("#mazeRizo")?.classList.add("hurt");queueMiniTimeout(()=>$("#mazeRizo")?.classList.remove("hurt"),520);sfx("hit");haptic([20,24,20]);if(mini.mazeLives<=0){mini.endAt=Math.min(mini.endAt,t+450);return;}mazeResetAfterHit();}
+    const p=mini.mazePlayer,t=now();for(const h of mini.mazeHunters){if(h.r!==p.r||h.c!==p.c)continue;if(t<mini.mazeHuntUntil){mini.mazeCombo+=1;mini.mazeBestCombo=Math.max(mini.mazeBestCombo,mini.mazeCombo);mini.mazeHunterTags+=1;const gain=10*Math.min(5,mini.mazeCombo);mini.score+=gain;h.r=h.spawnR;h.c=h.spawnC;mazeActorStyle(h.node,h.r,h.c);const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent=String(mini.mazeCombo);if(callout)callout.textContent=`SHADOW TAG x${mini.mazeCombo} • +${gain}`;sfx("perfect");haptic([8,10,12]);continue;}if(t<mini.mazeInvulnerableUntil)continue;loseArcadeLife();mini.mazeCombo=0;mini.mazeInvulnerableUntil=t+1500;const combo=$("#mazeCombo"),callout=$("#mazeCallout");renderLives("mazeLives");if(combo)combo.textContent="0";if(callout)callout.textContent=mini.lives>0?"CAUGHT • ROUTE RESET":"THE SHADOWS GOT RIZO";$("#mazeRizo")?.classList.add("hurt");queueMiniTimeout(()=>$("#mazeRizo")?.classList.remove("hurt"),520);arcadeSfx("fail");haptic([20,24,20]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,t+450);return;}mazeResetAfterHit();}
   }
   function mazeMovePlayer(){const p=mini.mazePlayer;if(!p)return;if(mazeCanMove(p,p.nextDir))p.dir=p.nextDir;if(!mazeCanMove(p,p.dir))return;const next=mazeStepPoint(p,p.dir);p.r=next.r;p.c=next.c;mazeActorStyle(p.node,p.r,p.c);p.node.dataset.dir=p.dir;mazeCollect();mazeCollision();}
   function mazeMoveHunters(){for(const h of mini.mazeHunters){h.dir=mazeChooseHunterDir(h);if(mazeCanMove(h,h.dir)){const next=mazeStepPoint(h,h.dir);h.r=next.r;h.c=next.c;mazeActorStyle(h.node,h.r,h.c);}mazeCollision();}}
@@ -4671,7 +5155,12 @@
 
   function handleMiniInput(event) {
     if (!mini.active || mini.pausedByAd) return;
+    // Informational HUD is not the play surface. Reading your heart count or
+    // the wind readout must never flap, jump, or move the paddle.
+    if (mini.mode !== "defense" && event.target.closest?.("[data-mini-readout]")) return;
     if (mini.mode === "walk") {
+      const ending=event.target.closest("[data-walk-ending]");
+      if(ending){chooseWalkEnding(ending.dataset.walkEnding);return;}
       const forkBtn = event.target.closest(".walk-fork-btn");
       if (forkBtn) { chooseWalkFork(forkBtn.dataset.walkFork); return; }
     }
@@ -4706,7 +5195,11 @@
     if (mini.mode === "maze") { const dir=event.target.closest("[data-maze-dir]")?.dataset.mazeDir;if(dir){mazeSetDirection(dir);return;}mini.mazePointerStart={x:event.clientX,y:event.clientY};return; }
     if (mini.mode === "glide") { glideFlap(); return; }
     if (mini.mode === "breaker") {
-      const rect=el.miniArena.getBoundingClientRect();setBreakerPaddle((event.clientX-rect.left)/Math.max(1,rect.width));return;
+      const rect=el.miniArena.getBoundingClientRect();
+      const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
+      if(Math.abs(ratio-mini.breakerX)>.22)setBreakerPaddle(ratio);
+      mini.breakerGrab={x:event.clientX,base:mini.breakerX,width:Math.max(1,rect.width)};
+      return;
     }
     if (mini.mode === "walk") {
       const find=event.target.closest(".walk-find");
@@ -4721,8 +5214,13 @@
     if (!["forage","breaker"].includes(mini.mode)) return;
     if (event.buttons === 0 && event.pointerType === "mouse") return;
     const rect=el.miniArena.getBoundingClientRect();
+    if(mini.mode==="breaker"){
+      const grab=mini.breakerGrab;
+      if(grab) setBreakerPaddle(grab.base + (event.clientX-grab.x)/(grab.width||Math.max(1,rect.width)));
+      else setBreakerPaddle(clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1));
+      return;
+    }
     const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-    if(mini.mode==="breaker"){setBreakerPaddle(ratio);return;}
     setForageLane(Math.min(2,Math.floor(ratio*3)));
   }
 
@@ -4757,12 +5255,12 @@
     return map;
   }
   const DEFENSE_MAPS = Object.fromEntries(Object.entries({
-    grove:{id:"grove",level:1,name:"PINE BEND",icon:"♣",entrance:"WESTERN PINE LINE",lore:"The first trail the Ember Gate ever learned to defend winds around the old keeper grove.",lesson:"Own the long center bend, then cover the late return toward the gate.",strategy:"LONG BEND • DOUBLE COVERAGE",routeType:"BEND",unlockWave:0,className:"map-grove",lives:20,hp:1,speed:1,specialBias:0,weather:"clear",weatherCopy:"Calm air. Learn the trail.",curveDetail:11,blockedZones:[{x:.48,y:.49,r:.056,kind:"pine"}],landmarks:[{x:.48,y:.49,kind:"pine-grove",label:"OLD GROVE"},{x:.76,y:.43,kind:"keeper-stone",label:"KEEPER STONE"}],buildPockets:[{x:.38,y:.57},{x:.78,y:.51}],route:[{x:-.06,y:.21},{x:.12,y:.19},{x:.27,y:.31},{x:.29,y:.50},{x:.18,y:.67},{x:.36,y:.79},{x:.58,y:.74},{x:.68,y:.57},{x:.61,y:.39},{x:.70,y:.22},{x:.87,y:.28},{x:.90,y:.51},{x:.80,y:.70},{x:1.06,y:.74}]},
-    ember:{id:"ember",level:2,name:"EMBER SWITCHBACK",icon:"◆",entrance:"LOW ASH CUT",lore:"Old fire roads fold through crater country in three deliberate hairpins.",lesson:"Build beside the hairpins where one Rizo can touch the trail more than once.",strategy:"HAIRPINS • REPEATED HITS",routeType:"SWITCHBACK",unlockWave:25,className:"map-ember",lives:20,hp:1.06,speed:1.05,specialBias:3,weather:"ash",weatherCopy:"Ash hides the edges of the road.",curveDetail:12,blockedZones:[{x:.42,y:.46,r:.07,kind:"crater"},{x:.74,y:.30,r:.043,kind:"vent"}],landmarks:[{x:.42,y:.46,kind:"lava-crater",label:"ASH HEART"},{x:.74,y:.30,kind:"ember-vent",label:"FIRE VENT"}],buildPockets:[{x:.29,y:.27},{x:.64,y:.64}],route:[{x:-.06,y:.72},{x:.15,y:.72},{x:.29,y:.61},{x:.24,y:.44},{x:.12,y:.29},{x:.25,y:.15},{x:.49,y:.17},{x:.62,y:.30},{x:.60,y:.51},{x:.47,y:.67},{x:.66,y:.78},{x:.86,y:.65},{x:.87,y:.42},{x:1.06,y:.26}]},
-    moon:{id:"moon",level:3,name:"MOON LOOP",icon:"☾",entrance:"NORTH MOON ARC",lore:"A silver route curls almost completely around a moonstone basin before escaping east.",lesson:"Use the crescent loop for repeated coverage and Moonlight reveals.",strategy:"NEAR LOOP • LONG EXPOSURE",routeType:"LOOP",unlockWave:50,className:"map-moon",lives:18,hp:1.13,speed:1.01,specialBias:6,weather:"moon",weatherCopy:"Long shadows make camo balloons harder to read.",curveDetail:12,blockedZones:[{x:.59,y:.47,r:.068,kind:"moonstone"}],landmarks:[{x:.59,y:.47,kind:"moon-basin",label:"SILVER BASIN"},{x:.25,y:.47,kind:"moon-arch",label:"MOON ARCH"}],buildPockets:[{x:.39,y:.35},{x:.73,y:.48}],route:[{x:-.06,y:.25},{x:.15,y:.13},{x:.38,y:.18},{x:.50,y:.34},{x:.43,y:.51},{x:.30,y:.64},{x:.43,y:.79},{x:.67,y:.75},{x:.82,y:.61},{x:.87,y:.43},{x:.77,y:.28},{x:.82,y:.13},{x:1.06,y:.20}]},
-    storm:{id:"storm",level:4,name:"STORM CIRCUIT",icon:"ϟ",entrance:"CHARGED WEST RUN",lore:"A broken weather circuit creates long straights between charged turns and control pockets.",lesson:"Spread CONTROL coverage across both straights so surge balloons cannot escape one cluster.",strategy:"LONG STRAIGHTS • SPLIT COVERAGE",routeType:"CIRCUIT",unlockWave:75,className:"map-storm",lives:17,hp:1.21,speed:1.08,specialBias:10,weather:"storm",weatherCopy:"Lightning surges briefly accelerate every balloon.",curveDetail:11,blockedZones:[{x:.49,y:.32,r:.052,kind:"pylon"},{x:.87,y:.31,r:.05,kind:"pylon"}],landmarks:[{x:.49,y:.32,kind:"storm-pylon",label:"WEST PYLON"},{x:.87,y:.31,kind:"storm-pylon",label:"EAST PYLON"},{x:.60,y:.68,kind:"storm-coil",label:"SURGE COIL"}],buildPockets:[{x:.25,y:.48},{x:.81,y:.55}],route:[{x:-.06,y:.56},{x:.12,y:.72},{x:.33,y:.69},{x:.42,y:.52},{x:.37,y:.34},{x:.26,y:.22},{x:.42,y:.12},{x:.67,y:.17},{x:.76,y:.36},{x:.69,y:.54},{x:.59,y:.67},{x:.77,y:.78},{x:.95,y:.63},{x:1.06,y:.44}]},
-    blizzard:{id:"blizzard",level:5,name:"WHITEOUT PASS",icon:"❄",entrance:"SOUTH ICE SHELF",lore:"A wide mountain pass sweeps around frozen shelves before climbing toward the gate.",lesson:"Stagger wide-range Rizos across the upper and lower shelves instead of stacking one bend.",strategy:"WIDE PASS • STAGGERED RANGE",routeType:"PASS",unlockWave:100,className:"map-blizzard",lives:16,hp:1.30,speed:1.04,specialBias:14,weather:"blizzard",weatherCopy:"Whiteouts shrink most Rizo attack ranges for a few seconds.",curveDetail:11,blockedZones:[{x:.11,y:.48,r:.06,kind:"ice"},{x:.68,y:.54,r:.064,kind:"ice"}],landmarks:[{x:.11,y:.48,kind:"ice-shelf",label:"LOW SHELF"},{x:.68,y:.54,kind:"ice-shelf",label:"HIGH SHELF"},{x:.48,y:.12,kind:"snow-peak",label:"NORTH PEAK"}],buildPockets:[{x:.35,y:.61},{x:.73,y:.33}],route:[{x:-.06,y:.75},{x:.14,y:.67},{x:.23,y:.49},{x:.16,y:.29},{x:.28,y:.13},{x:.49,y:.20},{x:.56,y:.38},{x:.47,y:.55},{x:.56,y:.72},{x:.78,y:.76},{x:.91,y:.61},{x:.84,y:.42},{x:.89,y:.21},{x:1.06,y:.18}]},
-    eclipse:{id:"eclipse",level:6,name:"ECLIPSE RIDGE",icon:"◉",entrance:"DARK RIDGE MOUTH",lore:"The oldest route coils through three shadow monuments before breaking toward the final gate.",lesson:"Cover the inner coil and the late ridge separately while preserving veil sight and armor break.",strategy:"INNER COIL • LATE RIDGE",routeType:"RIDGE",unlockWave:150,className:"map-eclipse",lives:15,hp:1.42,speed:1.10,specialBias:19,weather:"eclipse",weatherCopy:"The eclipse periodically turns every balloon camouflaged.",curveDetail:12,blockedZones:[{x:.42,y:.29,r:.06,kind:"obelisk"},{x:.72,y:.72,r:.06,kind:"obelisk"},{x:.82,y:.42,r:.05,kind:"obelisk"}],landmarks:[{x:.42,y:.29,kind:"eclipse-obelisk",label:"FIRST SHADOW"},{x:.72,y:.72,kind:"eclipse-obelisk",label:"SECOND SHADOW"},{x:.82,y:.42,kind:"eclipse-rift",label:"RIFT MOUTH"}],buildPockets:[{x:.45,y:.48},{x:.76,y:.55}],route:[{x:-.06,y:.20},{x:.16,y:.20},{x:.31,y:.33},{x:.29,y:.55},{x:.18,y:.71},{x:.39,y:.81},{x:.59,y:.71},{x:.65,y:.51},{x:.58,y:.33},{x:.68,y:.16},{x:.88,y:.22},{x:.94,y:.44},{x:.85,y:.65},{x:1.06,y:.72}]}
+    grove:{id:"grove",level:1,name:"PINE BEND",icon:"♣",entrance:"WESTERN PINE LINE",lore:"The first trail the Ember Gate ever learned to defend winds around the old keeper grove.",lesson:"Own the long center bend, then cover the late return toward the gate.",strategy:"LONG BEND • DOUBLE COVERAGE",routeType:"BEND",unlockWave:0,className:"map-grove",lives:20,hp:1,speed:1,specialBias:0,weather:"clear",weatherCopy:"Calm air. Learn the trail.",curveDetail:11,blockedZones:[{x:.48,y:.49,r:.056,kind:"pine"}],landmarks:[{x:.48,y:.49,kind:"pine-grove",label:"OLD GROVE"},{x:.76,y:.43,kind:"keeper-stone",label:"KEEPER STONE"}],buildPockets:[{x:.41,y:.65},{x:.76,y:.44}],mechanic:{kind:"keeper",icon:"✦",label:"KEEPER STONE",copy:"Build in the stone ring for +12% reach."},mechanicZones:[{x:.76,y:.43,r:.145,kind:"keeper"}],route:[{x:-.06,y:.21},{x:.12,y:.19},{x:.27,y:.31},{x:.29,y:.50},{x:.18,y:.67},{x:.36,y:.79},{x:.58,y:.74},{x:.68,y:.57},{x:.61,y:.39},{x:.70,y:.22},{x:.87,y:.28},{x:.90,y:.51},{x:.80,y:.70},{x:1.06,y:.74}]},
+    ember:{id:"ember",level:2,name:"EMBER SWITCHBACK",icon:"◆",entrance:"LOW ASH CUT",lore:"Old fire roads fold through crater country in three deliberate hairpins.",lesson:"Build beside the hairpins where one Rizo can touch the trail more than once.",strategy:"HAIRPINS • REPEATED HITS",routeType:"SWITCHBACK",unlockWave:25,className:"map-ember",lives:20,hp:1.06,speed:1.05,specialBias:3,weather:"ash",weatherCopy:"Ash hides the edges of the road.",curveDetail:12,blockedZones:[{x:.42,y:.46,r:.07,kind:"crater"},{x:.74,y:.30,r:.043,kind:"vent"}],landmarks:[{x:.42,y:.46,kind:"lava-crater",label:"ASH HEART"},{x:.74,y:.30,kind:"ember-vent",label:"FIRE VENT"}],buildPockets:[{x:.29,y:.27},{x:.64,y:.64}],mechanic:{kind:"vent",icon:"♨",label:"FIRE DRAFT",copy:"Outer draft: +16% speed, -4% reach. Hot core: +28% speed, -12% reach."},mechanicZones:[{x:.74,y:.30,r:.19,core:.74,kind:"vent"}],route:[{x:-.06,y:.72},{x:.15,y:.72},{x:.29,y:.61},{x:.24,y:.44},{x:.12,y:.29},{x:.25,y:.15},{x:.49,y:.17},{x:.62,y:.30},{x:.60,y:.51},{x:.47,y:.67},{x:.66,y:.78},{x:.86,y:.65},{x:.87,y:.42},{x:1.06,y:.26}]},
+    moon:{id:"moon",level:3,name:"MOON LOOP",icon:"☾",entrance:"NORTH MOON ARC",lore:"A silver route curls almost completely around a moonstone basin before escaping east.",lesson:"Use the crescent loop for repeated coverage and Moonlight reveals.",strategy:"NEAR LOOP • LONG EXPOSURE",routeType:"LOOP",unlockWave:50,className:"map-moon",lives:18,hp:1.13,speed:1.01,specialBias:6,weather:"moon",weatherCopy:"Long shadows make camo balloons harder to read.",curveDetail:12,blockedZones:[{x:.59,y:.47,r:.068,kind:"moonstone"}],landmarks:[{x:.59,y:.47,kind:"moon-basin",label:"SILVER BASIN"},{x:.25,y:.47,kind:"moon-arch",label:"MOON ARCH"}],buildPockets:[{x:.39,y:.35},{x:.73,y:.48}],mechanic:{kind:"basin",icon:"☾",label:"SILVER BASIN",copy:"Basin grants veil sight and +8% reach. Moonlight also feeds +18% attack speed."},mechanicZones:[{x:.59,y:.47,r:.185,kind:"basin"}],route:[{x:-.06,y:.25},{x:.15,y:.13},{x:.38,y:.18},{x:.50,y:.34},{x:.43,y:.51},{x:.30,y:.64},{x:.43,y:.79},{x:.67,y:.75},{x:.82,y:.61},{x:.87,y:.43},{x:.77,y:.28},{x:.82,y:.13},{x:1.06,y:.20}]},
+    storm:{id:"storm",level:4,name:"STORM CIRCUIT",icon:"ϟ",entrance:"CHARGED WEST RUN",lore:"A broken weather circuit creates long straights between charged turns and control pockets.",lesson:"Spread CONTROL coverage across both straights so surge balloons cannot escape one cluster.",strategy:"LONG STRAIGHTS • SPLIT COVERAGE",routeType:"CIRCUIT",unlockWave:75,className:"map-storm",lives:17,hp:1.21,speed:1.08,specialBias:10,weather:"storm",weatherCopy:"Lightning surges briefly accelerate every balloon.",curveDetail:11,blockedZones:[{x:.49,y:.32,r:.052,kind:"pylon"},{x:.87,y:.31,r:.05,kind:"pylon"}],landmarks:[{x:.49,y:.32,kind:"storm-pylon",label:"WEST PYLON"},{x:.87,y:.31,kind:"storm-pylon",label:"EAST PYLON"},{x:.60,y:.68,kind:"storm-coil",label:"SURGE COIL"}],buildPockets:[{x:.25,y:.48},{x:.81,y:.55}],mechanic:{kind:"pylon",icon:"ϟ",label:"LIVE PYLONS",copy:"One pylon: +8% speed. Occupy both to close the circuit: +16%, or +34% in a surge.",link:true},mechanicZones:[{x:.49,y:.32,r:.17,kind:"pylon"},{x:.87,y:.31,r:.17,kind:"pylon"}],route:[{x:-.06,y:.56},{x:.12,y:.72},{x:.33,y:.69},{x:.42,y:.52},{x:.37,y:.34},{x:.26,y:.22},{x:.42,y:.12},{x:.67,y:.17},{x:.76,y:.36},{x:.69,y:.54},{x:.59,y:.67},{x:.77,y:.78},{x:.95,y:.63},{x:1.06,y:.44}]},
+    blizzard:{id:"blizzard",level:5,name:"WHITEOUT PASS",icon:"❄",entrance:"SOUTH ICE SHELF",lore:"A wide mountain pass sweeps around frozen shelves before climbing toward the gate.",lesson:"Stagger wide-range Rizos across the upper and lower shelves instead of stacking one bend.",strategy:"WIDE PASS • STAGGERED RANGE",routeType:"PASS",unlockWave:100,className:"map-blizzard",lives:16,hp:1.30,speed:1.04,specialBias:14,weather:"blizzard",weatherCopy:"Whiteouts shrink most Rizo attack ranges for a few seconds.",curveDetail:11,blockedZones:[{x:.11,y:.48,r:.06,kind:"ice"},{x:.68,y:.54,r:.064,kind:"ice"}],landmarks:[{x:.11,y:.48,kind:"ice-shelf",label:"LOW SHELF"},{x:.68,y:.54,kind:"ice-shelf",label:"HIGH SHELF"},{x:.48,y:.12,kind:"snow-peak",label:"NORTH PEAK"}],buildPockets:[{x:.35,y:.61},{x:.73,y:.33}],mechanic:{kind:"shelter",icon:"❄",label:"ICE SHELTER",copy:"Shelter ignores Whiteout and adds +4% reach. During Whiteout it opens to +14% reach."},mechanicZones:[{x:.35,y:.61,r:.15,kind:"shelter"},{x:.68,y:.54,r:.18,kind:"shelter"}],route:[{x:-.06,y:.75},{x:.14,y:.67},{x:.23,y:.49},{x:.16,y:.29},{x:.28,y:.13},{x:.49,y:.20},{x:.56,y:.38},{x:.47,y:.55},{x:.56,y:.72},{x:.78,y:.76},{x:.91,y:.61},{x:.84,y:.42},{x:.89,y:.21},{x:1.06,y:.18}]},
+    eclipse:{id:"eclipse",level:6,name:"ECLIPSE RIDGE",icon:"◉",entrance:"DARK RIDGE MOUTH",lore:"The oldest route coils through three shadow monuments before breaking toward the final gate.",lesson:"Cover the inner coil and the late ridge separately while preserving veil sight and armor break.",strategy:"INNER COIL • LATE RIDGE",routeType:"RIDGE",unlockWave:150,className:"map-eclipse",lives:15,hp:1.42,speed:1.10,specialBias:19,weather:"eclipse",weatherCopy:"The eclipse periodically turns every balloon camouflaged.",curveDetail:12,blockedZones:[{x:.42,y:.29,r:.06,kind:"obelisk"},{x:.72,y:.72,r:.06,kind:"obelisk"},{x:.82,y:.42,r:.05,kind:"obelisk"}],landmarks:[{x:.42,y:.29,kind:"eclipse-obelisk",label:"FIRST SHADOW"},{x:.72,y:.72,kind:"eclipse-obelisk",label:"SECOND SHADOW"},{x:.82,y:.42,kind:"eclipse-rift",label:"RIFT MOUTH"}],buildPockets:[{x:.45,y:.48},{x:.84,y:.82}],mechanic:{kind:"seal",icon:"◉",label:"SHADOW SEALS",copy:"One seal grants veil sight +6% reach. Occupy both to resonate them at +14% reach.",link:true},mechanicZones:[{x:.45,y:.48,r:.145,kind:"seal"},{x:.82,y:.79,r:.15,kind:"seal"}],route:[{x:-.06,y:.20},{x:.16,y:.20},{x:.31,y:.33},{x:.29,y:.55},{x:.18,y:.71},{x:.39,y:.81},{x:.59,y:.71},{x:.65,y:.51},{x:.58,y:.33},{x:.68,y:.16},{x:.88,y:.22},{x:.94,y:.44},{x:.85,y:.65},{x:1.06,y:.72}]}
   }).map(([id,map])=>[id,defensePrepareMap(map)]));
   const DEFENSE_MAP_ORDER=["grove","ember","moon","storm","blizzard","eclipse"];
   const DEFENSE_SCHOOL_LESSONS=[
@@ -4786,7 +5284,7 @@
   function defenseSchoolLobbyMarkup(){const school=defenseSchoolState(),done=school.completed.length,complete=defenseSchoolComplete();return`<section class="defense-school-lobby ${complete?"complete":""}"><span>${complete?"✓":"▤"}</span><div><small>OPTIONAL • REAL CONTROLS</small><b>TRAIL SCHOOL • ${done}/6</b><em>${complete?"Course complete. Replay it whenever you want.":school.dismissed?"Coaching is hidden. Your progress is preserved.":"Six short lessons appear only when their mechanic matters."}</em></div><button type="button" data-defense-school-open>${complete?"REPLAY":"OPEN"}</button></section>`;}
   function showDefenseTrailSchool(){const school=defenseSchoolState(),rows=DEFENSE_SCHOOL_LESSONS.map(item=>`<article class="trail-school-row ${school.completed.includes(item.id)?"done":""}"><i>${school.completed.includes(item.id)?"✓":item.step}</i><div><b>${escapeHTML(item.title)}</b><small>${escapeHTML(item.copy)}</small></div></article>`).join("");showModal(`<div class="modal-card trail-school-modal"><small>RIZO DEFENSE • OPTIONAL COURSE</small><h2>TRAIL SCHOOL</h2><p>Learn on the real battlefield. Nothing here changes prices, enemies, rewards, or your Rizo.</p><div class="trail-school-list">${rows}</div><div class="modal-buttons"><button type="button" data-defense-school-dismiss>${school.dismissed?"ENABLE COACHING":"HIDE COACHING"}</button><button type="button" data-defense-school-restart>RESTART COURSE</button><button class="primary" type="button" data-defense-records-back>BACK TO WORLD ROUTE</button></div></div>`);}
   function defenseTargetingGuide(variant){return["obsidian","diamond","shadow"].includes(variant)?"STRONG for durable threats; FIRST when the Gate is under pressure.":["frost","moss","bubblegum","retro"].includes(variant)?"FIRST to control runners before they escape.":variant==="golden"?"FIRST for steady pop income; CLOSE if protecting a dense bend.":"FIRST is reliable. Change to STRONG, LAST, or CLOSE when the map asks for it.";}
-  function defenseFieldGuideMarkup(tab=defenseFieldGuideTab){defenseFieldGuideTab=["rizos","threats","worlds"].includes(tab)?tab:"rizos";const tabs=`<nav class="field-guide-tabs"><button type="button" data-field-guide-tab="rizos" class="${defenseFieldGuideTab==="rizos"?"active":""}">YOUR RIZOS</button><button type="button" data-field-guide-tab="threats" class="${defenseFieldGuideTab==="threats"?"active":""}">THREATS</button><button type="button" data-field-guide-tab="worlds" class="${defenseFieldGuideTab==="worlds"?"active":""}">WORLDS</button></nav>`;let body="";if(defenseFieldGuideTab==="rizos")body=defenseRoster().map(row=>{const pet=row.pet,variantId=pet.variant||pet.hiddenVariant||"classic",variant=VARIANTS.find(item=>item.id===variantId)||VARIANTS[0],ability=DEFENSE_ABILITIES[variantId]||DEFENSE_ABILITIES.classic,mastery=defenseMasteryForPet(pet.id)||{},unlock=defenseMasteryUnlockCopy(mastery);return`<article class="field-guide-rizo" style="--guide-color:${variant.color}"><span>${petMarkup({pet,extraClass:"field-guide-pet",context:"thumbnail",label:pet.name})}</span><div><small>${escapeHTML(variant.name)} • ${escapeHTML(defenseMasteryTitle(mastery))}</small><b>${escapeHTML(pet.name)}</b><p><strong>PASSIVE</strong>${escapeHTML(ability.passive)}</p><p><strong>ACTIVE</strong>${escapeHTML(ability.active)} — ${escapeHTML(ability.copy)}</p><p><strong>TARGETING</strong>${escapeHTML(defenseTargetingGuide(variantId))}</p><p><strong>POWER</strong>${escapeHTML(DEFENSE_DOCTRINES.power.copy)}</p><p><strong>CONTROL</strong>${escapeHTML(DEFENSE_DOCTRINES.control.copy)}</p><em>${escapeHTML(unlock.current)} • ${escapeHTML(unlock.next)}</em></div></article>`;}).join("")||"<p>Raise a Rizo beyond the egg stage to add it to the field guide.</p>";else if(defenseFieldGuideTab==="threats"){const normals=Object.entries(DEFENSE_ENEMIES).map(([key,data])=>`<article class="field-guide-threat" style="--guide-color:${data.color}"><span class="defense-guide-balloon balloon-${escapeHTML(key)}" aria-hidden="true"><i></i></span><div><small>${escapeHTML(data.trait||"THREAT")}</small><b>${escapeHTML(data.name)}</b><p>${escapeHTML(data.intel||"")}</p><em>COUNTER • ${escapeHTML(data.counter||"ANY RIZO")}</em></div></article>`).join("");const bosses=DEFENSE_BOSSES.map(data=>`<article class="field-guide-threat boss" style="--guide-color:${data.color}"><span class="defense-guide-balloon boss ${escapeHTML(data.className||"")}" aria-hidden="true"><i></i></span><div><small>BOSS • ${escapeHTML(data.trait||"")}</small><b>${escapeHTML(data.name)}</b><p>${escapeHTML(data.hint||"")}</p><em>COUNTER • ${escapeHTML(data.counter||"FOCUS FIRE")}</em></div></article>`).join("");body=normals+bosses;}else body=DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],open=defenseUnlockedMaps().some(item=>item.id===id),best=Math.max(0,Number(state.scores?.defenseMaps?.[id])||0);return`<article class="field-guide-world ${open?"":"locked"}" style="--guide-color:${defenseMapAccent(id)}"><span>${map.icon}</span><div><small>WORLD ${map.level} • ${open?`BEST CLEARED ${best}`:`UNLOCK • CLEAR ${map.unlockWave}`}</small><b>${escapeHTML(map.name)}</b><p><strong>${escapeHTML(map.routeType)}</strong>${escapeHTML(map.strategy)}</p><p>${escapeHTML(map.lore)}</p><em>TRAIL LESSON • ${escapeHTML(map.lesson)}</em></div></article>`;}).join("");return`<div class="modal-card defense-field-guide"><small>KEEPER FIELD GUIDE • LIVE DEFINITIONS</small><div class="field-guide-head"><div><h2>KNOW YOUR FIELD.</h2><p>Roster, counters, and worlds are read directly from the same definitions used by Defense.</p></div><b>NO HIDDEN STATS</b></div>${tabs}<div class="field-guide-scroll">${body}</div><div class="modal-buttons"><button type="button" data-defense-records-back>WORLD ROUTE</button><button class="primary" type="button" data-close-modal>CLOSE GUIDE</button></div></div>`;}
+  function defenseFieldGuideMarkup(tab=defenseFieldGuideTab){defenseFieldGuideTab=["rizos","threats","worlds"].includes(tab)?tab:"rizos";const tabs=`<nav class="field-guide-tabs"><button type="button" data-field-guide-tab="rizos" class="${defenseFieldGuideTab==="rizos"?"active":""}">YOUR RIZOS</button><button type="button" data-field-guide-tab="threats" class="${defenseFieldGuideTab==="threats"?"active":""}">THREATS</button><button type="button" data-field-guide-tab="worlds" class="${defenseFieldGuideTab==="worlds"?"active":""}">WORLDS</button></nav>`;let body="";if(defenseFieldGuideTab==="rizos")body=defenseRoster().filter(row=>!defenseStructureType(row)).map(row=>{const pet=row.pet,variantId=pet.variant||pet.hiddenVariant||"classic",variant=VARIANTS.find(item=>item.id===variantId)||VARIANTS[0],ability=DEFENSE_ABILITIES[variantId]||DEFENSE_ABILITIES.classic,mastery=defenseMasteryForPet(pet.id)||{},unlock=defenseMasteryUnlockCopy(mastery);return`<article class="field-guide-rizo" style="--guide-color:${variant.color}"><span>${petMarkup({pet,extraClass:"field-guide-pet",context:"thumbnail",label:pet.name})}</span><div><small>${escapeHTML(variant.name)} • ${escapeHTML(defenseMasteryTitle(mastery))}</small><b>${escapeHTML(pet.name)}</b><p><strong>PASSIVE</strong>${escapeHTML(ability.passive)}</p><p><strong>ACTIVE</strong>${escapeHTML(ability.active)} — ${escapeHTML(ability.copy)}</p><p><strong>TARGETING</strong>${escapeHTML(defenseTargetingGuide(variantId))}</p><p><strong>POWER</strong>${escapeHTML(DEFENSE_DOCTRINES.power.copy)}</p><p><strong>CONTROL</strong>${escapeHTML(DEFENSE_DOCTRINES.control.copy)}</p><em>${escapeHTML(unlock.current)} • ${escapeHTML(unlock.next)}</em></div></article>`;}).join("")||"<p>Raise a Rizo beyond the egg stage to add it to the field guide.</p>";else if(defenseFieldGuideTab==="threats"){const normals=Object.entries(DEFENSE_ENEMIES).map(([key,data])=>`<article class="field-guide-threat" style="--guide-color:${data.color}"><span class="defense-guide-balloon balloon-${escapeHTML(key)}" aria-hidden="true"><i></i></span><div><small>${escapeHTML(data.trait||"THREAT")}</small><b>${escapeHTML(data.name)}</b><p>${escapeHTML(data.intel||"")}</p><em>COUNTER • ${escapeHTML(data.counter||"ANY RIZO")}</em></div></article>`).join("");const bosses=DEFENSE_BOSSES.map(data=>`<article class="field-guide-threat boss" style="--guide-color:${data.color}"><span class="defense-guide-balloon boss ${escapeHTML(data.className||"")}" aria-hidden="true"><i></i></span><div><small>BOSS • ${escapeHTML(data.trait||"")}</small><b>${escapeHTML(data.name)}</b><p>${escapeHTML(data.hint||"")}</p><em>COUNTER • ${escapeHTML(data.counter||"FOCUS FIRE")}</em></div></article>`).join("");body=normals+bosses;}else body=DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],open=defenseUnlockedMaps().some(item=>item.id===id),best=Math.max(0,Number(state.scores?.defenseMaps?.[id])||0);return`<article class="field-guide-world ${open?"":"locked"}" style="--guide-color:${defenseMapAccent(id)}"><span>${map.icon}</span><div><small>WORLD ${map.level} • ${open?`BEST CLEARED ${best}`:`UNLOCK • CLEAR ${map.unlockWave}`}</small><b>${escapeHTML(map.name)}</b><p><strong>${escapeHTML(map.routeType)}</strong>${escapeHTML(map.strategy)}</p><p>${escapeHTML(map.lore)}</p><em>TRAIL LESSON • ${escapeHTML(map.lesson)}</em><small class="field-guide-map-mechanic">${escapeHTML(map.mechanic?.icon||"✦")} MAP MECHANIC • ${escapeHTML(map.mechanic?.copy||"")}</small></div></article>`;}).join("");return`<div class="modal-card defense-field-guide"><small>KEEPER FIELD GUIDE • LIVE DEFINITIONS</small><div class="field-guide-head"><div><h2>KNOW YOUR FIELD.</h2><p>Roster, counters, and worlds are read directly from the same definitions used by Defense.</p></div><b>NO HIDDEN STATS</b></div>${tabs}<div class="field-guide-scroll">${body}</div><div class="modal-buttons"><button type="button" data-defense-records-back>WORLD ROUTE</button><button class="primary" type="button" data-close-modal>CLOSE GUIDE</button></div></div>`;}
   function showDefenseFieldGuide(tab=defenseFieldGuideTab){defenseFieldGuideTab=tab;if(mini.active&&mini.mode==="defense"&&defenseIsActiveWave(mini.defense)&&!mini.defense.paused){mini.defense.paused=true;mini.defense.autoPaused=false;setDefenseMessage("FIELD GUIDE • TRAIL PAUSED","Closing the guide will not silently resume the wave.");markDefenseUi();flushDefenseUi(true);}showModal(defenseFieldGuideMarkup(defenseFieldGuideTab));}
   function defenseControlLegendMarkup(){
     const rows=[
@@ -4827,17 +5325,19 @@
   // feel fast because their relative identity is preserved; ordinary traffic gets air.
   const DEFENSE_GLOBAL_MOVEMENT_PACE = 0.94;
   const DEFENSE_ENEMIES = {
-    puff:{name:"GLOOM BALLOON",className:"balloon-puff",hp:15,speed:.0472,reward:12,damage:1,color:"#ff5b68",icon:"○",trait:"BASIC DRIFTER",counter:"ANY RIZO",intel:"The baseline threat. Use it to judge whether your field has enough coverage."},
-    fleet:{name:"ZIP BALLOON",className:"balloon-fleet",hp:11,speed:.0764,reward:14,damage:1,color:"#55dfff",icon:"»",trait:"FAST",counter:"FIRST • SLOW",intel:"Low health, high speed. FIRST targeting and trail control keep it away from the gate."},
-    shell:{name:"IRON BALLOON",className:"balloon-shell",hp:42,speed:.035,reward:24,damage:2,color:"#9b7bd7",armor:.22,icon:"▰",trait:"ARMORED • CRACKS",counter:"POWER • DIAMOND",intel:"Its plate absorbs damage until half health, then visibly cracks and loses most armor."},
-    split:{name:"BUBBLE BALLOON",className:"balloon-split",hp:27,speed:.044,reward:20,damage:1,color:"#ff83ce",icon:"◎",trait:"SPLITS ON POP",counter:"CHAIN • SPLASH",intel:"Popping it creates two real children that count toward the wave."},
-    fire:{name:"FIRE BALLOON",className:"balloon-fire",hp:54,speed:.046,reward:32,damage:2,color:"#ff713f",fireproof:true,icon:"▲",trait:"FIREPROOF",counter:"FROST • TOXIC",intel:"Resists Ember attacks. Frost strikes hit it harder and control ignores its heat."},
+    puff:{name:"GLOOM BALLOON",className:"balloon-puff",hp:15,speed:.0472,reward:6,damage:1,color:"#ff5b68",icon:"○",trait:"BASIC DRIFTER",counter:"ANY RIZO",intel:"The baseline threat. Use it to judge whether your field has enough coverage."},
+    fleet:{name:"ZIP BALLOON",className:"balloon-fleet",hp:11,speed:.0764,reward:8,damage:1,color:"#55dfff",icon:"»",trait:"FAST",counter:"FIRST • SLOW",intel:"Low health, high speed. FIRST targeting and trail control keep it away from the gate."},
+    shell:{name:"IRON BALLOON",className:"balloon-shell",hp:42,speed:.035,reward:15,damage:2,color:"#9b7bd7",armor:.22,icon:"▰",trait:"ARMORED • CRACKS",counter:"POWER • DIAMOND",intel:"Its plate absorbs damage until half health, then visibly cracks and loses most armor."},
+    split:{name:"BUBBLE BALLOON",className:"balloon-split",hp:27,speed:.044,reward:10,damage:1,color:"#ff83ce",icon:"◎",trait:"SPLITS ON POP",counter:"CHAIN • SPLASH",intel:"Popping it creates two real children that count toward the wave."},
+    fire:{name:"FIRE BALLOON",className:"balloon-fire",hp:54,speed:.046,reward:18,damage:2,color:"#ff713f",fireproof:true,icon:"▲",trait:"FIREPROOF",counter:"FROST • TOXIC",intel:"Resists Ember attacks. Frost strikes hit it harder and control ignores its heat."},
     frost:{name:"FROST BALLOON",className:"balloon-frost",hp:62,speed:.039,reward:36,damage:2,color:"#a8f3ff",armor:.08,slowResist:.78,icon:"✦",trait:"SLOW RESIST",counter:"POWER • PUSH",intel:"Most slows barely move it. Heavy damage and Bubblegum knockback remain reliable."},
-    storm:{name:"STORM BALLOON",className:"balloon-storm",hp:39,speed:.058,reward:38,damage:2,color:"#ffe66b",stormPulse:true,icon:"ϟ",trait:"SURGE BURSTS",counter:"CONTROL • FIRST",intel:"Its body telegraphs speed surges. Slow it before the charge reaches the gate."},
+    storm:{name:"STORM BALLOON",className:"balloon-storm",hp:39,speed:.058,reward:18,damage:2,color:"#ffe66b",stormPulse:true,icon:"ϟ",trait:"SURGE BURSTS",counter:"CONTROL • FIRST",intel:"Its body telegraphs speed surges. Slow it before the charge reaches the gate."},
     ghost:{name:"PHASE BALLOON",className:"balloon-ghost",hp:47,speed:.051,reward:44,damage:2,color:"#c59cff",phasing:true,icon:"◇",trait:"PHASES",counter:"CONTROL • GLITCH",intel:"Takes reduced damage while translucent. CONTROL doctrine locks it into the physical trail."},
     shade:{name:"SHADE BALLOON",className:"balloon-shade",hp:34,speed:.05,reward:30,damage:2,color:"#3d3450",camo:true,icon:"",trait:"CAMOUFLAGED",counter:"AWAKEN • SHADOW",intel:"Base Rizos struggle to see it. Level 3 Rizos and Shadow, Aurora, or Glitch detect it."},
     brick:{name:"CERAMIC BALLOON",className:"balloon-brick",hp:165,speed:.030,reward:56,damage:4,color:"#c87845",armor:.10,icon:"",trait:"DENSE SHELL",counter:"POWER • ARMOR BREAK",intel:"One Ceramic carries the durability of a crowd. Crack its shell instead of adding more towers blindly."},
-    lead:{name:"LEAD BALLOON",className:"balloon-lead",hp:132,speed:.027,reward:62,damage:4,color:"#77818d",armor:.46,slowResist:.28,icon:"",trait:"HEAVY ARMOR",counter:"POWER • SHRED",intel:"Lead plating shrugs off weak repeated hits. POWER doctrine and armor shred open it for the field."}
+    lead:{name:"LEAD BALLOON",className:"balloon-lead",hp:132,speed:.027,reward:62,damage:4,color:"#77818d",armor:.46,slowResist:.28,icon:"",trait:"HEAVY ARMOR",counter:"POWER • SHRED",intel:"Lead plating shrugs off weak repeated hits. POWER doctrine and armor shred open it for the field."},
+    relay:{name:"RELAY BALLOON",className:"balloon-relay",hp:78,speed:.043,reward:40,damage:2,color:"#5fe0b7",supportAura:true,icon:"⌁",trait:"BOOSTS THE PACK",counter:"FIRST • BURST",intel:"While a Relay is close, nearby threats move faster and gain temporary protection. Pop the Relay and its nearby convoy briefly loses the signal and stutters."},
+    mender:{name:"MENDER BALLOON",className:"balloon-mender",hp:94,speed:.037,reward:48,damage:2,color:"#ff9fcf",healer:true,icon:"+",trait:"REPAIRS ALLIES",counter:"FOCUS • CONTROL",intel:"Periodically repairs a wounded nearby non-boss threat and can restore shredded plating before it fully breaks. A nearby Relay speeds its triage cycle."}
   };
   const DEFENSE_BOSSES=[
     {id:"crown",name:"THE WARDEN",className:"boss-crown",hp:430,speed:.025,reward:180,damage:7,color:"#171421",armor:.26,icon:"",trait:"CALLS HEAVY GUARDS",counter:"CONTROL • SPLASH",hint:"THE WARDEN CALLS HEAVY ESCORTS. BREAK THE SIGNAL OR CRACK THE FORMATION."},
@@ -4849,18 +5349,28 @@
   const DEFENSE_TARGET_MODES=["first","strong","last","close"];
   const DEFENSE_TARGET_LABELS={first:"FRONT",strong:"TOUGHEST",last:"BACK",close:"NEAREST"};
   const DEFENSE_DOCTRINES={power:{id:"power",name:"POWER PATH",copy:"Harder hits, stronger abilities, and charged doctrine strikes."},control:{id:"control",name:"CONTROL PATH",copy:"More range, faster attacks, and pulse strikes that restrain the trail."}};
-  const DEFENSE_THREAT_PRIORITY={"boss:crown":100,"boss:vortex":100,"boss:mirror":100,"boss:apex":100,lead:96,brick:94,ghost:90,shade:85,storm:80,frost:75,fire:70,shell:60,split:50,fleet:40,puff:30};
+  const DEFENSE_BASIC_TOWER=Object.freeze({id:"defense-tool-basic",name:"BASIC DEFENSE RIZO",variant:"defense-basic",color:"#eee6d6",powerColor:"#ff9a56",controlColor:"#7fe2c4",deployBase:85,duplicateStep:20,upgradeCosts:Object.freeze([70,125,230,430]),doubleStitchEvery:4,powerStrikeEvery:4,powerApexEvery:3,controlStrikeEvery:5,controlApexEvery:4});
+  const DEFENSE_BASIC_PET=Object.freeze({id:DEFENSE_BASIC_TOWER.id,name:DEFENSE_BASIC_TOWER.name,variant:DEFENSE_BASIC_TOWER.variant,hiddenVariant:DEFENSE_BASIC_TOWER.variant,stage:"kid",alive:true,defenseUniversal:true,defenseGuest:true,accessory:null,skills:Object.freeze({power:0,speed:0,instinct:0,stamina:0,luck:0})});
+  function defenseUniversalDeployRows(){return[{pet:DEFENSE_BASIC_PET,source:"universal",rosterIndex:-1}];}
+  function defenseIsUniversalPet(pet){return Boolean(pet?.defenseUniversal||pet?.id===DEFENSE_BASIC_TOWER.id);}
+  function defenseIsUniversalTower(tower){return Boolean(tower&&defenseIsUniversalPet(tower.pet));}
+  function defenseUniversalDeployCost(copyCount=0){return DEFENSE_BASIC_TOWER.deployBase+Math.max(0,Math.floor(Number(copyCount)||0))*DEFENSE_BASIC_TOWER.duplicateStep;}
+  function defenseTowerDisplayColor(tower){if(defenseIsUniversalTower(tower)){if(tower.doctrine==="power")return DEFENSE_BASIC_TOWER.powerColor;if(tower.doctrine==="control")return DEFENSE_BASIC_TOWER.controlColor;return DEFENSE_BASIC_TOWER.color;}const variant=tower?.pet?.variant||tower?.pet?.hiddenVariant||"classic";return(VARIANTS.find(item=>item.id===variant)||VARIANTS[0]).color;}
+  function defenseBasicVisualMarkup({upgrade=0,doctrine=null,extraClass="",label="Basic Defense Rizo"}={}){const level=clamp(Number(upgrade)||0,0,4),path=doctrine==="power"?"power":doctrine==="control"?"control":"neutral";return`<span class="defense-basic-rizo basic-evo-${level} basic-path-${path} ${escapeHTML(extraClass)}" role="img" aria-label="${escapeHTML(label)}"><i class="basic-body"></i><i class="basic-eye eye-a"></i><i class="basic-eye eye-b"></i><i class="basic-mouth"></i><i class="basic-stitch stitch-a"></i><i class="basic-stitch stitch-b"></i><i class="basic-rig rig-a"></i><i class="basic-rig rig-b"></i><i class="basic-core"></i><i class="basic-crown"></i></span>`;}
+  function defenseDeployPortraitMarkup(row,extraClass="defense-roster-rizo",context="thumbnail"){return defenseIsUniversalPet(row?.pet)?defenseBasicVisualMarkup({upgrade:0,extraClass,label:row.pet.name}):petMarkup({pet:row.pet,extraClass,context,label:row.pet.name});}
+  function defenseTowerPortraitMarkup(tower,extraClass="defense-rizo",context="arcade"){return defenseIsUniversalTower(tower)?defenseBasicVisualMarkup({upgrade:tower.upgrade,doctrine:tower.doctrine,extraClass,label:`${tower.pet.name}, ${defenseCombatStats(tower).label} defender`}):petMarkup({pet:tower.pet,extraClass,context,label:tower.pet.name});}
+  const DEFENSE_THREAT_PRIORITY={"boss:crown":100,"boss:vortex":100,"boss:mirror":100,"boss:apex":100,lead:96,relay:95,mender:93,brick:92,ghost:90,shade:85,storm:80,frost:75,fire:70,shell:60,split:50,fleet:40,puff:30};
   const DEFENSE_STAGE_MULTIPLIER={spark:.78,kid:.9,teen:1,beast:1.12,legend:1.24};
   const DEFENSE_ABILITIES={
-    classic:{passive:"Steady shots with no bad matchup.",active:"RALLY",copy:"All defenders attack faster for 6 seconds.",cooldown:24},
+    classic:{passive:"Reliable front-line shots. Level 2 adds a heavy third shot.",active:"RALLY",copy:"All defenders attack faster for 6 seconds.",cooldown:24},
     ember:{passive:"Shots ignite balloons over time.",active:"FIRE RING",copy:"Burn every balloon near this Rizo.",cooldown:25},
     toxic:{passive:"Poison keeps hurting after impact.",active:"SPORE CLOUD",copy:"Poison every balloon currently on the trail.",cooldown:28},
-    violet:{passive:"Shots chain into a nearby balloon.",active:"CHAIN SURGE",copy:"Lightning jumps through the front six balloons.",cooldown:23},
+    violet:{passive:"Every shot jumps through three nearby balloons, even on a killing hit.",active:"CHAIN SURGE",copy:"Lightning jumps through the front six balloons.",cooldown:23},
     moss:{passive:"Shots briefly root balloons in place.",active:"ROOT GARDEN",copy:"Hold nearby balloons still for several seconds.",cooldown:27},
     bubblegum:{passive:"Hits push balloons backward.",active:"BIG BOUNCE",copy:"Knock every nearby balloon far down the path.",cooldown:24},
-    frost:{passive:"Shots slow balloon movement.",active:"DEEP FREEZE",copy:"Freeze and heavily slow every balloon.",cooldown:29},
+    frost:{passive:"Chills threats and sets up heavy hits. Level 2 chills a small crowd.",active:"DEEP FREEZE",copy:"Freeze and heavily slow every balloon.",cooldown:29},
     glitch:{passive:"Random shots sometimes hit much harder.",active:"REWRITE",copy:"Fire eight unstable strikes at random targets.",cooldown:21},
-    obsidian:{passive:"Slow attacks deal massive damage.",active:"QUAKE",copy:"Crush every balloon around this Rizo.",cooldown:31},
+    obsidian:{passive:"Heavy shells splash tightly packed targets. Level 2 strips armor.",active:"QUAKE",copy:"Crush every balloon around this Rizo.",cooldown:31},
     aurora:{passive:"Nearby defenders deal more damage.",active:"PRISM FIELD",copy:"Boost every defender for 8 seconds.",cooldown:30},
     golden:{passive:"Every pop creates extra match coins.",active:"PAYDAY",copy:"Create a large burst of match coins.",cooldown:34},
     diamond:{passive:"Shots pierce multiple balloons.",active:"SHARD LINE",copy:"Cut through the eight closest balloons.",cooldown:26},
@@ -4886,7 +5396,7 @@
     retro:{active:"FRAME SKIP",copy:"Rewind the front formation a few frames down the trail."}
   });
   function defenseAbilityPresentation(tower){const base=defenseAbilityData(tower);if(tower?.doctrine!=="control")return base;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",control=DEFENSE_CONTROL_ABILITIES[variant]||DEFENSE_CONTROL_ABILITIES.classic;return{...base,...control};}
-  function defenseFieldLeader(d=mini.defense){return d?.towers?.find(t=>!t.superConsumed)||null;}
+  function defenseFieldLeader(d=mini.defense){return d?.towers?.find(t=>!t.superConsumed&&defenseIsCharacterTower(t)&&t.source==="active")||d?.towers?.find(t=>!t.superConsumed&&defenseIsCharacterTower(t))||null;}
   function activateDefenseFieldLeader(){const d=mini.defense,leader=defenseFieldLeader(d);if(!leader){setDefenseMessage("NO FIELD LEADER","The first Rizo you place owns the field power.");sfx("no");return false;}if(leader.upgrade<2||!leader.doctrine){showDefenseTowerPanel(leader);setDefenseMessage("FIELD POWER LOCKED",`${leader.pet.name} is the leader. Reach Level 3 and choose POWER or CONTROL.`);sfx("no");return false;}return activateDefenseAbility(leader.id);}
 
   const DEFENSE_CONTRACT_TARGET=10;
@@ -4947,6 +5457,20 @@
     if(phase===DEFENSE_PHASES.WAVE_COMPLETE){return{...base,detail:state.settings.defenseAutoStart?"UPGRADE • OR START NOW":"UPGRADE • START WHEN READY"};}
     return base;
   }
+  function defensePlaybackSpeed(d=mini.defense){
+    if(!d)return 1;
+    return d.speed===2&&defenseRealNow(d)<(d.flowEaseUntilReal||0)?1:d.speed;
+  }
+  function defenseFlowOnPhaseChange(d,from,to){
+    if(!d||from===to)return;
+    d.flowDecisionBeat=(d.flowDecisionBeat||0)+1;
+    d.flowPulseUntilReal=defenseRealNow(d)+(to===DEFENSE_PHASES.PACKET_BREAK?1.65:.9);
+    d.flowChoiceKey="";
+    d.flowLastAction="";
+    d.flowActionQuietUntilReal=0;
+    if(to===DEFENSE_PHASES.PACKET_BREAK&&d.speed===2)d.flowEaseUntilReal=defenseRealNow(d)+1.15;
+    markDefenseUi();
+  }
   function defenseSetPhase(d,phase,{resumePhase=null,force=false}={}){
     if(!d)return DEFENSE_PHASES.RUN_COMPLETE;
     const normalized=DefenseCore.normalizePhase(phase,DEFENSE_PHASES.PLANNING),current=DefenseCore.normalizePhase(d.phase,DEFENSE_PHASES.PLANNING);
@@ -4957,6 +5481,7 @@
     }
     if(normalized===DEFENSE_PHASES.PAUSED){d.resumePhase=resumePhase&&resumePhase!==DEFENSE_PHASES.PAUSED?DefenseCore.normalizePhase(resumePhase,DEFENSE_PHASES.COMBAT):(current!==DEFENSE_PHASES.PAUSED?current:d.resumePhase||DEFENSE_PHASES.COMBAT);}
     d.phase=normalized;
+    defenseFlowOnPhaseChange(d,current,normalized);
     return normalized;
   }
   function installDefenseStateContracts(d){
@@ -4987,7 +5512,7 @@
   function defenseMapAccent(id){return id==="grove"?"#9eff75":id==="ember"?"#ff735f":id==="moon"?"#c59cff":id==="storm"?"#55dfff":id==="blizzard"?"#d9fbff":"#ff68bd";}
   function normalizeDefenseRunContract(raw){if(!raw||typeof raw!=="object")return null;const date=String(raw.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return null;const mapId=DEFENSE_MAPS[raw.mapId]?raw.mapId:null;if(!mapId)return null;const rules=Array.isArray(raw.rules)?[...new Set(raw.rules.filter(rule=>DEFENSE_CONTRACT_RULES[rule]))].slice(0,3):[];if(rules.length!==3||rules.includes("power-only")&&rules.includes("control-only"))return null;const bestWave=DefenseCore.clampInteger(raw.bestWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),completed=bestWave>=DEFENSE_CONTRACT_TARGET,perfect=completed&&Boolean(raw.perfect);return{id:typeof raw.id==="string"&&raw.id?raw.id.slice(0,120):`contract-${date}-${mapId}`,date,mapId,title:typeof raw.title==="string"&&raw.title?raw.title.slice(0,80):"DAILY TRAIL CONTRACT",rules,targetWave:DEFENSE_CONTRACT_TARGET,bestWave,completed,perfect,firstAt:Math.max(0,Number(raw.firstAt)||0),lastAt:Math.max(0,Number(raw.lastAt)||0)};}
   function buildDailyDefenseContract(date=dateKey()){
-    const seed=defenseHashString(`RIZO-TRAIL-${date}`),unlocked=defenseUnlockedMaps(),map=(unlocked[seed%Math.max(1,unlocked.length)]||DEFENSE_MAPS.grove),rosterCount=defenseRoster().length,eligible=rosterCount>=4?DEFENSE_CONTRACT_SETS:DEFENSE_CONTRACT_SETS.filter(set=>!set.rules.includes("unique")),set=eligible[Math.floor(seed/Math.max(1,unlocked.length))%eligible.length]||DEFENSE_CONTRACT_SETS[2];
+    const seed=defenseHashString(`RIZO-TRAIL-${date}`),unlocked=defenseUnlockedMaps(),map=(unlocked[seed%Math.max(1,unlocked.length)]||DEFENSE_MAPS.grove),rosterCount=defenseRoster().filter(row=>!defenseStructureType(row)).length,eligible=rosterCount>=4?DEFENSE_CONTRACT_SETS:DEFENSE_CONTRACT_SETS.filter(set=>!set.rules.includes("unique")),set=eligible[Math.floor(seed/Math.max(1,unlocked.length))%eligible.length]||DEFENSE_CONTRACT_SETS[2];
     return normalizeDefenseRunContract({id:`daily-${date}-${map.id}-${set.rules.join("-")}`,date,mapId:map.id,title:set.title,rules:set.rules,targetWave:DEFENSE_CONTRACT_TARGET,bestWave:0,completed:false,perfect:false,firstAt:now(),lastAt:now()});
   }
   function ensureDailyDefenseContract(date=dateKey()){
@@ -5023,10 +5548,11 @@
   function defenseMasteryTierForPet(petId){return defenseMasteryTier(defenseMasteryForPet(petId)||{});}
   function defenseMasterySignatureName(record={}){const variant=VARIANTS.find(item=>item.id===record.variant)||VARIANTS[0],tier=defenseMasteryTier(record);if(tier>=4)return`${variant.name} LEGEND SIGNAL`;if(tier>=3)return`${variant.name} IMPACT SIGIL`;if(tier>=2)return`${variant.name} TRAIL`;if(tier>=1)return`${variant.name} FIELD MARK`;return"NO FIELD SIGNATURE";}
   function defenseMasteryUnlockCopy(record={}){const tier=defenseMasteryTier(record),next=["FIELD MARK AT 10 WAVES","TRAIL AT 50 WAVES","IMPACT SIGIL AT 150 WAVES","LEGEND AURA AT 400 WAVES","ALL FIELD SIGNATURES EARNED"][tier];return{tier,next,current:defenseMasterySignatureName(record)};}
-  function defenseSignatureTone(tower,tier=defenseMasteryTierForPet(tower?.petId)){
+  const DEFENSE_FEEL_PITCH=Object.freeze({classic:0,ember:-5,toxic:-3,violet:7,moss:-7,bubblegum:5,frost:9,glitch:1,obsidian:-12,aurora:12,golden:4,diamond:11,shadow:-10,retro:2});
+  function defenseSignatureTone(tower,tier=defenseMasteryTierForPet(tower?.petId),doctrineStrike=null){
     const d=mini.defense;
     if(!tower||!state.settings.sound||!d)return;
-    const time=defenseNow(),globalWait=d.lowFx?.14:.06,towerWait=d.lowFx?.24:.10;
+    const time=defenseNow(),important=Boolean(doctrineStrike),globalWait=important?.05:(d.lowFx?.14:.06),towerWait=important?.075:(d.lowFx?.24:.10);
     if(time-(d.lastSignatureToneAt||0)<globalWait||time-(tower.lastSignatureToneAt||0)<towerWait)return;
     d.lastSignatureToneAt=time;tower.lastSignatureToneAt=time;
     const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",accent=(tower.shots||0)%3===0;
@@ -5046,9 +5572,30 @@
       shadow:[[96,.052,"sine",0,-78],[144,.03,"triangle",.018,-42]],
       retro:[[188,.014,"square",0,142],[94,.014,"square",.018,0]]
     };
-    const notes=profiles[variant]||profiles.classic,gain=tier>=4?.0085:tier>=2?.0062:.0044;
-    const first=notes[0];tone(first[0],first[1],first[2],gain,first[3],first[4]);
-    if(accent&&!d.lowFx){const second=notes[1];tone(second[0],second[1],second[2],gain*.62,second[3],second[4]);}
+    const notes=profiles[variant]||profiles.classic,gain=tier>=4?.0092:tier>=2?.0066:.0044,first=notes[0];tone(first[0],first[1],first[2],gain,first[3],first[4]);
+    if((accent||tier>=3&&tower.shots%4===0)&&!d.lowFx){const second=notes[1];tone(second[0],second[1],second[2],gain*(tier>=3?.72:.62),second[3],second[4]);}
+    if(tier>=4&&!d.lowFx&&tower.shots%8===0)tone(first[0]*2,.035,"sine",gain*.34,.018,variant==="glitch"?-90:90);
+    if(important){const power=doctrineStrike==="power",root=Math.max(70,first[0]*(power?.62:1.28));tone(root,power?.075:.06,power?"sawtooth":"sine",gain*1.32,.008,power?-32:110);if(tower.superForm&&!d.lowFx)tone(root*(power?1.5:1.75),.09,"triangle",gain*.72,.055,power?80:150);}
+  }
+
+  function defenseAbilitySignature(tower){
+    if(!tower||!state.settings.sound)return false;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",doctrine=tower.doctrine||"power",superForm=Boolean(tower.superForm),shift=DEFENSE_FEEL_PITCH[variant]||0;
+    const roots={classic:196,ember:130,toxic:154,violet:247,moss:116,bubblegum:262,frost:294,glitch:185,obsidian:98,aurora:330,golden:220,diamond:311,shadow:92,retro:208},waves={classic:"triangle",ember:"sawtooth",toxic:"square",violet:"sine",moss:"triangle",bubblegum:"sine",frost:"triangle",glitch:"square",obsidian:"sawtooth",aurora:"sine",golden:"triangle",diamond:"triangle",shadow:"sine",retro:"square"},root=roots[variant]||196,wave=waves[variant]||"triangle",power=doctrine==="power",gain=superForm?.032:.025;
+    tone(root,.08,wave,gain,0,power?-18:54);tone(root*(power?1.5:1.75),.14,power?"triangle":"sine",gain*.9,.065,power?120:190);
+    if(["ember","obsidian","retro","glitch"].includes(variant))noise(superForm?.11:.075,superForm?.012:.008,.025);
+    if(["frost","aurora","diamond","violet"].includes(variant))tone(root*2,.08,"sine",gain*.42,.13,shift*6);
+    if(superForm)tone(root*(power?2:2.25),.22,"sine",gain*.72,.18,power?210:290);
+    return true;
+  }
+
+  function defenseBossCue(moment="arrival",bossId="crown"){
+    if(!state.settings.sound)return false;const profiles={crown:{root:82,wave:"sawtooth",interval:1.5},vortex:{root:110,wave:"sine",interval:1.33},mirror:{root:147,wave:"triangle",interval:2},apex:{root:98,wave:"square",interval:2}},profile=profiles[bossId]||profiles.crown,root=profile.root,wave=profile.wave;
+    if(moment==="arrival"){tone(root,.2,wave,.028,0,bossId==="apex"?120:-18);tone(root*profile.interval,.24,"triangle",.023,.13,bossId==="vortex"?-80:80);if(bossId==="mirror")tone(root*.75,.18,"sine",.017,.075,160);noise(.12,.011,.05);}
+    else if(moment==="phase"){tone(root*1.25,.11,wave,.022,0,bossId==="vortex"?-95:95);tone(root*profile.interval*1.15,.13,"triangle",.018,.075,bossId==="mirror"?-160:125);}
+    else if(moment==="resolve"){tone(root*.82,.08,"square",.02,0,bossId==="apex"?240:-55);noise(.07,.009,.02);}
+    else if(moment==="break"){tone(root*1.5,.055,"square",.022,0,190);tone(root*2.25,.08,"triangle",.022,.045,260);noise(.05,.009,.018);}
+    else if(moment==="down"){tone(root,.14,wave,.027,0,-52);noise(.14,.014,.025);[1.5,2,2.5].forEach((m,i)=>tone(root*m,.16,"sine",.024,.12+i*.065,180));}
+    return true;
   }
 
   function defenseRecordFramePerformance(rawFrame){
@@ -5110,29 +5657,36 @@
     const counters=raw?.counters&&typeof raw.counters==="object"?raw.counters:{};
     return{spawned:cleanCounts(raw?.spawned),popped:cleanCounts(raw?.popped),leaked:cleanCounts(raw?.leaked),heartLoss:DefenseCore.clampInteger(raw?.heartLoss,0,9999,0),counters:{armorBreaks:DefenseCore.clampInteger(counters.armorBreaks,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),armorShreds:DefenseCore.clampInteger(counters.armorShreds,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),reveals:DefenseCore.clampInteger(counters.reveals,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),phaseLocks:DefenseCore.clampInteger(counters.phaseLocks,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),bossInterrupts:DefenseCore.clampInteger(counters.bossInterrupts,0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES,0)}};
   }
-  function defenseCheckpointRosterRegistry(){return new Map(defenseRoster().map(row=>[row.pet.id,{source:row.source,rosterIndex:row.rosterIndex,pet:row.pet}]));}
+  // Canonicalization must recognise every legally placeable id, characters and
+  // universal Defense-only tools/structures alike, or a signed checkpoint would
+  // silently drop a paid deployment on restore.
+  function defenseCheckpointRosterRegistry(){return new Map([...defenseRestorableRegistry()].map(([id,row])=>[id,{source:row.source,rosterIndex:row.rosterIndex,pet:row.pet}]));}
   function defenseCanonicalTowerSnapshots(rows,mapId,{trusted=true,legacyOpeningPerkInference=false}={}){
     const source=Array.isArray(rows)?rows:[],ids=new Set(),copies=new Map(),roster=defenseCheckpointRosterRegistry();let paid=0,openingPerkClaimed=false;
     return source.slice(0,DEFENSE_LIMITS.MAX_DEFENSE_TOWERS).map((tower,index)=>{
       if(!tower||typeof tower!=="object"||typeof tower.petId!=="string"||!tower.petId)return null;
       const petId=tower.petId.slice(0,80),owner=roster.get(petId);if(!owner)return null;
       let id=typeof tower.id==="string"&&tower.id?tower.id.slice(0,80):`tower-${index+1}`;if(ids.has(id))id=`tower-${index+1}`;ids.add(id);
-      const sourceType=owner.source,copyIndex=copies.get(petId)||0;
-      const cost=DefenseCore.deploymentCost({paidTowerCount:paid,copyCount:copyIndex,activeFirst:sourceType==="active"});if(cost>0)paid+=1;copies.set(petId,copyIndex+1);
-      const upgrade=trusted?DefenseCore.clampInteger(tower.upgrade,0,DEFENSE_LIMITS.MAX_TOWER_LEVEL,0):0,explicitPerk=Boolean(tower.openingPerkApplied),inferredLegacyPerk=legacyOpeningPerkInference&&!openingPerkClaimed&&upgrade>0,perkEligible=trusted&&!openingPerkClaimed&&upgrade>0&&(explicitPerk||inferredLegacyPerk)&&defenseWorldPerkMatchesTower(mapId,{pet:owner.pet}),openingPerkApplied=Boolean(perkEligible),spent=DefenseCore.calculateTowerInvestment(cost,upgrade,openingPerkApplied?[DefenseCore.ECONOMY.worldOpeningDiscount,1,1,1]:1);if(openingPerkApplied)openingPerkClaimed=true;
-      return{id,petId,source:sourceType,rosterIndex:owner.rosterIndex,copyNumber:copyIndex+1,x:DefenseCore.clampNumber(tower.x,0,1,.5),y:DefenseCore.clampNumber(tower.y,0,1,.5),upgrade,cost,spent,openingPerkApplied,placedAtReal:Number.NEGATIVE_INFINITY,cooldown:trusted?DefenseCore.clampNumber(tower.cooldown,0,60,0):0,kills:trusted?DefenseCore.clampInteger(tower.kills,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,damage:trusted?DefenseCore.clampNumber(tower.damage,0,DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE,0):0,abilityReadyAt:trusted?DefenseCore.clampNumber(tower.abilityReadyAt,0,1e9,0):0,overclockUntil:trusted?DefenseCore.clampNumber(tower.overclockUntil,0,1e9,0):0,rangeDebuffUntil:trusted?DefenseCore.clampNumber(tower.rangeDebuffUntil,0,1e9,0):0,targetMode:DEFENSE_TARGET_MODES.includes(tower.targetMode)?tower.targetMode:"first",doctrine:trusted&&DEFENSE_DOCTRINES[tower.doctrine]?tower.doctrine:null,shots:trusted?DefenseCore.clampInteger(tower.shots,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS*20,0):0,placedAt:trusted?DefenseCore.clampNumber(tower.placedAt,0,1e9,0):0,superForm:trusted&&["power","control"].includes(tower.superForm)?tower.superForm:null,targetId:null,retargetAt:0,retargetAtReal:0};
+      const sourceType=owner.source,copyIndex=copies.get(petId)||0,structureType=defenseStructureType(owner.pet);
+      const cost=structureType?DefenseCore.structureDeploymentCost(structureType,copyIndex):defenseIsUniversalPet(owner.pet)?defenseUniversalDeployCost(copyIndex):DefenseCore.deploymentCost({paidTowerCount:paid,copyCount:copyIndex,activeFirst:sourceType==="active"});
+      if(cost>0)paid+=1;copies.set(petId,copyIndex+1);
+      const upgrade=trusted?DefenseCore.clampInteger(tower.upgrade,0,DEFENSE_LIMITS.MAX_TOWER_LEVEL,0):0,explicitPerk=Boolean(tower.openingPerkApplied),inferredLegacyPerk=legacyOpeningPerkInference&&!openingPerkClaimed&&upgrade>0,perkEligible=!structureType&&trusted&&!defenseIsUniversalPet(owner.pet)&&!openingPerkClaimed&&upgrade>0&&(explicitPerk||inferredLegacyPerk)&&defenseWorldPerkMatchesTower(mapId,{pet:owner.pet}),openingPerkApplied=Boolean(perkEligible);
+      const spent=structureType?DefenseCore.calculateStructureInvestment(structureType,cost,upgrade):defenseIsUniversalPet(owner.pet)?cost+DEFENSE_BASIC_TOWER.upgradeCosts.slice(0,upgrade).reduce((sum,value)=>sum+value,0):DefenseCore.calculateTowerInvestment(cost,upgrade,openingPerkApplied?[DefenseCore.ECONOMY.worldOpeningDiscount,1,1,1]:1);if(openingPerkApplied)openingPerkClaimed=true;
+      return{id,petId,source:sourceType,rosterIndex:owner.rosterIndex,copyNumber:copyIndex+1,x:DefenseCore.clampNumber(tower.x,0,1,.5),y:DefenseCore.clampNumber(tower.y,0,1,.5),upgrade,cost,spent,openingPerkApplied,placedAtReal:Number.NEGATIVE_INFINITY,cooldown:trusted?DefenseCore.clampNumber(tower.cooldown,0,60,0):0,kills:trusted?DefenseCore.clampInteger(tower.kills,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,damage:trusted?DefenseCore.clampNumber(tower.damage,0,DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE,0):0,abilityReadyAt:trusted?DefenseCore.clampNumber(tower.abilityReadyAt,0,1e9,0):0,overclockUntil:trusted?DefenseCore.clampNumber(tower.overclockUntil,0,1e9,0):0,rangeDebuffUntil:trusted?DefenseCore.clampNumber(tower.rangeDebuffUntil,0,1e9,0):0,targetMode:DEFENSE_TARGET_MODES.includes(tower.targetMode)?tower.targetMode:"first",doctrine:structureType?null:(trusted&&DEFENSE_DOCTRINES[tower.doctrine]?tower.doctrine:null),shots:trusted?DefenseCore.clampInteger(tower.shots,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS*20,0):0,placedAt:trusted?DefenseCore.clampNumber(tower.placedAt,0,1e9,0):0,superForm:structureType?null:(trusted&&["power","control"].includes(tower.superForm)?tower.superForm:null),structureType,targetId:null,retargetAt:0,retargetAtReal:0};
     }).filter(Boolean);
   }
-  function defenseDurabilityScale(wave,{boss=false}={}){const w=Math.max(1,Number(wave)||1),late=1+Math.max(0,w-30)*.012+Math.max(0,w-60)*.018+Math.max(0,w-90)*.020;return late*(boss?1.72:1);}
-  function defenseCanonicalEnemySnapshot(raw,currentWave,map,index=0){
+
+  function defenseHealthScale(wave){const w=Math.max(1,Number(wave)||1);return 1+Math.min(29,w-1)*.115+Math.max(0,w-30)*.038+Math.max(0,w-80)*.012;}
+  function defenseDurabilityScale(wave,{boss=false}={}){const w=Math.max(1,Number(wave)||1),late=1+Math.max(0,w-40)*.004;if(!boss)return late;const remix=Math.min(.22,Math.floor(Math.max(0,w-10)/40)*.07);return late*(w<=10?.88:1.28+remix);}
+  function defenseCanonicalEnemySnapshot(raw,currentWave,map,index=0,preciseArmor=false,currentClock=0){
     if(!raw||typeof raw!=="object")return null;
     const boss=DEFENSE_BOSSES.find(item=>item.id===raw.bossId)||null,type=boss?"boss":DEFENSE_ENEMIES[raw.type]?raw.type:null;if(!type)return null;
-    const base=boss||DEFENSE_ENEMIES[type],intensity=DefenseCore.clampInteger(raw.bossIntensity,0,99,0),bossChild=Boolean(raw.bossChild),scale=(1+(Math.max(1,currentWave)-1)*.115)*(map.hp||1)*(boss?1+intensity*.23:1)*defenseDurabilityScale(currentWave,{boss:Boolean(boss)}),canonicalMax=Math.max(.01,base.hp*scale*(bossChild?.5:1)),legacyRatio=Number(raw.maxHp)>0?Number(raw.hp)/Number(raw.maxHp):1,hpRatio=DefenseCore.clampNumber(raw.hpRatio,0.001,1,DefenseCore.clampNumber(legacyRatio,.001,1,1)),maxHp=canonicalMax,hp=Math.max(.01,maxHp*hpRatio),baseArmor=DefenseCore.clampNumber(base.armor||0,0,.95,0),armorBroken=Boolean(raw.armorBroken),armorShredded=Boolean(raw.armorShredded),armor=armorBroken?Math.min(baseArmor,.06):armorShredded?Math.max(0,baseArmor-.08):baseArmor;
-    return{id:typeof raw.id==="string"&&raw.id?raw.id.slice(0,80):`enemy-${index+1}`,type,bossId:boss?.id||null,bossIntensity:intensity,bossChild,progress:DefenseCore.clampNumber(raw.progress,0,.999,0),hp,maxHp,speed:base.speed*(1+Math.min(.22,currentWave*.006))*(map.speed||1),reward:DefenseCore.calculateEnemyReward(base.reward,currentWave,{rewardScale:bossChild?.5:1}),damage:base.damage,baseArmor,armor,armorBroken,armorShredded,fireproof:Boolean(base.fireproof),slowResist:base.slowResist||0,stormPulse:Boolean(base.stormPulse),phasing:Boolean(base.phasing),camo:Boolean(base.camo),phaseOffset:DefenseCore.clampNumber(raw.phaseOffset,-100,100,0),phaseActive:false,revealUntil:DefenseCore.clampNumber(raw.revealUntil,0,1e9,0),phaseSuppressedUntil:DefenseCore.clampNumber(raw.phaseSuppressedUntil,0,1e9,0),revealCredited:Boolean(raw.revealCredited),phaseLockCredited:Boolean(raw.phaseLockCredited),slow:DefenseCore.clampNumber(raw.slow,0,.95,0),slowUntil:DefenseCore.clampNumber(raw.slowUntil,0,1e9,0),burn:DefenseCore.clampNumber(raw.burn,0,1e6,0),burnUntil:DefenseCore.clampNumber(raw.burnUntil,0,1e9,0),burnSourceId:typeof raw.burnSourceId==="string"?raw.burnSourceId.slice(0,80):null,poison:DefenseCore.clampNumber(raw.poison,0,1e6,0),poisonUntil:DefenseCore.clampNumber(raw.poisonUntil,0,1e9,0),poisonSourceId:typeof raw.poisonSourceId==="string"?raw.poisonSourceId.slice(0,80):null,rootUntil:DefenseCore.clampNumber(raw.rootUntil,0,1e9,0),phaseTriggered:Boolean(raw.phaseTriggered),nextBossPulse:DefenseCore.clampNumber(raw.nextBossPulse,0,1e9,0),telegraphKind:DEFENSE_BOSS_TELEGRAPHS[raw.telegraphKind]?raw.telegraphKind:null,telegraphStartedAt:DefenseCore.clampNumber(raw.telegraphStartedAt,0,1e9,0),telegraphUntil:DefenseCore.clampNumber(raw.telegraphUntil,0,1e9,0),telegraphDisruption:DefenseCore.clampNumber(raw.telegraphDisruption,0,1,0),apexSurgeUntil:DefenseCore.clampNumber(raw.apexSurgeUntil,0,1e9,0),bossMechanicLocked:Boolean(raw.bossMechanicLocked)};
+    const base=boss||DEFENSE_ENEMIES[type],intensity=DefenseCore.clampInteger(raw.bossIntensity,0,99,0),bossChild=Boolean(raw.bossChild),scale=defenseHealthScale(currentWave)*(map.hp||1)*(boss?1+Math.min(12,intensity)*.10:1)*defenseDurabilityScale(currentWave,{boss:Boolean(boss)}),canonicalMax=Math.max(.01,base.hp*scale*(bossChild?.5:1)),legacyRatio=Number(raw.maxHp)>0?Number(raw.hp)/Number(raw.maxHp):1,hpRatio=DefenseCore.clampNumber(raw.hpRatio,0.001,1,DefenseCore.clampNumber(legacyRatio,.001,1,1)),maxHp=canonicalMax,hp=Math.max(.01,maxHp*hpRatio),baseArmor=DefenseCore.clampNumber(base.armor||0,0,.95,0),armorBroken=Boolean(raw.armorBroken),armorShredded=Boolean(raw.armorShredded),armor=preciseArmor?DefenseCore.clampNumber(raw.armor,0,baseArmor,baseArmor):armorBroken?Math.min(baseArmor,.06):armorShredded?Math.max(0,baseArmor-.08):baseArmor;
+    return{id:typeof raw.id==="string"&&raw.id?raw.id.slice(0,80):`enemy-${index+1}`,type,bossId:boss?.id||null,bossIntensity:intensity,bossChild,progress:DefenseCore.clampNumber(raw.progress,0,.999,0),hp,maxHp,speed:base.speed*(1+Math.min(.22,currentWave*.006))*(map.speed||1),reward:DefenseCore.calculateEnemyReward(base.reward,currentWave,{rewardScale:bossChild?.5:1}),damage:base.damage,baseArmor,armor,armorBroken,armorShredded,fireproof:Boolean(base.fireproof),slowResist:base.slowResist||0,stormPulse:Boolean(base.stormPulse),supportAura:Boolean(base.supportAura),healer:Boolean(base.healer),supportCycle:Number.isFinite(Number(raw.supportCycle))?DefenseCore.clampInteger(raw.supportCycle,0,1_000_000_000,0):Math.floor((DefenseCore.clampNumber(currentClock,0,1e9,0)+DefenseCore.clampNumber(raw.phaseOffset,-100,100,0))/3.6),phasing:Boolean(base.phasing),camo:Boolean(base.camo),phaseOffset:DefenseCore.clampNumber(raw.phaseOffset,-100,100,0),phaseActive:false,revealUntil:DefenseCore.clampNumber(raw.revealUntil,0,1e9,0),phaseSuppressedUntil:DefenseCore.clampNumber(raw.phaseSuppressedUntil,0,1e9,0),revealCredited:Boolean(raw.revealCredited),phaseLockCredited:Boolean(raw.phaseLockCredited),slow:DefenseCore.clampNumber(raw.slow,0,.95,0),slowUntil:DefenseCore.clampNumber(raw.slowUntil,0,1e9,0),burn:DefenseCore.clampNumber(raw.burn,0,1e6,0),burnUntil:DefenseCore.clampNumber(raw.burnUntil,0,1e9,0),burnSourceId:typeof raw.burnSourceId==="string"?raw.burnSourceId.slice(0,80):null,poison:DefenseCore.clampNumber(raw.poison,0,1e6,0),poisonUntil:DefenseCore.clampNumber(raw.poisonUntil,0,1e9,0),poisonSourceId:typeof raw.poisonSourceId==="string"?raw.poisonSourceId.slice(0,80):null,rootUntil:DefenseCore.clampNumber(raw.rootUntil,0,1e9,0),phaseTriggered:Boolean(raw.phaseTriggered),bossPhase:DefenseCore.clampInteger(raw.bossPhase,0,12,0),signalStaggerUntil:DefenseCore.clampNumber(raw.signalStaggerUntil,0,1e9,0),nextBossPulse:DefenseCore.clampNumber(raw.nextBossPulse,0,1e9,0),telegraphKind:DEFENSE_BOSS_TELEGRAPHS[raw.telegraphKind]?raw.telegraphKind:null,telegraphStartedAt:DefenseCore.clampNumber(raw.telegraphStartedAt,0,1e9,0),telegraphUntil:DefenseCore.clampNumber(raw.telegraphUntil,0,1e9,0),telegraphDisruption:DefenseCore.clampNumber(raw.telegraphDisruption,0,1,0),apexSurgeUntil:DefenseCore.clampNumber(raw.apexSurgeUntil,0,1e9,0),bossMechanicLocked:Boolean(raw.bossMechanicLocked)};
   }
   function normalizeDefenseCheckpoint(raw){
     if(!raw||typeof raw!=="object")return null;
-    const version=Number(raw.checkpointVersion)||1;if(![1,2,3,4,5,6,DEFENSE_CHECKPOINT_VERSION].includes(version))return null;
+    const version=Number(raw.checkpointVersion)||1;if(![1,2,3,4,5,6,7,8,9,DEFENSE_CHECKPOINT_VERSION].includes(version))return null;
     const savedAt=DefenseCore.clampNumber(raw.savedAt,0,Number.MAX_SAFE_INTEGER,0);if(!savedAt||now()-savedAt>DEFENSE_CHECKPOINT_MAX_AGE)return null;
     if(typeof raw.keeperId!=="string"||raw.keeperId!==state.player?.keeperId)return null;
     const mapId=typeof raw.mapId==="string"&&DEFENSE_MAPS[raw.mapId]?raw.mapId:null;if(!mapId)return null;const map=DEFENSE_MAPS[mapId];
@@ -5140,12 +5694,21 @@
     const oldWave=DefenseCore.clampInteger(raw.wave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),rawPhase=DefenseCore.normalizePhase(raw.phase,DEFENSE_PHASES.PLANNING),legacyActive=legacyUnsigned&&raw.phase==="wave";
     let currentWave=DefenseCore.clampInteger(raw.currentWave??oldWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),clearedWave=Math.min(currentWave,DefenseCore.clampInteger(raw.clearedWave??(legacyActive?Math.max(0,oldWave-1):oldWave),0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0));
     if(!trusted){const verifiedMapBest=DefenseCore.clampInteger(state.scores?.defenseMaps?.[mapId],0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0);clearedWave=Math.min(clearedWave,verifiedMapBest);currentWave=clearedWave;defenseRecordValidationWarning("checkpoint-signature",{mapId,requestedCurrentWave:raw.currentWave??raw.wave,requestedClearedWave:raw.clearedWave,restoredClearedWave:clearedWave});}
+    if(trusted&&currentWave>clearedWave+1){defenseRecordValidationWarning("checkpoint-wave-gap",{mapId,requestedCurrentWave:currentWave,clearedWave});currentWave=Math.min(DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,clearedWave+1);}
     const towers=defenseCanonicalTowerSnapshots(raw.towers,mapId,{trusted,legacyOpeningPerkInference:trusted&&version===4});if(!towers.length)return null;
-    const enemies=trusted?(Array.isArray(raw.enemies)?raw.enemies:[]).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_ENEMIES).map((enemy,index)=>defenseCanonicalEnemySnapshot(enemy,currentWave,map,index)).filter(Boolean):[];
-    const spawnQueue=trusted?(Array.isArray(raw.spawnQueue)?raw.spawnQueue:[]).map(defenseQueueEntry).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES):[],wavePackets=trusted?(Array.isArray(raw.wavePackets)?raw.wavePackets:[]).map(normalizeDefensePacket).filter(Boolean).slice(0,12):[],currentWavePlan=trusted?(Array.isArray(raw.currentWavePlan)?raw.currentWavePlan:spawnQueue).map(defenseQueueEntry).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES):[],childSpawnQueue=trusted?(Array.isArray(raw.childSpawnQueue)?raw.childSpawnQueue:[]).map(normalizeDefenseChildSpawn).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_CHILD_BUFFER):[],announcement=trusted&&raw.waveAnnouncement&&typeof raw.waveAnnouncement==="object"?{title:String(raw.waveAnnouncement.title||"").slice(0,100),copy:String(raw.waveAnnouncement.copy||"").slice(0,240)}:null;
-    const phase=trusted?(DefenseCore.isCombatPhase(rawPhase)?DEFENSE_PHASES.PAUSED:rawPhase===DEFENSE_PHASES.WAVE_COMPLETE?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING):(clearedWave>0?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING);
+    const enemyIds=new Set(),enemies=trusted?(Array.isArray(raw.enemies)?raw.enemies:[]).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_ENEMIES).map((enemy,index)=>{const snapshot=defenseCanonicalEnemySnapshot(enemy,currentWave,map,index,version>=8,raw.clock);if(!snapshot)return null;let id=snapshot.id;if(enemyIds.has(id)){let suffix=0;do{id=`enemy-${index+1}${suffix?`-${suffix}`:""}`;suffix+=1;}while(enemyIds.has(id));snapshot.id=id;}enemyIds.add(id);return snapshot;}).filter(Boolean):[];
+    let spawnQueue=trusted?(Array.isArray(raw.spawnQueue)?raw.spawnQueue:[]).map(defenseQueueEntry).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES):[],wavePackets=trusted?(Array.isArray(raw.wavePackets)?raw.wavePackets:[]).map(normalizeDefensePacket).filter(Boolean).slice(0,12):[];
+    let packetIndex=trusted?DefenseCore.clampInteger(raw.packetIndex,0,wavePackets.length,0):0,packetEnemyIndex=trusted&&packetIndex<wavePackets.length?DefenseCore.clampInteger(raw.packetEnemyIndex,0,wavePackets[packetIndex].enemies.length,0):0;
+    if(trusted&&wavePackets.length){const packetRemaining=[];for(let i=packetIndex;i<wavePackets.length;i++){const start=i===packetIndex?packetEnemyIndex:0;for(let j=start;j<wavePackets[i].enemies.length;j++)packetRemaining.push(wavePackets[i].enemies[j]);}const sameQueue=packetRemaining.length===spawnQueue.length&&packetRemaining.every((entry,index)=>JSON.stringify(entry)===JSON.stringify(spawnQueue[index]));if(!sameQueue){const conservative=spawnQueue.length>=packetRemaining.length?spawnQueue:packetRemaining;spawnQueue=conservative.slice(0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES).map(entry=>typeof entry==="string"?entry:{...entry});wavePackets=spawnQueue.length?[{enemies:[...spawnQueue],spawnGap:.34,breakAfter:0}]:[];packetIndex=0;packetEnemyIndex=0;defenseRecordValidationWarning("checkpoint-scheduler",{mapId,spawnQueue:spawnQueue.length,packetRemaining:packetRemaining.length});}}else if(trusted&&spawnQueue.length&&!wavePackets.length){wavePackets=[{enemies:[...spawnQueue],spawnGap:.34,breakAfter:0}];packetIndex=0;packetEnemyIndex=0;}
+    const currentWavePlan=trusted?(Array.isArray(raw.currentWavePlan)?raw.currentWavePlan:spawnQueue).map(defenseQueueEntry).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES):[],childSpawnQueue=trusted?(Array.isArray(raw.childSpawnQueue)?raw.childSpawnQueue:[]).map(normalizeDefenseChildSpawn).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_CHILD_BUFFER):[],announcement=trusted&&raw.waveAnnouncement&&typeof raw.waveAnnouncement==="object"?{title:String(raw.waveAnnouncement.title||"").slice(0,100),copy:String(raw.waveAnnouncement.copy||"").slice(0,240)}:null;
+    const maxWaveEntities=DEFENSE_LIMITS.MAX_QUEUE_ENTRIES+DEFENSE_LIMITS.MAX_CHILD_BUFFER,outstandingWaveEntities=Math.min(maxWaveEntities,spawnQueue.length+childSpawnQueue.length+enemies.length),rawWaveTotal=trusted?DefenseCore.clampInteger(raw.waveTotal,0,maxWaveEntities,0):0,rawWaveResolved=trusted?DefenseCore.clampInteger(raw.waveResolved,0,maxWaveEntities,0):0;let waveResolved=Math.min(rawWaveResolved,rawWaveTotal,Math.max(0,maxWaveEntities-outstandingWaveEntities)),waveTotal=Math.max(rawWaveTotal,waveResolved+outstandingWaveEntities);
+    let phase=trusted?(DefenseCore.isCombatPhase(rawPhase)?DEFENSE_PHASES.PAUSED:rawPhase===DEFENSE_PHASES.WAVE_COMPLETE?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING):(clearedWave>0?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING),resumePhase=trusted&&DefenseCore.isCombatPhase(rawPhase)?(rawPhase===DEFENSE_PHASES.PAUSED?[DEFENSE_PHASES.COUNTDOWN,DEFENSE_PHASES.COMBAT,DEFENSE_PHASES.PACKET_BREAK].includes(raw.resumePhase)?raw.resumePhase:DEFENSE_PHASES.COMBAT:rawPhase):DEFENSE_PHASES.COMBAT;
+    const unfinishedAccounting=outstandingWaveEntities>0||waveResolved<waveTotal;
+    if(trusted&&currentWave>clearedWave&&!unfinishedAccounting){defenseRecordValidationWarning("checkpoint-empty-unfinished",{mapId,currentWave,clearedWave});currentWave=clearedWave;phase=clearedWave>0?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING;}
+    else if(trusted&&currentWave>clearedWave&&!DefenseCore.isCombatPhase(rawPhase)){phase=DEFENSE_PHASES.PAUSED;resumePhase=enemies.length||packetIndex||packetEnemyIndex?DEFENSE_PHASES.COMBAT:DEFENSE_PHASES.COUNTDOWN;defenseRecordValidationWarning("checkpoint-phase",{mapId,requestedPhase:rawPhase,currentWave,clearedWave,repairedPhase:phase});}
+    else if(trusted&&currentWave<=clearedWave&&DefenseCore.isCombatPhase(rawPhase)){spawnQueue=[];wavePackets=[];packetIndex=0;packetEnemyIndex=0;childSpawnQueue.length=0;currentWavePlan.length=0;enemies.length=0;waveTotal=0;waveResolved=0;phase=clearedWave>0?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING;resumePhase=DEFENSE_PHASES.COMBAT;defenseRecordValidationWarning("checkpoint-stale-combat",{mapId,currentWave,clearedWave,requestedPhase:rawPhase});}
     const status=signatureValid?(version===DEFENSE_CHECKPOINT_VERSION?"verified":"migrated"):legacyUnsigned?"migrated":"sanitized";
-    return{checkpointVersion:DEFENSE_CHECKPOINT_VERSION,savedAt,keeperId:raw.keeperId,mapId,contract:trusted?normalizeDefenseRunContract(raw.contract):null,currentWave,clearedWave,lives:DefenseCore.clampInteger(raw.lives,1,map.lives,map.lives),cash:trusted?DefenseCore.clampNumber(raw.cash,0,DEFENSE_LIMITS.MAX_RUN_CASH,BASE_DEFENSE_STARTING_CASH):Math.min(BASE_DEFENSE_STARTING_CASH,DefenseCore.clampNumber(raw.cash,0,BASE_DEFENSE_STARTING_CASH,BASE_DEFENSE_STARTING_CASH)),phase,resumePhase:trusted&&DefenseCore.isCombatPhase(rawPhase)&&rawPhase!==DEFENSE_PHASES.PAUSED?rawPhase:DEFENSE_PHASES.COMBAT,speed:trusted&&[.5,1,2].includes(Number(raw.speed))?Number(raw.speed):1,clock:trusted?DefenseCore.clampNumber(raw.clock,0,1e9,0):0,towers,enemies,projectiles:[],spawnQueue,wavePackets:wavePackets.length?wavePackets:(spawnQueue.length?[{enemies:[...spawnQueue],spawnGap:.34,breakAfter:0}]:[]),packetIndex:trusted?DefenseCore.clampInteger(raw.packetIndex,0,20,0):0,packetEnemyIndex:trusted?DefenseCore.clampInteger(raw.packetEnemyIndex,0,20,0):0,nextSpawnAt:trusted?DefenseCore.clampNumber(raw.nextSpawnAt,0,1e9,0):0,packetBreakUntil:trusted?DefenseCore.clampNumber(raw.packetBreakUntil,0,1e9,0):0,childSpawnQueue,nextId:trusted?DefenseCore.clampInteger(raw.nextId,1,Number.MAX_SAFE_INTEGER,1):towers.length+1,kills:trusted?DefenseCore.clampInteger(raw.kills,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,totalDamage:trusted?DefenseCore.clampNumber(raw.totalDamage,0,DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE,0):0,usedPetIds:[...new Set(towers.map(tower=>tower.petId))],lastWaveBonus:trusted?DefenseCore.clampInteger(raw.lastWaveBonus,0,DEFENSE_LIMITS.MAX_RUN_CASH,0):0,rallyUntil:trusted?DefenseCore.clampNumber(raw.rallyUntil,0,1e9,0):0,prismUntil:trusted?DefenseCore.clampNumber(raw.prismUntil,0,1e9,0):0,whiteoutUntil:trusted?DefenseCore.clampNumber(raw.whiteoutUntil,0,1e9,0):0,stormWeatherUntil:trusted?DefenseCore.clampNumber(raw.stormWeatherUntil,0,1e9,0):0,eclipseUntil:trusted?DefenseCore.clampNumber(raw.eclipseUntil,0,1e9,0):0,ashUntil:trusted?DefenseCore.clampNumber(raw.ashUntil,0,1e9,0):0,moonRevealUntil:trusted?DefenseCore.clampNumber(raw.moonRevealUntil,0,1e9,0):0,nextWeatherAt:trusted?DefenseCore.clampNumber(raw.nextWeatherAt,0,1e9,7):7,camoHintSeen:trusted&&Boolean(raw.camoHintSeen),waveAnnouncement:announcement,currentWavePlan,bossesBeaten:trusted&&Array.isArray(raw.bossesBeaten)?raw.bossesBeaten.filter(id=>DEFENSE_BOSSES.some(boss=>boss.id===id)).slice(0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES):[],bossesDefeated:trusted?DefenseCore.clampInteger(raw.bossesDefeated??raw.bossesBeaten?.length,0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES,0):0,perfectWaveCount:trusted?Math.min(clearedWave,DefenseCore.clampInteger(raw.perfectWaveCount,0,DEFENSE_LIMITS.MAX_REASONABLE_PERFECT_WAVES,0)):0,waveHeartLossStart:trusted?DefenseCore.clampInteger(raw.waveHeartLossStart,0,9999,0):0,waveTotal:trusted?DefenseCore.clampInteger(raw.waveTotal,0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES+DEFENSE_LIMITS.MAX_CHILD_BUFFER,0):0,waveResolved:trusted?DefenseCore.clampInteger(raw.waveResolved,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,enemyStats:trusted?normalizeDefenseEnemyStats(raw.enemyStats):normalizeDefenseEnemyStats(null),worldPerkUsed:towers.some(tower=>tower.openingPerkApplied),gateFlameArmed:false,gateFlameReadyAt:trusted?DefenseCore.clampNumber(raw.gateFlameReadyAt,0,1e9,0):0,gateFlameUntil:trusted?DefenseCore.clampNumber(raw.gateFlameUntil,0,1e9,0):0,gateFlameProgress:trusted?DefenseCore.clampNumber(raw.gateFlameProgress,0,1,.86):.86,gateFlameNextTick:trusted?DefenseCore.clampNumber(raw.gateFlameNextTick,0,1e9,0):0,gateFlameTicks:trusted?DefenseCore.clampInteger(raw.gateFlameTicks,0,1000,0):0,reason:typeof raw.reason==="string"?raw.reason.slice(0,40):"auto",validationStatus:status};
+    return{checkpointVersion:DEFENSE_CHECKPOINT_VERSION,savedAt,keeperId:raw.keeperId,mapId,contract:trusted?normalizeDefenseRunContract(raw.contract):null,currentWave,clearedWave,lives:DefenseCore.clampInteger(raw.lives,1,map.lives,map.lives),cash:trusted?DefenseCore.clampNumber(raw.cash,0,DEFENSE_LIMITS.MAX_RUN_CASH,BASE_DEFENSE_STARTING_CASH):Math.min(BASE_DEFENSE_STARTING_CASH,DefenseCore.clampNumber(raw.cash,0,BASE_DEFENSE_STARTING_CASH,BASE_DEFENSE_STARTING_CASH)),phase,resumePhase,speed:trusted&&[.5,1,2].includes(Number(raw.speed))?Number(raw.speed):1,clock:trusted?DefenseCore.clampNumber(raw.clock,0,1e9,0):0,towers,enemies,projectiles:trusted&&version>=8?(Array.isArray(raw.projectiles)?raw.projectiles:[]).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_PROJECTILES).filter(shot=>towers.some(t=>t.id===shot.towerId)&&enemies.some(e=>e.id===shot.targetId)).map(shot=>({towerId:shot.towerId,targetId:shot.targetId,x:DefenseCore.clampNumber(shot.x,0,1,.5),y:DefenseCore.clampNumber(shot.y,0,1,.5),life:DefenseCore.clampNumber(shot.life,0,.7,0),damage:DefenseCore.clampNumber(shot.damage,0,1e7,0),speed:DefenseCore.clampNumber(shot.speed,.1,4,1.8),doctrineStrike:["power","control"].includes(shot.doctrineStrike)?shot.doctrineStrike:null,doubleStitch:Boolean(shot.doubleStitch)})):[],spawnQueue,wavePackets,packetIndex,packetEnemyIndex,nextSpawnAt:trusted?DefenseCore.clampNumber(raw.nextSpawnAt,0,1e9,0):0,packetBreakUntil:trusted?DefenseCore.clampNumber(raw.packetBreakUntil,0,1e9,0):0,childSpawnQueue,nextId:trusted?DefenseCore.clampInteger(raw.nextId,1,Number.MAX_SAFE_INTEGER,1):towers.length+1,kills:trusted?DefenseCore.clampInteger(raw.kills,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,totalDamage:trusted?DefenseCore.clampNumber(raw.totalDamage,0,DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE,0):0,usedPetIds:[...new Set(towers.map(tower=>tower.petId))],lastWaveBonus:trusted?DefenseCore.clampInteger(raw.lastWaveBonus,0,DEFENSE_LIMITS.MAX_RUN_CASH,0):0,rallyUntil:trusted?DefenseCore.clampNumber(raw.rallyUntil,0,1e9,0):0,prismUntil:trusted?DefenseCore.clampNumber(raw.prismUntil,0,1e9,0):0,whiteoutUntil:trusted?DefenseCore.clampNumber(raw.whiteoutUntil,0,1e9,0):0,stormWeatherUntil:trusted?DefenseCore.clampNumber(raw.stormWeatherUntil,0,1e9,0):0,eclipseUntil:trusted?DefenseCore.clampNumber(raw.eclipseUntil,0,1e9,0):0,ashUntil:trusted?DefenseCore.clampNumber(raw.ashUntil,0,1e9,0):0,moonRevealUntil:trusted?DefenseCore.clampNumber(raw.moonRevealUntil,0,1e9,0):0,nextWeatherAt:trusted?DefenseCore.clampNumber(raw.nextWeatherAt,0,1e9,7):7,camoHintSeen:trusted&&Boolean(raw.camoHintSeen),waveAnnouncement:announcement,currentWavePlan,bossesBeaten:trusted&&Array.isArray(raw.bossesBeaten)?raw.bossesBeaten.filter(id=>DEFENSE_BOSSES.some(boss=>boss.id===id)).slice(0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES):[],bossesDefeated:trusted?DefenseCore.clampInteger(raw.bossesDefeated??raw.bossesBeaten?.length,0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES,0):0,perfectWaveCount:trusted?Math.min(clearedWave,DefenseCore.clampInteger(raw.perfectWaveCount,0,DEFENSE_LIMITS.MAX_REASONABLE_PERFECT_WAVES,0)):0,waveHeartLossStart:trusted?DefenseCore.clampInteger(raw.waveHeartLossStart,0,9999,0):0,waveTotal,waveResolved,enemyStats:trusted?normalizeDefenseEnemyStats(raw.enemyStats):normalizeDefenseEnemyStats(null),worldPerkUsed:towers.some(tower=>tower.openingPerkApplied),gateFlameArmed:false,gateFlameReadyAt:trusted?DefenseCore.clampNumber(raw.gateFlameReadyAt,0,1e9,0):0,gateFlameUntil:trusted?DefenseCore.clampNumber(raw.gateFlameUntil,0,1e9,0):0,gateFlameProgress:trusted?DefenseCore.clampNumber(raw.gateFlameProgress,0,1,.86):.86,gateFlameNextTick:trusted?DefenseCore.clampNumber(raw.gateFlameNextTick,0,1e9,0):0,gateFlameTicks:trusted?DefenseCore.clampInteger(raw.gateFlameTicks,0,1000,0):0,reason:typeof raw.reason==="string"?raw.reason.slice(0,40):"auto",validationStatus:status};
   }
   function readDefenseCheckpoint(){
     try{
@@ -5159,7 +5722,7 @@
   }
   function buildDefenseCheckpoint(d,reason="auto"){
     flushDefenseIncome(d,"checkpoint");
-    const savedAt=now(),checkpoint={checkpointVersion:DEFENSE_CHECKPOINT_VERSION,savedAt,keeperId:state.player.keeperId,mapId:d.mapId,contract:d.contract?{...d.contract}:null,currentWave:d.currentWave,clearedWave:d.clearedWave,lives:d.lives,cash:d.cash,phase:d.phase,resumePhase:d.resumePhase||DEFENSE_PHASES.COMBAT,speed:d.speed,clock:d.clock,towers:d.towers.map(tower=>({id:tower.id,petId:tower.petId,source:tower.source,rosterIndex:tower.rosterIndex,copyNumber:tower.copyNumber,x:tower.x,y:tower.y,upgrade:tower.upgrade,cooldown:tower.cooldown,kills:tower.kills,damage:tower.damage,abilityReadyAt:tower.abilityReadyAt,overclockUntil:tower.overclockUntil,rangeDebuffUntil:tower.rangeDebuffUntil,targetMode:tower.targetMode,doctrine:tower.doctrine,shots:tower.shots,placedAt:tower.placedAt||0,openingPerkApplied:Boolean(tower.openingPerkApplied),superForm:tower.superForm||null})),enemies:d.enemies.filter(enemy=>!enemy.dead).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_ENEMIES).map(enemy=>({id:enemy.id,type:enemy.type,bossId:enemy.bossId,bossIntensity:enemy.bossIntensity,bossChild:enemy.bossChild,progress:enemy.progress,hpRatio:enemy.hp/Math.max(.01,enemy.maxHp),armorBroken:enemy.armorBroken,armorShredded:enemy.armorShredded,phaseOffset:enemy.phaseOffset,revealUntil:enemy.revealUntil,phaseSuppressedUntil:enemy.phaseSuppressedUntil,revealCredited:enemy.revealCredited,phaseLockCredited:enemy.phaseLockCredited,slow:enemy.slow,slowUntil:enemy.slowUntil,burn:enemy.burn,burnUntil:enemy.burnUntil,burnSourceId:enemy.burnSource?.id||null,poison:enemy.poison,poisonUntil:enemy.poisonUntil,poisonSourceId:enemy.poisonSource?.id||null,rootUntil:enemy.rootUntil,phaseTriggered:enemy.phaseTriggered,nextBossPulse:enemy.nextBossPulse,telegraphKind:enemy.telegraphKind||null,telegraphStartedAt:enemy.telegraphStartedAt||0,telegraphUntil:enemy.telegraphUntil||0,telegraphDisruption:enemy.telegraphDisruption||0,apexSurgeUntil:enemy.apexSurgeUntil||0,bossMechanicLocked:Boolean(enemy.bossMechanicLocked)})),spawnQueue:d.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:(d.wavePackets||[]).map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter})),packetIndex:d.packetIndex||0,packetEnemyIndex:d.packetEnemyIndex||0,nextSpawnAt:d.nextSpawnAt||0,packetBreakUntil:d.packetBreakUntil||0,childSpawnQueue:(d.childSpawnQueue||[]).map(item=>({entry:typeof item.entry==="string"?item.entry:{...item.entry},progress:item.progress,releaseAt:item.releaseAt,options:{bossChild:Boolean(item.options?.bossChild),hpRatio:item.options?.hpRatio??1,rewardScale:item.options?.rewardScale??1}})),nextId:d.nextId,kills:d.kills,totalDamage:d.totalDamage,usedPetIds:[...(d.usedPetIds||[])],lastWaveBonus:d.lastWaveBonus,rallyUntil:d.rallyUntil,prismUntil:d.prismUntil,whiteoutUntil:d.whiteoutUntil,stormWeatherUntil:d.stormWeatherUntil,eclipseUntil:d.eclipseUntil,ashUntil:d.ashUntil,moonRevealUntil:d.moonRevealUntil,nextWeatherAt:d.nextWeatherAt,camoHintSeen:d.camoHintSeen,waveAnnouncement:d.waveAnnouncement?{...d.waveAnnouncement}:null,currentWavePlan:d.currentWavePlan.map(entry=>typeof entry==="string"?entry:{...entry}),bossesBeaten:[...(d.bossesBeaten||[])],bossesDefeated:d.bossesDefeated||0,perfectWaveCount:d.perfectWaveCount||0,waveHeartLossStart:d.waveHeartLossStart||0,waveTotal:d.waveTotal,waveResolved:d.waveResolved,enemyStats:JSON.parse(JSON.stringify(d.enemyStats||{})),worldPerkUsed:Boolean(d.worldPerkUsed),gateFlameReadyAt:d.gateFlameReadyAt||0,gateFlameUntil:d.gateFlameUntil||0,gateFlameProgress:d.gateFlameProgress||.86,gateFlameNextTick:d.gateFlameNextTick||0,gateFlameTicks:d.gateFlameTicks||0,reason};
+    const savedAt=now(),checkpoint={checkpointVersion:DEFENSE_CHECKPOINT_VERSION,savedAt,keeperId:state.player.keeperId,mapId:d.mapId,contract:d.contract?{...d.contract}:null,currentWave:d.currentWave,clearedWave:d.clearedWave,lives:d.lives,cash:d.cash,phase:d.phase,resumePhase:d.resumePhase||DEFENSE_PHASES.COMBAT,speed:d.speed,clock:d.clock,towers:d.towers.map(tower=>({id:tower.id,petId:tower.petId,source:tower.source,rosterIndex:tower.rosterIndex,copyNumber:tower.copyNumber,x:tower.x,y:tower.y,upgrade:tower.upgrade,cooldown:tower.cooldown,kills:tower.kills,damage:tower.damage,abilityReadyAt:tower.abilityReadyAt,overclockUntil:tower.overclockUntil,rangeDebuffUntil:tower.rangeDebuffUntil,targetMode:tower.targetMode,doctrine:tower.doctrine,shots:tower.shots,placedAt:tower.placedAt||0,openingPerkApplied:Boolean(tower.openingPerkApplied),superForm:tower.superForm||null})),enemies:d.enemies.filter(enemy=>!enemy.dead).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_ENEMIES).map(enemy=>({id:enemy.id,type:enemy.type,bossId:enemy.bossId,bossIntensity:enemy.bossIntensity,bossChild:enemy.bossChild,progress:enemy.progress,hpRatio:enemy.hp/Math.max(.01,enemy.maxHp),armor:enemy.armor,armorBroken:enemy.armorBroken,armorShredded:enemy.armorShredded,phaseOffset:enemy.phaseOffset,supportCycle:enemy.supportCycle,revealUntil:enemy.revealUntil,phaseSuppressedUntil:enemy.phaseSuppressedUntil,revealCredited:enemy.revealCredited,phaseLockCredited:enemy.phaseLockCredited,slow:enemy.slow,slowUntil:enemy.slowUntil,burn:enemy.burn,burnUntil:enemy.burnUntil,burnSourceId:enemy.burnSource?.id||null,poison:enemy.poison,poisonUntil:enemy.poisonUntil,poisonSourceId:enemy.poisonSource?.id||null,rootUntil:enemy.rootUntil,phaseTriggered:enemy.phaseTriggered,bossPhase:enemy.bossPhase||0,signalStaggerUntil:enemy.signalStaggerUntil||0,nextBossPulse:enemy.nextBossPulse,telegraphKind:enemy.telegraphKind||null,telegraphStartedAt:enemy.telegraphStartedAt||0,telegraphUntil:enemy.telegraphUntil||0,telegraphDisruption:enemy.telegraphDisruption||0,apexSurgeUntil:enemy.apexSurgeUntil||0,bossMechanicLocked:Boolean(enemy.bossMechanicLocked)})),projectiles:d.projectiles.filter(shot=>shot.target&&!shot.target.dead&&shot.target.hp>0).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_PROJECTILES).map(shot=>({towerId:shot.tower.id,targetId:shot.target.id,x:shot.x,y:shot.y,life:shot.life,speed:shot.speed,damage:shot.damage,doctrineStrike:shot.doctrineStrike||null,doubleStitch:Boolean(shot.doubleStitch)})),spawnQueue:d.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:(d.wavePackets||[]).map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter})),packetIndex:d.packetIndex||0,packetEnemyIndex:d.packetEnemyIndex||0,nextSpawnAt:d.nextSpawnAt||0,packetBreakUntil:d.packetBreakUntil||0,childSpawnQueue:(d.childSpawnQueue||[]).map(item=>({entry:typeof item.entry==="string"?item.entry:{...item.entry},progress:item.progress,releaseAt:item.releaseAt,options:{bossChild:Boolean(item.options?.bossChild),hpRatio:item.options?.hpRatio??1,rewardScale:item.options?.rewardScale??1}})),nextId:d.nextId,kills:d.kills,totalDamage:d.totalDamage,usedPetIds:[...(d.usedPetIds||[])],lastWaveBonus:d.lastWaveBonus,rallyUntil:d.rallyUntil,prismUntil:d.prismUntil,whiteoutUntil:d.whiteoutUntil,stormWeatherUntil:d.stormWeatherUntil,eclipseUntil:d.eclipseUntil,ashUntil:d.ashUntil,moonRevealUntil:d.moonRevealUntil,nextWeatherAt:d.nextWeatherAt,camoHintSeen:d.camoHintSeen,waveAnnouncement:d.waveAnnouncement?{...d.waveAnnouncement}:null,currentWavePlan:d.currentWavePlan.map(entry=>typeof entry==="string"?entry:{...entry}),bossesBeaten:[...(d.bossesBeaten||[])],bossesDefeated:d.bossesDefeated||0,perfectWaveCount:d.perfectWaveCount||0,waveHeartLossStart:d.waveHeartLossStart||0,waveTotal:d.waveTotal,waveResolved:d.waveResolved,enemyStats:JSON.parse(JSON.stringify(d.enemyStats||{})),worldPerkUsed:Boolean(d.worldPerkUsed),gateFlameReadyAt:d.gateFlameReadyAt||0,gateFlameUntil:d.gateFlameUntil||0,gateFlameProgress:d.gateFlameProgress||.86,gateFlameNextTick:d.gateFlameNextTick||0,gateFlameTicks:d.gateFlameTicks||0,reason};
     checkpoint.signature=DefenseCore.createSaveSignature(checkpoint);return checkpoint;
   }
   function clearDefenseCheckpoint(){try{localStorage.removeItem(DEFENSE_CHECKPOINT_KEY);for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS)localStorage.removeItem(key);}catch(error){} }
@@ -5171,9 +5734,10 @@
   function maybeWriteDefenseCheckpoint(dt){const d=mini.defense;if(!d)return;d.checkpointClock=(d.checkpointClock||0)+Math.max(0,dt);if(d.checkpointClock>=1){d.checkpointClock=0;if(d.checkpointDirty)writeDefenseCheckpoint(false,"combat");}}
   function renderRestoredDefenseProjectile(){return false;}
   function restoreDefenseCheckpoint(raw){
-    const checkpoint=normalizeDefenseCheckpoint(raw);if(!checkpoint)return false;initializeDefenseRun(checkpoint.mapId,checkpoint.contract);const d=mini.defense,roster=new Map(defenseRoster().map(row=>[row.pet.id,row]));
-    Object.assign(d,{currentWave:checkpoint.currentWave,clearedWave:checkpoint.clearedWave,lives:checkpoint.lives,cash:checkpoint.cash,phase:checkpoint.phase,resumePhase:checkpoint.resumePhase,speed:checkpoint.speed,clock:checkpoint.clock,spawnQueue:checkpoint.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:checkpoint.wavePackets.map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter})),packetIndex:checkpoint.packetIndex,packetEnemyIndex:checkpoint.packetEnemyIndex,nextSpawnAt:checkpoint.nextSpawnAt,packetBreakUntil:checkpoint.packetBreakUntil,childSpawnQueue:checkpoint.childSpawnQueue.map(item=>({...item,options:{...item.options}})),nextId:checkpoint.nextId,kills:checkpoint.kills,totalDamage:checkpoint.totalDamage,usedPetIds:new Set(checkpoint.usedPetIds),lastWaveBonus:checkpoint.lastWaveBonus,rallyUntil:checkpoint.rallyUntil,prismUntil:checkpoint.prismUntil,whiteoutUntil:checkpoint.whiteoutUntil,stormWeatherUntil:checkpoint.stormWeatherUntil,eclipseUntil:checkpoint.eclipseUntil,ashUntil:checkpoint.ashUntil,moonRevealUntil:checkpoint.moonRevealUntil,nextWeatherAt:checkpoint.nextWeatherAt,camoHintSeen:checkpoint.camoHintSeen,waveAnnouncement:checkpoint.waveAnnouncement,currentWavePlan:checkpoint.currentWavePlan.map(entry=>typeof entry==="string"?entry:{...entry}),bossesBeaten:[...checkpoint.bossesBeaten],bossesDefeated:checkpoint.bossesDefeated,perfectWaveCount:checkpoint.perfectWaveCount,waveHeartLossStart:checkpoint.waveHeartLossStart,waveTotal:checkpoint.waveTotal,waveResolved:checkpoint.waveResolved,enemyStats:normalizeDefenseEnemyStats(checkpoint.enemyStats),worldPerkUsed:checkpoint.worldPerkUsed,gateFlameArmed:false,gateFlameReadyAt:checkpoint.gateFlameReadyAt,gateFlameUntil:checkpoint.gateFlameUntil,gateFlameProgress:checkpoint.gateFlameProgress,gateFlameNextTick:checkpoint.gateFlameNextTick,gateFlameTicks:checkpoint.gateFlameTicks,checkpointDirty:false,checkpointClock:0,pendingIncome:0,pendingIncomeEvents:0,pendingIncomeSources:{},realClock:0,nextIncomeFlushAtReal:0,nextChildReleaseAtReal:0,childSpawnSequence:0,targetSnapshot:[],targetSnapshotAtReal:0,targetSnapshotBuilds:0,childSpawnsReleased:0,lastIncomeBatch:null});
-    d.towers=checkpoint.towers.map(snapshot=>{const row=roster.get(snapshot.petId);if(!row)return null;return{...snapshot,pet:row.pet,source:row.source,rosterIndex:row.rosterIndex,node:null,targetId:null,retargetAt:0,retargetAtReal:0};}).filter(Boolean);if(!d.towers.length){clearDefenseCheckpoint();return false;}d.usedPetIds=new Set([...d.usedPetIds,...d.towers.map(tower=>tower.petId)]);d.enemies=[];d.projectiles=[];mini.entities=[];renderDefenseWorld();const towerMap=new Map();for(const tower of d.towers){renderDefenseTower(tower);towerMap.set(tower.id,tower);}const enemyMap=new Map();for(const snapshot of checkpoint.enemies){const descriptor=snapshot.bossId?{type:"boss",bossId:snapshot.bossId,intensity:snapshot.bossIntensity}:snapshot.type,enemy=spawnDefenseEnemy(descriptor,{progress:snapshot.progress,hpOverride:snapshot.hp,maxHpOverride:snapshot.maxHp,bossChild:snapshot.bossChild,skipAnalytics:true,rewardScale:snapshot.bossChild?.5:1});const node=enemy.node;Object.assign(enemy,snapshot,{node,burnSource:null,poisonSource:null});if(node){node.dataset.enemyId=enemy.id;const data=snapshot.bossId?DEFENSE_BOSSES.find(item=>item.id===snapshot.bossId):DEFENSE_ENEMIES[snapshot.type];node.className=`defense-enemy ${snapshot.bossId?`balloon-boss ${data?.className||"boss-crown"}`:data?.className||"balloon-puff"}`;node.style.setProperty("--balloon-color",data?.color||"#ff5b68");const trait=node.querySelector(".balloon-trait");if(trait)trait.textContent=data?.icon||"○";}enemyMap.set(enemy.id,enemy);}for(const snapshot of checkpoint.enemies){const enemy=enemyMap.get(snapshot.id);if(!enemy)continue;enemy.burnSource=towerMap.get(snapshot.burnSourceId)||null;enemy.poisonSource=towerMap.get(snapshot.poisonSourceId)||null;updateDefenseEnemyNode(enemy,true);}const newestEnemy=d.enemies.filter(enemy=>!enemy.dead).sort((a,b)=>a.progress-b.progress)[0]||null;d.lastSpawnedEnemyId=newestEnemy?.id||null;d.spawnWaitReason=newestEnemy?"restored-distance":"restored-timer";d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);d.waveTotal=Math.max(d.waveTotal,d.waveResolved+d.spawnQueue.length+d.childSpawnQueue.length+d.enemies.length);d.nextId=Math.max(d.nextId,checkpoint.nextId);mini.score=d.clearedWave;mini.hits=d.kills;updateDefenseRoster();markDefenseUi();flushDefenseUi(true);const unfinished=d.currentWave>d.clearedWave;setDefenseMessage(unfinished?`RUN RESTORED • WAVE ${d.currentWave} PAUSED`:`RUN RESTORED • ${d.clearedWave} CLEARED`,unfinished?`Permanent progress remains at Wave ${d.clearedWave}. Tap ▶ when ready.`:"Your field and match coins are waiting. Start the next wave when ready.");writeDefenseCheckpoint(true,checkpoint.validationStatus==="migrated"?"migrated":"restored");return true;
+    const checkpoint=normalizeDefenseCheckpoint(raw);if(!checkpoint)return false;initializeDefenseRun(checkpoint.mapId,checkpoint.contract,{allowLockedMap:checkpoint.validationStatus!=="sanitized"});const d=mini.defense,placedIds=[...new Set([state.pet?.id,...checkpoint.towers.map(tower=>tower.petId)].filter(Boolean))].filter(id=>!DEFENSE_UNIVERSAL_PET_IDS.has(id)),fillIds=defenseConfiguredWingIds().filter(id=>!placedIds.includes(id)).slice(0,Math.max(0,1+DEFENSE_ROSTER_WING_SLOTS-placedIds.length)),runRosterIds=[...placedIds,...fillIds];d.runRosterIds=runRosterIds;const roster=defenseRestorableRegistry();
+    Object.assign(d,{runRosterIds,currentWave:checkpoint.currentWave,clearedWave:checkpoint.clearedWave,lives:checkpoint.lives,cash:checkpoint.cash,phase:checkpoint.phase,resumePhase:checkpoint.resumePhase,speed:checkpoint.speed,clock:checkpoint.clock,spawnQueue:checkpoint.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:checkpoint.wavePackets.map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter})),packetIndex:checkpoint.packetIndex,packetEnemyIndex:checkpoint.packetEnemyIndex,nextSpawnAt:checkpoint.nextSpawnAt,packetBreakUntil:checkpoint.packetBreakUntil,childSpawnQueue:checkpoint.childSpawnQueue.map(item=>({...item,options:{...item.options}})),nextId:checkpoint.nextId,kills:checkpoint.kills,totalDamage:checkpoint.totalDamage,usedPetIds:new Set(checkpoint.usedPetIds),lastWaveBonus:checkpoint.lastWaveBonus,rallyUntil:checkpoint.rallyUntil,prismUntil:checkpoint.prismUntil,whiteoutUntil:checkpoint.whiteoutUntil,stormWeatherUntil:checkpoint.stormWeatherUntil,eclipseUntil:checkpoint.eclipseUntil,ashUntil:checkpoint.ashUntil,moonRevealUntil:checkpoint.moonRevealUntil,nextWeatherAt:checkpoint.nextWeatherAt,camoHintSeen:checkpoint.camoHintSeen,waveAnnouncement:checkpoint.waveAnnouncement,currentWavePlan:checkpoint.currentWavePlan.map(entry=>typeof entry==="string"?entry:{...entry}),bossesBeaten:[...checkpoint.bossesBeaten],bossesDefeated:checkpoint.bossesDefeated,perfectWaveCount:checkpoint.perfectWaveCount,waveHeartLossStart:checkpoint.waveHeartLossStart,waveTotal:checkpoint.waveTotal,waveResolved:checkpoint.waveResolved,enemyStats:normalizeDefenseEnemyStats(checkpoint.enemyStats),worldPerkUsed:checkpoint.worldPerkUsed,gateFlameArmed:false,gateFlameReadyAt:checkpoint.gateFlameReadyAt,gateFlameUntil:checkpoint.gateFlameUntil,gateFlameProgress:checkpoint.gateFlameProgress,gateFlameNextTick:checkpoint.gateFlameNextTick,gateFlameTicks:checkpoint.gateFlameTicks,checkpointDirty:false,checkpointClock:0,pendingIncome:0,pendingIncomeEvents:0,pendingIncomeSources:{},realClock:0,nextIncomeFlushAtReal:0,nextChildReleaseAtReal:0,childSpawnSequence:0,targetSnapshot:[],targetSnapshotAtReal:0,targetSnapshotBuilds:0,childSpawnsReleased:0,lastIncomeBatch:null,flowDecisionBeat:0,flowPulseUntilReal:0,flowEaseUntilReal:0,flowChoiceKey:"",flowLastAction:"",flowActionQuietUntilReal:0,flowAutoHeldWave:-1});
+    d.towers=checkpoint.towers.map(snapshot=>{const row=roster.get(snapshot.petId);if(!row)return null;const structureType=defenseStructureType(row);return{...snapshot,pet:row.pet,source:row.source,rosterIndex:row.rosterIndex,structureType,node:null,targetId:null,retargetAt:0,retargetAtReal:0,nextProductionAt:0,totalProduced:0,factoryCleanCycles:0,factoryLivesSnapshot:d.lives,factoryLastInterval:0};}).filter(Boolean);if(!d.towers.length){clearDefenseCheckpoint();return false;}for(const tower of d.towers)if(defenseStructureType(tower)==="factory"){const econ=defenseFactoryEconomy(tower,d);tower.nextProductionAt=d.clock+econ.interval;tower.factoryLastInterval=econ.interval;}d.usedPetIds=new Set([...d.usedPetIds,...d.towers.map(tower=>tower.petId)]);d.enemies=[];d.projectiles=[];mini.entities=[];renderDefenseWorld();const towerMap=new Map();for(const tower of d.towers){renderDefenseTower(tower);towerMap.set(tower.id,tower);}const enemyMap=new Map();for(const snapshot of checkpoint.enemies){const descriptor=snapshot.bossId?{type:"boss",bossId:snapshot.bossId,intensity:snapshot.bossIntensity}:snapshot.type,enemy=spawnDefenseEnemy(descriptor,{progress:snapshot.progress,hpOverride:snapshot.hp,maxHpOverride:snapshot.maxHp,bossChild:snapshot.bossChild,skipAnalytics:true,rewardScale:snapshot.bossChild?.5:1});const node=enemy.node;Object.assign(enemy,snapshot,{node,burnSource:null,poisonSource:null});if(node){node.dataset.enemyId=enemy.id;const data=snapshot.bossId?DEFENSE_BOSSES.find(item=>item.id===snapshot.bossId):DEFENSE_ENEMIES[snapshot.type];node.className=`defense-enemy ${snapshot.bossId?`balloon-boss ${data?.className||"boss-crown"}`:data?.className||"balloon-puff"}`;node.style.setProperty("--balloon-color",data?.color||"#ff5b68");const trait=node.querySelector(".balloon-trait");if(trait)trait.textContent=data?.icon||"○";}enemyMap.set(enemy.id,enemy);}for(const snapshot of checkpoint.enemies){const enemy=enemyMap.get(snapshot.id);if(!enemy)continue;enemy.burnSource=towerMap.get(snapshot.burnSourceId)||null;enemy.poisonSource=towerMap.get(snapshot.poisonSourceId)||null;updateDefenseEnemyNode(enemy,true);}for(const saved of checkpoint.projectiles){const tower=towerMap.get(saved.towerId),target=enemyMap.get(saved.targetId);if(!tower||!target)continue;const stats=defenseCombatStats(tower);d.projectiles.push({...saved,id:`shot-${d.nextId++}`,tower,target,prevX:saved.x,prevY:saved.y,kind:stats.projectile,masteryTier:defenseMasteryTierForPet(tower.petId),node:null,renderVisible:defenseUsesCanvas(d),renderColor:(VARIANTS.find(v=>v.id===stats.variant)||VARIANTS[0]).color});}
+    const newestEnemy=d.enemies.filter(enemy=>!enemy.dead).sort((a,b)=>a.progress-b.progress)[0]||null;d.lastSpawnedEnemyId=newestEnemy?.id||null;d.spawnWaitReason=newestEnemy?"restored-distance":"restored-timer";d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);d.waveTotal=Math.max(d.waveTotal,d.waveResolved+d.spawnQueue.length+d.childSpawnQueue.length+d.enemies.length);d.nextId=Math.max(d.nextId,checkpoint.nextId);mini.score=d.clearedWave;mini.hits=d.kills;updateDefenseRoster();markDefenseUi();flushDefenseUi(true);const unfinished=d.currentWave>d.clearedWave;setDefenseMessage(unfinished?`RUN RESTORED • WAVE ${d.currentWave} PAUSED`:`RUN RESTORED • ${d.clearedWave} CLEARED`,unfinished?`Permanent progress remains at Wave ${d.clearedWave}. Tap ▶ when ready.`:"Your field and match coins are waiting. Start the next wave when ready.");writeDefenseCheckpoint(true,checkpoint.validationStatus==="migrated"?"migrated":"restored");return true;
   }
   function defenseCheckpointLobbyMarkup(checkpoint){if(!checkpoint)return"";const map=DEFENSE_MAPS[checkpoint.mapId]||DEFENSE_MAPS.grove,threats=checkpoint.spawnQueue.length+checkpoint.childSpawnQueue.length+checkpoint.enemies.length,unfinished=checkpoint.currentWave>checkpoint.clearedWave,phase=unfinished?`${threats} THREATS PAUSED • CLEARED ${checkpoint.clearedWave}`:checkpoint.clearedWave?`PLANNING WAVE ${checkpoint.clearedWave+1}`:"SETUP",contract=normalizeDefenseRunContract(checkpoint.contract);return`<section class="defense-resume-card ${contract?"contract-run":""}"><div><small>${contract?"TRAIL CONTRACT CHECKPOINT":"RUN CHECKPOINT"} • ${escapeHTML(defenseCheckpointAgeCopy(checkpoint.savedAt))}</small><h3>${map.icon} ${escapeHTML(map.name)} • ${unfinished?`REACHED ${checkpoint.currentWave}`:`CLEARED ${checkpoint.clearedWave}`}</h3><p>${escapeHTML(phase)} • ♥ ${checkpoint.lives} • ${checkpoint.towers.length} RIZOS • ${Math.floor(checkpoint.cash)} COINS${contract?` • ${escapeHTML(contract.title)}`:""}</p></div><span><button type="button" data-discard-defense-run>DISCARD</button><button class="primary" type="button" data-resume-defense-run>RESUME RUN</button></span></section>`;}
 
@@ -5190,18 +5754,75 @@
     const clearedWave=DefenseCore.clampInteger(snapshot?.clearedWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),reachedWave=Math.max(clearedWave,DefenseCore.clampInteger(snapshot?.currentWave??snapshot?.wave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0));if(!clearedWave&&!reachedWave)return null;
     const contractProgress=recordDefenseContractProgress(snapshot,true),contract=contractProgress.record,stats=snapshot.enemyStats||{},heartLoss=Math.max(0,Math.floor(Number(stats.heartLoss)||0)),leaks=Object.values(stats.leaked||{}).reduce((sum,value)=>sum+(Number(value)||0),0),bosses=[...new Set(snapshot.bossesBeaten||[])],perfectWaveCount=DefenseCore.clampInteger(snapshot?.perfectWaveCount,0,clearedWave,0),perfect=clearedWave>0&&perfectWaveCount===clearedWave,petTotals=new Map();
     for(const tower of snapshot.towers||[]){const current=petTotals.get(tower.petId)||{petId:tower.petId,name:tower.pet?.name||"RIZO",variant:tower.pet?.variant||tower.pet?.hiddenVariant||"classic",kills:0,damage:0,powerPaths:0,controlPaths:0};current.kills+=Math.max(0,Number(tower.kills)||0);current.damage+=Math.max(0,Number(tower.damage)||0);if(tower.doctrine==="power")current.powerPaths+=1;if(tower.doctrine==="control")current.controlPaths+=1;petTotals.set(tower.petId,current);}
-    const leaders=[...petTotals.values()].sort((a,b)=>b.damage-a.damage||b.kills-a.kills),top=leaders[0]||{petId:"",name:state.pet.name,variant:state.pet.variant||"classic",damage:0};state.scores.defenseMastery||={};
-    if(clearedWave>0)for(const row of leaders){const prior=state.scores.defenseMastery[row.petId]||{petId:row.petId,name:row.name,variant:row.variant,runs:0,waves:0,bestWave:0,pops:0,damage:0,bosses:0,powerPaths:0,controlPaths:0,lastAt:0};state.scores.defenseMastery[row.petId]={...prior,name:row.name,variant:row.variant,runs:(prior.runs||0)+1,waves:(prior.waves||0)+clearedWave,bestWave:Math.max(prior.bestWave||0,clearedWave),pops:(prior.pops||0)+Math.floor(row.kills),damage:(prior.damage||0)+Math.round(row.damage),bosses:(prior.bosses||0)+(row.petId===top.petId?bosses.length:0),powerPaths:(prior.powerPaths||0)+row.powerPaths,controlPaths:(prior.controlPaths||0)+row.controlPaths,lastAt:now()};}
+    const leaders=[...petTotals.values()].sort((a,b)=>b.damage-a.damage||b.kills-a.kills),persistentLeaders=leaders.filter(row=>!row.petId.startsWith("defense-crew-")&&!row.petId.startsWith("defense-structure-")&&row.petId!==DEFENSE_BASIC_TOWER.id),top=persistentLeaders[0]||{petId:state.pet.id||"",name:state.pet.name,variant:state.pet.variant||"classic",damage:0};state.scores.defenseMastery||={};
+    // Defense crew are tactical loaners: combat contribution is real, permanent MVP/mastery is not.
+    if(clearedWave>0)for(const row of persistentLeaders){const prior=state.scores.defenseMastery[row.petId]||{petId:row.petId,name:row.name,variant:row.variant,runs:0,waves:0,bestWave:0,pops:0,damage:0,bosses:0,powerPaths:0,controlPaths:0,lastAt:0};state.scores.defenseMastery[row.petId]={...prior,name:row.name,variant:row.variant,runs:(prior.runs||0)+1,waves:(prior.waves||0)+clearedWave,bestWave:Math.max(prior.bestWave||0,clearedWave),pops:(prior.pops||0)+Math.floor(row.kills),damage:(prior.damage||0)+Math.round(row.damage),bosses:(prior.bosses||0)+(row.petId===top.petId?bosses.length:0),powerPaths:(prior.powerPaths||0)+row.powerPaths,controlPaths:(prior.controlPaths||0)+row.controlPaths,lastAt:now()};}
     const record={id:uid("DEFENSE-RUN"),at:now(),mapId:snapshot.mapId,wave:clearedWave,clearedWave,reachedWave,kills:Math.max(0,Math.floor(Number(snapshot.kills)||0)),heartLoss,leaks:Math.max(0,Math.floor(leaks)),bosses:bosses.length,perfect,perfectWaveCount,ended:snapshot.ended==="gate"?"gate":"banked",mvpPetId:top.petId,mvpName:top.name,mvpVariant:top.variant,mvpDamage:Math.round(top.damage),powerPaths:leaders.reduce((sum,row)=>sum+row.powerPaths,0),controlPaths:leaders.reduce((sum,row)=>sum+row.controlPaths,0),contractId:contract?.id||"",contractDate:contract?.date||"",contractComplete:Boolean(contract?.completed)};
     state.scores.defenseHistory=[record,...(state.scores.defenseHistory||[])].slice(0,12);if(perfect&&clearedWave>=10){state.scores.defensePerfectMaps||=[];if(!state.scores.defensePerfectMaps.includes(snapshot.mapId))state.scores.defensePerfectMaps.push(snapshot.mapId);}return record;
   }
 
   function defenseNow(){return Number(mini.defense?.clock)||0;}
-  function defenseRoster(){
-    const rows=[{pet:state.pet,source:"active",rosterIndex:-1}];
-    for(const [rosterIndex,pet] of (state.farm?.roster||[]).entries())rows.push({pet,source:"house",rosterIndex});
-    return rows.filter(row=>row.pet?.alive!==false&&row.pet?.stage!=="egg");
+  const DEFENSE_STRUCTURE_META=Object.freeze({
+    factory:Object.freeze({id:"defense-structure-factory",name:"CLOTHING FACTORY",role:"ECONOMY",accent:"#ff7a45"}),
+    beacon:Object.freeze({id:"defense-structure-beacon",name:"BEACON",role:"SUPPORT",accent:"#ffe16a"})
+  });
+  // Universal (Defense-only) deployables. Kept as one ordered list so the bench,
+  // pricing, checkpoint restore and reward-exclusion paths all agree on what is a
+  // tool rather than a collected Rizo.
+  const DEFENSE_UNIVERSAL_STRUCTURE_TYPES=Object.freeze(["factory","beacon"]);
+  const DEFENSE_UNIVERSAL_PET_IDS=new Set([DEFENSE_BASIC_TOWER.id,...DEFENSE_UNIVERSAL_STRUCTURE_TYPES.map(type=>DEFENSE_STRUCTURE_META[type].id)]);
+  function defenseStructureType(subject){return subject?.structureType||subject?.pet?.defenseStructure||subject?.defenseStructure||null;}
+  function defenseStructurePet(type){const meta=DEFENSE_STRUCTURE_META[type]||DEFENSE_STRUCTURE_META.factory;return{id:meta.id,name:meta.name,variant:"classic",hiddenVariant:"classic",stage:"kid",alive:true,defenseGuest:true,defenseStructure:type,accessory:null,skills:{power:0,speed:0,instinct:0,stamina:0,luck:0}};}
+  function defenseAwakenedGoldenCount(d=mini.defense){return d?.towers?.filter(tower=>!defenseStructureType(tower)&&(tower.pet.variant||tower.pet.hiddenVariant)==="golden"&&tower.upgrade>=2).length||0;}
+  function defenseBeaconNetwork(beacon,d=mini.defense){
+    if(!beacon||!d||defenseStructureType(beacon)!=="beacon")return null;const support=DefenseCore.beaconSupport(beacon.upgrade);let combat=0,factories=0,golden=0;
+    for(const other of d.towers){if(other===beacon||defenseStructureType(other)==="beacon")continue;if(Math.hypot(beacon.x-other.x,beacon.y-other.y)>support.radius)continue;const type=defenseStructureType(other);if(type==="factory")factories+=1;else{combat+=1;if((other.pet.variant||other.pet.hiddenVariant)==="golden"&&other.upgrade>=2)golden+=1;}}
+    const brandLoop=beacon.upgrade>=2&&combat>0&&factories>0,privateSun=brandLoop&&beacon.upgrade>=4;return{combat,factories,golden,brandLoop,privateSun};
   }
+  function defenseBeaconInfluence(tower,d=mini.defense){
+    if(!tower||!d||defenseStructureType(tower)==="beacon")return null;let best=null;
+    for(const beacon of d.towers){if(defenseStructureType(beacon)!=="beacon")continue;const support=DefenseCore.beaconSupport(beacon.upgrade),distance=Math.hypot(beacon.x-tower.x,beacon.y-tower.y);if(distance>support.radius)continue;const network=defenseBeaconNetwork(beacon,d),score=support.rateMultiplier+support.damageMultiplier+support.radius+(network?.brandLoop?.01:0)+(network?.privateSun?.02:0);if(!best||score>best.score)best={...support,score,beacon,network};}
+    return best;
+  }
+  function defenseFactoryEconomy(tower,d=mini.defense){const influence=defenseBeaconInfluence(tower,d),goldens=defenseAwakenedGoldenCount(d),network=influence?.network;return DefenseCore.factoryEconomy({upgradeLevel:tower?.upgrade||0,wave:d?.currentWave||d?.clearedWave||0,goldenTowerCount:goldens,beaconUpgradeLevel:influence?.beacon?.upgrade??-1,cleanCycles:tower?.factoryCleanCycles||0,brandLoop:Boolean(network?.brandLoop),privateSun:Boolean(network?.privateSun),goldenLicensed:Boolean(network?.golden)});}
+  function defenseStructureUpgradeName(tower){const type=defenseStructureType(tower),level=clamp(tower?.upgrade||0,0,4),names={factory:["FOLD TABLE","TWO-PERSON SHOP","PRINT LINE","NIGHT SHIFT","RIZO INDUSTRIAL"],beacon:["WORK LIGHT","SIGNAL LAMP","HALO ARRAY","DAYBREAK CORE","PRIVATE SUN"]};return(names[type]||names.factory)[level];}
+  function defenseStructureRoleCopy(type){return type==="factory"?"Prints shirts into Defense coins during live waves. Upgraded lines build momentum while the Gate stays clean; leaks break the streak.":"Nearby Rizos attack faster. From HALO ARRAY onward, covering both a Rizo and Factory lights a BRAND LOOP that accelerates Factory drops.";}
+  function defenseRoster(){
+    const configured=defenseConfiguredRoster(),runIds=mini?.active&&mini.mode==="defense"&&Array.isArray(mini.defense?.runRosterIds)?mini.defense.runRosterIds:null;
+    if(!runIds)return configured;
+    const registry=defenseFullRosterRegistry(),rows=[],captain=registry.get(state.pet?.id);
+    if(captain)rows.push(captain);
+    for(const id of runIds){if(id===state.pet?.id)continue;const row=registry.get(id);if(row&&!rows.some(item=>item.pet.id===id))rows.push(row);}
+    return rows.length?rows:configured;
+  }
+  // --- INTEGRATION GLUE: bench composition -------------------------------------
+  // Worker C owns `defenseRoster()` as the Rizo *character* crew (Captain + wings).
+  // Workers B and D contribute universal Defense-only tools/structures that must
+  // share the bench, placement, pricing and checkpoint paths without pretending to
+  // be collected Rizos. `defenseDeployRows()` is the single composed bench source;
+  // character semantics (mastery, MVP, Field Leader, Field Guide) keep reading
+  // `defenseRoster()` so universal tools can never steal collection rewards.
+  function defenseUniversalStructureRows(){
+    return DEFENSE_UNIVERSAL_STRUCTURE_TYPES.map(type=>({pet:defenseStructurePet(type),source:"structure",rosterIndex:-1,structureType:type}));
+  }
+  // One ordered universal layer: Worker D's Basic Defense Rizo (the cheap legible
+  // combat starter) then Worker B's economy/support structures.
+  function defenseUniversalRows(){return [...defenseUniversalDeployRows(),...defenseUniversalStructureRows()];}
+  // Bench order is "protagonist, universal kit, discovered crew". The Captain
+  // always leads, and the complete universal kit always sits in the first bench
+  // frame so a player who owns only their starter Rizo still has a whole tower
+  // defense game without hunting through a scrolled bench. Discovered wings
+  // follow: they are a deliberate pre-run choice, not an onboarding dependency.
+  function defenseDeployRows(){
+    const crew=defenseRoster(),captain=crew.filter(row=>row.source==="active"),wings=crew.filter(row=>row.source!=="active");
+    return [...captain,...defenseUniversalRows(),...wings];
+  }
+  function defenseDeployRegistry(){return new Map(defenseDeployRows().map(row=>[row.pet.id,row]));}
+  function defenseIsUniversalRow(row){return Boolean(row)&&(row.source==="structure"||row.source==="universal");}
+  // Character = a collected/loaned Rizo. Never a universal Defense-only tool
+  // (Worker D) and never a universal structure (Worker B). Field Leader, field
+  // powers, Super Rizo ascension and permanent identity are character-only.
+  function defenseIsCharacterTower(tower){return Boolean(tower)&&!defenseStructureType(tower)&&!defenseIsUniversalTower(tower);}
   function defenseUnlockedMaps(){const best=Number(state.scores?.defense)||0;return DEFENSE_MAP_ORDER.map(id=>DEFENSE_MAPS[id]).filter(map=>best>=map.unlockWave);}
   function chooseDefenseMapId(){const unlocked=defenseUnlockedMaps();return (unlocked[unlocked.length-1]||DEFENSE_MAPS.grove).id;}
   function defensePathMetrics(path){const segments=[];let total=0;for(let i=1;i<path.length;i+=1){const a=path[i-1],b=path[i],length=Math.hypot(b.x-a.x,b.y-a.y);segments.push({a,b,length,start:total});total+=length;}return{segments,total};}
@@ -5212,6 +5833,44 @@
   function defenseMiniRouteMarkup(map){const d=defenseMapSvgPath(map);return`<svg class="defense-mini-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`;}
   function defenseLandmarkMarkup(map){return(map.landmarks||[]).map((item,index)=>`<i class="defense-landmark landmark-${escapeHTML(item.kind||"stone")}" style="--landmark-x:${item.x*100}%;--landmark-y:${item.y*100}%" data-landmark="${index}" aria-hidden="true"><span>${escapeHTML(item.label||"")}</span></i>`).join("");}
   function defenseBuildPocketMarkup(map){return(map.buildPockets||[]).map((item,index)=>`<i class="defense-build-pocket build-pocket-${escapeHTML(map.id)}" style="--pocket-x:${item.x*100}%;--pocket-y:${item.y*100}%" data-build-pocket="${index}" aria-hidden="true"></i>`).join("");}
+  function defenseMapMechanicMarkup(map){
+    const mechanic=map.mechanic||{},zones=map.mechanicZones||[];
+    const link=mechanic.link&&zones.length>1?(()=>{const a=zones[0],b=zones[1],dx=(b.x-a.x)*100,dy=(b.y-a.y)*100,length=Math.hypot(dx,dy),angle=Math.atan2(dy,dx)*180/Math.PI;return `<i class="defense-map-bond-link link-${escapeHTML(mechanic.kind||"field")}" style="--link-x:${a.x*100}%;--link-y:${a.y*100}%;--link-length:${length}%;--link-angle:${angle}deg" aria-hidden="true"><u></u></i>`;})():"";
+    return link+zones.map((zone,index)=>{
+      const radius=Math.max(.02,Number(zone.r)||.12),edgeClass=[zone.x<.2?"mechanic-edge-left":"",zone.x>.8?"mechanic-edge-right":"",zone.y+radius>=.69?"mechanic-edge-bottom":""].filter(Boolean).join(" "),core=Number(zone.core)||0;
+      return `<i class="defense-map-mechanic mechanic-${escapeHTML(zone.kind||mechanic.kind||"field")} ${core?"mechanic-has-core":""} ${edgeClass}" style="--mechanic-x:${zone.x*100}%;--mechanic-y:${zone.y*100}%;--mechanic-size:${Math.max(18,radius*200)}%;--mechanic-core:${Math.round(core*100)}%" data-map-mechanic="${index}" aria-hidden="true"><b>${escapeHTML(mechanic.icon||"✦")}</b><span><strong>${escapeHTML(mechanic.label||"FIELD BOND")}</strong><em>${escapeHTML(mechanic.copy||"")}</em></span></i>`;
+    }).join("");
+  }
+  function defenseMapZoneMatch(map,x,y){
+    if(!map||!Number.isFinite(x)||!Number.isFinite(y))return null;let chosen=null,score=Infinity,index=-1;
+    (map.mechanicZones||[]).forEach((zone,zoneIndex)=>{const r=Math.max(.02,Number(zone.r)||.12),distance=Math.hypot(x-zone.x,y-zone.y),ratio=distance/r;if(ratio<=1&&ratio<score){chosen=zone;score=ratio;index=zoneIndex;}});
+    return chosen?{zone:chosen,index,ratio:score}:null;
+  }
+  function defenseMapOccupiedZones(d=mini.defense,extraMatch=null){
+    const occupied=new Set(),map=d?.map;if(!map)return occupied;
+    for(const tower of d.towers||[]){const match=defenseMapZoneMatch(map,tower.x,tower.y);if(match)occupied.add(match.index);}
+    if(extraMatch)occupied.add(extraMatch.index);
+    return occupied;
+  }
+  function syncDefenseMapBondStateClasses(d=mini.defense){const world=$("#defenseWorld");if(!world||!d?.map)return false;const occupied=defenseMapOccupiedZones(d),linked=(d.map.mechanicZones||[]).length>1&&occupied.has(0)&&occupied.has(1);world.classList.toggle("map-circuit-linked",d.mapId==="storm"&&linked);world.classList.toggle("map-seal-resonance",d.mapId==="eclipse"&&linked);return linked;}
+  function defenseMapBondForTower(tower,d=mini.defense,{preview=false}={}){
+    const map=d?.map;if(!tower||!map)return null;const match=defenseMapZoneMatch(map,tower.x,tower.y);if(!match)return null;
+    const {zone:chosen,index:zoneIndex,ratio}=match,occupied=defenseMapOccupiedZones(d,preview?match:null),now=defenseNow();
+    const base={kind:chosen.kind||map.mechanic?.kind||"field",label:map.mechanic?.label||"FIELD BOND",copy:map.mechanic?.copy||"",preview:map.mechanic?.label||"FIELD BOND",damage:1,rate:1,range:1,camoSight:false,whiteoutProof:false,zoneIndex,ratio,tier:"bonded",state:""};
+    if(map.id==="grove"){base.range=1.12;base.preview="KEEPER STONE • +12% REACH";}
+    else if(map.id==="ember"){
+      const hotCore=ratio<=Math.max(.2,Number(chosen.core)||.72);base.tier=hotCore?"core":"draft";base.label=hotCore?"FIRE DRAFT • HOT CORE":"FIRE DRAFT • OUTER";base.rate=hotCore?1.28:1.16;base.range=hotCore?.88:.96;base.copy=hotCore?"Hot core: +28% attack speed, -12% reach. Fastest position, tightest coverage.":"Outer draft: +16% attack speed, -4% reach. Safer coverage, less heat.";base.preview=hotCore?"HOT CORE • +28% SPEED / -12% REACH":"FIRE DRAFT • +16% SPEED / -4% REACH";
+    }else if(map.id==="moon"){
+      const moonlit=d.moonRevealUntil>now;base.range=1.08;base.rate=moonlit?1.18:1;base.camoSight=true;base.state=moonlit?"moonlit":"";base.label=moonlit?"SILVER BASIN • MOONLIT":"SILVER BASIN";base.copy=moonlit?"Moonlight is feeding the basin: veil sight, +8% reach, +18% attack speed.":"The basin keeps veil sight and +8% reach. Moonlight will wake its attack-speed window.";base.preview=moonlit?"MOONLIT BASIN • +18% SPEED / +8% REACH":"SILVER BASIN • VEIL SIGHT +8% REACH";
+    }else if(map.id==="storm"){
+      const circuit=(map.mechanicZones||[]).length>1&&occupied.has(0)&&occupied.has(1),surge=d.stormWeatherUntil>now;base.rate=surge?(circuit?1.34:1.28):(circuit?1.16:1.08);base.state=circuit?"circuit":"";base.label=circuit?"LIVE PYLONS • CIRCUIT":"LIVE PYLONS";base.copy=circuit?(surge?"Circuit closed during the surge: both pylon positions run at +34% attack speed.":"Circuit closed: split coverage across both pylons raises bonded towers to +16% attack speed."):(surge?"This pylon is surging at +28% attack speed. Occupy the other pylon to close the circuit.":"This pylon grants +8% attack speed. Occupy the other pylon to close the circuit.");base.preview=surge?(circuit?"CIRCUIT SURGE • +34% SPEED":"SURGE PYLON • +28% SPEED"):(circuit?"CIRCUIT CLOSED • +16% SPEED":"LIVE PYLON • +8% SPEED");
+    }else if(map.id==="blizzard"){
+      const whiteout=d.whiteoutUntil>now;base.range=whiteout?1.14:1.04;base.whiteoutProof=true;base.state=whiteout?"whiteout":"";base.label=whiteout?"ICE SHELTER • WHITEOUT OPEN":"ICE SHELTER";base.copy=whiteout?"The shelter turns Whiteout into an opening: no range loss and +14% reach.":"Sheltered towers ignore Whiteout range loss and hold +4% reach between storms.";base.preview=whiteout?"SHELTER OPEN • +14% REACH":"ICE SHELTER • WHITEOUT-PROOF";
+    }else if(map.id==="eclipse"){
+      const resonance=(map.mechanicZones||[]).length>1&&occupied.has(0)&&occupied.has(1);base.range=resonance?1.14:1.06;base.camoSight=true;base.state=resonance?"resonance":"";base.label=resonance?"SHADOW SEALS • RESONANCE":"SHADOW SEALS";base.copy=resonance?"Both seals are occupied: veil sight holds and bonded towers resonate at +14% reach.":"One seal holds veil sight and +6% reach. Occupy the other seal to resonate both positions.";base.preview=resonance?"SEALS RESONATE • +14% REACH":"SHADOW SEAL • VEIL SIGHT +6% REACH";
+    }
+    return base;
+  }
   function defenseWorldFeatureMarkup(map){
     const features={
       grove:[["root","terrain-root terrain-root-a"],["root","terrain-root terrain-root-b"],["vine","terrain-vine"]],
@@ -5247,52 +5906,64 @@
   });
   function defenseWorldPerkMatchesTower(mapId,tower){const perk=DEFENSE_WORLD_OPENING_PERKS[mapId],variant=tower?.pet?.variant||tower?.pet?.hiddenVariant||"classic";return Boolean(perk?.variants?.includes(variant));}
   function defenseWorldPerkLabel(d=mini.defense){return DEFENSE_WORLD_OPENING_PERKS[d?.mapId]?.label||"BALANCED OPENING";}
-  function defenseUpgradeModifier(tower,d=mini.defense){if(!d||d.worldPerkUsed||tower?.upgrade!==0||!defenseWorldPerkMatchesTower(d.mapId,tower))return 1;return DefenseCore.ECONOMY.worldOpeningDiscount;}
-  function defenseUpgradeCost(tower,d=mini.defense){return DefenseCore.upgradeCost(tower?.upgrade||0,defenseUpgradeModifier(tower,d));}
+  function defenseUpgradeModifier(tower,d=mini.defense){if(defenseStructureType(tower)||defenseIsUniversalTower(tower)||!d||d.worldPerkUsed||tower?.upgrade!==0||!defenseWorldPerkMatchesTower(d.mapId,tower))return 1;return DefenseCore.ECONOMY.worldOpeningDiscount;}
+  function defenseUpgradeCost(tower,d=mini.defense){const structureType=defenseStructureType(tower);if(defenseIsUniversalTower(tower))return DEFENSE_BASIC_TOWER.upgradeCosts[clamp(tower?.upgrade||0,0,DEFENSE_BASIC_TOWER.upgradeCosts.length-1)];return structureType?DefenseCore.structureUpgradeCost(structureType,tower?.upgrade||0):DefenseCore.upgradeCost(tower?.upgrade||0,defenseUpgradeModifier(tower,d));}
   function defenseCanUndoPlacement(tower,d=mini.defense){return Boolean(d&&tower&&defenseSellAllowed(d)&&Number.isFinite(tower.placedAtReal)&&defenseRealNow(d)-tower.placedAtReal<=DefenseCore.ECONOMY.placementUndoSeconds);}
   function defenseSellRefund(tower,d=mini.defense){if(!tower)return 0;return Math.floor((tower.spent||0)*(defenseCanUndoPlacement(tower,d)?1:DefenseCore.ECONOMY.planningRefundRate));}
 
-  function defenseDeployCost(row){const d=mini.defense,copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,paid=d.towers.filter(tower=>tower.cost>0).length;return DefenseCore.deploymentCost({paidTowerCount:paid,copyCount:copies,activeFirst:row.source==="active"});}
+  function defenseDeployCost(row){const d=mini.defense,copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,structureType=defenseStructureType(row),paid=d.towers.filter(tower=>tower.cost>0).length;if(defenseIsUniversalPet(row.pet))return defenseUniversalDeployCost(copies);return structureType?DefenseCore.structureDeploymentCost(structureType,copies):DefenseCore.deploymentCost({paidTowerCount:paid,copyCount:copies,activeFirst:row.source==="active"});}
   function defenseTowerStats(pet,upgrade=0){
+    if(pet?.defenseStructure==="factory")return{variant:"classic",profile:{label:"ECONOMY"},damage:0,rate:0,range:.11,crit:0,projectile:"none",label:"ECONOMY"};
+    if(pet?.defenseStructure==="beacon"){const support=DefenseCore.beaconSupport(upgrade);return{variant:"classic",profile:{label:"SUPPORT"},damage:0,rate:support.rateMultiplier,range:support.radius,crit:0,projectile:"none",label:"SUPPORT"};}    if(defenseIsUniversalPet(pet)){const level=clamp(Math.floor(Number(upgrade)||0),0,4),levels=[{damage:5.4,rate:1.24,range:.198},{damage:6.3,rate:1.29,range:.205},{damage:7.25,rate:1.34,range:.215},{damage:8.15,rate:1.39,range:.222},{damage:9.25,rate:1.44,range:.23}],base=levels[level];return{variant:DEFENSE_BASIC_TOWER.variant,profile:{damage:1,rate:1,range:1,projectile:"needle",label:"STRAIGHT SHOT"},damage:base.damage,rate:base.rate,range:base.range,crit:0,projectile:"needle",label:"STRAIGHT SHOT"};}
     const stage=DEFENSE_STAGE_MULTIPLIER[pet.stage]||1,power=Number(pet.skills?.power)||0,speed=Number(pet.skills?.speed)||0,instinct=Number(pet.skills?.instinct)||0,stamina=Number(pet.skills?.stamina)||0,variant=pet.variant||pet.hiddenVariant||"classic";
-    const profile={classic:{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"},ember:{damage:1.03,rate:.96,range:1,projectile:"ember",label:"BURN"},toxic:{damage:.88,rate:1,range:1.04,projectile:"toxic",label:"POISON"},violet:{damage:.94,rate:1.08,range:1.08,projectile:"void",label:"CHAIN"},moss:{damage:.78,rate:.91,range:1.08,projectile:"moss",label:"ROOT"},bubblegum:{damage:.85,rate:.9,range:.98,projectile:"bubble",label:"KNOCKBACK"},frost:{damage:.82,rate:.95,range:1.08,projectile:"frost",label:"SLOW"},glitch:{damage:1.02,rate:1.13,range:1,projectile:"glitch",label:"RANDOM"},obsidian:{damage:1.62,rate:.62,range:.94,projectile:"stone",label:"HEAVY"},aurora:{damage:.78,rate:.9,range:1.18,projectile:"aurora",label:"AURA"},golden:{damage:.9,rate:.92,range:1,projectile:"gold",label:"PROFIT"},diamond:{damage:1.2,rate:.76,range:1.15,projectile:"diamond",label:"PIERCE"},shadow:{damage:1.08,rate:.92,range:1.04,projectile:"shadow",label:"CRITICAL"},retro:{damage:.72,rate:1.48,range:.95,projectile:"retro",label:"RAPID"}}[variant]||{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"};
-    const up=1+upgrade*.34;return{variant,profile,damage:(3.4+power*.052+stamina*.012)*stage*profile.damage*up,rate:(.88+speed*.009)*profile.rate*(1+upgrade*.12),range:(.198+instinct*.00078)*profile.range*(1+upgrade*.085),crit:.06+instinct*.0014,projectile:profile.projectile,label:profile.label};
+    const profile={classic:{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"},ember:{damage:1.03,rate:.96,range:1,projectile:"ember",label:"BURN"},toxic:{damage:.88,rate:1,range:1.04,projectile:"toxic",label:"POISON"},violet:{damage:.82,rate:.88,range:1.04,projectile:"void",label:"CHAIN 3"},moss:{damage:.78,rate:.91,range:1.08,projectile:"moss",label:"ROOT"},bubblegum:{damage:.85,rate:.9,range:.98,projectile:"bubble",label:"KNOCKBACK"},frost:{damage:.62,rate:.90,range:1.15,projectile:"frost",label:"SLOW / SETUP"},glitch:{damage:1.02,rate:1.13,range:1,projectile:"glitch",label:"RANDOM"},obsidian:{damage:2.65,rate:.54,range:.92,projectile:"stone",label:"ARMOR CRACKER"},aurora:{damage:.78,rate:.9,range:1.18,projectile:"aurora",label:"AURA"},golden:{damage:.9,rate:.92,range:1,projectile:"gold",label:"PROFIT"},diamond:{damage:1.2,rate:.76,range:1.15,projectile:"diamond",label:"PIERCE"},shadow:{damage:1.08,rate:.92,range:1.04,projectile:"shadow",label:"CRITICAL"},retro:{damage:.72,rate:1.48,range:.95,projectile:"retro",label:"RAPID"}}[variant]||{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"};
+    const up=1+upgrade*.34;return{variant,profile,damage:(6.8+power*.052+stamina*.012)*stage*profile.damage*up,rate:(1.08+speed*.009)*profile.rate*(1+upgrade*.12),range:(.215+instinct*.00078)*profile.range*(1+upgrade*.085),crit:.06+instinct*.0014,projectile:profile.projectile,label:profile.label};
   }
-  function defenseCombatStats(tower){const stats=defenseTowerStats(tower.pet,tower.upgrade),time=defenseNow(),d=mini.defense;if(tower.doctrine==="power"){stats.damage*=1.24;stats.rate*=1.06;stats.range*=.97;}else if(tower.doctrine==="control"){stats.damage*=.86;stats.rate*=1.18;stats.range*=1.24;}if(tower.superForm==="power"){stats.damage*=2.75;stats.rate*=1.18;stats.range*=1.06;}else if(tower.superForm==="control"){stats.damage*=1.18;stats.rate*=1.72;stats.range*=1.48;}if(d.rallyUntil>time)stats.rate*=1.34;if(d.prismUntil>time){stats.damage*=1.28;stats.rate*=1.15;stats.range*=1.08;}if(tower.overclockUntil>time)stats.rate*=2;if(tower.rangeDebuffUntil>time)stats.range*=.75;if(d.whiteoutUntil>time&&!['frost','aurora'].includes(stats.variant))stats.range*=.82;return stats;}
-  function defenseAbilityData(tower){return DEFENSE_ABILITIES[tower.pet.variant||tower.pet.hiddenVariant||"classic"]||DEFENSE_ABILITIES.classic;}
+  function defenseCombatStats(tower){
+    const stats=defenseTowerStats(tower.pet,tower.upgrade),time=defenseNow(),d=mini.defense;if(defenseStructureType(tower))return stats;
+    if(defenseIsUniversalTower(tower)){if(tower.doctrine==="power"){stats.damage*=1.32;stats.rate*=.96;stats.range*=.98;stats.projectile="rivet";stats.label=tower.upgrade>=4?"RIVET CANNON":"BOLT BREAKER";if(tower.upgrade>=3)stats.damage*=1.18;if(tower.upgrade>=4){stats.damage*=1.22;stats.range*=1.05;}}else if(tower.doctrine==="control"){stats.damage*=.90;stats.rate*=1.24;stats.range*=1.19;stats.projectile="pin";stats.label=tower.upgrade>=4?"THREADSTORM":"PIN CONTROL";if(tower.upgrade>=3){stats.rate*=1.10;stats.range*=1.06;}if(tower.upgrade>=4){stats.rate*=1.12;stats.range*=1.08;}}}else{if(tower.doctrine==="power"){stats.damage*=1.24;stats.rate*=1.06;stats.range*=.97;}else if(tower.doctrine==="control"){stats.damage*=.86;stats.rate*=1.18;stats.range*=1.24;}if(tower.superForm==="power"){stats.damage*=2.75;stats.rate*=1.18;stats.range*=1.06;}else if(tower.superForm==="control"){stats.damage*=1.18;stats.rate*=1.72;stats.range*=1.48;}}if(d.rallyUntil>time)stats.rate*=1.34;if(d.prismUntil>time){stats.damage*=1.28;stats.rate*=1.15;stats.range*=1.08;}if(tower.overclockUntil>time)stats.rate*=2;if(tower.rangeDebuffUntil>time)stats.range*=.75;const mapBond=defenseMapBondForTower(tower,d);if(mapBond){stats.damage*=mapBond.damage;stats.rate*=mapBond.rate;stats.range*=mapBond.range;}if(d.whiteoutUntil>time&&!['frost','aurora'].includes(stats.variant)&&!mapBond?.whiteoutProof)stats.range*=.82;const beacon=defenseBeaconInfluence(tower,d);if(beacon){stats.damage*=beacon.damageMultiplier;stats.rate*=beacon.rateMultiplier;}return stats;
+  }
+  function defenseAbilityData(tower){if(defenseIsUniversalTower(tower))return{passive:"Cheap straight shots. POWER becomes an armor-breaking rivet driver; CONTROL becomes a fast pinning rig.",active:"NO FIELD POWER",copy:"Universal Defense tools do not consume the Field Leader slot.",cooldown:999};return DEFENSE_ABILITIES[tower.pet.variant||tower.pet.hiddenVariant||"classic"]||DEFENSE_ABILITIES.classic;}
   function defenseAbilityCooldown(tower){const data=defenseAbilityData(tower),stamina=Number(tower.pet.skills?.stamina)||0;return Math.max(data.cooldown*.48,data.cooldown*(1-tower.upgrade*.085-stamina*.0015));}
   function defenseAbilityRemaining(tower){return Math.max(0,(tower.abilityReadyAt||0)-defenseNow());}
   function defenseTowerTier(tower){return tower.upgrade>=4?"apex":tower.upgrade>=2?"awakened":tower.upgrade>=1?"charged":"base";}
+  function defenseUpgradeMove(tower){if(defenseIsUniversalTower(tower)){if(tower.upgrade===0)return"Every fourth shot double-stitches into a second nearby threat";if(tower.upgrade===1)return"Unlock POWER rivets or CONTROL pins";if(!tower.doctrine)return"Choose POWER armor breaks or CONTROL lane pins";if(tower.doctrine==="power")return tower.upgrade>=3?"Rivet Crown charges faster, hunts armor, and tears into restrained threats":"Every rivet starts shaving armor; charged shots burst through clusters";return tower.upgrade>=3?"Threadstorm weaves three threats; opened armor locks and rewinds deeper":"Charged pins thread into one fresh nearby threat";}const v=tower.pet.variant||tower.pet.hiddenVariant||"classic";if(tower.upgrade===0)return{classic:"Every third shot hits 65% harder",violet:"Chain reaches a fourth target",frost:"Chill splashes into nearby threats",obsidian:"Every impact strips armor"}[v]||"Stronger hits and wider reach";if(tower.upgrade===1)return"Choose POWER impacts or CONTROL pulses + field power";return tower.doctrine==="control"?"Stronger control and wider coverage":"Harder charged strikes";}
   function defenseUpgradeName(tower){
+    if(defenseStructureType(tower))return defenseStructureUpgradeName(tower);
     const names={classic:["STEADY SPARK","BRIGHT GUARD","RALLY HEART","GATEKEEPER","FIRST FLAME"],ember:["CINDER","HOT BLOOD","FIRE RING","INFERNO","PHOENIX CORE"],toxic:["SPORE","VENOM","PLAGUE BLOOM","CORROSION","TOXIC CROWN"],violet:["PULSE","ARC LINK","CHAIN SURGE","VOID CURRENT","PURPLE STORM"],moss:["ROOT","THICKET","ROOT GARDEN","OLD GROWTH","FOREST HEART"],bubblegum:["BOUNCE","PRESSURE","BIG BOUNCE","WAVE BREAK","PINK IMPACT"],frost:["CHILL","ICE VEIN","DEEP FREEZE","WHITE CROWN","ABSOLUTE ZERO"],glitch:["STATIC","SIGNAL SPLIT","REWRITE","SYSTEM BREAK","GLITCH GOD"],obsidian:["STONE","FAULT LINE","QUAKE","BLACK MOUNTAIN","WORLD WEIGHT"],aurora:["HALO","PRISM","PRISM FIELD","SKY CHOIR","AURORA THRONE"],golden:["LUCK","DIVIDEND","PAYDAY","GOLD RUSH","KING'S RANSOM"],diamond:["SHARD","CUT LINE","SHARD LINE","REFRACTION","DIAMOND RAIN"],shadow:["DUSK","BLACK EDGE","NIGHT CUT","ECLIPSE BLADE","LAST SHADOW"],retro:["TICK","TURBO","OVERCLOCK","HYPER SIGNAL","ARCADE GOD"]};
-    const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic";return(names[variant]||names.classic)[clamp(tower.upgrade,0,4)];
+    if(defenseIsUniversalTower(tower)){const level=clamp(tower.upgrade,0,4);if(level===0)return"BLANK FRAME";if(level===1)return"STITCHER";if(level===2)return"FIELD KIT";if(tower.doctrine==="power")return level===3?"BOLT DRIVER":"RIVET CROWN";if(tower.doctrine==="control")return level===3?"PIN WHEEL":"THREADSTORM";return"FIELD KIT";}const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic";return(names[variant]||names.classic)[clamp(tower.upgrade,0,4)];
   }
 
-  function initializeDefenseRun(mapChoice = "auto", contract = null){
-    const normalizedContract=normalizeDefenseRunContract(contract),mapId=normalizedContract?.mapId||defenseResolvedMapId(mapChoice),map=DEFENSE_MAPS[mapId]||DEFENSE_MAPS.grove,budget=defensePerformanceBudget({performanceLow:false,renderTier:0});
-    mini.defense=installDefenseStateContracts({mapId,map,contract:normalizedContract,pathMetrics:map.pathMetrics||defensePathMetrics(map.path),currentWave:0,clearedWave:0,lives:map.lives,cash:BASE_DEFENSE_STARTING_CASH,phase:DEFENSE_PHASES.PLANNING,resumePhase:DEFENSE_PHASES.COMBAT,speed:1,clock:0,realClock:0,towers:[],enemies:[],projectiles:[],effects:[],spawnQueue:[],wavePackets:[],packetIndex:0,packetEnemyIndex:0,nextSpawnAt:0,packetBreakUntil:0,childSpawnQueue:[],nextChildReleaseAtReal:0,childSpawnSequence:0,nextId:1,kills:0,totalDamage:0,usedPetIds:new Set(),selectedTowerId:null,lastWaveBonus:0,nextWaveReadyAtReal:0,autoStartAtReal:0,maxTowers:normalizedContract?.rules.includes("lean")?4:DEFENSE_LIMITS.MAX_DEFENSE_TOWERS,rallyUntil:0,prismUntil:0,whiteoutUntil:0,stormWeatherUntil:0,eclipseUntil:0,ashUntil:0,moonRevealUntil:0,nextWeatherAt:7,goldenCoinCarry:0,camoHintSeen:false,pendingPlacement:null,waveAnnouncement:null,currentWavePlan:[],bossesBeaten:[],bossesDefeated:0,perfectWaveCount:0,waveHeartLossStart:0,topTowerId:null,abilityTrayOpen:false,abilityGroupOpen:null,intelOpen:false,intelPausedByOpen:false,benchOpen:true,fieldMenuOpen:false,contextSurface:null,contextReturnFocus:null,enemyNodePool:[],projectileNodePool:[],impactNodePool:[],rendererMode:"dom",canvasRenderer:null,canvasFrames:0,canvasFallbacks:0,enemyVisualClock:0,enemyStateVisualClock:0,projectileVisualClock:0,renderWidth:0,renderHeight:0,mapIntroPlayed:false,lowFx:false,potatoFx:false,renderTier:0,renderTierChanges:0,performanceLow:false,performanceRecovery:0,frameMs:16.7,frameP95:16.7,frameP99:16.7,frameStress:0,slowFrameStreak:0,frameSamples:[],frameSampleClock:0,governorTier:0,governorPressureSeconds:0,governorStableSeconds:0,fixedSimulation:true,simAccumulator:0,presentationAccumulator:0,simStepSamples:[],simStepP95:0,simStepWorst:0,simBacklogEvents:0,maxCatchUpObserved:0,lastSimSteps:0,presentationFrames:0,coalescedVisualShots:0,coalescedLogicalShots:0,maxLogicalProjectilesObserved:0,droppedCosmetics:0,enemyNodesCreated:0,enemyNodesAcquired:0,projectileNodesCreated:0,projectileNodesAcquired:0,impactNodesCreated:0,impactNodesAcquired:0,enemyPositionWrites:0,enemyClassWrites:0,enemyHealthWrites:0,enemyStateWrites:0,projectilePositionWrites:0,autoPaused:false,wavePreview:[],uiClock:0,uiDirty:true,rosterDirty:false,lastPopSfxAt:-99,lastSpawnedEnemyId:null,spawnWaitReason:"idle",peakAlive:0,schoolCoachSignature:"",wavePreviewSignature:"",abilityTraySignature:"",intelTraySignature:"",waveTotal:0,waveResolved:0,hudRenderCount:0,rosterRenderCount:0,trayRenderCount:0,intelRenderCount:0,checkpointDirty:false,checkpointClock:0,lastCheckpointAt:0,checkpointWrites:0,hintFlags:{},pendingIncome:0,pendingIncomeEvents:0,pendingIncomeSources:{},nextIncomeFlushAtReal:0,cashWriteCount:0,targetScans:0,targetSnapshotBuilds:0,targetSnapshot:[],targetSnapshotAtReal:0,childSpawnsReleased:0,lastIncomeBatch:null,maxActiveEnemiesObserved:0,maxProjectileNodesObserved:0,maxEffectNodesObserved:0,worldPerkUsed:false,cinematicMomentId:0,cinematicMomentCount:0,cinematicMomentKind:null,cinematicMomentPriority:0,cinematicMomentUntilReal:0,lastGateMomentAtReal:-99,gateFlameArmed:false,gateFlameReadyAt:0,gateFlameUntil:0,gateFlameProgress:.86,gateFlameNextTick:0,gateFlameTicks:0,lastHudLives:null,lastHudCash:null,ending:false,endingReason:null,enemyStats:{spawned:{},popped:{},leaked:{},heartLoss:0,counters:{armorBreaks:0,armorShreds:0,reveals:0,phaseLocks:0,bossInterrupts:0}}});
+  function initializeDefenseRun(mapChoice = "auto", contract = null, {allowLockedMap=false} = {}){
+    const normalizedContract=normalizeDefenseRunContract(contract),requestedMap=typeof mapChoice==="string"&&DEFENSE_MAPS[mapChoice]?mapChoice:null,mapId=normalizedContract?.mapId||(allowLockedMap&&requestedMap?requestedMap:defenseResolvedMapId(mapChoice)),map=DEFENSE_MAPS[mapId]||DEFENSE_MAPS.grove,budget=defensePerformanceBudget({performanceLow:false,renderTier:0}),runRosterIds=defenseConfiguredRoster().map(row=>row.pet.id);
+    mini.defense=installDefenseStateContracts({mapId,map,contract:normalizedContract,runRosterIds,pathMetrics:map.pathMetrics||defensePathMetrics(map.path),currentWave:0,clearedWave:0,lives:map.lives,cash:BASE_DEFENSE_STARTING_CASH,phase:DEFENSE_PHASES.PLANNING,resumePhase:DEFENSE_PHASES.COMBAT,speed:1,clock:0,realClock:0,towers:[],enemies:[],projectiles:[],effects:[],spawnQueue:[],wavePackets:[],packetIndex:0,packetEnemyIndex:0,nextSpawnAt:0,packetBreakUntil:0,childSpawnQueue:[],nextChildReleaseAtReal:0,childSpawnSequence:0,nextId:1,kills:0,totalDamage:0,usedPetIds:new Set(),selectedTowerId:null,lastWaveBonus:0,nextWaveReadyAtReal:0,autoStartAtReal:0,maxTowers:normalizedContract?.rules.includes("lean")?4:DEFENSE_LIMITS.MAX_DEFENSE_TOWERS,rallyUntil:0,prismUntil:0,whiteoutUntil:0,stormWeatherUntil:0,eclipseUntil:0,ashUntil:0,moonRevealUntil:0,nextWeatherAt:7,goldenCoinCarry:0,camoHintSeen:false,pendingPlacement:null,waveAnnouncement:null,currentWavePlan:[],bossesBeaten:[],bossesDefeated:0,perfectWaveCount:0,waveHeartLossStart:0,topTowerId:null,abilityTrayOpen:false,abilityGroupOpen:null,intelOpen:false,intelPausedByOpen:false,benchOpen:true,fieldMenuOpen:false,contextSurface:null,contextReturnFocus:null,enemyNodePool:[],projectileNodePool:[],impactNodePool:[],rendererMode:"dom",canvasRenderer:null,canvasFrames:0,canvasFallbacks:0,enemyVisualClock:0,enemyStateVisualClock:0,projectileVisualClock:0,renderWidth:0,renderHeight:0,mapIntroPlayed:false,lowFx:false,potatoFx:false,renderTier:0,renderTierChanges:0,performanceLow:false,performanceRecovery:0,frameMs:16.7,frameP95:16.7,frameP99:16.7,frameStress:0,slowFrameStreak:0,frameSamples:[],frameSampleClock:0,governorTier:0,governorPressureSeconds:0,governorStableSeconds:0,fixedSimulation:true,simAccumulator:0,presentationAccumulator:0,simStepSamples:[],simStepP95:0,simStepWorst:0,simBacklogEvents:0,maxCatchUpObserved:0,lastSimSteps:0,presentationFrames:0,coalescedVisualShots:0,coalescedLogicalShots:0,maxLogicalProjectilesObserved:0,droppedCosmetics:0,enemyNodesCreated:0,enemyNodesAcquired:0,projectileNodesCreated:0,projectileNodesAcquired:0,impactNodesCreated:0,impactNodesAcquired:0,enemyPositionWrites:0,enemyClassWrites:0,enemyHealthWrites:0,enemyStateWrites:0,projectilePositionWrites:0,autoPaused:false,wavePreview:[],uiClock:0,uiDirty:true,rosterDirty:false,lastPopSfxAt:-99,lastFeelHapticAtReal:-99,lastSelectionSfxAtReal:-99,lastSpawnedEnemyId:null,spawnWaitReason:"idle",peakAlive:0,schoolCoachSignature:"",wavePreviewSignature:"",abilityTraySignature:"",intelTraySignature:"",waveTotal:0,waveResolved:0,hudRenderCount:0,rosterRenderCount:0,trayRenderCount:0,intelRenderCount:0,checkpointDirty:false,checkpointClock:0,lastCheckpointAt:0,checkpointWrites:0,hintFlags:{},pendingIncome:0,pendingIncomeEvents:0,pendingIncomeSources:{},nextIncomeFlushAtReal:0,cashWriteCount:0,targetScans:0,targetSnapshotBuilds:0,targetSnapshot:[],targetSnapshotAtReal:0,childSpawnsReleased:0,lastIncomeBatch:null,maxActiveEnemiesObserved:0,maxProjectileNodesObserved:0,maxEffectNodesObserved:0,worldPerkUsed:false,cinematicMomentId:0,cinematicMomentCount:0,cinematicMomentKind:null,cinematicMomentPriority:0,cinematicMomentUntilReal:0,lastGateMomentAtReal:-99,gateFlameArmed:false,gateFlameReadyAt:0,gateFlameUntil:0,gateFlameProgress:.86,gateFlameNextTick:0,gateFlameTicks:0,lastHudLives:null,lastHudCash:null,flowDecisionBeat:0,flowPulseUntilReal:0,flowEaseUntilReal:0,flowChoiceKey:"",flowLastAction:"",flowActionQuietUntilReal:0,flowAutoHeldWave:-1,ending:false,endingReason:null,enemyStats:{spawned:{},popped:{},leaked:{},heartLoss:0,counters:{armorBreaks:0,armorShreds:0,reveals:0,phaseLocks:0,bossInterrupts:0}}});
     mini.score=0;mini.hits=0;mini.entities=[];
   }
   function defenseRosterMarkup(){
     const d=mini.defense;
-    return defenseRoster().map(row=>{
-      const copies=d.towers.filter(tower=>tower.petId===row.pet.id).length;
-      const cost=defenseDeployCost(row);
-      const uniqueBlocked=defenseContractRule("unique",d)&&copies>0,placementLocked=!defensePlacementAllowed(d),disabled=placementLocked||d.towers.length>=d.maxTowers||d.cash<cost||uniqueBlocked;
-      const selected=d.pendingPlacement?.row?.pet?.id===row.pet.id;
-      const variant=VARIANTS.find(item=>item.id===(row.pet.variant||row.pet.hiddenVariant))||VARIANTS[0],mastery=state.scores?.defenseMastery?.[row.pet.id],masteryTitle=mastery?defenseMasteryTitle(mastery):"UNTESTED";
-      const instruction=placementLocked?"PLANNING ONLY":selected?"TAP MAP OR DRAG":uniqueBlocked?"ONE PER CONTRACT":row.source==="active"&&!copies?"FREE DEPLOY":d.towers.length>=d.maxTowers?`FIELD FULL • ${d.maxTowers}`:`${cost} COINS`;
-      const role=defenseTowerStats(row.pet).profile.label;
-      const benchInstruction=placementLocked?"WAIT FOR PLAN":selected?"TAP / DRAG":uniqueBlocked?"ONE PER RUN":d.towers.length>=d.maxTowers?"FIELD FULL":d.cash<cost?"NEED CASH":role;
-      const badge=placementLocked?"Ⅱ":selected?"✓":uniqueBlocked?"✕":row.source==="active"&&!copies?"FREE":String(cost);
-      return `<button type="button" class="defense-roster-pet defense-roster-pet-simple ${copies?"placed":""} ${selected?"placement-selected":""}" data-defense-roster-id="${escapeHTML(row.pet.id)}" ${disabled?"disabled":""} aria-pressed="${selected}" title="${escapeHTML(row.pet.name)} • ${escapeHTML(instruction)}" aria-label="${escapeHTML(row.pet.name)}, ${escapeHTML(instruction)}" style="--roster-color:${variant.color}"><span class="defense-roster-frame" aria-hidden="true"></span>${petMarkup({pet:row.pet,extraClass:"defense-roster-rizo",context:"thumbnail",label:row.pet.name})}<span class="defense-roster-info"><b>${escapeHTML(row.pet.name)}</b><small>${escapeHTML(benchInstruction)}</small></span>${masteryTitle!=="UNTESTED"?`<em class="defense-roster-mastery">${escapeHTML(masteryTitle)}</em>`:""}${copies?`<u class="defense-roster-copies">×${copies}</u>`:""}<i class="defense-roster-badge">${escapeHTML(badge)}</i></button>`;
+    return defenseDeployRows().map(row=>{
+      const copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,cost=defenseDeployCost(row),structureType=defenseStructureType(row);
+      const universal=defenseIsUniversalPet(row.pet),uniqueBlocked=defenseContractRule("unique",d)&&copies>0,placementLocked=!defensePlacementAllowed(d),disabled=placementLocked||d.towers.length>=d.maxTowers||d.cash<cost||uniqueBlocked,selected=d.pendingPlacement?.row?.pet?.id===row.pet.id;
+      if(structureType){
+        const meta=DEFENSE_STRUCTURE_META[structureType],instruction=placementLocked?"RESUME TO BUILD":selected?"TAP MAP OR DRAG":uniqueBlocked?"ONE PER CONTRACT":d.towers.length>=d.maxTowers?`FIELD FULL • ${d.maxTowers}`:`${cost} COINS`,benchInstruction=placementLocked?"PAUSED":selected?"TAP / DRAG":uniqueBlocked?"ONE PER RUN":d.towers.length>=d.maxTowers?"FIELD FULL":d.cash<cost?"NEED CASH":meta.role,badge=placementLocked?"Ⅱ":selected?"✓":uniqueBlocked?"✕":String(cost);
+        return `<button type="button" class="defense-roster-pet defense-roster-pet-simple defense-roster-structure structure-${structureType} ${copies?"placed":""} ${selected?"placement-selected":""}" data-defense-roster-id="${meta.id}" ${disabled?"disabled":""} aria-pressed="${selected}" title="${escapeHTML(meta.name)} • ${escapeHTML(instruction)}" aria-label="${escapeHTML(meta.name)}, ${escapeHTML(instruction)}" style="--roster-color:${meta.accent}"><span class="defense-roster-frame" aria-hidden="true"></span><span class="defense-structure-thumb structure-art-${structureType}" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="defense-roster-info"><b>${escapeHTML(meta.name)}</b><small>${escapeHTML(benchInstruction)}</small></span>${copies?`<u class="defense-roster-copies">×${copies}</u>`:""}<i class="defense-roster-badge">${escapeHTML(badge)}</i></button>`;
+      }
+      const variant=universal?{color:DEFENSE_BASIC_TOWER.color}:(VARIANTS.find(item=>item.id===(row.pet.variant||row.pet.hiddenVariant))||VARIANTS[0]),mastery=universal?null:state.scores?.defenseMastery?.[row.pet.id],masteryTitle=mastery?defenseMasteryTitle(mastery):"UNTESTED",instruction=placementLocked?"RESUME TO BUILD":selected?"TAP MAP OR DRAG":uniqueBlocked?"ONE PER CONTRACT":row.source==="active"&&!copies?"CAPTAIN • FREE DEPLOY":d.towers.length>=d.maxTowers?`FIELD FULL • ${d.maxTowers}`:`${cost} COINS`,role=universal?"STRAIGHT SHOT":defenseTowerStats(row.pet).profile.label,rosterTag=row.source==="active"?"CAPTAIN":row.source==="guest"?"LOANER":"OWNED",benchInstruction=placementLocked?"PAUSED":selected?"TAP / DRAG":uniqueBlocked?"ONE PER RUN":d.towers.length>=d.maxTowers?"FIELD FULL":d.cash<cost?"NEED CASH":role,badge=placementLocked?"Ⅱ":selected?"✓":uniqueBlocked?"✕":row.source==="active"&&!copies?"FREE":String(cost);
+      return `<button type="button" class="defense-roster-pet defense-roster-pet-simple roster-${row.source} ${universal?"defense-roster-universal":""} ${copies?"placed":""} ${selected?"placement-selected":""}" data-defense-roster-id="${escapeHTML(row.pet.id)}" ${disabled?"disabled":""} aria-pressed="${selected}" title="${escapeHTML(row.pet.name)} • ${escapeHTML(instruction)}" aria-label="${escapeHTML(row.pet.name)}, ${escapeHTML(instruction)}" style="--roster-color:${variant.color}"><span class="defense-roster-frame" aria-hidden="true"></span>${defenseDeployPortraitMarkup(row)}<span class="defense-roster-info"><em class="defense-roster-tag">${rosterTag}</em><b>${escapeHTML(row.pet.name)}</b><small>${escapeHTML(benchInstruction)}</small></span>${universal?`<em class="defense-roster-kind">UNIVERSAL TOOL</em>`:masteryTitle!=="UNTESTED"?`<em class="defense-roster-mastery">${escapeHTML(masteryTitle)}</em>`:""}${copies?`<u class="defense-roster-copies">×${copies}</u>`:""}<i class="defense-roster-badge">${escapeHTML(badge)}</i></button>`;
     }).join("");
   }
+
 
   function defenseMapIntroSeenKey(mapId){return `rizo-defense-map-seen:${String(mapId||"unknown")}`;}
   function closeDefenseMapIntro(){
     const d=mini.defense,intro=$("#defenseMapIntro");
-    if(d){try{localStorage.setItem(defenseMapIntroSeenKey(d.mapId),"1");}catch(error){}}
+    if(d){
+      try{localStorage.setItem(defenseMapIntroSeenKey(d.mapId),"1");}catch(error){}
+      if(!d.towers.length&&!d.pendingPlacement&&defensePlacementAllowed(d)){
+        const active=defenseRoster().find(row=>row.source==="active")||defenseRoster()[0];
+        if(active){const cost=defenseDeployCost(active);if(d.cash>=cost){setDefensePlacementMode(active,cost);setDefenseMessage(`YOUR RIZO • ${active.pet.name}`,cost?`Tap open grass to deploy for ${cost} coins.`:"Tap open grass. Your main Rizo deploys free.");}}
+      }
+    }
     if(!intro)return;
     intro.classList.add("leaving");
     queueMiniTimeout(()=>intro.remove(),360);
@@ -5306,7 +5977,7 @@
     let seen=false;try{seen=localStorage.getItem(defenseMapIntroSeenKey(d.mapId))==="1";}catch(error){}
     if(seen){intro.classList.add("returning");requestAnimationFrame(()=>intro.classList.add("playing"));queueMiniTimeout(closeDefenseMapIntro,state.settings.reducedMotion?120:520);return true;}
     requestAnimationFrame(()=>intro.classList.add("playing"));
-    queueMiniTimeout(closeDefenseMapIntro,state.settings.reducedMotion?360:2400);
+    queueMiniTimeout(closeDefenseMapIntro,state.settings.reducedMotion?200:900);
     return true;
   }
 
@@ -5337,7 +6008,7 @@
       if(shot.node||!shot.renderVisible)continue;
       const node=acquireDefenseProjectileNode();if(!node)continue;
       const variant=shot.tower?.pet?.variant||shot.tower?.pet?.hiddenVariant||"classic",masteryTier=defenseMasteryTierForPet(shot.tower?.petId);
-      node.className=`defense-shot shot-${shot.kind||"pulse"} signature-${variant} mastery-shot-${masteryTier} ${shot.doctrineStrike?`shot-doctrine-${shot.doctrineStrike}`:""}`;node.style.setProperty("--signature-color",shot.renderColor||"#ff7d32");positionDefenseMovingNode(node,shot.x,shot.y);shot.node=node;shot.renderVisible=false;
+      node.className=`defense-shot shot-${shot.kind||"pulse"} signature-${variant} mastery-shot-${masteryTier} ${shot.doctrineStrike?`shot-doctrine-${shot.doctrineStrike}`:""}`;node.style.setProperty("--signature-color",shot.renderColor||defenseTowerDisplayColor(shot.tower));positionDefenseMovingNode(node,shot.x,shot.y);shot.node=node;shot.renderVisible=false;
     }
     d.poolsWarmed=false;warmDefensePools(d);console.warn?.("Rizo Defense canvas fell back to DOM",reason);return true;
   }
@@ -5386,13 +6057,13 @@
     el.miniArena.innerHTML=`<div class="defense-shell rizo-defense-ui" data-defense-map="${map.id}" style="--field-accent:${defenseMapAccent(map.id)}">
       <section class="defense-command-deck" aria-label="Defense command deck">
         <div class="defense-command-world"><span class="defense-command-mark"><img src="./assets/rizo-full-mark.png" alt=""/></span><div><small>${map.icon} WORLD ${map.level} • ${contract?"CONTRACT":"OPEN TRAIL"}</small><b>${escapeHTML(map.name)}</b><em>${escapeHTML(map.entrance)}</em></div></div>
-        <div class="defense-hud" aria-label="Field status"><span class="defense-stat defense-stat-lives" id="defenseLivesArt"><i>${defenseUiIcon("heart")}</i><b id="defenseLives">${d.lives}</b><small>GATE</small></span><span class="defense-stat defense-stat-cash" id="defenseCashArt"><i>${defenseUiIcon("coin")}</i><b id="defenseCash">${d.cash}</b><small>GOLD</small></span></div>
+        <div class="defense-hud" aria-label="Field status"><span class="defense-stat defense-stat-lives" id="defenseLivesArt"><i>${defenseUiIcon("heart")}</i><b id="defenseLives">${d.lives}</b><small>GATE</small></span><span class="defense-stat defense-stat-cash" id="defenseCashArt"><i>${defenseUiIcon("coin")}</i><span class="defense-stat-value"><b id="defenseCash">${d.cash}</b><em class="defense-cash-delta" id="defenseCashDelta" aria-hidden="true"></em></span><small>GOLD</small></span></div>
         <div class="defense-command-actions">
           <button type="button" class="defense-speed defense-action-circle" data-defense-speed aria-label="Change Defense speed"><i>${defenseUiIcon("speed")}</i><span class="defense-action-label"><strong id="defenseSpeedValue">1×</strong><em>SPEED</em></span></button>
           <button type="button" class="defense-intel-button defense-action-circle" id="defenseIntelButton" data-defense-toggle-intel aria-label="Open threat intel" aria-expanded="false"><i>${defenseUiIcon("intel")}</i><span class="defense-action-label">THREATS</span><b id="defenseIntelCount">0</b></button>
-          <button type="button" class="defense-abilities-button defense-action-circle" id="defenseAbilitiesButton" data-defense-toggle-abilities aria-label="Use Field Leader power" aria-expanded="false"><i>${defenseUiIcon("power")}</i><span class="defense-action-label" id="defenseLeaderPowerLabel">FIELD POWER</span><b id="defenseAbilityCount">—</b></button>
+          <button type="button" class="defense-abilities-button defense-action-circle" id="defenseAbilitiesButton" data-defense-toggle-abilities aria-label="Open Rizo powers" aria-expanded="false"><i>${defenseUiIcon("power")}</i><span class="defense-action-label" id="defenseLeaderPowerLabel">POWERS</span><b id="defenseAbilityCount">—</b></button>
           <button type="button" class="defense-gate-flame-button defense-action-circle" id="defenseGateFlameButton" data-defense-gate-flame aria-label="Place Ember Pod"><i class="defense-flame-icon" aria-hidden="true">✹</i><span class="defense-action-label">POD</span><b id="defenseGateFlameState">WAVE ONLY</b></button>
-          <button type="button" class="defense-bench-button defense-action-circle active" id="defenseBenchButton" data-defense-toggle-bench aria-label="Show or hide Rizo bench" aria-expanded="true"><i>${defenseUiIcon("bench")}</i><span class="defense-action-label">RIZOS</span><b id="defenseBenchCount">${defenseRoster().length}</b></button>
+          <button type="button" class="defense-bench-button defense-action-circle active" id="defenseBenchButton" data-defense-toggle-bench aria-label="Show or hide Rizo bench" aria-expanded="true"><i>${defenseUiIcon("bench")}</i><span class="defense-action-label">RIZOS</span><b id="defenseBenchCount">${defenseDeployRows().length}</b></button>
           <button type="button" class="defense-menu-button defense-action-circle" id="defenseMenuButton" data-defense-toggle-field-menu aria-label="Open field menu" aria-expanded="false"><i>${defenseUiIcon("menu")}</i><span class="defense-action-label">MENU</span></button>
         </div>
         ${contractBadge}
@@ -5402,20 +6073,22 @@
         <button type="button" class="defense-wave-button" id="defenseWaveButton" data-defense-run-control disabled><i id="defenseWaveIcon">${defenseUiIcon("play")}</i><span id="defenseWaveLabel">PLACE FIRST</span></button>
         <div class="defense-moment" id="defenseMoment" role="status" aria-live="assertive" aria-atomic="true" hidden></div>
         <div class="defense-wave-banner" aria-label="Wave and defense phase"><i>${defenseUiIcon("wave")}</i><div class="defense-wave-count"><small>WAVE</small><b id="defenseWave">0</b><em>CLEARED <strong id="defenseClearedWave">0</strong></em></div><span class="defense-phase-indicator" id="defensePhaseIndicator" data-tone="info"><i aria-hidden="true"></i><span><small>PHASE</small><b id="defensePhaseLabel">PLAN</b><em id="defensePhaseDetail">BUILD WINDOW</em></span></span></div>
+        <div class="defense-boss-bar defense-boss-overlay" id="defenseBossBar" hidden><span><small>BOSS</small><b id="defenseBossName">UNKNOWN</b></span><i><u id="defenseBossHealth"></u></i><em id="defenseBossPercent">100%</em></div>
         <div class="mini-world defense-world ${map.className} ${contract?"contract-active":""}" id="defenseWorld" data-defense-map="${map.id}" style="--gate-x:${gatePoint.x*100}%;--gate-y:${gatePoint.y*100}%">
-          <div class="defense-sky"><i></i><i></i><i></i></div><div class="defense-hills"></div><div class="defense-trees"></div><div class="defense-map-props"><i></i><i></i><i></i></div><div class="defense-world-features">${defenseWorldFeatureMarkup(map)}</div><div class="defense-map-landmarks">${defenseLandmarkMarkup(map)}</div><div class="defense-build-pockets">${defenseBuildPocketMarkup(map)}</div><div class="defense-weather weather-${map.weather}"><i></i><i></i><i></i></div><div class="defense-obstacles">${defenseObstacleMarkup(map)}</div>
+          <div class="defense-sky"><i></i><i></i><i></i></div><div class="defense-hills"></div><div class="defense-trees"></div><div class="defense-map-props"><i></i><i></i><i></i></div><div class="defense-world-features">${defenseWorldFeatureMarkup(map)}</div><div class="defense-map-mechanics">${defenseMapMechanicMarkup(map)}</div><div class="defense-map-landmarks">${defenseLandmarkMarkup(map)}</div><div class="defense-build-pockets">${defenseBuildPocketMarkup(map)}</div><div class="defense-weather weather-${map.weather}"><i></i><i></i><i></i></div><div class="defense-obstacles">${defenseObstacleMarkup(map)}</div>
           <svg class="defense-road" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Curved balloon trail"><path class="defense-road-shadow" d="${roadPath}"/><path class="defense-road-border" d="${roadPath}"/><path class="defense-road-fill" d="${roadPath}"/><path class="defense-road-edge-light" d="${roadPath}"/><path class="defense-road-stitch" d="${roadPath}"/></svg><div class="defense-route-markers">${defenseRouteMarkersMarkup(map)}</div><div class="defense-route-scout" id="defenseRouteScout" style="left:${entryX*100}%;top:${entryY*100}%"><i></i></div><div class="defense-entrance" style="--entrance-x:${entryX*100}%;--entrance-y:${entryY*100}%" aria-label="Enemy entrance"><i aria-hidden="true"></i><span><b>ENTRY</b></span></div>
           <div class="defense-gate" aria-label="Ember Gate"><i aria-hidden="true"></i><b>GATE</b><span aria-hidden="true">♥</span></div>
           <div class="defense-gate-flame-live defense-ember-pod-live" id="defenseGateFlameLive" hidden aria-hidden="true"><i></i><i></i><i></i><span></span></div>
           <div class="defense-layer" id="defenseTowers"></div><canvas class="defense-combat-canvas" id="defenseCombatCanvas" aria-hidden="true"></canvas><div class="defense-layer" id="defenseEnemies"></div><div class="defense-layer defense-projectiles" id="defenseProjectiles"></div><div class="defense-layer defense-effects" id="defenseEffects"></div>
           <div class="defense-placement-preview" id="defensePlacementPreview" hidden aria-hidden="true"></div><div class="defense-placement-grid" aria-hidden="true"></div>
-          <div class="defense-map-intro" id="defenseMapIntro" aria-label="Entering ${escapeHTML(map.name)}"><i class="defense-intro-vignette"></i><div class="defense-intro-copy"><small>WORLD ${map.level} • OPEN TRAIL</small><b>${escapeHTML(map.name)}</b><span>${escapeHTML(map.routeType)} • ${escapeHTML(map.entrance)} → EMBER GATE</span></div><div class="defense-intro-rizo"><i class="defense-intro-scout-line"></i>${petMarkup({pet:state.pet,extraClass:"defense-intro-pet",context:"arcade",label:state.pet.name})}<i class="defense-intro-look">!</i></div><div class="defense-intro-cta"><b>READ THE ROAD</b><span>PLACE RIZO • START WHEN READY</span></div><button type="button" data-defense-skip-map-intro>ENTER FIELD</button></div>
+          <div class="defense-map-intro" id="defenseMapIntro" aria-label="Entering ${escapeHTML(map.name)}"><i class="defense-intro-vignette"></i><div class="defense-intro-copy"><small>WORLD ${map.level} • OPEN TRAIL</small><b>${escapeHTML(map.name)}</b><span>${escapeHTML(map.routeType)} • ${escapeHTML(map.entrance)} → EMBER GATE</span></div><div class="defense-intro-rizo"><i class="defense-intro-scout-line"></i>${petMarkup({pet:state.pet,extraClass:"defense-intro-pet",context:"arcade",label:state.pet.name})}<strong class="defense-intro-captain">CAPTAIN • ${escapeHTML(state.pet.name)}</strong><i class="defense-intro-look">!</i></div><div class="defense-intro-cta"><b>${escapeHTML(map.mechanic?.icon||"✦")} ${escapeHTML(map.mechanic?.label||"YOUR RIZO LEADS")}</b><span>${escapeHTML(map.mechanic?.copy||"CAPTAIN DEPLOYS FREE • CREW BACKS THEM UP")}</span></div><button type="button" data-defense-skip-map-intro>ENTER FIELD</button></div>
         </div>
       </div>
       <section class="defense-field-feed" aria-live="polite">
+        <div class="defense-decision-rail" id="defenseDecisionRail" data-tone="plan"><span><small>YOUR CALL</small><b id="defenseDecisionTitle">PLACE YOUR RIZO</b><em id="defenseDecisionCopy">Tap open grass. Your main Rizo is armed.</em></span><div><button type="button" id="defenseDecisionPrimary" data-defense-flow-primary data-defense-flow-action="place-main">PLACE RIZO</button><button type="button" id="defenseDecisionSecondary" data-defense-flow-secondary data-defense-flow-action="bench">RIZOS</button></div></div>
         <div class="defense-message" id="defenseMessage"><b>DEFEND THE EMBER GATE</b><span>Tap a Rizo, then tap grass. Or drag one directly onto the field. The circle is its reach.</span></div>
         <div class="defense-live-status" id="defenseLiveStatus" hidden><small>WAVE STATUS</small><b id="defenseThreatsLeft">0 THREATS LEFT</b><i><u id="defenseWaveProgress"></u></i></div>
-        <div class="defense-boss-bar" id="defenseBossBar" hidden><span><small>BOSS</small><b id="defenseBossName">UNKNOWN</b></span><i><u id="defenseBossHealth"></u></i><em id="defenseBossPercent">100%</em></div>
+
       </section>
       <button type="button" class="defense-context-scrim" data-defense-dismiss-context aria-label="Close open Defense panel" hidden></button><section class="defense-context-dock" aria-live="polite">
         <div class="defense-wave-preview" id="defenseWavePreview"></div>
@@ -5430,11 +6103,16 @@
             <button type="button" data-defense-toggle-fullscreen><i>${defenseUiIcon("fullscreen")}</i><span><b>FULLSCREEN</b><small>Use the largest field.</small></span></button>
             <button type="button" data-defense-field-guide="rizos"><i>${defenseUiIcon("guide")}</i><span><b>FIELD GUIDE</b><small>Rizos, threats, and worlds.</small></span></button>
             <button type="button" data-defense-auto-start><i>${defenseUiIcon("snap")}</i><span><b id="defenseAutoStartLabel">AUTO WAVES • ${state.settings.defenseAutoStart?"ON":"OFF"}</b><small id="defenseAutoStartCopy">${state.settings.defenseAutoStart?"2.8s planning countdown after clears.":"You decide when each wave begins."}</small></span></button>
+            <button type="button" data-arcade-pause><i>${defenseUiIcon("speed")}</i><span><b>PAUSE RUN</b><small>Freeze the trail. Nothing advances until you resume.</small></span></button>
             <button type="button" class="danger" data-defense-bank-leave><i>${defenseUiIcon("bank")}</i><span><b>BANK & LEAVE</b><small>Cleared waves bank. The active wave is excluded.</small></span></button>
           </div>
         </div>
       </section>
       <section class="defense-deploy-dock" aria-label="Rizo deployment bench">
+        <div class="defense-placement-coach" id="defensePlacementCoach" aria-live="polite">
+          <span class="defense-placement-guide" id="defensePlacementGuide"><span>1</span><b>CHOOSE A RIZO</b></span>
+          <span class="defense-deploy-hint" id="defenseDeployHint">Your active Rizo deploys free. Tap a card, then grass.</span>
+        </div>
         <div class="defense-roster" id="defenseRoster">${defenseRosterMarkup()}</div>
         <button type="button" class="defense-cancel-placement" data-defense-cancel-placement hidden>CANCEL</button>
       </section>
@@ -5452,7 +6130,7 @@
     /* Pools grow through real use; eager allocation is intentionally avoided on low-memory phones. */
   }
 
-  function defenseRosterSignature(){const d=mini.defense;if(!d)return"";return `${d.towers.length}/${d.maxTowers}|${defenseRoster().map(row=>{const copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,cost=defenseDeployCost(row);return `${row.pet.id}:${copies}:${d.cash>=cost?1:0}:${cost}`;}).join("|")}`;}
+  function defenseRosterSignature(){const d=mini.defense;if(!d)return"";return `${d.towers.length}/${d.maxTowers}|${defenseDeployRows().map(row=>{const copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,cost=defenseDeployCost(row);return `${row.pet.id}:${copies}:${d.cash>=cost?1:0}:${cost}`;}).join("|")}`;}
   function defenseHudCounter(value){
     const amount=Math.max(0,Math.floor(Number(value)||0));
     if(amount>=1_000_000)return `${(amount/1_000_000).toFixed(amount>=10_000_000?0:1).replace(/\.0$/,"")}M`;
@@ -5460,21 +6138,95 @@
     return String(amount);
   }
   function updateDefenseRoster(force=true){const host=$("#defenseRoster"),d=mini.defense;if(!host||!d)return;const signature=defenseRosterSignature();if(!force&&signature===d.rosterSignature)return;host.innerHTML=defenseRosterMarkup();d.rosterSignature=signature;d.rosterRenderCount=(d.rosterRenderCount||0)+1;}
+  function defenseFlowFieldRead(d=mini.defense,leader=defenseFieldLeader(d)){
+    const live=(d?.enemies||[]).filter(enemy=>!enemy.dead&&enemy.hp>0),lead=live.reduce((best,enemy)=>Math.max(best,Number(enemy.progress)||0),0),boss=live.find(enemy=>enemy.bossId)||null,cap=Math.max(1,defenseDensityCap(d,d?.spawnQueue?.[0])),crowded=live.length>=Math.max(5,Math.ceil(cap*.62)),critical=lead>=.88,gatePressure=lead>=.7;
+    let targetMode=null;if(boss)targetMode="strong";else if(gatePressure)targetMode="first";
+    return{live,lead,boss,crowded,critical,gatePressure,targetMode,pressure:critical?"critical":boss?"boss":gatePressure?"gate":crowded?"crowd":"steady"};
+  }
+  function defenseFlowTargetCall(leader,read,{fallbackCycle=true}={}){
+    const current=leader?.targetMode||"first",recommended=read?.targetMode;
+    if(recommended&&recommended!==current)return{label:`AIM ${DEFENSE_TARGET_LABELS[recommended]}`,action:`target:${recommended}`,specific:true};
+    const index=Math.max(0,DEFENSE_TARGET_MODES.indexOf(current)),next=DEFENSE_TARGET_MODES[(index+1)%DEFENSE_TARGET_MODES.length];
+    return fallbackCycle?{label:`AIM → ${DEFENSE_TARGET_LABELS[next]}`,action:"target",specific:false}:{label:`AIM ${DEFENSE_TARGET_LABELS[current]}`,action:"target",specific:false};
+  }
+  function defenseFlowChoice(d=mini.defense){
+    if(!d)return null;
+    const leader=defenseFieldLeader(d),running=defenseIsActiveWave(d),paused=d.phase===DEFENSE_PHASES.PAUSED,nextWave=d.currentWave+1;
+    if(!leader)return{tone:"plan",title:"PLACE YOUR RIZO",copy:d.pendingPlacement?"Tap open grass. The range ring shows what it can cover.":"Your main Rizo deploys free. Start with position, not menus.",primary:"PLACE RIZO",primaryAction:"place-main",secondary:"RIZOS",secondaryAction:"bench",beatKey:"opening-place"};
+    const read=defenseFlowFieldRead(d,leader),target=defenseFlowTargetCall(leader,read),needsDoctrine=leader.upgrade>=2&&!leader.doctrine,cost=leader.upgrade<DEFENSE_LIMITS.MAX_TOWER_LEVEL?defenseUpgradeCost(leader,d):0,canUpgrade=!needsDoctrine&&leader.upgrade<DEFENSE_LIMITS.MAX_TOWER_LEVEL&&defenseUpgradeAllowed(d)&&d.cash>=cost,power=defenseAbilityPresentation(leader),powerReady=Boolean(leader.upgrade>=2&&leader.doctrine&&!defenseContractRule("silent",d)&&DefenseCore.phaseAllows(d.phase,"ability")&&defenseAbilityRemaining(leader)<=0),podReady=Boolean(running&&!paused&&(d.gateFlameUntil||0)<=defenseNow()&&(d.gateFlameReadyAt||0)<=defenseNow()),settling=!running&&d.towers.length&&defenseRealNow(d)<(d.nextWaveReadyAtReal||0),quiet=defenseRealNow(d)<(d.flowActionQuietUntilReal||0),last=d.flowLastAction||"";
+    const targetAvailable=!quiet||last!=="target",upgradeAvailable=canUpgrade&&(!quiet||last!=="upgrade"),powerAvailable=powerReady&&(!quiet||last!=="power"),podAvailable=podReady&&(!quiet||last!=="pod"),pressure=read.critical||read.boss||read.gatePressure;
+    if(paused)return{tone:"paused",title:"FIELD FROZEN",copy:"Aim and upgrades still work. Resume when your plan is set.",primary:"RESUME",primaryAction:"resume",secondary:target.label,secondaryAction:target.action,beatKey:`paused-${target.action}`};
+    if(d.phase===DEFENSE_PHASES.PACKET_BREAK){
+      const primary=needsDoctrine?{label:"CHOOSE PATH",action:"inspect"}:upgradeAvailable?{label:`LEVEL UP • ${cost}`,action:"upgrade"}:targetAvailable?target:{label:"RIZOS",action:"bench"};
+      const secondary=primary.action!==target.action&&targetAvailable?target:{label:"RIZOS",action:"bench"};
+      return{tone:"breather",title:"BREATHER • MAKE ONE CHANGE",copy:defensePlaybackSpeed(d)!==d.speed?"2× eased to 1×. Read the next packet, make one adjustment, then let it run.":"One clean adjustment is enough: level, retarget, or reinforce before pressure returns.",primary:primary.label,primaryAction:primary.action,secondary:secondary.label,secondaryAction:secondary.action,beatKey:`break-${primary.action}-${secondary.action}`};
+    }
+    if(settling){
+      const primary=needsDoctrine?{label:"CHOOSE PATH",action:"inspect"}:upgradeAvailable?{label:`LEVEL UP • ${cost}`,action:"upgrade"}:targetAvailable?target:{label:"RIZOS",action:"bench"};
+      return{tone:"breather",title:"FIELD SETTLING • PLAN NOW",copy:"The last pop is landing. Use the half-second for one real adjustment; START returns when the field is clear.",primary:primary.label,primaryAction:primary.action,secondary:"RIZOS",secondaryAction:"bench",beatKey:`settle-${primary.action}`};
+    }
+    const autoWaiting=!running&&d.phase===DEFENSE_PHASES.WAVE_COMPLETE&&state.settings.defenseAutoStart&&d.flowAutoHeldWave!==d.clearedWave&&d.autoStartAtReal>defenseRealNow(d);
+    if(autoWaiting){const seconds=Math.max(0,d.autoStartAtReal-defenseRealNow(d));return{tone:"plan",title:`AUTO COMMIT • ${seconds.toFixed(1)}S`,copy:"Keep the run moving, send early, or hold this one boundary without disabling Auto Waves.",primary:"SEND NOW",primaryAction:"start",secondary:"HOLD FIELD",secondaryAction:"hold-auto",beatKey:"auto-boundary"};}
+    if(!running){
+      const held=state.settings.defenseAutoStart&&d.phase===DEFENSE_PHASES.WAVE_COMPLETE&&d.flowAutoHeldWave===d.clearedWave,title=held?`FIELD HELD • WAVE ${nextWave}`:`SPEND OR SEND? • WAVE ${nextWave}`;
+      const copy=held?"Auto Waves stays on. This boundary is yours until you call the next wave.":needsDoctrine?`${leader.pet.name} has a fighting path ready. Choose it now or send the next wave.`:canUpgrade?`${leader.pet.name} can level now, or keep ${Math.floor(d.cash)} gold for another answer.`:"Build, aim, or call the next wave when the field looks right.";
+      return{tone:"plan",title,copy,primary:`START WAVE ${nextWave}`,primaryAction:"start",secondary:needsDoctrine?"CHOOSE PATH":canUpgrade?`LEVEL • ${cost}`:"RIZOS",secondaryAction:needsDoctrine?"inspect":canUpgrade?"upgrade":"bench",beatKey:`plan-${held?"held":"manual"}-${needsDoctrine?"path":canUpgrade?"upgrade":"bench"}`};
+    }
+    if(needsDoctrine)return{tone:"combat",title:"FIGHTING PATH READY",copy:`${leader.pet.name} can commit to POWER or CONTROL. Pick when the field gives you room.`,primary:"CHOOSE PATH",primaryAction:"inspect",secondary:target.label,secondaryAction:target.action,beatKey:`doctrine-${target.action}`};
+    if(pressure&&powerAvailable)return{tone:"power",title:read.boss?`${power.active} • BOSS WINDOW`:read.critical?"GATE LINE BREAKING":`${power.active} • PRESSURE WINDOW`,copy:read.boss?`${leader.pet.name}'s Field Power is ready while the boss owns the road.`:`Pressure reached the late trail. Commit ${power.active} now or change what ${leader.pet.name} is hunting.`,primary:`USE ${power.active}`,primaryAction:"power",secondary:target.label,secondaryAction:target.action,beatKey:`pressure-power-${read.pressure}-${target.action}`};
+    if(pressure&&podAvailable)return{tone:"power",title:read.critical?"GATE LINE BREAKING":"EMBER POD WINDOW",copy:"The road is carrying real pressure. Commit the Pod here or retarget the Field Leader.",primary:"PLACE POD",primaryAction:"pod",secondary:target.label,secondaryAction:target.action,beatKey:`pressure-pod-${read.pressure}-${target.action}`};
+    if(read.targetMode&&leader.targetMode!==read.targetMode&&targetAvailable)return{tone:"combat",title:read.boss?"BOSS READ • CHANGE THE HUNT":"GATE READ • CHANGE THE HUNT",copy:read.boss?"A boss is on the field. The rail can set the Field Leader directly to the toughest target.":"A threat crossed the late trail. Put the Field Leader back on the front instead of cycling blindly.",primary:target.label,primaryAction:target.action,secondary:powerReady?`${power.active} READY`:podReady?"POD READY":"RIZOS",secondaryAction:powerReady?"power":podReady?"pod":"bench",beatKey:`read-${read.pressure}-${target.action}`};
+    if(upgradeAvailable)return{tone:"combat",title:"CASH WINDOW • INVEST OR HOLD",copy:`${cost} gold can become a level right now. Spend it mid-fight, or keep the reserve for the next answer.`,primary:`LEVEL UP • ${cost}`,primaryAction:"upgrade",secondary:powerReady?`${power.active} READY`:podReady?"POD READY":target.label,secondaryAction:powerReady?"power":podReady?"pod":target.action,beatKey:`cash-${powerReady?"power":podReady?"pod":target.action}`};
+    if(powerReady)return{tone:"combat",title:`${power.active} BANKED`,copy:"The Field Power is ready, but the Gate is not under real pressure. Keep it banked or cash it in on your terms.",primary:targetAvailable?target.label:"RIZOS",primaryAction:targetAvailable?target.action:"bench",secondary:`USE ${power.active}`,secondaryAction:"power",beatKey:`banked-power-${target.action}`};
+    if(podReady)return{tone:"combat",title:"EMBER POD BANKED",copy:"The Pod is ready. Keep watching the road, or place it before the next pressure spike.",primary:targetAvailable?target.label:"RIZOS",primaryAction:targetAvailable?target.action:"bench",secondary:"PLACE POD",secondaryAction:"pod",beatKey:`banked-pod-${target.action}`};
+    if(quiet)return{tone:"combat",title:"CALL MADE • LET IT WORK",copy:"You changed the field. Give the formation a moment before making another adjustment.",primary:"RIZOS",primaryAction:"bench",secondary:"THREATS",secondaryAction:"intel",beatKey:`quiet-${last}`};
+    return{tone:"combat",title:read.crowded?"ROAD IS FULL • WATCH THE BREAK":"FIELD IS WORKING",copy:read.crowded?"The road is busy, but not yet at the Gate. Read the next break instead of chasing every balloon.":"No forced tap. Retarget when the formation changes, reinforce when cash opens a window, and bank power for pressure.",primary:target.label,primaryAction:target.action,secondary:"RIZOS",secondaryAction:"bench",beatKey:`steady-${read.crowded?"crowd":"calm"}-${target.action}`};
+  }
+  function updateDefenseDecisionRail(){
+    const d=mini.defense,host=$("#defenseDecisionRail"),title=$("#defenseDecisionTitle"),copy=$("#defenseDecisionCopy"),primary=$("#defenseDecisionPrimary"),secondary=$("#defenseDecisionSecondary");if(!d||!host||!primary||!secondary)return;
+    const choice=defenseFlowChoice(d);if(!choice)return;const nowReal=defenseRealNow(d),choiceKey=choice.beatKey||`${choice.tone}|${choice.primaryAction}|${choice.secondaryAction}`,renderKey=`${choice.tone}|${choice.title}|${choice.copy}|${choice.primary}|${choice.primaryAction}|${choice.secondary}|${choice.secondaryAction}`;if(d.flowChoiceKey&&choiceKey!==d.flowChoiceKey&&nowReal>=(d.flowActionQuietUntilReal||0))d.flowPulseUntilReal=Math.max(d.flowPulseUntilReal||0,nowReal+.72);d.flowChoiceKey=choiceKey;host.dataset.tone=choice.tone||"plan";host.classList.toggle("pulse",nowReal<(d.flowPulseUntilReal||0));if(host.dataset.flowRenderKey!==renderKey){host.dataset.flowRenderKey=renderKey;if(title)title.textContent=choice.title;if(copy)copy.textContent=choice.copy;primary.textContent=choice.primary;primary.dataset.defenseFlowAction=choice.primaryAction;primary.disabled=false;secondary.textContent=choice.secondary;secondary.dataset.defenseFlowAction=choice.secondaryAction;secondary.disabled=false;}
+  }
+  function defenseRecordFlowAction(action,acted=true){
+    const d=mini.defense;if(!d||!acted)return acted;const family=String(action||"").split(":")[0];if(!["start","resume","hold-auto","inspect","bench","intel"].includes(family)){d.flowLastAction=family;d.flowActionQuietUntilReal=defenseRealNow(d)+1.35;}d.flowDecisionBeat=(d.flowDecisionBeat||0)+1;d.flowChoiceKey="";d.uiDirty=true;flushDefenseUi(true);return acted;
+  }
+  function runDefenseFlowAction(action){
+    const d=mini.defense;if(!d)return false;const leader=defenseFieldLeader(d);
+    if(action==="place-main"){const row=defenseRoster().find(item=>item.source==="active")||defenseRoster()[0];if(!row)return false;if(d.pendingPlacement?.row?.pet?.id===row.pet.id){setDefenseMessage(`PLACE ${row.pet.name}`,"Tap open grass. Green means the full footprint is safe.");return true;}return selectDefenseRosterPet(row);}
+    if(action==="bench"){toggleDefenseBench(true);return true;}
+    if(action==="intel"){toggleDefenseIntel(true);return true;}
+    if(action==="start")return startDefenseWave();
+    if(action==="resume"){toggleDefensePause(false);return true;}
+    if(action==="hold-auto"){d.flowAutoHeldWave=d.clearedWave;d.autoStartAtReal=0;d.flowChoiceKey="";d.uiDirty=true;flushDefenseUi(true);setDefenseMessage("FIELD HELD","Auto Waves stays on. This boundary waits for your call; the next clear returns to auto tempo.");sfx("ui");return true;}
+    if(action.startsWith("target:")&&leader){const mode=action.split(":")[1];if(DEFENSE_TARGET_MODES.includes(mode)){leader.targetMode=mode;leader.targetId=null;leader.retargetAtReal=0;completeDefenseSchoolLesson("targeting");markDefenseUi();writeDefenseCheckpoint(true,"targeting");setDefenseMessage(`${leader.pet.name.toUpperCase()} • ${DEFENSE_TARGET_LABELS[mode]}`,mode==="strong"?"Field Leader is hunting the toughest threat.":mode==="first"?"Field Leader is back on the front balloon.":"Target priority changed.");sfx("ui");return defenseRecordFlowAction("target",true);}}
+    if(action==="target"&&leader)return defenseRecordFlowAction("target",(cycleDefenseTarget(leader.id,{showPanel:false}),true));
+    if(action==="upgrade"&&leader)return defenseRecordFlowAction("upgrade",upgradeDefenseTower(leader.id,{showPanel:false}));
+    if(action==="inspect"&&leader){showDefenseTowerPanel(leader);return true;}
+    if(action==="power"&&leader)return defenseRecordFlowAction("power",activateDefenseAbility(leader.id,{showPanel:false}));
+    if(action==="pod")return defenseRecordFlowAction("pod",(toggleDefenseGateFlame(),true));
+    return false;
+  }
   function updateDefenseHud(){
     if(!mini.active||mini.mode!=="defense"||!mini.defense)return;
     const d=mini.defense;d.hudRenderCount=(d.hudRenderCount||0)+1;
     const phaseShell=$(".defense-shell");if(phaseShell){phaseShell.dataset.defensePhase=d.phase;phaseShell.dataset.currentWave=String(d.currentWave);phaseShell.dataset.clearedWave=String(d.clearedWave);phaseShell.dataset.fieldDensity=d.towers.length>=7?"crowded":d.towers.length>=4?"busy":"open";phaseShell.dataset.performanceTier=String(d.governorTier||0);}
-    const wave=$("#defenseWave"),clearedWave=$("#defenseClearedWave"),phaseIndicator=$("#defensePhaseIndicator"),phaseLabel=$("#defensePhaseLabel"),phaseDetail=$("#defensePhaseDetail"),lives=$("#defenseLives"),cash=$("#defenseCash"),speed=$("[data-defense-speed]"),speedValue=$("#defenseSpeedValue"),guide=$("#defensePlacementGuide"),deployHint=$("#defenseDeployHint"),cancel=$("[data-defense-cancel-placement]"),world=$("#defenseWorld"),shell=$(".defense-shell"),flameButton=$("#defenseGateFlameButton"),flameState=$("#defenseGateFlameState"),flameLive=$("#defenseGateFlameLive");
+    const wave=$("#defenseWave"),clearedWave=$("#defenseClearedWave"),phaseIndicator=$("#defensePhaseIndicator"),phaseLabel=$("#defensePhaseLabel"),phaseDetail=$("#defensePhaseDetail"),lives=$("#defenseLives"),cash=$("#defenseCash"),cashDelta=$("#defenseCashDelta"),speed=$("[data-defense-speed]"),speedValue=$("#defenseSpeedValue"),guide=$("#defensePlacementGuide"),deployHint=$("#defenseDeployHint"),cancel=$("[data-defense-cancel-placement]"),world=$("#defenseWorld"),shell=$(".defense-shell"),flameButton=$("#defenseGateFlameButton"),flameState=$("#defenseGateFlameState"),flameLive=$("#defenseGateFlameLive");
     if(wave)wave.textContent=d.currentWave;
     if(clearedWave)clearedWave.textContent=d.clearedWave;
-    const phaseUi=defensePhaseUi(d),showTech=Boolean(d.paused||(d.governorTier||0)>0);if(phaseIndicator){phaseIndicator.hidden=!showTech;phaseIndicator.dataset.tone=d.paused?"paused":"danger";}if(phaseLabel)phaseLabel.textContent=d.paused?"PAUSED":"PERFORMANCE";if(phaseDetail)phaseDetail.textContent=d.paused?"TAP RESUME":(d.governorTier||0)>=2?"LOW VISUAL MODE":"REDUCING EFFECTS";
+    const phaseUi=defensePhaseUi(d),performanceNote=(d.governorTier||0)>=2?" • LOW FX":(d.governorTier||0)>=1?" • FX LEAN":"";if(phaseIndicator){phaseIndicator.hidden=false;phaseIndicator.dataset.tone=d.paused?"paused":phaseUi.tone;}if(phaseLabel)phaseLabel.textContent=d.paused?"PAUSED":phaseUi.label;if(phaseDetail)phaseDetail.textContent=d.paused?"TAP RESUME":`${phaseUi.detail}${performanceNote}`;
     if(lives){const prior=d.lastHudLives;lives.textContent=d.lives;if(prior!==null&&prior!==d.lives){const art=$("#defenseLivesArt");art?.classList.remove("hud-hit","hud-heal");void art?.offsetWidth;art?.classList.add(d.lives<prior?"hud-hit":"hud-heal");}d.lastHudLives=d.lives;}
-    if(cash){const exact=Math.floor(d.cash),prior=d.lastHudCash;cash.textContent=defenseHudCounter(exact);cash.title=exact.toLocaleString();cash.closest(".defense-stat-cash")?.setAttribute("aria-label",`${exact.toLocaleString()} gold`);if(prior!==null&&prior!==exact){const art=$("#defenseCashArt");art?.classList.remove("hud-gain","hud-spend");void art?.offsetWidth;art?.classList.add(exact>prior?"hud-gain":"hud-spend");}d.lastHudCash=exact;}
-    if(speedValue)speedValue.textContent=d.speed===.5?"½×":`${d.speed}×`;
+    if(cash){const exact=Math.floor(d.cash),prior=d.lastHudCash;cash.textContent=defenseHudCounter(exact);cash.title=exact.toLocaleString();cash.closest(".defense-stat-cash")?.setAttribute("aria-label",`${exact.toLocaleString()} gold`);if(prior!==null&&prior!==exact){const art=$("#defenseCashArt"),delta=exact-prior;art?.classList.remove("hud-gain","hud-spend");void art?.offsetWidth;art?.classList.add(delta>0?"hud-gain":"hud-spend");if(cashDelta&&(delta<0||delta>=5)){cashDelta.textContent=`${delta>0?"+":"−"}${defenseHudCounter(Math.abs(delta))}`;cashDelta.classList.remove("show","gain","spend");void cashDelta.offsetWidth;cashDelta.classList.add("show",delta>0?"gain":"spend");}}d.lastHudCash=exact;}
+    if(speedValue){const playback=defensePlaybackSpeed(d);speedValue.textContent=playback===.5?"½×":`${playback}×`;speedValue.title=playback!==d.speed?"2× resumes after this breather":"";}
     if(speed)speed.disabled=false;
     if(flameButton){const nowGame=defenseNow(),remaining=Math.max(0,(d.gateFlameReadyAt||0)-nowGame),active=(d.gateFlameUntil||0)>nowGame,ready=remaining<=0&&!active,canPlace=defenseIsActiveWave(d)&&!d.paused;flameButton.classList.toggle("armed",Boolean(d.gateFlameArmed));flameButton.classList.toggle("active",active);flameButton.classList.toggle("cooling",!active&&remaining>0);flameButton.disabled=!canPlace&&!active;flameButton.setAttribute("aria-pressed",String(Boolean(d.gateFlameArmed)));flameButton.setAttribute("aria-label",active?"Ember Pod active":!canPlace?"Ember Pod is available during a live wave":ready?"Place Ember Pod on the trail":`Ember Pod ready in ${Math.ceil(remaining)} seconds`);if(flameState)flameState.textContent=active?`${Math.max(1,Math.ceil(d.gateFlameUntil-nowGame))}S`:d.gateFlameArmed?"TAP ROAD":!canPlace?"WAVE ONLY":ready?"READY":`${Math.ceil(remaining)}S`;}
     if(flameLive){const active=(d.gateFlameUntil||0)>defenseNow();flameLive.hidden=!active;flameLive.style.left=`${defensePointAt(d.gateFlameProgress||0).x*100}%`;flameLive.style.top=`${defensePointAt(d.gateFlameProgress||0).y*100}%`;flameLive.classList.toggle("low-fx",(d.governorTier||0)>0);}
-    const leader=defenseFieldLeader(d),leaderButton=$("#defenseAbilitiesButton"),leaderCount=$("#defenseAbilityCount"),leaderLabel=$("#defenseLeaderPowerLabel");if(leaderButton){const sealed=defenseContractRule("silent",d),unlocked=leader&&leader.upgrade>=2&&leader.doctrine,remaining=leader?Math.ceil(defenseAbilityRemaining(leader)):0,canCast=Boolean(unlocked&&!sealed&&DefenseCore.phaseAllows(d.phase,"ability")&&remaining<=0),power=leader?defenseAbilityPresentation(leader):null;leaderButton.disabled=!canCast;leaderButton.classList.toggle("ready",canCast);leaderButton.classList.toggle("empty",!leader);leaderButton.setAttribute("aria-expanded","false");leaderButton.setAttribute("aria-label",!leader?"Place a Rizo to choose the Field Leader":!unlocked?`${leader.pet.name} unlocks the Field Power at Level 3 after choosing a path`:remaining?`${power.active} ready in ${remaining} seconds`:canCast?`Use ${power.active}, ${leader.pet.name}'s Field Power`:"Field Power available during combat");if(leaderLabel)leaderLabel.textContent=power?.active||"FIELD POWER";if(leaderCount)leaderCount.textContent=!leader?"—":sealed?"×":!unlocked?"LV3":remaining?`${remaining}s`:canCast?"READY":"WAIT";}
+    const leaderButton=$("#defenseAbilitiesButton"),leaderCount=$("#defenseAbilityCount"),leaderLabel=$("#defenseLeaderPowerLabel");
+    if(leaderButton){
+      const sealed=defenseContractRule("silent",d),groups=defenseAbilityGroups(),casting=DefenseCore.phaseAllows(d.phase,"ability"),readyGroups=sealed?0:groups.filter(group=>casting&&group.ready.length>0).length,nextRemaining=Math.min(...groups.map(group=>group.nextRemaining).filter(Number.isFinite),Infinity),priorReady=Number.isFinite(d.lastReadyAbilityGroups)?d.lastReadyAbilityGroups:readyGroups,readyArrival=readyGroups>priorReady&&defenseIsActiveWave(d)&&!d.paused;
+      leaderButton.disabled=false;leaderButton.classList.toggle("ready",readyGroups>0);leaderButton.classList.toggle("empty",groups.length===0);leaderButton.classList.toggle("sealed",sealed);leaderButton.setAttribute("aria-expanded",String(Boolean(d.abilityTrayOpen)));leaderButton.setAttribute("aria-label",sealed?"Open Rizo powers; activated effects are sealed by this contract":readyGroups?`Open Rizo powers, ${readyGroups} ready`:groups.length?`Open Rizo powers, next ready ${Number.isFinite(nextRemaining)?Math.ceil(nextRemaining):0} seconds`:"Open Rizo powers; level a Rizo to Level 3 and choose a path to unlock them");
+      if(leaderLabel)leaderLabel.textContent="POWERS";if(leaderCount)leaderCount.textContent=sealed?"×":readyGroups?String(readyGroups):groups.length&&Number.isFinite(nextRemaining)?`${Math.ceil(nextRemaining)}s`:groups.length?"WAIT":"LV3";
+      if(readyArrival){leaderButton.classList.remove("ready-arrival");void leaderButton.offsetWidth;leaderButton.classList.add("ready-arrival");queueMiniTimeout(()=>leaderButton?.classList.remove("ready-arrival"),760);}
+      d.lastReadyAbilityGroups=readyGroups;
+    }
     const autoLabel=$("#defenseAutoStartLabel"),autoCopy=$("#defenseAutoStartCopy");if(autoLabel)autoLabel.textContent=`AUTO WAVES • ${state.settings.defenseAutoStart?"ON":"OFF"}`;if(autoCopy)autoCopy.textContent=state.settings.defenseAutoStart?"2.8s planning countdown after clears.":"You decide when each wave begins.";
     world?.classList.toggle("defense-paused",d.paused);
     world?.style.setProperty("--wave-darkness",String(Math.min(.18,d.wave*.0075)));
@@ -5503,35 +6255,40 @@
         if(waveLabel)waveLabel.textContent=d.paused?"RESUME":"PAUSE";
         button.setAttribute("aria-label",d.paused?"Resume Defense":"Pause Defense");
       }
+      if(d.ending||d.phase===DEFENSE_PHASES.RUN_COMPLETE){button.disabled=true;if(waveLabel)waveLabel.textContent=d.lives<=0?"GATE DOWN":"RUN BANKED";}
       button.hidden=false;
     }
+    const coach=$("#defensePlacementCoach");
+    if(coach)coach.hidden=Boolean(d.towers.length&&!d.pendingPlacement);
     if(guide){
       guide.hidden=Boolean(d.towers.length&&!d.pendingPlacement);
       const step=guide.querySelector("span"),title=guide.querySelector("b");
       if(step)step.textContent=d.pendingPlacement?"2":d.towers.length?"✓":"1";
-      if(title)title.textContent=d.pendingPlacement?`PLACE ${d.pendingPlacement.row.pet.name}`:defenseIsActiveWave(d)?"FIELD IS LIVE":d.towers.length?"BUILD OR BEGIN":"CHOOSE A RIZO";
+      if(title)title.textContent=d.pendingPlacement?`PLACE ${d.pendingPlacement.row.pet.name}`:defenseIsActiveWave(d)?"FIELD IS LIVE":d.towers.length?"BUILD OR BEGIN":"CHOOSE A DEFENDER";
     }
     if(deployHint){
       const remaining=d.spawnQueue.length+d.enemies.filter(enemy=>!enemy.dead).length;
-      deployHint.textContent=d.pendingPlacement?"Tap a glowing build pocket. The soft ground halo shows attack reach.":defenseIsActiveWave(d)?`${remaining} ${remaining===1?"threat":"threats"} remain. Placement is locked; abilities and targeting remain available.`:d.towers.length?`Upgrade, target, or start Wave ${d.wave+1}.`:"Your active Rizo deploys free. Tap a card, then grass.";
+      deployHint.textContent=d.pendingPlacement?"Any open grass works. Cover two bends or guard the late exit.":defenseIsActiveWave(d)?`${remaining} ${remaining===1?"threat":"threats"} remain. Reinforcements, upgrades and targeting are live.`:d.towers.length?`Upgrade, target, or start Wave ${d.wave+1}.`:"Your active Rizo deploys free. Basic Defense Rizo is the cheap universal tool.";
     }
     if(cancel)cancel.hidden=!d.pendingPlacement;
-    const benchCount=$("#defenseBenchCount");if(benchCount)benchCount.textContent=String(defenseRoster().length);
+    const benchCount=$("#defenseBenchCount");if(benchCount)benchCount.textContent=String(defenseDeployRows().length);
     updateDefenseAbilityPanel();
+    updateDefenseAbilityTray();
     updateDefenseIntelTray();
     updateDefenseWavePreview();
     updateDefenseLiveStatus();
+    updateDefenseDecisionRail();
     updateDefenseSchoolCoach();
     d.uiDirty=false;
   }
 
   function markDefenseUi({roster=false}={}){const d=mini.defense;if(!d)return;d.uiDirty=true;d.checkpointDirty=true;if(roster)d.rosterDirty=true;}
-  function flushDefenseUi(force=false){const d=mini.defense;if(!d)return;if(d.rosterDirty){updateDefenseRoster(false);d.rosterDirty=false;}if(force||d.uiDirty||d.abilityTrayOpen||d.selectedTowerId)updateDefenseHud();else updateDefenseLiveStatus();}
+  function flushDefenseUi(force=false){const d=mini.defense;if(!d)return;if(d.rosterDirty){updateDefenseRoster(false);d.rosterDirty=false;}if(force||d.uiDirty||d.abilityTrayOpen||d.selectedTowerId)updateDefenseHud();else{updateDefenseLiveStatus();updateDefenseDecisionRail();}}
 
   function defenseAbilityId(tower){return tower?.pet?.variant||tower?.pet?.hiddenVariant||"classic";}
   function defenseReadyAbilities(){
     const d=mini.defense;if(!d)return[];
-    return d.towers.filter(tower=>tower.upgrade>=2&&tower.doctrine).map(tower=>({tower,abilityId:defenseAbilityId(tower),ability:defenseAbilityData(tower),remaining:Math.ceil(defenseAbilityRemaining(tower))}));
+    return d.towers.filter(tower=>defenseIsCharacterTower(tower)&&tower.upgrade>=2&&tower.doctrine).map(tower=>({tower,abilityId:defenseAbilityId(tower),ability:defenseAbilityData(tower),remaining:Math.ceil(defenseAbilityRemaining(tower))}));
   }
   function defenseAbilityGroups(){
     const groups=new Map();
@@ -5561,6 +6318,10 @@
     const shown=group.instances.slice(0,3).map(({tower})=>`<i>${petMarkup({pet:tower.pet,extraClass:"defense-ability-rizo",context:"thumbnail",label:tower.pet.name})}</i>`).join("");
     return `<span class="defense-ability-stack">${shown}${group.instances.length>3?`<u>+${group.instances.length-3}</u>`:""}</span>`;
   }
+  function defenseAbilityChargeMarkup(group){
+    const next=group.instances.find(row=>row.remaining>0),cooldown=next?Math.max(1,defenseAbilityCooldown(next.tower)):1,charge=next?clamp(1-next.remaining/cooldown,0,1):1,shown=group.instances.slice(0,6),pips=shown.map(row=>`<i class="${row.remaining<=0?"charged":"charging"}"></i>`).join("");
+    return `<span class="defense-ability-charge" style="--ability-charge:${Math.round(charge*100)}%" aria-hidden="true"><span class="defense-ability-charge-pips">${pips}${group.instances.length>shown.length?`<u>+${group.instances.length-shown.length}</u>`:""}</span><span class="defense-ability-charge-rail"><i></i></span></span>`;
+  }
   function defenseAbilityPickerMarkup(group,d){
     return `<div class="defense-ability-picker" role="group" aria-label="Choose which ${escapeHTML(group.ability.active)} to cast">${group.instances.map(({tower,remaining})=>{const ready=remaining<=0&&DefenseCore.phaseAllows(d.phase,"ability");return`<button type="button" class="${ready?"ready":"cooling"}" data-defense-cast="${tower.id}" ${ready?"":"disabled"}><span>${defenseTowerFieldLabel(tower)}</span><b>LV ${tower.upgrade+1}${tower.copyNumber>1?` • COPY ${tower.copyNumber}`:""}</b><em>${ready?"CAST":remaining?`${remaining}s`:d.paused?"PAUSED":"WAIT"}</em></button>`;}).join("")}</div>`;
   }
@@ -5572,13 +6333,13 @@
   }
   function updateDefenseAbilityTray(){
     const d=mini.defense,button=$("#defenseAbilitiesButton"),count=$("#defenseAbilityCount"),tray=$("#defenseAbilityTray");if(!d||!button||!tray)return;
-    const sealed=defenseContractRule("silent",d),groups=defenseAbilityGroups(),casting=DefenseCore.phaseAllows(d.phase,"ability"),readyGroups=sealed?0:groups.filter(group=>casting&&group.ready.length>0).length,scroll=tray.scrollTop;
+    const sealed=defenseContractRule("silent",d),groups=defenseAbilityGroups(),casting=DefenseCore.phaseAllows(d.phase,"ability"),readyGroups=sealed?0:groups.filter(group=>casting&&group.ready.length>0).length,nextRemaining=Math.min(...groups.map(group=>group.nextRemaining).filter(Number.isFinite),Infinity),scroll=tray.scrollTop;
     if(d.abilityGroupOpen&&!groups.some(group=>group.id===d.abilityGroupOpen&&casting&&group.ready.length>1))d.abilityGroupOpen=null;
-    if(count)count.textContent=sealed?"×":String(readyGroups);
+    if(count)count.textContent=sealed?"×":readyGroups?String(readyGroups):groups.length&&Number.isFinite(nextRemaining)?`${Math.ceil(nextRemaining)}s`:groups.length?"WAIT":"LV3";
     button.classList.toggle("ready",readyGroups>0);button.classList.toggle("empty",groups.length===0);button.classList.toggle("paused",d.paused);button.classList.toggle("sealed",sealed);button.setAttribute("aria-expanded",String(Boolean(d.abilityTrayOpen)));
     tray.hidden=!d.abilityTrayOpen;
     if(!d.abilityTrayOpen){d.abilityTraySignature="";d.abilityGroupOpen=null;return;}
-    const cards=groups.map(group=>{const expanded=d.abilityGroupOpen===group.id,canCast=casting&&group.ready.length>0,subline=group.instances.length===1?`${group.instances[0].tower.pet.name} • LV ${group.instances[0].tower.upgrade+1}`:`${group.instances.length} RIZOS • ${group.ready.length} CHARGED`,action=group.ready.length>1?(expanded?"−":"+"):"›";return`<article class="defense-ability-group ${canCast?"ready":""} ${expanded?"expanded":""}" data-ability-group="${escapeHTML(group.id)}"><button type="button" class="defense-ability-card" data-defense-cast-group="${escapeHTML(group.id)}" aria-expanded="${expanded}" ${canCast?"":"disabled"}>${defenseAbilityStackMarkup(group)}<span class="defense-ability-copy"><small>${escapeHTML(subline)}</small><b>${escapeHTML(group.ability.active)}</b><em>${escapeHTML(defenseAbilityGroupStatus(group,d))}</em></span><i class="defense-ability-action" aria-hidden="true">${action}</i></button>${expanded?defenseAbilityPickerMarkup(group,d):""}</article>`;}).join("");
+    const cards=groups.map(group=>{const expanded=d.abilityGroupOpen===group.id,canCast=casting&&group.ready.length>0,subline=group.instances.length===1?`${group.instances[0].tower.pet.name} • LV ${group.instances[0].tower.upgrade+1}`:`${group.instances.length} RIZOS • ${group.ready.length} CHARGED`,action=group.ready.length>1?(expanded?"−":"+"):"›";return`<article class="defense-ability-group ${canCast?"ready":""} ${expanded?"expanded":""}" data-ability-group="${escapeHTML(group.id)}"><button type="button" class="defense-ability-card" data-defense-cast-group="${escapeHTML(group.id)}" aria-expanded="${expanded}" ${canCast?"":"disabled"}>${defenseAbilityStackMarkup(group)}<span class="defense-ability-copy"><small>${escapeHTML(subline)}</small><b>${escapeHTML(group.ability.active)}</b><em>${escapeHTML(defenseAbilityGroupStatus(group,d))}</em></span>${defenseAbilityChargeMarkup(group)}<i class="defense-ability-action" aria-hidden="true">${action}</i></button>${expanded?defenseAbilityPickerMarkup(group,d):""}</article>`;}).join("");
     const markup=sealed?`<div class="defense-ability-tray-head"><div class="defense-sheet-title"><span>${defenseUiIcon("power")}</span><div><small>TRAIL CONTRACT</small><b>ACTIVATED EFFECTS SEALED</b></div></div><button type="button" data-defense-toggle-abilities>${defenseUiIcon("close")}</button></div><div class="defense-ability-list"><p>Every Rizo keeps its passive identity. Manual abilities are unavailable for this run.</p></div>`:`<div class="defense-ability-tray-head"><div class="defense-sheet-title"><span>${defenseUiIcon("power")}</span><div><small>GROUPED POWERS</small><b>${d.paused?"PAUSED • RESUME TO CAST":`${readyGroups} READY • ${groups.length} ${groups.length===1?"POWER":"POWERS"}`}</b></div></div><button type="button" data-defense-toggle-abilities>${defenseUiIcon("close")}</button></div><div class="defense-ability-list">${groups.length?cards:`<p>Reach Level 3 and choose a path to unlock activated effects.</p>`}</div>`,signature=`${sealed}|${d.paused}|${d.phase}|${d.abilityGroupOpen||""}|${groups.map(group=>`${group.id}[${group.instances.map(row=>`${row.tower.id}:${row.tower.upgrade}:${row.tower.doctrine}:${row.tower.targetMode}:${row.remaining}`).join(",")}]`).join("|")}`;
     if(signature!==d.abilityTraySignature){d.trayRenderCount=(d.trayRenderCount||0)+1;tray.innerHTML=markup;d.abilityTraySignature=signature;tray.scrollTop=scroll;}
   }
@@ -5639,7 +6400,7 @@
   function defenseRecordEnemyStat(bucket,key,amount=1){const stats=mini.defense?.enemyStats;if(!stats||!stats[bucket])return;const id=String(key||"puff");stats[bucket][id]=(Number(stats[bucket][id])||0)+amount;}
   function defenseCountsFromEntries(entries){const counts=new Map();for(const entry of entries||[]){const key=defenseEnemyKey(entry);counts.set(key,(counts.get(key)||0)+1);}return counts;}
   function defenseIntelCounts(){const d=mini.defense;if(!d)return new Map();if(defenseIsActiveWave(d)){const counts=defenseCountsFromEntries(d.spawnQueue);for(const enemy of d.enemies){if(enemy.dead)continue;const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type;counts.set(key,(counts.get(key)||0)+1);}return counts;}return defenseWavePreviewData(d.wave+1).counts;}
-  function defenseCounterReadiness(counts){const towers=mini.defense?.towers||[],keys=[...counts.keys()],needs={speed:keys.some(key=>["fleet","storm","boss:apex"].includes(key)),armor:keys.some(key=>["shell","frost","boss:crown"].includes(key)),veil:keys.some(key=>["shade","ghost"].includes(key)),swarm:keys.some(key=>key==="split")};const ready={speed:towers.some(t=>t.doctrine==="control"||["frost","moss","bubblegum","retro"].includes(t.pet.variant||t.pet.hiddenVariant)),armor:towers.some(t=>t.doctrine==="power"||["diamond","obsidian","glitch"].includes(t.pet.variant||t.pet.hiddenVariant)),veil:towers.some(t=>t.upgrade>=2||["shadow","aurora","glitch"].includes(t.pet.variant||t.pet.hiddenVariant)),swarm:towers.some(t=>["violet","diamond","obsidian","moss"].includes(t.pet.variant||t.pet.hiddenVariant)||t.doctrine==="power")};return{needs,ready,missing:Object.keys(needs).filter(key=>needs[key]&&!ready[key])};}
+  function defenseCounterReadiness(counts){const towers=mini.defense?.towers||[],keys=[...counts.keys()],needs={speed:keys.some(key=>["fleet","storm","boss:apex"].includes(key)),armor:keys.some(key=>["shell","frost","brick","lead","boss:crown"].includes(key)),veil:keys.some(key=>["shade","ghost"].includes(key)),swarm:keys.some(key=>key==="split"),support:keys.some(key=>["relay","mender"].includes(key))};const ready={speed:towers.some(t=>t.doctrine==="control"||["frost","moss","bubblegum","retro"].includes(t.pet.variant||t.pet.hiddenVariant)),armor:towers.some(t=>t.doctrine==="power"||["diamond","obsidian","glitch"].includes(t.pet.variant||t.pet.hiddenVariant)),veil:towers.some(t=>t.upgrade>=2||["shadow","aurora","glitch"].includes(t.pet.variant||t.pet.hiddenVariant)),swarm:towers.some(t=>["violet","diamond","obsidian","moss"].includes(t.pet.variant||t.pet.hiddenVariant)||t.doctrine==="power"),support:towers.some(t=>t.targetMode==="strong"||t.doctrine==="control"||["shadow","diamond","obsidian","violet"].includes(t.pet.variant||t.pet.hiddenVariant))};return{needs,ready,missing:Object.keys(needs).filter(key=>needs[key]&&!ready[key])};}
   function defenseMapIntel(){const d=mini.defense;if(!d)return{title:"NO WORLD",copy:""};const weather=d.map.weather;return weather==="ash"?{title:"ASH VEIL",copy:"Ash periodically camouflages the trail. Awakened and detector Rizos keep sight."}:weather==="moon"?{title:"MOONLIGHT WINDOW",copy:"Moonlight periodically exposes camo and phase threats for every Rizo."}:weather==="storm"?{title:"LIGHTNING SURGE",copy:"Every threat accelerates during the storm pulse. Keep FIRST and CONTROL coverage."}:weather==="blizzard"?{title:"WHITEOUT",copy:"Most Rizo ranges shrink. Frost and Aurora hold steady."}:weather==="eclipse"?{title:"ECLIPSE VEIL",copy:"The eclipse periodically camouflages every threat."}:{title:"CLEAR TRAIL",copy:"No world hazard. Learn the enemy identities and build clean coverage."};}
   function updateDefenseIntelTray(){
     const d=mini.defense,button=$("#defenseIntelButton"),count=$("#defenseIntelCount"),tray=$("#defenseIntelTray");if(!d||!button||!tray)return;const counts=defenseIntelCounts(),ordered=[...counts.entries()].sort((a,b)=>(DEFENSE_THREAT_PRIORITY[b[0]]||0)-(DEFENSE_THREAT_PRIORITY[a[0]]||0));if(count)count.textContent=String(ordered.length);button.classList.toggle("warning",ordered.some(([key])=>!["puff","fleet"].includes(key)));button.setAttribute("aria-expanded",String(Boolean(d.intelOpen)));tray.hidden=!d.intelOpen;if(!d.intelOpen){d.intelTraySignature="";return;}
@@ -5658,7 +6419,7 @@
     const next=d.wave+1,{plan,counts}=defenseWavePreviewData(next),ordered=[...counts.entries()].sort((a,b)=>(DEFENSE_THREAT_PRIORITY[b[0]]||0)-(DEFENSE_THREAT_PRIORITY[a[0]]||0));
     host.style.pointerEvents="none";host.hidden=false;let markup;
     if(mode==="full"){const shown=ordered.slice(0,3),chips=shown.map(([type,count])=>{const data=defenseEnemyData(type),label=type.startsWith("boss:")?"BOSS":String(data.trait||data.name).replace("BALLOON","").split(" ").slice(0,2).join(" ");return`<i data-preview-type="${escapeHTML(type)}"><span class="defense-threat-mini ${escapeHTML(data.className||"")}"></span><b>${count}×</b>${escapeHTML(label)}</i>`;}).join(""),total=DefenseCore.flattenPackets(plan.packets).length;markup=`<small>NEXT • WAVE ${next}</small><b>${total} THREATS</b><span>${chips}</span>`;}
-    else{const top=ordered[0]?.[0],data=top?defenseEnemyData(top):null,boss=ordered.some(([key])=>key.startsWith("boss:")),heavy=ordered.some(([key])=>["brick","lead","shell"].includes(key)),fast=ordered.some(([key])=>["fleet","storm"].includes(key)),hidden=ordered.some(([key])=>["shade","ghost"].includes(key)),hint=boss?"BOSS INCOMING":heavy?"HEAVY ARMOR":hidden?"HIDDEN THREATS":fast?"FAST PRESSURE":plan.modifier&&plan.modifier!=="normal"?String(plan.modifier).toUpperCase()+" WAVE":"READ THE ROAD";markup=`<small>NEXT • WAVE ${next}</small><b>${escapeHTML(hint)}</b><em>${data?escapeHTML(String(data.counter||"BUILD CLEAN")):"BUILD CLEAN"}</em>`;}
+    else{const top=ordered[0]?.[0],data=top?defenseEnemyData(top):null,boss=ordered.some(([key])=>key.startsWith("boss:")),heavy=ordered.some(([key])=>["brick","lead","shell"].includes(key)),fast=ordered.some(([key])=>["fleet","storm"].includes(key)),hidden=ordered.some(([key])=>["shade","ghost"].includes(key)),support=ordered.some(([key])=>["relay","mender"].includes(key)),hint=boss?"BOSS INCOMING":support?"SUPPORT PACK":heavy?"HEAVY ARMOR":hidden?"HIDDEN THREATS":fast?"FAST PRESSURE":plan.modifier&&plan.modifier!=="normal"?String(plan.modifier).toUpperCase()+" WAVE":"READ THE ROAD";markup=`<small>NEXT • WAVE ${next}</small><b>${escapeHTML(plan.announcement?.title||hint)}</b><em>${escapeHTML(plan.announcement?.copy||(data?.counter||"BUILD CLEAN"))}</em>`;}
     const signature=`${mode}|${next}|${markup}`;if(signature!==d.wavePreviewSignature){host.innerHTML=markup;d.wavePreviewSignature=signature;}
   }
   function updateDefenseLiveStatus(){
@@ -5690,7 +6451,7 @@
   function pauseDefenseForInterruption(){const d=mini.defense;if(!mini.active||mini.mode!=="defense"||!d||!defenseIsSimulating(d))return false;cancelDefenseTransientInput("interruption");defenseSetPhase(d,DEFENSE_PHASES.PAUSED,{resumePhase:d.phase});d.autoPaused=true;markDefenseUi();return true;}
   function surfaceDefenseInterruptionPause(){const d=mini.defense;if(!mini.active||mini.mode!=="defense"||!d?.autoPaused)return false;d.autoPaused=false;flushDefenseUi(true);setDefenseMessage("AUTO-PAUSED • WELCOME BACK","The trail stayed frozen while RIZO.GAME was away. Tap ▶ when you are ready.");return true;}
 
-  function cycleDefenseSpeed(){const d=mini.defense;if(!d)return;const values=[.5,1,2],index=values.indexOf(d.speed);d.speed=values[(index+1)%values.length];defenseApplyRenderTier(d);markDefenseUi();updateDefenseHud();writeDefenseCheckpoint(true,"speed");setDefenseMessage(`${d.speed===.5?"SLOW MOTION":d.speed===2?"FAST FORWARD":"NORMAL SPEED"}`,"Simulation speed changes. Music stays readable.");sfx("ui");}
+  function cycleDefenseSpeed(){const d=mini.defense;if(!d)return;d.flowEaseUntilReal=0;const values=[.5,1,2],index=values.indexOf(d.speed);d.speed=values[(index+1)%values.length];defenseApplyRenderTier(d);markDefenseUi();updateDefenseHud();writeDefenseCheckpoint(true,"speed");setDefenseMessage(`${d.speed===.5?"SLOW MOTION":d.speed===2?"FAST FORWARD":"NORMAL SPEED"}`,d.speed===2?"Fast-forward stays readable: packet boundaries briefly ease to 1× unless you change speed yourself.":"Simulation speed changes. Music stays readable.");sfx("ui");}
   const DEFENSE_TRAIL_HALF_WIDTH=.033;
   const DEFENSE_PLACEMENT_SNAP_PX=9;
   function defensePlacementGeometry(){
@@ -5735,9 +6496,10 @@
   }
   function isValidDefensePlacement(x,y,ignoreTower=null){return defensePlacementEvaluation(x,y,ignoreTower).valid;}
   function defensePlacementReasonCopy(evaluation){return evaluation?.reason||"THAT SPOT IS BLOCKED";}
-  function defensePlacementRangeForRow(row){return defenseTowerStats(row.pet,0).range;}
+  function defensePlacementRangeForRow(row){const type=defenseStructureType(row);return type==="beacon"?DefenseCore.beaconSupport(0).radius:type==="factory"?.11:defenseTowerStats(row.pet,0).range;}
   function ensureDefensePlacementPreview(row){const preview=$("#defensePlacementPreview");if(!preview||!row)return preview;const signature=row.pet.id;if(preview.dataset.petId!==signature){preview.dataset.petId=signature;preview.innerHTML=`<span class="defense-placement-range"></span><span class="defense-placement-foot"></span><b class="defense-placement-label">OPEN GRASS</b>`;}const g=defensePlacementGeometry();preview.style.setProperty("--placement-range",`${Math.max(64,defensePlacementRangeForRow(row)*2*g.width)}px`);preview.style.setProperty("--placement-footprint",`${g.footprintPx*2}px`);return preview;}
-  function updateDefensePlacementPreview(result,row,{show=true}={}){const preview=ensureDefensePlacementPreview(row);if(!preview)return;preview.hidden=!show;if(!show)return;const point=result?.point||result?.raw;if(!point)return;preview.style.left=`${point.x*100}%`;preview.style.top=`${point.y*100}%`;preview.classList.toggle("valid",Boolean(result?.evaluation?.valid));preview.classList.toggle("invalid",!result?.evaluation?.valid);preview.classList.toggle("snapped",Boolean(result?.snapped));preview.dataset.reason=result?.evaluation?.code||"blocked";const label=preview.querySelector(".defense-placement-label");if(label)label.textContent=result?.evaluation?.valid?(result.snapped?"EDGE SNAP • READY":"READY TO PLACE"):defensePlacementReasonCopy(result?.evaluation);}
+  function defenseCoverage(x,y,range){let count=0;for(let i=0;i<80;i++){const p=defensePointAt((i+.5)/80);if(Math.hypot(p.x-x,p.y-y)<=range)count++;}return count/80;}
+  function updateDefensePlacementPreview(result,row,{show=true}={}){const preview=ensureDefensePlacementPreview(row);if(!preview)return;preview.hidden=!show;if(!show)return;const point=result?.point||result?.raw;if(!point)return;const valid=Boolean(result?.evaluation?.valid),mapBond=valid?defenseMapBondForTower({x:point.x,y:point.y},mini.defense,{preview:true}):null,baseRange=defensePlacementRangeForRow(row),previewRange=baseRange*(mapBond?.range||1),geometry=result?.evaluation?.geometry||defensePlacementGeometry();preview.style.left=`${point.x*100}%`;preview.style.top=`${point.y*100}%`;preview.style.setProperty("--placement-range",`${Math.max(64,previewRange*2*geometry.width)}px`);preview.classList.toggle("valid",valid);preview.classList.toggle("invalid",!valid);preview.classList.toggle("snapped",Boolean(result?.snapped));preview.classList.toggle("map-bond-preview",Boolean(mapBond));preview.dataset.reason=result?.evaluation?.code||"blocked";preview.dataset.mapBond=mapBond?.kind||"";preview.dataset.mapBondTier=mapBond?.tier||"";const label=preview.querySelector(".defense-placement-label"),type=defenseStructureType(row);if(label){if(!valid)label.textContent=defensePlacementReasonCopy(result?.evaluation);else if(type==="factory"){const econ=DefenseCore.factoryEconomy({upgradeLevel:0,wave:mini.defense?.currentWave||0,goldenTowerCount:defenseAwakenedGoldenCount()});label.textContent=`PRINTS +${econ.payout} / ${econ.interval.toFixed(1)}S LIVE`; }else if(type==="beacon"){const support=DefenseCore.beaconSupport(0);label.textContent=`FIELD • +${Math.round((support.rateMultiplier-1)*100)}% SPEED`; }else label.textContent=mapBond?.preview||`${Math.round(defenseCoverage(point.x,point.y,previewRange)*100)}% OF TRAIL IN REACH`;}}
   function hideDefensePlacementPreview(){const preview=$("#defensePlacementPreview");if(preview){preview.hidden=true;preview.classList.remove("valid","invalid","snapped");}}
   function cancelDefenseTransientInput(reason="system-cancel") {
     const d=mini.defense;let cancelled=false;if(d?.gateFlameArmed){d.gateFlameArmed=false;$(".defense-shell")?.classList.remove("gate-flame-aiming");markDefenseUi();cancelled=true;}
@@ -5757,8 +6519,8 @@
 
   function setDefensePlacementMode(row,cost){
     const d=mini.defense;d.pendingPlacement={row,cost};d.benchOpen=true;d.fieldMenuOpen=false;
-    $("#defenseWorld")?.classList.add("placement-mode");hideDefensePlacementPreview();updateDefenseRoster();updateDefenseHud();
-    setDefenseMessage(`PLACE ${row.pet.name}`,"Drag toward the field or tap exact grass. Green means the full footprint clears the trail.");haptic(8);
+    $("#defenseWorld")?.classList.add("placement-mode");syncDefenseMapMechanicEdges();hideDefensePlacementPreview();updateDefenseRoster();updateDefenseHud();
+    setDefenseMessage(`PLACE ${row.pet.name}`,defenseStructureType(row)==="factory"?"Factory takes a field slot and cannot attack. Survive long enough and the shirts pay you back.":defenseStructureType(row)==="beacon"?"Its visible field accelerates nearby Rizos and later powers their hits. Position the circle, not the trail.":"Drag toward the field or tap exact grass. Green means the full footprint clears the trail.");haptic(8);
   }
 
   function clearDefensePlacementMode(){
@@ -5767,7 +6529,7 @@
 
   function selectDefenseRosterPet(row){
     if(!row||!mini.defense)return false;
-    const d=mini.defense;if(!defensePlacementAllowed(d)){setDefenseMessage("PLANNING ONLY","Deployment reopens after the wave is fully resolved.");sfx("no");return false;}
+    const d=mini.defense;if(!defensePlacementAllowed(d)){setDefenseMessage("FIELD PAUSED","Resume before placing reinforcements.");sfx("no");return false;}
     if(d.pendingPlacement?.row?.pet?.id===row.pet.id){clearDefensePlacementMode();setDefenseMessage("PLACEMENT CANCELLED","Tap another Rizo when you are ready.");return false;}
     if(d.towers.length>=d.maxTowers){toast("THE FIELD IS FULL");sfx("no");return false;}
     if(defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id)){setDefenseMessage("CONTRACT • NO COPIES",`${row.pet.name} already stands on this field.`);sfx("no");return false;}
@@ -5778,7 +6540,7 @@
     return true;
   }
   function beginDefenseDrag(event,row){
-    const d=mini.defense;if(!d||!row)return;if(!defensePlacementAllowed(d)){setDefenseMessage("PLANNING ONLY","New Rizos deploy between waves. Upgrades and powers stay available.");return;}if(d.towers.length>=d.maxTowers){toast("THE FIELD IS FULL");return;}if(defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id)){setDefenseMessage("CONTRACT • NO COPIES",`${row.pet.name} already stands on this field.`);return;}const cost=defenseDeployCost(row);if(d.cash<cost){toast(`NEED ${cost} DEFENSE COINS`);return;}
+    const d=mini.defense;if(!d||!row)return;if(!defensePlacementAllowed(d)){setDefenseMessage("FIELD PAUSED","Resume before placing reinforcements. Upgrades and powers stay available.");return;}if(d.towers.length>=d.maxTowers){toast("THE FIELD IS FULL");return;}if(defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id)){setDefenseMessage("CONTRACT • NO COPIES",`${row.pet.name} already stands on this field.`);return;}const cost=defenseDeployCost(row);if(d.cash<cost){toast(`NEED ${cost} DEFENSE COINS`);return;}
     const source=event.target.closest("[data-defense-roster-id]"),roster=source?.closest(".defense-roster");
     if(event.cancelable)event.preventDefault();
     try{source?.setPointerCapture?.(event.pointerId);}catch(error){}
@@ -5802,18 +6564,21 @@
   }
 
   function placeDefenseTower(row,x,y,cost){
-    const d=mini.defense;if(!defensePlacementAllowed(d)){setDefenseMessage("PLANNING ONLY","New Rizos deploy between waves.");sfx("no");return false;}if(d.towers.length>=d.maxTowers||!isValidDefensePlacement(x,y)||d.cash<cost||defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id))return false;
-    d.cash-=cost;d.cashWriteCount=(d.cashWriteCount||0)+1;const copies=d.towers.filter(t=>t.petId===row.pet.id).length+1,tower={id:`tower-${d.nextId++}`,petId:row.pet.id,pet:row.pet,source:row.source,rosterIndex:row.rosterIndex,copyNumber:copies,x,y,upgrade:0,cost,spent:cost,cooldown:0,kills:0,damage:0,abilityReadyAt:0,overclockUntil:0,rangeDebuffUntil:0,targetMode:"first",doctrine:null,shots:0,placedAt:d.clock,placedAtReal:defenseRealNow(d),openingPerkApplied:false,targetId:null,retargetAt:0,retargetAtReal:0};d.towers.push(tower);d.usedPetIds.add(row.pet.id);completeDefenseSchoolLesson("route",{silent:true});completeDefenseSchoolLesson("placement");clearDefensePlacementMode();renderDefenseTower(tower);updateDefenseRoster();updateDefenseHud();setDefenseMessage(`${row.pet.name} COPY ${copies} IS READY.`,`Tap it any time to level up, aim, or use its power.`);markDefenseUi({roster:true});writeDefenseCheckpoint(true,"placement");sfx("spark");haptic([8,12,8]);return true;
+    const d=mini.defense;if(!defensePlacementAllowed(d)){setDefenseMessage("FIELD PAUSED","Resume before placing reinforcements.");sfx("no");return false;}if(d.towers.length>=d.maxTowers||!isValidDefensePlacement(x,y)||d.cash<cost||defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id))return false;
+    const structureType=defenseStructureType(row);d.cash-=cost;d.cashWriteCount=(d.cashWriteCount||0)+1;const copies=d.towers.filter(t=>t.petId===row.pet.id).length+1,tower={id:`tower-${d.nextId++}`,petId:row.pet.id,pet:row.pet,source:row.source,rosterIndex:row.rosterIndex,structureType,copyNumber:copies,x,y,upgrade:0,cost,spent:cost,cooldown:0,kills:0,damage:0,abilityReadyAt:0,overclockUntil:0,rangeDebuffUntil:0,targetMode:["obsidian","diamond"].includes(row.pet.variant)?"strong":"first",doctrine:null,shots:0,placedAt:d.clock,placedAtReal:defenseRealNow(d),openingPerkApplied:false,targetId:null,retargetAt:0,retargetAtReal:0,totalProduced:0,nextProductionAt:0,factoryCleanCycles:0,factoryLivesSnapshot:d.lives,factoryLastInterval:0};if(structureType==="factory"){const econ=defenseFactoryEconomy(tower,d);tower.nextProductionAt=d.clock+econ.interval;tower.factoryLastInterval=econ.interval;}d.towers.push(tower);d.usedPetIds.add(row.pet.id);completeDefenseSchoolLesson("route",{silent:true});completeDefenseSchoolLesson("placement");clearDefensePlacementMode();refreshDefenseMapBondVisuals();refreshDefenseSupportVisuals(d);defenseFeelPulseTower(tower,"deployed",420);updateDefenseRoster();updateDefenseHud();
+    if(structureType==="factory")setDefenseMessage(`FACTORY ${copies} OPEN`,"No bullets. Shirts become coins only while a wave is live. Greed has to survive first.");else if(structureType==="beacon")setDefenseMessage(`BEACON ${copies} LIT`,`Rizos inside the light attack ${Math.round((DefenseCore.beaconSupport(0).rateMultiplier-1)*100)}% faster. The circle shows exactly who benefits.`);else setDefenseMessage(defenseIsUniversalPet(row.pet)?`${row.pet.name} IS READY.`:`${row.pet.name} COPY ${copies} IS READY.`,defenseIsUniversalPet(row.pet)?"A universal field tool. Tap it to level up, aim, or choose an upgrade path.":`Tap it any time to level up, aim, or use its power.`);
+    markDefenseUi({roster:true});writeDefenseCheckpoint(true,"placement");sfx(structureType?"coin":"defense-deploy");defenseHaptic("deploy");return true;
   }
+
   function applyDefenseTowerGeometry(tower,node=tower?.node){
     const world=$("#defenseWorld");
     if(!tower||!node||!world)return false;
-    const stats=defenseCombatStats(tower),worldWidth=world.clientWidth||360,worldHeight=world.clientHeight||520;
+    const stats=defenseCombatStats(tower),structureType=defenseStructureType(tower),fieldRange=structureType==="beacon"?DefenseCore.beaconSupport(tower.upgrade).radius:stats.range,worldWidth=world.clientWidth||360,worldHeight=world.clientHeight||520;
     node.style.left=`${tower.x*100}%`;
     node.style.top=`${tower.y*100}%`;
-    node.style.setProperty("--tower-range",`${stats.range*200}%`);
-    node.style.setProperty("--tower-range-width",`${Math.max(64,stats.range*2*worldWidth)}px`);
-    node.style.setProperty("--tower-range-height",`${Math.max(64,stats.range*2*worldHeight)}px`);
+    node.style.setProperty("--tower-range",`${fieldRange*200}%`);
+    node.style.setProperty("--tower-range-width",`${Math.max(64,fieldRange*2*worldWidth)}px`);
+    node.style.setProperty("--tower-range-height",`${Math.max(64,fieldRange*2*worldHeight)}px`);
     return true;
   }
   function sizeDefenseSquareField(){const shell=$(".defense-shell"),world=$("#defenseWorld");if(!shell||!world)return false;world.style.removeProperty("width");world.style.removeProperty("height");const width=shell.clientWidth,height=shell.clientHeight,mode=width>height?"landscape":height<650?"short-portrait":width>=768?"tablet":"portrait";shell.dataset.viewportMode=mode;return true;}
@@ -5836,54 +6601,143 @@
     if(defenseResizeFrame)cancelAnimationFrame(defenseResizeFrame);
     defenseResizeFrame=requestAnimationFrame(()=>{defenseResizeFrame=null;syncDefenseTowerGeometry();});
   }
+  function renderDefenseStructureTower(tower){
+    const host=$("#defenseTowers"),type=defenseStructureType(tower),meta=DEFENSE_STRUCTURE_META[type];if(!host||!meta)return false;const node=document.createElement("button"),tier=defenseTowerTier(tower),support=type==="beacon"?DefenseCore.beaconSupport(tower.upgrade):null,econ=type==="factory"?defenseFactoryEconomy(tower):null;node.type="button";node.className=`defense-tower defense-structure defense-structure-${type} defense-tier-${tier} defense-upgrade-${tower.upgrade} ${tower.upgrade>=4?"structure-maxed":""}`;node.dataset.defenseTower=tower.id;node.dataset.structureType=type;node.setAttribute("aria-pressed","false");node.setAttribute("aria-label",type==="factory"?`Clothing Factory level ${tower.upgrade+1}. Produces ${econ.payout} coins every ${econ.interval.toFixed(1)} live-combat seconds. Tap for economy upgrades.`:`Beacon level ${tower.upgrade+1}. Buffs Rizos inside its field by ${Math.round((support.rateMultiplier-1)*100)} percent attack speed and ${Math.round((support.damageMultiplier-1)*100)} percent damage. Tap for support upgrades.`);node.style.setProperty("--tower-color",meta.accent);node.innerHTML=`<span class="defense-structure-field" aria-hidden="true"></span><span class="defense-range" aria-hidden="true"></span><span class="defense-structure-art structure-art-${type}" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="defense-structure-name">${type==="factory"?"RIZO":"BEACON"}</span><i class="defense-level" title="Level ${tower.upgrade+1}">LV${tower.upgrade+1}</i>${tower.copyNumber>1?`<i class="defense-copy" title="Deployed copy ${tower.copyNumber}">#${tower.copyNumber}</i>`:""}`;host.appendChild(node);tower.node=node;applyDefenseTowerGeometry(tower,node);return true;
+  }
+  function defenseFeelIdleClass(variant="classic"){
+    if(["ember","obsidian","diamond"].includes(variant))return "feel-idle-braced";
+    if(["violet","aurora","frost","shadow"].includes(variant))return "feel-idle-hover";
+    if(["glitch","retro","bubblegum"].includes(variant))return "feel-idle-twitch";
+    return "feel-idle-breathe";
+  }
+  function defenseFeelPulseTower(tower,kind="selected",duration=260){
+    if(!tower?.node)return false;const cls=`feel-${kind}`;tower.node.classList.remove(cls);void tower.node.offsetWidth;tower.node.classList.add(cls);queueMiniTimeout(()=>tower.node?.classList.remove(cls),duration);return true;
+  }
+  const DEFENSE_BOSS_FEEL_CLASSES=Object.freeze({crown:"feel-boss-crown",vortex:"feel-boss-vortex",mirror:"feel-boss-mirror",apex:"feel-boss-apex"});
+  function defenseBossStagePulse(moment,bossId,duration=820){
+    const stage=$(".defense-stage-frame"),momentClass=`feel-boss-${moment}`,identityClass=DEFENSE_BOSS_FEEL_CLASSES[bossId]||"";if(!stage)return false;
+    const token=(Number(stage._rizoBossFeelToken)||0)+1;stage._rizoBossFeelToken=token;stage.classList.remove("feel-boss-arrival","feel-boss-phase","feel-boss-defeat",...Object.values(DEFENSE_BOSS_FEEL_CLASSES));void stage.offsetWidth;stage.classList.add(momentClass);if(identityClass)stage.classList.add(identityClass);
+    queueMiniTimeout(()=>{if(stage._rizoBossFeelToken!==token)return;stage.classList.remove(momentClass);if(identityClass)stage.classList.remove(identityClass);},duration);return true;
+  }
   function renderDefenseTower(tower){
+    if(defenseStructureType(tower))return renderDefenseStructureTower(tower);
     const host=$("#defenseTowers");
     if(!host)return;
-    const node=document.createElement("button"),stats=defenseCombatStats(tower),tier=defenseTowerTier(tower),variant=VARIANTS.find(item=>item.id===stats.variant)||VARIANTS[0],mastery=defenseMasteryForPet(tower.petId),masteryTier=defenseMasteryTier(mastery||{});
+    const node=document.createElement("button"),stats=defenseCombatStats(tower),tier=defenseTowerTier(tower),universal=defenseIsUniversalTower(tower),variant=universal?{color:defenseTowerDisplayColor(tower),sprite:null}:(VARIANTS.find(item=>item.id===stats.variant)||VARIANTS[0]),mastery=universal?null:defenseMasteryForPet(tower.petId),masteryTier=universal?0:defenseMasteryTier(mastery||{}),mapBond=defenseMapBondForTower(tower);
     node.type="button";
-    node.className=`defense-tower defense-variant-${stats.variant} defense-tier-${tier} defense-upgrade-${tower.upgrade} defense-mastery-${masteryTier} ${tower.superForm?`defense-super-${tower.superForm}`:""} ${tower.doctrine?`defense-doctrine-${tower.doctrine}`:""} ${tower.y<.35?"defense-range-label-low":tower.y>.65?"defense-range-label-high":""}`;
+    node.className=`defense-tower defense-variant-${stats.variant} ${universal?"defense-universal-tower":""} defense-tier-${tier} defense-upgrade-${tower.upgrade} defense-mastery-${masteryTier} ${tower.source==="active"?"defense-captain-tower":""} ${defenseFeelIdleClass(stats.variant)} ${tower.superForm?`defense-super-${tower.superForm}`:""} ${tower.doctrine?`defense-doctrine-${tower.doctrine}`:""} ${mapBond?`defense-map-bond map-bond-${mapBond.kind} map-bond-zone-${mapBond.zoneIndex} map-bond-tier-${mapBond.tier}${mapBond.state?` map-bond-state-${mapBond.state}`:""}`:""} ${tower.y<.35?"defense-range-label-low":tower.y>.65?"defense-range-label-high":""}`;
     node.dataset.defenseTower=tower.id;
     node.dataset.masteryTier=String(masteryTier);
     node.setAttribute("aria-pressed","false");
-    node.setAttribute("aria-label",`${tower.pet.name}, Level ${tower.upgrade+1}${tower.superForm?` SUPER ${tower.superForm.toUpperCase()}`:""} ${stats.label} defender. Power ${Math.round(stats.damage)}, Speed ${stats.rate.toFixed(1)}, Reach ${Math.round(stats.range*100)}. Tap for tower actions.`);
+    node.setAttribute("aria-label",`${tower.pet.name}, Level ${tower.upgrade+1}${tower.superForm?` SUPER ${tower.superForm.toUpperCase()}`:""} ${stats.label} defender. Power ${Math.round(stats.damage)}, Speed ${stats.rate.toFixed(1)}, Reach ${Math.round(stats.range*100)}.${mapBond?` Map bond: ${mapBond.label}.`:""} Tap for tower actions.`);
     node.style.setProperty("--tower-color",variant.color);
-    node.style.setProperty("--tower-silhouette",`url("${variant.sprite||"./assets/rizo-classic.png"}")`);
-    node.innerHTML=`<span class="defense-aura" aria-hidden="true"><i></i></span><span class="defense-range" aria-hidden="true"></span><span class="defense-power-mark" aria-hidden="true"><i></i><i></i><i></i></span>${petMarkup({pet:tower.pet,extraClass:"defense-rizo",context:"arcade",label:`${tower.pet.name}, ${stats.label} defender`})}${tower.upgrade?`<i class="defense-level" title="Level ${tower.upgrade+1}">LV${tower.upgrade+1}</i>`:""}${tower.copyNumber>1?`<i class="defense-copy" title="Deployed copy ${tower.copyNumber}">#${tower.copyNumber}</i>`:""}`;
+    if(variant.sprite)node.style.setProperty("--tower-silhouette",`url("${variant.sprite}")`);
+    node.innerHTML=`<span class="defense-aura" aria-hidden="true"><i></i></span><span class="defense-range" aria-hidden="true"></span><span class="defense-power-mark" aria-hidden="true"><i></i><i></i><i></i></span>${defenseTowerPortraitMarkup(tower)}${tower.source==="active"?`<i class="defense-captain-mark" title="Captain • owns the field power while deployed">CAPTAIN</i>`:""}${tower.upgrade?`<i class="defense-level" title="Level ${tower.upgrade+1}">LV${tower.upgrade+1}</i>`:""}${tower.copyNumber>1?`<i class="defense-copy" title="Deployed copy ${tower.copyNumber}">#${tower.copyNumber}</i>`:""}${mapBond?`<span class="defense-map-bond-badge" aria-hidden="true">${escapeHTML(mini.defense.map.mechanic?.icon||"✦")}</span>`:""}<i class="defense-ability-pip" aria-hidden="true">${tower.doctrine==="control"?"⌁":"✦"}</i>`;
     host.appendChild(node);
     tower.node=node;
-    applyDefenseTowerGeometry(tower,node);
+    const abilityUnlocked=Boolean(tower.upgrade>=2&&tower.doctrine&&!defenseContractRule("silent",mini.defense)),abilityRemaining=abilityUnlocked?defenseAbilityRemaining(tower):Infinity,abilityCharged=Boolean(abilityUnlocked&&abilityRemaining<=0),abilityCooldown=Math.max(.001,defenseAbilityCooldown(tower)*(tower.superForm?.7:1)),abilityCharge=abilityUnlocked?clamp(1-abilityRemaining/abilityCooldown,0,1):0,abilityChargeStep=Math.round(abilityCharge*12)/12;
+    node.classList.toggle("ability-ready",abilityCharged);node.classList.toggle("ability-charging",abilityUnlocked&&!abilityCharged);node.style.setProperty("--ability-charge",`${Math.round(abilityChargeStep*100)}%`);
+    tower.abilityChargedVisual=abilityCharged;tower.abilityChargingVisual=abilityUnlocked&&!abilityCharged;tower.abilityChargeVisual=abilityChargeStep;
+    applyDefenseTowerGeometry(tower,node);syncDefenseMapBondStateClasses();
   }
 
   function refreshDefenseTower(tower){const selected=mini.defense.selectedTowerId===tower.id;tower.node?.remove();renderDefenseTower(tower);if(selected){tower.node?.classList.add("selected");tower.node?.setAttribute("aria-pressed","true");}}
+  function refreshDefenseMapBondVisuals(){const d=mini.defense;if(!d)return false;for(const tower of d.towers)refreshDefenseTower(tower);return true;}
+  // Map-bond hint labels are placed by a normalized-y heuristic at render time. On
+  // short phone viewports the longest bond copy wraps far enough to leave the
+  // battlefield, so once the labels are actually visible we measure them and flip
+  // the ones that would overflow. Runs only on placement/route-trace transitions
+  // and resize, never inside the simulation loop.
+  function syncDefenseMapMechanicEdges(){
+    const world=$("#defenseWorld");if(!world)return false;
+    const nodes=world.querySelectorAll(".defense-map-mechanic");if(!nodes.length)return false;
+    const bounds=world.getBoundingClientRect();if(!bounds.height)return false;
+    for(const node of nodes){
+      const label=node.querySelector("span");if(!label)continue;
+      node.classList.remove("mechanic-edge-bottom","mechanic-edge-left","mechanic-edge-right");
+      label.style.removeProperty("--mechanic-hint-shift");
+      let rect=label.getBoundingClientRect();
+      if(!rect.height)continue;
+      // Vertical: keep the hint below its ring unless above genuinely has more room.
+      if(rect.bottom>bounds.bottom-1){
+        const ring=node.getBoundingClientRect();
+        if(ring.top-bounds.top>bounds.bottom-ring.bottom)node.classList.add("mechanic-edge-bottom");
+      }
+      // Horizontal: clamp to the battlefield rather than to the ring. Anchoring a
+      // wide hint to one side of a small ring only trades a left overhang for a
+      // right one, so shift the hint by the measured overflow instead.
+      rect=label.getBoundingClientRect();
+      let shift=0;
+      if(rect.left<bounds.left+2)shift=(bounds.left+2)-rect.left;
+      else if(rect.right>bounds.right-2)shift=(bounds.right-2)-rect.right;
+      if(shift)label.style.setProperty("--mechanic-hint-shift",`${Math.round(shift)}px`);
+    }
+    return true;
+  }
   function defensePanelStatsMarkup(stats){
     return `<span class="defense-stat-chip"><small>POWER</small><b>${Math.round(stats.damage)}</b></span><span class="defense-stat-chip"><small>SPEED</small><b>${stats.rate.toFixed(1)}</b></span><span class="defense-stat-chip"><small>REACH</small><b>${Math.round(stats.range*100)}</b></span>`;
   }
+  function defenseEvolutionRailMarkup(tower){
+    const level=clamp((tower?.upgrade||0)+1,1,5),doctrine=tower?.doctrine||"",pathName=doctrine?`${doctrine.toUpperCase()} PATH`:level>=3?"PATH OPEN":"PATH AT LV 3",stageName=defenseUpgradeName(tower);
+    const nodes=[1,2,3,4,5].map(step=>{const done=step<=level,current=step===level,glyph=step===3?(doctrine==="power"?"◆":doctrine==="control"?"⌁":"◇"):step===5?"★":String(step);return `<i class="${done?"done":""} ${current?"current":""} ${step===3?"path-node":""} ${step===5?"max-node":""}">${glyph}</i>`;}).join("");
+    return `<div class="defense-evolution-rail ${doctrine?`doctrine-${doctrine}`:"doctrine-open"}" aria-label="${escapeHTML(tower.pet.name)} evolution, level ${level} of 5, ${escapeHTML(pathName)}"><span class="defense-evolution-copy"><small>EVOLUTION • ${escapeHTML(pathName)}</small><b>${escapeHTML(stageName)}</b></span><span class="defense-evolution-track" aria-hidden="true">${nodes}</span></div>`;
+  }
 
   function defenseSuperCandidates(tower,d=mini.defense){return d?.towers?.filter(other=>other.petId===tower?.petId&&!other.superForm)||[];}
-  function defenseCanAscend(tower,d=mini.defense){const copies=defenseSuperCandidates(tower,d);return Boolean(tower&&tower.upgrade>=4&&tower.doctrine&&copies.length>=10);}
-  function ascendDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!defenseCanAscend(tower,d)){setDefenseMessage("SUPER RIZO NOT READY","Deploy 10 copies of the same Rizo and max the one you want to keep.");sfx("no");return false;}const copies=defenseSuperCandidates(tower,d),sacrifices=copies.filter(t=>t!==tower).slice(0,9);for(const other of sacrifices){other.node?.remove();d.towers=d.towers.filter(t=>t!==other);}tower.superForm=tower.doctrine;tower.abilityReadyAt=Math.min(tower.abilityReadyAt||0,defenseNow()+4);refreshDefenseTower(tower);markDefenseUi({roster:true});updateDefenseRoster();showDefenseTowerPanel(tower);showDefenseCinematicMoment("perfect",{kicker:"TEN BECOME ONE",title:`SUPER ${tower.doctrine.toUpperCase()} ${tower.pet.name}`,copy:"THE FIELD JUST CHANGED.",duration:2200,priority:9,icon:"✦"});setDefenseMessage("SUPER RIZO AWAKENED",tower.doctrine==="power"?"Massive damage. Same field, much bigger consequences.":"Massive reach, speed, and trail control.");writeDefenseCheckpoint(true,"super-rizo");sfx("legendary");haptic([18,30,18,50]);return true;}
+  function defenseCanAscend(tower,d=mini.defense){const copies=defenseSuperCandidates(tower,d);return Boolean(tower&&defenseIsCharacterTower(tower)&&tower.upgrade>=4&&tower.doctrine&&copies.length>=10);}
+  function ascendDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!defenseCanAscend(tower,d)){setDefenseMessage("SUPER RIZO NOT READY","Deploy 10 copies of the same Rizo and max the one you want to keep.");sfx("no");return false;}const copies=defenseSuperCandidates(tower,d),sacrifices=copies.filter(t=>t!==tower).slice(0,9);for(const other of sacrifices){other.node?.remove();d.towers=d.towers.filter(t=>t!==other);}tower.superForm=tower.doctrine;tower.abilityReadyAt=Math.min(tower.abilityReadyAt||0,defenseNow()+4);refreshDefenseMapBondVisuals();refreshDefenseSupportVisuals(d);markDefenseUi({roster:true});updateDefenseRoster();showDefenseTowerPanel(tower);showDefenseCinematicMoment("perfect",{kicker:"TEN BECOME ONE",title:`SUPER ${tower.doctrine.toUpperCase()} ${tower.pet.name}`,copy:"THE FIELD JUST CHANGED.",duration:2200,priority:9,icon:"✦"});setDefenseMessage("SUPER RIZO AWAKENED",tower.doctrine==="power"?"Massive damage. Same field, much bigger consequences.":"Massive reach, speed, and trail control.");writeDefenseCheckpoint(true,"super-rizo");defenseFeelPulseTower(tower,"upgraded",1100);duckMusic(1200,.055);sfx("defense-apex");defenseHaptic("apex");return true;}
+  function showDefenseStructurePanel(tower){
+    const panel=$("#defenseTowerPanel"),d=mini.defense,type=defenseStructureType(tower),meta=DEFENSE_STRUCTURE_META[type];if(!panel||!d||!type)return false;
+    clearDefensePlacementMode();defenseCloseContextSurfaces("tower",{sync:false});d.selectedTowerId=tower.id;d.towers.forEach(item=>{const selected=item.id===tower.id;item.node?.classList.toggle("selected",selected);item.node?.setAttribute("aria-pressed",String(selected));});
+    const upgradeCost=defenseUpgradeCost(tower,d),need=Math.max(0,upgradeCost-Math.floor(d.cash)),noSell=defenseContractRule("no-sell",d),sellLocked=!defenseSellAllowed(d),sell=defenseSellRefund(tower,d),nextName=tower.upgrade>=4?"MAXED OUT":defenseStructureUpgradeName({...tower,upgrade:tower.upgrade+1});let current,next,detail,synergy="";
+    if(type==="factory"){
+      current=defenseFactoryEconomy(tower,d);next=tower.upgrade<4?DefenseCore.factoryEconomy({upgradeLevel:tower.upgrade+1,wave:d.currentWave||d.clearedWave,goldenTowerCount:defenseAwakenedGoldenCount(d),beaconUpgradeLevel:defenseBeaconInfluence(tower,d)?.beacon?.upgrade??-1,cleanCycles:tower.factoryCleanCycles||0,brandLoop:Boolean(defenseBeaconInfluence(tower,d)?.network?.brandLoop),privateSun:Boolean(defenseBeaconInfluence(tower,d)?.network?.privateSun),goldenLicensed:Boolean(defenseBeaconInfluence(tower,d)?.network?.golden)}):current;
+      const goldenPct=Math.round((current.goldenMultiplier-1)*100),beaconPct=Math.round((1-current.cadenceMultiplier)*100),momentumPct=Math.round((current.momentumMultiplier-1)*100),dropLabel=current.isDrop?(current.goldenLicensed?"GOLDEN DROP NEXT":current.privateSun?"SUN DROP NEXT":"RIZO DROP NEXT"):"NEXT PRINT";
+      detail=`${dropLabel} • +${current.payout} GOLD • ${current.interval.toFixed(1)}S`;
+      const parts=[`CLEAN STREAK ${current.cleanCycles}`,momentumPct?`MOMENTUM +${momentumPct}%`:"MOMENTUM BUILDING"];
+      if(current.dropEvery)parts.push(`DROP EVERY ${current.dropEvery}`);if(current.brandLoop)parts.push("BRAND LOOP");if(current.goldenLicensed)parts.push("GOLDEN LICENSE");if(goldenPct)parts.push(`GOLDEN +${goldenPct}%`);if(beaconPct)parts.push(`LINE +${beaconPct}% SPEED`);parts.push(`${Math.round(tower.totalProduced||0)} PRINTED`);synergy=parts.join(" • ");
+    }else{
+      current=DefenseCore.beaconSupport(tower.upgrade);next=tower.upgrade<4?DefenseCore.beaconSupport(tower.upgrade+1):current;const network=defenseBeaconNetwork(tower,d)||{combat:0,factories:0,golden:0,brandLoop:false,privateSun:false};
+      detail=`+${Math.round((current.rateMultiplier-1)*100)}% SPEED • +${Math.round((current.damageMultiplier-1)*100)}% IMPACT • ${Math.round(current.radius*100)}% FIELD`;
+      if(tower.upgrade>=2)synergy=network.brandLoop?`${network.privateSun?"PRIVATE SUN LOOP":"BRAND LOOP LIVE"} • ${network.combat} RIZO • ${network.factories} FACTORY${network.factories===1?"":"IES"}${network.golden?` • ${network.golden} GOLDEN LICENSE`:""}`:`LINK A RIZO + FACTORY IN THIS FIELD • ${network.combat} RIZO • ${network.factories} FACTORY`;
+      else synergy=`FACTORIES IN FIELD CYCLE ${Math.round((1-current.factoryCadenceMultiplier)*100)}% FASTER • STRONGEST BEACON ONLY`;
+    }
+    const nextCopy=tower.upgrade>=4?"THE END STATE":type==="factory"?`NEXT • +${next.payout} / ${next.interval.toFixed(1)}S${next.dropEvery?` • DROP ${next.dropEvery}`:""}`:`NEXT • +${Math.round((next.rateMultiplier-1)*100)}% SPEED • +${Math.round((next.damageMultiplier-1)*100)}% IMPACT`,upgradeText=tower.upgrade>=4?"MAXED OUT":need?`NEED ${need} MORE`:`UPGRADE • ${upgradeCost}`;
+    panel.style.setProperty("--panel-accent",meta.accent);panel.hidden=false;panel.classList.add("rizo-field-sheet","v79-tower-shop","v80-tower-shop","defense-structure-panel");panel.innerHTML=`<button type="button" class="defense-sheet-close" data-defense-close-panel aria-label="Close structure controls">${defenseUiIcon("close")}</button><div class="defense-panel-hero v80 defense-structure-panel-hero"><span class="defense-panel-portrait"><span class="defense-structure-thumb structure-art-${type}" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span><div class="defense-panel-copy"><small>${meta.role} • UNIVERSAL STRUCTURE</small><b>${meta.name} <u>LV ${tower.upgrade+1}</u></b><em>${escapeHTML(defenseStructureUpgradeName(tower))}</em></div><div class="defense-panel-wallet"><small>GOLD</small><b>${defenseHudCounter(d.cash)} 🪙</b></div></div><div class="defense-structure-readout"><b>${escapeHTML(detail)}</b><span>${escapeHTML(synergy)}</span></div><button type="button" class="defense-upgrade-big ${need?"cant-afford":""}" data-defense-upgrade="${tower.id}" ${tower.upgrade>=4?"disabled":""}><span>${defenseUiIcon("upgrade")}</span><div><small>${escapeHTML(nextCopy)}</small><b>${escapeHTML(upgradeText)}</b></div></button><div class="defense-panel-simple-actions v80"><button type="button" class="target structure-info" disabled><i>${type==="factory"?"$":"☀"}</i><span><small>${meta.role}</small><b>${type==="factory"?"NO ATTACK":"AREA SUPPORT"}</b></span></button><button type="button" class="sell" data-defense-sell="${tower.id}" ${noSell||sellLocked?"disabled":""}><i>${defenseUiIcon("sell")}</i><span><small>${noSell?"LOCKED":sellLocked?"AFTER WAVE":"SELL"}</small><b>${noSell?"NO REFUNDS":sellLocked?"70% BACK":`${sell} 🪙`}</b></span></button></div><p class="defense-ability-one-line"><b>HOW IT WORKS</b> ${escapeHTML(defenseStructureRoleCopy(type))}</p>`;syncDefenseOverlayState();return true;
+  }
+  function upgradeDefenseStructure(tower){
+    const d=mini.defense,type=defenseStructureType(tower);if(!d||!type||tower.upgrade>=DEFENSE_LIMITS.MAX_TOWER_LEVEL)return false;if(!defenseUpgradeAllowed(d)){setDefenseMessage("UPGRADE UNAVAILABLE","This structure cannot level up right now.");sfx("no");return false;}const cost=DefenseCore.structureUpgradeCost(type,tower.upgrade);if(d.cash<cost){const need=Math.max(1,cost-Math.floor(d.cash));setDefenseMessage(`NEED ${need} MORE COINS`,`${tower.pet.name} needs ${cost} to evolve.`);sfx("no");haptic([8,18,8]);return false;}
+    d.cash-=cost;d.cashWriteCount=(d.cashWriteCount||0)+1;tower.spent+=cost;tower.upgrade+=1;if(type==="factory"){const econ=defenseFactoryEconomy(tower,d);tower.nextProductionAt=Math.min(tower.nextProductionAt||Infinity,defenseNow()+econ.interval);tower.factoryLastInterval=econ.interval;}syncDefenseTowerGeometry();const title=defenseStructureUpgradeName(tower),econ=type==="factory"?defenseFactoryEconomy(tower,d):null,support=type==="beacon"?DefenseCore.beaconSupport(tower.upgrade):null;
+    let message=type==="factory"?`Production is now +${econ.payout} every ${econ.interval.toFixed(1)} live seconds.`:`Field now gives +${Math.round((support.rateMultiplier-1)*100)}% speed and +${Math.round((support.damageMultiplier-1)*100)}% impact.`,movie=tower.upgrade>=4?(type==="factory"?"THE LITTLE SHOP BECAME A DROP MACHINE.":"YOU BUILT A PRIVATE SUN."):"THE FIELD CHANGED.";
+    if(type==="factory"&&tower.upgrade===1){message="Clean prints now build production momentum. A leak breaks the streak.";movie="THE SHOP LEARNS TO KEEP A RUN HOT.";}else if(type==="factory"&&tower.upgrade===2){message="RIZO DROPS ONLINE. Keep the Gate clean and every fourth print becomes a larger drop.";movie="PRINTS CAN BECOME DROPS NOW.";}else if(type==="beacon"&&tower.upgrade===2){message="BRAND LOOP ONLINE. Cover a Rizo and Factory in this field to accelerate Factory drops.";movie="MIX THE CREW WITH PRODUCTION.";}else if(type==="beacon"&&tower.upgrade===4){message="PRIVATE SUN ONLINE. A live Brand Loop now supercharges Factory drops; awakened Golden Rizos can license them.";movie="THE SUPPORT LIGHT BECAME INFRASTRUCTURE.";}
+    setDefenseMessage(`${tower.pet.name} • ${title}`,message);showDefenseCinematicMoment(tower.upgrade>=4?"perfect":"upgrade",{kicker:type==="factory"?"PRODUCTION EVOLVED":"SUPPORT EVOLVED",title,copy:movie,duration:tower.upgrade>=4?1900:1150,priority:tower.upgrade>=4?8:3,icon:type==="factory"?"R":"☀"});showDefenseStructurePanel(tower);defenseCommitUpgrade(tower,{reason:"structure-upgrade"});return true;
+  }
+
   function showDefenseTowerPanel(tower){
-    const panel=$("#defenseTowerPanel");if(!panel)return;if(mini.defense){clearDefensePlacementMode();defenseCloseContextSurfaces("tower",{sync:false});}
-    const d=mini.defense;d.selectedTowerId=tower.id;d.towers.forEach(item=>{const selected=item.id===tower.id;item.node?.classList.toggle("selected",selected);item.node?.setAttribute("aria-pressed",String(selected));});
-    const variantId=tower.pet.variant||tower.pet.hiddenVariant||"classic",variantData=VARIANTS.find(item=>item.id===variantId)||VARIANTS[0],stats=defenseCombatStats(tower),nextStats=tower.upgrade<4?defenseCombatStats({...tower,upgrade:tower.upgrade+1}):stats,upgradeCost=defenseUpgradeCost(tower,d),target=DEFENSE_TARGET_LABELS[tower.targetMode||"first"],needsDoctrine=tower.upgrade>=2&&!tower.doctrine,forced=defenseContractForcedDoctrine(d),noSell=defenseContractRule("no-sell",d),sell=defenseSellRefund(tower,d),sellLocked=!defenseSellAllowed(d),leader=defenseFieldLeader(d),isLeader=leader?.id===tower.id,power=defenseAbilityPresentation(tower),remaining=Math.ceil(defenseAbilityRemaining(tower));
+    if(defenseStructureType(tower))return showDefenseStructurePanel(tower);
+    const panel=$("#defenseTowerPanel");if(!panel)return;panel.classList.remove("defense-structure-panel");if(mini.defense){clearDefensePlacementMode();defenseCloseContextSurfaces("tower",{sync:false});}
+    const d=mini.defense,wasSelected=d.selectedTowerId===tower.id;d.selectedTowerId=tower.id;d.towers.forEach(item=>{const selected=item.id===tower.id;item.node?.classList.toggle("selected",selected);item.node?.setAttribute("aria-pressed",String(selected));});if(!wasSelected){defenseFeelPulseTower(tower,"selected",280);const real=defenseRealNow(d);if(real-(d.lastSelectionSfxAtReal||-99)>.08){d.lastSelectionSfxAtReal=real;sfx("defense-select");defenseHaptic("select");}}
+    const universal=defenseIsUniversalTower(tower),variantId=tower.pet.variant||tower.pet.hiddenVariant||"classic",variantData=universal?{name:"UNIVERSAL DEFENSE TOOL",color:defenseTowerDisplayColor(tower)}:(VARIANTS.find(item=>item.id===variantId)||VARIANTS[0]),mapBond=defenseMapBondForTower(tower,d),stats=defenseCombatStats(tower),nextStats=tower.upgrade<4?defenseCombatStats({...tower,upgrade:tower.upgrade+1}):stats,upgradeCost=defenseUpgradeCost(tower,d),target=DEFENSE_TARGET_LABELS[tower.targetMode||"first"],needsDoctrine=tower.upgrade>=2&&!tower.doctrine,forced=defenseContractForcedDoctrine(d),noSell=defenseContractRule("no-sell",d),sell=defenseSellRefund(tower,d),sellLocked=!defenseSellAllowed(d),leader=defenseFieldLeader(d),isLeader=!universal&&leader?.id===tower.id,power=defenseAbilityPresentation(tower),remaining=Math.ceil(defenseAbilityRemaining(tower));
     const damageGain=Math.max(0,Math.round((nextStats.damage/Math.max(.01,stats.damage)-1)*100)),rangeGain=Math.max(0,Math.round((nextStats.range/Math.max(.01,stats.range)-1)*100)),rateGain=Math.max(0,Math.round((nextStats.rate/Math.max(.01,stats.rate)-1)*100)),needCoins=Math.max(0,upgradeCost-Math.floor(d.cash));
-    panel.style.setProperty("--panel-accent",variantData.color||"#ff784f");panel.hidden=false;panel.classList.add("rizo-field-sheet","v79-tower-shop","v80-tower-shop");
-    const openingDeal=defenseUpgradeModifier(tower,d)<1,nextCopy=tower.upgrade>=4?"MAX LEVEL":`${openingDeal?"OPENING DEAL • ":""}+${damageGain}% HIT • +${rangeGain}% RANGE • +${rateGain}% SPEED`,pathPicker=needsDoctrine?`<div class="defense-path-choice"><small>CHOOSE HOW ${escapeHTML(tower.pet.name).toUpperCase()} FIGHTS</small><div><button type="button" data-defense-doctrine="${tower.id}:power" ${forced&&forced!=="power"?"disabled":""}><i>◆</i><b>POWER</b><span>Damage, armor breaks, boss pressure.</span></button><button type="button" data-defense-doctrine="${tower.id}:control" ${forced&&forced!=="control"?"disabled":""}><i>⌁</i><b>CONTROL</b><span>Reach, slows, roots, rewinds, interrupts.</span></button></div></div>`:"",upgradeText=tower.upgrade>=4?"MAXED OUT":needsDoctrine?"CHOOSE A PATH FIRST":needCoins?`NEED ${needCoins} MORE`:`LEVEL UP • ${upgradeCost}`;
-    const leaderCopy=isLeader?(tower.upgrade<2?"FIELD LEADER • POWER UNLOCKS AT LV 3":!tower.doctrine?"FIELD LEADER • CHOOSE A PATH":remaining?`FIELD LEADER • ${power.active} ${remaining}s`:`FIELD LEADER • ${power.active}`):`FIELD SUPPORT • ${tower.doctrine?`${tower.doctrine.toUpperCase()} PATH`:"NO PATH YET"}`,superReady=defenseCanAscend(tower,d),superMarkup=tower.superForm?`<div class="defense-super-status"><small>SUPER RIZO</small><b>${escapeHTML(tower.superForm.toUpperCase())} FORM</b><span>${tower.superForm==="power"?"2.75× impact core":"Massive reach + control tempo"}</span></div>`:superReady?`<button type="button" class="defense-super-button" data-defense-super="${tower.id}"><small>SACRIFICE 9 MATCHING COPIES</small><b>ASCEND TO SUPER ${escapeHTML(tower.doctrine.toUpperCase())}</b></button>`:"";
-    panel.innerHTML=`<button type="button" class="defense-sheet-close" data-defense-close-panel aria-label="Close Rizo controls">${defenseUiIcon("close")}</button><div class="defense-panel-hero v80"><span class="defense-panel-portrait">${petMarkup({pet:tower.pet,extraClass:"defense-panel-rizo",context:"thumbnail",label:tower.pet.name})}</span><div class="defense-panel-copy"><small>${escapeHTML(variantData.name)} • ${escapeHTML(stats.label)}</small><b>${escapeHTML(tower.pet.name)} <u>LV ${tower.upgrade+1}</u></b><em>${escapeHTML(leaderCopy)}</em></div><div class="defense-panel-wallet"><small>GOLD</small><b>${defenseHudCounter(d.cash)} 🪙</b></div></div>${pathPicker}<button type="button" class="defense-upgrade-big ${needCoins?"cant-afford":""}" data-defense-upgrade="${tower.id}" ${tower.upgrade>=4||needsDoctrine?"disabled":""}><span>${defenseUiIcon("upgrade")}</span><div><small>${escapeHTML(nextCopy)}</small><b>${escapeHTML(upgradeText)}</b></div></button>${superMarkup}<div class="defense-panel-simple-actions v80"><button type="button" class="target" data-defense-target="${tower.id}"><i>${defenseUiIcon("target")}</i><span><small>TARGET</small><b>${target}</b></span></button><button type="button" class="sell" data-defense-sell="${tower.id}" ${noSell||sellLocked?"disabled":""} aria-label="Sell ${escapeHTML(tower.pet.name)}"><i>${defenseUiIcon("sell")}</i><span><small>${noSell?"LOCKED":sellLocked?"AFTER WAVE":"SELL"}</small><b>${noSell?"NO REFUNDS":sellLocked?"70% BACK":`${sell} 🪙`}</b></span></button></div><p class="defense-ability-one-line"><b>${isLeader?"FIELD POWER":"ROLE"}</b> ${escapeHTML(isLeader?power.copy:(tower.doctrine==="control"?"This Rizo manipulates the trail; the first deployed Rizo owns the active Field Power.":"This Rizo supplies damage; the first deployed Rizo owns the active Field Power."))}</p>`;syncDefenseOverlayState();
+    panel.style.setProperty("--panel-accent",variantData.color||"#ff784f");panel.hidden=false;panel.classList.add("rizo-field-sheet","v79-tower-shop","v80-tower-shop");panel.classList.toggle("universal-tool-panel",universal);
+    const openingDeal=!universal&&defenseUpgradeModifier(tower,d)<1,nextCopy=tower.upgrade>=4?"MAX LEVEL":`${openingDeal?"OPENING DEAL • ":""}${defenseUpgradeMove(tower)}`,pathCopy=universal?{power:["◆","POWER","Rivets hit harder, crack armor, and burst through clustered threats."],control:["⌁","CONTROL","Pins attack faster, reach farther, slow, root, and rewind runners."]}: {power:["◆","POWER","Damage, armor breaks, boss pressure."],control:["⌁","CONTROL","Reach, slows, roots, rewinds, interrupts."]},pathPicker=needsDoctrine?`<div class="defense-path-choice"><small>CHOOSE HOW ${escapeHTML(tower.pet.name).toUpperCase()} FIGHTS</small><div><button type="button" data-defense-doctrine="${tower.id}:power" ${forced&&forced!=="power"?"disabled":""}><i>${pathCopy.power[0]}</i><b>${pathCopy.power[1]}</b><span>${pathCopy.power[2]}</span></button><button type="button" data-defense-doctrine="${tower.id}:control" ${forced&&forced!=="control"?"disabled":""}><i>${pathCopy.control[0]}</i><b>${pathCopy.control[1]}</b><span>${pathCopy.control[2]}</span></button></div></div>`:"",upgradeText=tower.upgrade>=4?"MAXED OUT":needsDoctrine?"CHOOSE A PATH FIRST":needCoins?`NEED ${needCoins} MORE`:`LEVEL UP • ${upgradeCost}`;
+    const leaderCopy=universal?`UNIVERSAL TOOL • ${tower.doctrine?tower.doctrine.toUpperCase()+" PATH":"NO FIELD POWER"}`:isLeader?(tower.upgrade<2?"FIELD LEADER • POWER UNLOCKS AT LV 3":!tower.doctrine?"FIELD LEADER • CHOOSE A PATH":remaining?`FIELD LEADER • ${power.active} ${remaining}s`:`FIELD LEADER • ${power.active}`):`FIELD SUPPORT • ${tower.doctrine?`${tower.doctrine.toUpperCase()} PATH`:"NO PATH YET"}`,superReady=defenseCanAscend(tower,d),superMarkup=universal?"":tower.superForm?`<div class="defense-super-status"><small>SUPER RIZO</small><b>${escapeHTML(tower.superForm.toUpperCase())} FORM</b><span>${tower.superForm==="power"?"2.75× impact core":"Massive reach + control tempo"}</span></div>`:superReady?`<button type="button" class="defense-super-button" data-defense-super="${tower.id}"><small>SACRIFICE 9 MATCHING COPIES</small><b>ASCEND TO SUPER ${escapeHTML(tower.doctrine.toUpperCase())}</b></button>`:"";
+    const portrait=defenseTowerPortraitMarkup(tower,"defense-panel-rizo","thumbnail"),roleLine=universal?`<b>ROLE</b> ${escapeHTML(defenseAbilityData(tower).passive)}`:`<b>${isLeader?"FIELD POWER":"ROLE"}</b> ${escapeHTML(defenseAbilityData(tower).passive+" "+(isLeader?power.copy:""))}`;
+    panel.innerHTML=`<button type="button" class="defense-sheet-close" data-defense-close-panel aria-label="Close defender controls">${defenseUiIcon("close")}</button><div class="defense-panel-hero v80"><span class="defense-panel-portrait">${portrait}</span><div class="defense-panel-copy"><small>${escapeHTML(variantData.name)} • ${escapeHTML(stats.label)}</small><b>${escapeHTML(tower.pet.name)} <u>LV ${tower.upgrade+1}</u></b><em>${escapeHTML(leaderCopy)}</em></div><div class="defense-panel-wallet"><small>GOLD</small><b>${defenseHudCounter(d.cash)} 🪙</b></div></div>${defenseEvolutionRailMarkup(tower)}${pathPicker}<button type="button" class="defense-upgrade-big ${needCoins?"cant-afford":""}" data-defense-upgrade="${tower.id}" ${tower.upgrade>=4||needsDoctrine?"disabled":""}><span>${defenseUiIcon("upgrade")}</span><div><small>${escapeHTML(nextCopy)}</small><b>${escapeHTML(upgradeText)}</b>${tower.upgrade<4&&!needsDoctrine?`<em class="defense-upgrade-deltas"><u>+${damageGain}% DMG</u><u>+${rateGain}% SPD</u><u>+${rangeGain}% RNG</u></em>`:""}</div></button>${superMarkup}<div class="defense-panel-simple-actions v80"><button type="button" class="target" data-defense-target="${tower.id}"><i>${defenseUiIcon("target")}</i><span><small>TARGET</small><b>${target}</b></span></button><button type="button" class="sell" data-defense-sell="${tower.id}" ${noSell||sellLocked?"disabled":""} aria-label="Sell ${escapeHTML(tower.pet.name)}"><i>${defenseUiIcon("sell")}</i><span><small>${noSell?"LOCKED":sellLocked?"AFTER WAVE":"SELL"}</small><b>${noSell?"NO REFUNDS":sellLocked?"70% BACK":`${sell} 🪙`}</b></span></button></div><p class="defense-ability-one-line">${roleLine}</p>${mapBond?`<p class="defense-map-bond-copy"><b>${escapeHTML(mini.defense.map.mechanic?.icon||"✦")} MAP BOND • ${escapeHTML(mapBond.label)}</b><span>${escapeHTML(mapBond.copy)}</span></p>`:""}`;syncDefenseOverlayState();
   }
-  function updateDefenseAbilityPanel(){const d=mini.defense;if(!d?.selectedTowerId)return;const tower=d.towers.find(item=>item.id===d.selectedTowerId),upgrade=$("[data-defense-upgrade]");if(!tower)return;if(upgrade&&tower.upgrade<4&&!(tower.upgrade>=2&&!tower.doctrine)){const cost=defenseUpgradeCost(tower,d),need=Math.max(0,cost-Math.floor(d.cash));upgrade.classList.toggle("cant-afford",need>0);const b=upgrade.querySelector("b");if(b)b.textContent=need?`NEED ${need} MORE`:`LEVEL UP • ${cost}`;}tower.node?.classList.toggle("range-weakened",tower.rangeDebuffUntil>defenseNow());}
+
+  function updateDefenseAbilityPanel(){const d=mini.defense;if(!d?.selectedTowerId)return;const tower=d.towers.find(item=>item.id===d.selectedTowerId),upgrade=$("[data-defense-upgrade]");if(!tower)return;if(defenseStructureType(tower)){if(upgrade&&tower.upgrade<4){const cost=defenseUpgradeCost(tower,d),need=Math.max(0,cost-Math.floor(d.cash));upgrade.classList.toggle("cant-afford",need>0);const b=upgrade.querySelector("b");if(b)b.textContent=need?`NEED ${need} MORE`:`UPGRADE • ${cost}`;}return;}if(upgrade&&tower.upgrade<4&&!(tower.upgrade>=2&&!tower.doctrine)){const cost=defenseUpgradeCost(tower,d),need=Math.max(0,cost-Math.floor(d.cash));upgrade.classList.toggle("cant-afford",need>0);const b=upgrade.querySelector("b");if(b)b.textContent=need?`NEED ${need} MORE`:`LEVEL UP • ${cost}`;}tower.node?.classList.toggle("range-weakened",tower.rangeDebuffUntil>defenseNow());}
   function closeDefenseTowerPanel(){defenseClearTowerSelection();syncDefenseOverlayState();}
-  function upgradeDefenseTower(id){
-    const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!tower||tower.upgrade>=DEFENSE_LIMITS.MAX_TOWER_LEVEL)return;if(!defenseUpgradeAllowed(d)){setDefenseMessage("UPGRADE UNAVAILABLE","This Rizo cannot level up right now.");sfx("no");return false;}if(tower.upgrade>=2&&!tower.doctrine){showDefenseTowerPanel(tower);setDefenseMessage("CHOOSE A PATH FIRST","POWER and CONTROL change the rest of this Rizo's run.");sfx("no");return false;}
-    const before=defenseCombatStats(tower),modifier=defenseUpgradeModifier(tower,d),cost=DefenseCore.upgradeCost(tower.upgrade,modifier);if(d.cash<cost){const need=Math.max(1,cost-Math.floor(d.cash));$(".defense-stat-cash")?.classList.remove("money-nope");void $(".defense-stat-cash")?.offsetWidth;$(".defense-stat-cash")?.classList.add("money-nope");setDefenseMessage(`NEED ${need} MORE COINS`,`${tower.pet.name} needs ${cost} to level up.`);sfx("no");haptic([8,18,8]);return false;}d.cash-=cost;d.cashWriteCount=(d.cashWriteCount||0)+1;tower.spent+=cost;tower.upgrade+=1;if(modifier<1){d.worldPerkUsed=true;tower.openingPerkApplied=true;}tower.targetId=null;tower.retargetAt=0;tower.retargetAtReal=0;refreshDefenseTower(tower);const after=defenseCombatStats(tower),variant=VARIANTS.find(item=>item.id===(tower.pet.variant||tower.pet.hiddenVariant||"classic"))||VARIANTS[0],damageGain=Math.round((after.damage/Math.max(.01,before.damage)-1)*100),rateGain=Math.round((after.rate/Math.max(.01,before.rate)-1)*100),rangeGain=Math.round((after.range/Math.max(.01,before.range)-1)*100);tower.node?.classList.add("just-upgraded");
-    const world=$("#defenseWorld"),fx=document.createElement("div");world?.classList.remove("defense-upgrade-hit");void world?.offsetWidth;world?.classList.add("defense-upgrade-hit");fx.className=`defense-upgrade-burst tier-${defenseTowerTier(tower)} ${tower.y<.34?"labels-below":tower.y>.66?"labels-above":"labels-center"}`;fx.style.left=`${tower.x*100}%`;fx.style.top=`${tower.y*100}%`;fx.style.setProperty("--upgrade-color",variant.color);fx.style.setProperty("--upgrade-silhouette",`url("${variant.sprite||"./assets/rizo-classic.png"}")`);fx.innerHTML=`<i class="defense-upgrade-silhouette"></i><i></i><i></i><i></i><i></i><b>${escapeHTML(defenseUpgradeName(tower))}</b><span>+${damageGain}% DMG • +${rateGain}% SPEED • +${rangeGain}% RANGE</span>`;$("#defenseEffects")?.appendChild(fx);queueMiniTimeout(()=>{fx.remove();world?.classList.remove("defense-upgrade-hit");},1450);
-    setDefenseMessage(`${tower.pet.name} GOT STRONGER`,tower.upgrade===2?"A NEW FIGHTING PATH IS READY.":`LEVEL ${tower.upgrade+1} • ${defenseUpgradeName(tower)}`);showDefenseCinematicMoment("upgrade",{title:defenseUpgradeName(tower),copy:tower.upgrade===2?"DOCTRINE UNLOCKED • CHOOSE POWER OR CONTROL":`LEVEL ${tower.upgrade+1} • ${damageGain}% DAMAGE`});showDefenseTowerPanel(tower);markDefenseUi({roster:true});updateDefenseRoster();updateDefenseHud();writeDefenseCheckpoint(true,"upgrade");duckMusic(720,.14);sfx(tower.upgrade>=4?"legendary":"reward");haptic(tower.upgrade>=4?[24,24,24,45,28]:tower.upgrade>=2?[16,18,16,26]:[12,14,12]);return true;
+  function upgradeDefenseTower(id,{showPanel=true}={}){
+    const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!tower||tower.upgrade>=DEFENSE_LIMITS.MAX_TOWER_LEVEL)return;if(defenseStructureType(tower))return upgradeDefenseStructure(tower);if(!defenseUpgradeAllowed(d)){setDefenseMessage("UPGRADE UNAVAILABLE","This Rizo cannot level up right now.");sfx("no");return false;}if(tower.upgrade>=2&&!tower.doctrine){showDefenseTowerPanel(tower);setDefenseMessage("CHOOSE A PATH FIRST","POWER and CONTROL change the rest of this Rizo's run.");sfx("no");return false;}
+    const before=defenseCombatStats(tower),modifier=defenseUpgradeModifier(tower,d),cost=defenseUpgradeCost(tower,d);if(d.cash<cost){const need=Math.max(1,cost-Math.floor(d.cash));$(".defense-stat-cash")?.classList.remove("money-nope");void $(".defense-stat-cash")?.offsetWidth;$(".defense-stat-cash")?.classList.add("money-nope");setDefenseMessage(`NEED ${need} MORE COINS`,`${tower.pet.name} needs ${cost} to level up.`);sfx("no");haptic([8,18,8]);return false;}d.cash-=cost;d.cashWriteCount=(d.cashWriteCount||0)+1;tower.spent+=cost;tower.upgrade+=1;if(modifier<1){d.worldPerkUsed=true;tower.openingPerkApplied=true;}tower.targetId=null;tower.retargetAt=0;tower.retargetAtReal=0;refreshDefenseTower(tower);const after=defenseCombatStats(tower),universal=defenseIsUniversalTower(tower),variant=universal?null:(VARIANTS.find(item=>item.id===(tower.pet.variant||tower.pet.hiddenVariant||"classic"))||VARIANTS[0]),upgradeColor=defenseTowerDisplayColor(tower),damageGain=Math.round((after.damage/Math.max(.01,before.damage)-1)*100),rateGain=Math.round((after.rate/Math.max(.01,before.rate)-1)*100),rangeGain=Math.round((after.range/Math.max(.01,before.range)-1)*100);    const world=$("#defenseWorld"),fx=document.createElement("div");world?.classList.remove("defense-upgrade-hit");void world?.offsetWidth;world?.classList.add("defense-upgrade-hit");fx.className=`defense-upgrade-burst tier-${defenseTowerTier(tower)} ${universal?"universal-basic-upgrade":""} ${tower.y<.34?"labels-below":tower.y>.66?"labels-above":"labels-center"}`;fx.style.left=`${tower.x*100}%`;fx.style.top=`${tower.y*100}%`;fx.style.setProperty("--upgrade-color",upgradeColor);if(variant?.sprite)fx.style.setProperty("--upgrade-silhouette",`url("${variant.sprite}")`);fx.innerHTML=`<i class="defense-upgrade-silhouette"></i><i></i><i></i><i></i><i></i><b>${escapeHTML(defenseUpgradeName(tower))}</b><span>+${damageGain}% DMG • +${rateGain}% SPEED • +${rangeGain}% RANGE</span>`;$("#defenseEffects")?.appendChild(fx);queueMiniTimeout(()=>{fx.remove();world?.classList.remove("defense-upgrade-hit");},1450);
+    setDefenseMessage(`${tower.pet.name} GOT STRONGER`,tower.upgrade===2?"A NEW FIGHTING PATH IS READY.":`LEVEL ${tower.upgrade+1} • ${defenseUpgradeName(tower)}`);showDefenseCinematicMoment("upgrade",{title:defenseUpgradeName(tower),copy:tower.upgrade===2?"DOCTRINE UNLOCKED • CHOOSE POWER OR CONTROL":`LEVEL ${tower.upgrade+1} • ${damageGain}% DAMAGE`});if(showPanel||tower.upgrade===2&&!tower.doctrine)showDefenseTowerPanel(tower);defenseCommitUpgrade(tower,{reason:"upgrade"});return true;
   }
-  function cycleDefenseTarget(id){const tower=mini.defense?.towers.find(item=>item.id===id);if(!tower)return;const current=DEFENSE_TARGET_MODES.indexOf(tower.targetMode||"first");tower.targetMode=DEFENSE_TARGET_MODES[(current+1)%DEFENSE_TARGET_MODES.length];tower.targetId=null;tower.retargetAt=0;tower.retargetAtReal=0;completeDefenseSchoolLesson("targeting");markDefenseUi();showDefenseTowerPanel(tower);writeDefenseCheckpoint(true,"target");setDefenseMessage(`${tower.pet.name} TARGETS ${DEFENSE_TARGET_LABELS[tower.targetMode]}`,tower.targetMode==="strong"?"Prioritizes the toughest balloon in range.":tower.targetMode==="last"?"Cleans up balloons furthest from the gate.":tower.targetMode==="close"?"Protects the space nearest this Rizo.":"Guards the balloon closest to the Ember Gate.");sfx("ui");}
-  function chooseDefenseDoctrine(id,doctrine){const d=mini.defense,tower=d?.towers.find(item=>item.id===id),forced=defenseContractForcedDoctrine(d);if(!tower||tower.upgrade<2||tower.doctrine||!DEFENSE_DOCTRINES[doctrine])return false;if(forced&&doctrine!==forced){setDefenseMessage(`${forced.toUpperCase()} OATH`,`This Trail Contract rejects the ${doctrine.toUpperCase()} path.`);sfx("no");return false;}tower.doctrine=doctrine;completeDefenseSchoolLesson("doctrine");refreshDefenseTower(tower);showDefenseTowerPanel(tower);markDefenseUi({roster:true});flushDefenseUi(true);const data=DEFENSE_DOCTRINES[doctrine];writeDefenseCheckpoint(true,"doctrine");setDefenseMessage(`${tower.pet.name} CHOSE ${data.name}`,doctrine==="power"?"Later upgrades unlock charged impact shots.":"Later upgrades unlock trail-locking pulse shots.");showDefenseCinematicMoment("ability",{title:`${defenseAbilityData(tower).active} ONLINE`,copy:`${tower.pet.name} • ${data.name}`});spawnDefenseAbilityFx(tower,doctrine==="power"?"ember":"aurora");sfx("legendary");haptic([12,20,12]);return true;}
+  function cycleDefenseTarget(id,{showPanel=true}={}){const tower=mini.defense?.towers.find(item=>item.id===id);if(!tower)return;const current=DEFENSE_TARGET_MODES.indexOf(tower.targetMode||"first");tower.targetMode=DEFENSE_TARGET_MODES[(current+1)%DEFENSE_TARGET_MODES.length];tower.targetId=null;tower.retargetAt=0;tower.retargetAtReal=0;completeDefenseSchoolLesson("targeting");markDefenseUi();if(showPanel)showDefenseTowerPanel(tower);else flushDefenseUi(true);writeDefenseCheckpoint(true,"target");setDefenseMessage(`${tower.pet.name} TARGETS ${DEFENSE_TARGET_LABELS[tower.targetMode]}`,tower.targetMode==="strong"?"Prioritizes the toughest balloon in range.":tower.targetMode==="last"?"Cleans up balloons furthest from the gate.":tower.targetMode==="close"?"Protects the space nearest this Rizo.":"Guards the balloon closest to the Ember Gate.");sfx("ui");}
+  function chooseDefenseDoctrine(id,doctrine){const d=mini.defense,tower=d?.towers.find(item=>item.id===id),forced=defenseContractForcedDoctrine(d);if(!tower||tower.upgrade<2||tower.doctrine||!DEFENSE_DOCTRINES[doctrine])return false;if(forced&&doctrine!==forced){setDefenseMessage(`${forced.toUpperCase()} OATH`,`This Trail Contract rejects the ${doctrine.toUpperCase()} path.`);sfx("no");return false;}tower.doctrine=doctrine;if(defenseIsUniversalTower(tower))tower.targetMode=doctrine==="power"?"strong":"first";completeDefenseSchoolLesson("doctrine");refreshDefenseTower(tower);showDefenseTowerPanel(tower);markDefenseUi({roster:true});flushDefenseUi(true);const data=DEFENSE_DOCTRINES[doctrine],universal=defenseIsUniversalTower(tower);writeDefenseCheckpoint(true,"doctrine");if(universal){setDefenseMessage(`${tower.pet.name} BUILT ${doctrine.toUpperCase()}`,doctrine==="power"?"Rivets now crack armor and burst through packed threats.":"Pins now slow, reveal, and hold fast runners in the lane.");showDefenseCinematicMoment("upgrade",{title:doctrine==="power"?"RIVET DRIVER":"PIN RIG",copy:`UNIVERSAL TOOL • ${data.name}`});spawnDefenseImpact(tower.x,tower.y,doctrine==="power"?"power":"control",0,tower);}else{setDefenseMessage(`${tower.pet.name} CHOSE ${data.name}`,doctrine==="power"?"Every fifth shot cracks the formation.":"Every fifth shot restrains and reveals the trail.");showDefenseCinematicMoment("ability",{title:`${defenseAbilityData(tower).active} ONLINE`,copy:`${tower.pet.name} • ${data.name}`});spawnDefenseAbilityFx(tower,doctrine==="power"?"ember":"aurora");}defenseFeelPulseTower(tower,"upgraded",760);duckMusic(680,.11);sfx("defense-upgrade");defenseHaptic("upgrade");return true;}
+
   function requestSellDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id),panel=$("#defenseTowerPanel");if(!tower||!panel)return false;if(!defenseSellAllowed(d)||defenseContractRule("no-sell",d))return sellDefenseTower(id);const refund=defenseSellRefund(tower,d);panel.insertAdjacentHTML("beforeend",`<div class="defense-sell-confirm" role="alertdialog" aria-label="Confirm sale"><b>SELL ${escapeHTML(tower.pet.name).toUpperCase()}?</b><span>You get ${refund} 🪙 back. This Rizo leaves the field.</span><div><button type="button" data-defense-cancel-sell>KEEP RIZO</button><button type="button" class="danger" data-defense-confirm-sell="${tower.id}">YES, SELL</button></div></div>`);panel.querySelector("[data-defense-confirm-sell]")?.focus?.();return true;}
-  function sellDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!tower)return false;if(defenseContractRule("no-sell",d)){setDefenseMessage("CONTRACT • NO REFUNDS","This placement is permanent until the run ends.");sfx("no");return false;}if(!defenseSellAllowed(d)){setDefenseMessage("SELLING LOCKED IN COMBAT","Bank the run or wait for planning. Combat selling cannot erase mistakes.");sfx("no");return false;}const undo=defenseCanUndoPlacement(tower,d),refund=defenseSellRefund(tower,d);d.cash=DefenseCore.clampNumber(d.cash+refund,0,DEFENSE_LIMITS.MAX_RUN_CASH,d.cash);d.cashWriteCount=(d.cashWriteCount||0)+1;tower.node?.remove();d.towers=d.towers.filter(t=>t!==tower);closeDefenseTowerPanel();markDefenseUi({roster:true});updateDefenseRoster();updateDefenseHud();if(d.towers.length)writeDefenseCheckpoint(true,"sell");else clearDefenseCheckpoint();setDefenseMessage(undo?`PLACEMENT UNDONE • +${refund}`:`RIZO SOLD • +${refund}`,undo?"Full refund within the five-second planning undo window.":"Planning refunds return 70% of total investment.");sfx("coin");return true;}
+  function sellDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!tower)return false;if(defenseContractRule("no-sell",d)){setDefenseMessage("CONTRACT • NO REFUNDS","This placement is permanent until the run ends.");sfx("no");return false;}if(!defenseSellAllowed(d)){setDefenseMessage("SELLING LOCKED IN COMBAT","Bank the run or wait for planning. Combat selling cannot erase mistakes.");sfx("no");return false;}const undo=defenseCanUndoPlacement(tower,d),refund=defenseSellRefund(tower,d);d.cash=DefenseCore.clampNumber(d.cash+refund,0,DEFENSE_LIMITS.MAX_RUN_CASH,d.cash);d.cashWriteCount=(d.cashWriteCount||0)+1;tower.node?.remove();d.towers=d.towers.filter(t=>t!==tower);refreshDefenseMapBondVisuals();refreshDefenseSupportVisuals(d);closeDefenseTowerPanel();markDefenseUi({roster:true});updateDefenseRoster();updateDefenseHud();if(d.towers.length)writeDefenseCheckpoint(true,"sell");else clearDefenseCheckpoint();setDefenseMessage(undo?`PLACEMENT UNDONE • +${refund}`:`${defenseStructureType(tower)?"STRUCTURE":"RIZO"} SOLD • +${refund}`,undo?"Full refund within the five-second planning undo window.":"Planning refunds return 70% of total investment.");sfx(undo?"defense-deploy":"defense-sell");defenseHaptic(undo?"deploy":"sell");return true;}
   const DEFENSE_WAVE_FLAVOR=Object.freeze({
     grove:["Easy now. Watch where the first ones drift.","Good. Now cover the bend.","A few faster ones are testing the trail.","Do not chase every balloon. Build the field.","The forest is starting to push back.","They found another way through. Stay calm.","Your Rizos know the trail now.","This one asks for coverage, not panic.","Save a few coins. Something big is coming.","The trees went quiet. Boss incoming."],
     ember:["Heat makes everything look faster. Read the road.","Keep one eye on the Gate.","The hot trail rewards hard hits.","Do not let the fire rush your decisions.","They are testing the inside bend.","Your flame is holding. Make it stronger.","A tougher shell is entering the heat.","Leave room for one more answer.","The volcano is rumbling. Save something.","Big shadow in the smoke. Boss incoming."],
@@ -5897,13 +6751,13 @@
   function defenseBossForWave(wave){const ordinal=Math.max(0,Math.floor(wave/10)-1),base=DEFENSE_BOSSES[ordinal%DEFENSE_BOSSES.length],intensity=Math.floor(ordinal/DEFENSE_BOSSES.length);return{...base,intensity};}
   function defenseWavePlan(wave){
     const d=mini.defense,plan=DefenseCore.createWavePlan({wave,specialBias:d.map.specialBias||0,weather:d.map.weather,bossIds:DEFENSE_BOSSES.map(item=>item.id)});d.waveAnnouncement=plan.announcement;
-    const bossEntry=DefenseCore.flattenPackets(plan.packets).find(entry=>typeof entry==="object"&&entry?.type==="boss");if(bossEntry){const boss=defenseBossForWave(wave);d.waveAnnouncement={title:`${boss.name} • BOSS WAVE`,copy:boss.hint};}
+    const bossEntry=DefenseCore.flattenPackets(plan.packets).find(entry=>typeof entry==="object"&&entry?.type==="boss");if(bossEntry){const boss=DEFENSE_BOSSES.find(item=>item.id===bossEntry.bossId)||defenseBossForWave(wave),tier=Math.max(0,Number(bossEntry.intensity)||0);d.waveAnnouncement={title:plan.modifier==="boss-remix"?`${boss.name} • BOSS REMIX ${tier+1}`:`${boss.name} • BOSS WAVE`,copy:plan.announcement?.copy||boss.hint};}
     return plan;
   }
   function startDefenseWave(){
-    const d=mini.defense;if(defenseIsActiveWave(d)||!d.towers.length||!DefenseCore.phaseAllows(d.phase,"start"))return false;if(defenseRealNow(d)<(d.nextWaveReadyAtReal||0)){setDefenseMessage("FIELD SETTLING","Give the last pop half a second to land. Then the next formation is yours to call.");return false;}
-    d.autoStartAtReal=0;flushDefenseIncome(d,"wave-start");completeDefenseSchoolLesson("route",{silent:true});d.intelOpen=false;d.intelPausedByOpen=false;clearDefensePlacementMode();closeDefenseTowerPanel();d.currentWave=DefenseCore.clampInteger(d.currentWave+1,1,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,1);defenseSetPhase(d,DEFENSE_PHASES.COUNTDOWN);const plan=defenseWavePlan(d.currentWave);d.wavePackets=plan.packets.map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter}));d.packetIndex=0;d.packetEnemyIndex=0;d.spawnQueue=DefenseCore.flattenPackets(d.wavePackets).map(entry=>typeof entry==="string"?entry:{...entry});d.currentWavePlan=d.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry});d.childSpawnQueue=[];d.nextChildReleaseAtReal=defenseRealNow(d);d.childSpawnSequence=0;d.targetSnapshot=[];d.targetSnapshotAtReal=0;d.waveTotal=d.spawnQueue.length;d.waveResolved=0;d.nextSpawnAt=d.clock+(d.currentWave===1?1.75:1.28);d.packetBreakUntil=0;d.lastSpawnedEnemyId=null;d.spawnWaitReason="countdown";d.peakAlive=0;d.waveHeartLossStart=d.enemyStats.heartLoss;d.nextWeatherAt=Math.min(d.nextWeatherAt,d.clock+5.5);
-    const announcement=d.waveAnnouncement,world=$("#defenseWorld"),bossWave=Boolean(announcement?.title?.includes("BOSS"));world?.classList.remove("wave-cue");void world?.offsetWidth;world?.classList.add("wave-cue");queueMiniTimeout(()=>world?.classList.remove("wave-cue"),1050);hideDefenseMessage();showDefenseCinematicMoment(bossWave?"boss":"wave-start",{title:bossWave?(announcement?.title||"BOSS INCOMING"):`WAVE ${d.currentWave}`,copy:bossWave?(announcement?.copy||"HOLD THE GATE"):defenseWaveFlavor(d.mapId,d.currentWave),duration:bossWave?1750:820});markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"wave-start");sfx("event");return true;
+    const d=mini.defense;if(defenseIsActiveWave(d)||!d.towers.length||!DefenseCore.phaseAllows(d.phase,"start")||d.clearedWave>=DEFENSE_LIMITS.MAX_SUPPORTED_WAVE)return false;if(defenseRealNow(d)<(d.nextWaveReadyAtReal||0)){setDefenseMessage("FIELD SETTLING","Give the last pop half a second to land. Then the next formation is yours to call.");return false;}
+    d.autoStartAtReal=0;flushDefenseIncome(d,"wave-start");completeDefenseSchoolLesson("route",{silent:true});d.intelOpen=false;d.intelPausedByOpen=false;clearDefensePlacementMode();closeDefenseTowerPanel();d.currentWave=DefenseCore.clampInteger(d.currentWave+1,1,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,1);defenseSetPhase(d,DEFENSE_PHASES.COUNTDOWN);const plan=defenseWavePlan(d.currentWave);d.wavePackets=plan.packets.map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter}));d.packetIndex=0;d.packetEnemyIndex=0;d.spawnQueue=DefenseCore.flattenPackets(d.wavePackets).map(entry=>typeof entry==="string"?entry:{...entry});d.currentWavePlan=d.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry});d.childSpawnQueue=[];d.nextChildReleaseAtReal=defenseRealNow(d);d.childSpawnSequence=0;d.targetSnapshot=[];d.targetSnapshotAtReal=0;d.waveTotal=d.spawnQueue.length;d.waveResolved=0;d.nextSpawnAt=d.clock+(d.currentWave===1?.55:.8);d.packetBreakUntil=0;d.lastSpawnedEnemyId=null;d.spawnWaitReason="countdown";d.peakAlive=0;d.waveHeartLossStart=d.enemyStats.heartLoss;d.nextWeatherAt=Math.min(d.nextWeatherAt,d.clock+5.5);
+    const announcement=d.waveAnnouncement,world=$("#defenseWorld"),bossWave=Boolean(announcement?.title?.includes("BOSS"));world?.classList.remove("wave-cue");void world?.offsetWidth;world?.classList.add("wave-cue");queueMiniTimeout(()=>world?.classList.remove("wave-cue"),1050);hideDefenseMessage();showDefenseCinematicMoment(bossWave?"boss":"wave-start",{title:bossWave?(announcement?.title||"BOSS INCOMING"):`WAVE ${d.currentWave} • ${announcement?.title||"HOLD THE GATE"}`,copy:bossWave?(announcement?.copy||"HOLD THE GATE"):(announcement?.copy||defenseWaveFlavor(d.mapId,d.currentWave)),duration:bossWave?1750:820});markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"wave-start");sfx("event");return true;
   }
 
   function defenseEnemyCamoActive(enemy,time=defenseNow()){const d=mini.defense;if(!d||!enemy)return false;return Boolean((enemy.camo||d.eclipseUntil>time||d.ashUntil>time)&&d.moonRevealUntil<=time&&enemy.revealUntil<=time);}
@@ -5949,10 +6803,10 @@
   function releaseDefenseChildSpawn(d){if(!d?.childSpawnQueue?.length)return false;const child=d.childSpawnQueue[0];if(child.releaseAt>d.clock||!defenseDensityAllowsSpawn(d,child.entry,true))return false;d.childSpawnQueue.shift();spawnDefenseEnemy(child.entry,{progress:child.progress,...child.options});d.nextChildReleaseAtReal=defenseRealNow(d);d.childSpawnsReleased=(d.childSpawnsReleased||0)+1;return true;}
 
   function spawnDefenseEnemy(entry,options={}){
-    const descriptor=typeof entry==="string"?{type:entry}:entry||{type:"puff"},type=descriptor.type||"puff",d=mini.defense,boss=type==="boss"?DEFENSE_BOSSES.find(item=>item.id===(descriptor.bossId||"crown"))||DEFENSE_BOSSES[0]:null,base=boss||DEFENSE_ENEMIES[type]||DEFENSE_ENEMIES.puff,scale=(1+(d.wave-1)*.115)*(d.map.hp||1)*(boss?1+(descriptor.intensity||0)*.23:1)*defenseDurabilityScale(d.currentWave||d.wave,{boss:Boolean(boss)}),hp=Number(options.hpOverride)||base.hp*scale;
+    const descriptor=typeof entry==="string"?{type:entry}:entry||{type:"puff"},type=descriptor.type||"puff",d=mini.defense,boss=type==="boss"?DEFENSE_BOSSES.find(item=>item.id===(descriptor.bossId||"crown"))||DEFENSE_BOSSES[0]:null,base=boss||DEFENSE_ENEMIES[type]||DEFENSE_ENEMIES.puff,scale=defenseHealthScale(d.currentWave||d.wave)*(d.map.hp||1)*(boss?1+Math.min(12,descriptor.intensity||0)*.10:1)*defenseDurabilityScale(d.currentWave||d.wave,{boss:Boolean(boss)}),hp=Number(options.hpOverride)||base.hp*scale;
     const point=defensePointAt(Number.isFinite(options.progress)?options.progress:0),baseVisualClass=boss?`balloon-boss ${boss.className}`:base.className;
-    const enemy={id:`enemy-${d.nextId++}`,type,bossId:boss?.id||null,bossIntensity:descriptor.intensity||0,bossChild:Boolean(options.bossChild),progress:Number.isFinite(options.progress)?options.progress:0,x:point.x,y:point.y,prevX:point.x,prevY:point.y,hp,maxHp:Number(options.maxHpOverride)||hp,speed:base.speed*(1+Math.min(.22,d.wave*.006))*(d.map.speed||1),reward:DefenseCore.calculateEnemyReward(base.reward,d.currentWave,{rewardScale:options.rewardScale??1}),damage:base.damage,baseArmor:base.armor||0,armor:base.armor||0,armorBroken:false,armorShredded:false,fireproof:Boolean(base.fireproof),slowResist:base.slowResist||0,stormPulse:Boolean(base.stormPulse),stormCharging:false,phasing:Boolean(base.phasing),camo:Boolean(base.camo),phaseOffset:Math.random()*6.28,phaseActive:false,revealUntil:0,phaseSuppressedUntil:0,revealCredited:false,phaseLockCredited:false,slow:0,slowUntil:0,burn:0,burnUntil:0,burnSource:null,poison:0,poisonUntil:0,poisonSource:null,rootUntil:0,hitFlash:0,phaseTriggered:false,nextBossPulse:d.clock+4,telegraphKind:null,telegraphStartedAt:0,telegraphUntil:0,telegraphDisruption:0,apexSurgeUntil:0,bossMechanicLocked:false,baseVisualClass,renderColor:base.color,renderIcon:base.icon||"○",renderName:base.name||type,renderSkin:"clean",renderCamo:false,renderRevealed:false,renderStateSymbol:"",visualSignature:"",stateSignature:"",lastRenderedHealth:-1,lastRenderX:NaN,lastRenderY:NaN,node:null};
-    const node=defenseUsesCanvas(d)?null:acquireDefenseEnemyNode();if(node){node.className=`defense-enemy ${baseVisualClass}`;node.dataset.enemyId=enemy.id;node.style.setProperty("--balloon-color",base.color);if(node._rizoTrait)node._rizoTrait.textContent=base.icon||"○";enemy.node=node;}d.enemies.push(enemy);d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);mini.entities.push(enemy);if(!options.skipAnalytics)defenseRecordEnemyStat("spawned",boss?`boss:${boss.id}`:type);updateDefenseEnemyNode(enemy,true);if(boss&&!options.bossChild){showDefenseCinematicMoment("boss",{title:boss.name,copy:boss.trait,kicker:`WAVE ${d.currentWave} • BOSS ENTRANCE`});duckMusic(900,.12);haptic([18,24,18,38]);}if(enemy.camo&&!d.camoHintSeen){d.camoHintSeen=true;setDefenseMessage("SHADE BALLOON", "BASE RIZOS ONLY DEAL 25% DAMAGE. AWAKEN OR USE SHADOW, AURORA, OR GLITCH.");}return enemy;
+    const enemy={id:`enemy-${d.nextId++}`,type,bossId:boss?.id||null,bossIntensity:descriptor.intensity||0,bossChild:Boolean(options.bossChild),progress:Number.isFinite(options.progress)?options.progress:0,x:point.x,y:point.y,prevX:point.x,prevY:point.y,hp,maxHp:Number(options.maxHpOverride)||hp,speed:base.speed*(1+Math.min(.22,d.wave*.006))*(d.map.speed||1),reward:DefenseCore.calculateEnemyReward(base.reward,d.currentWave,{rewardScale:options.rewardScale??1}),damage:base.damage,baseArmor:base.armor||0,armor:base.armor||0,armorBroken:false,armorShredded:false,fireproof:Boolean(base.fireproof),slowResist:base.slowResist||0,stormPulse:Boolean(base.stormPulse),stormCharging:false,supportAura:Boolean(base.supportAura),healer:Boolean(base.healer),supportCycle:Math.floor((d.clock+((d.nextId%11)*.37))/3.6),relayBoosted:false,supportFlashUntil:0,phasing:Boolean(base.phasing),camo:Boolean(base.camo),phaseOffset:(d.nextId%11)*.37,phaseActive:false,revealUntil:0,phaseSuppressedUntil:0,revealCredited:false,phaseLockCredited:false,slow:0,slowUntil:0,burn:0,burnUntil:0,burnSource:null,poison:0,poisonUntil:0,poisonSource:null,rootUntil:0,hitFlash:0,phaseTriggered:false,bossPhase:0,signalStaggerUntil:0,nextBossPulse:d.clock+4,telegraphKind:null,telegraphStartedAt:0,telegraphUntil:0,telegraphDisruption:0,apexSurgeUntil:0,bossMechanicLocked:false,baseVisualClass,renderColor:base.color,renderIcon:base.icon||"○",renderName:base.name||type,renderSkin:"clean",renderCamo:false,renderRevealed:false,renderStateSymbol:"",visualSignature:"",stateSignature:"",lastRenderedHealth:-1,lastRenderX:NaN,lastRenderY:NaN,node:null};enemy.feelEnterUntil=boss&&!options.bossChild?defenseNow()+.9:0;
+    const node=defenseUsesCanvas(d)?null:acquireDefenseEnemyNode();if(node){node.className=`defense-enemy ${baseVisualClass}`;node.dataset.enemyId=enemy.id;node.style.setProperty("--balloon-color",base.color);if(node._rizoTrait)node._rizoTrait.textContent=base.icon||"○";enemy.node=node;}d.enemies.push(enemy);d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);mini.entities.push(enemy);if(!options.skipAnalytics)defenseRecordEnemyStat("spawned",boss?`boss:${boss.id}`:type);updateDefenseEnemyNode(enemy,true);if(boss&&!options.bossChild){enemy.node?.classList.add("boss-entering");queueMiniTimeout(()=>enemy.node?.classList.remove("boss-entering"),900);defenseBossStagePulse("arrival",boss.id,920);showDefenseCinematicMoment("boss",{title:boss.name,copy:boss.trait,kicker:`WAVE ${d.currentWave} • BOSS ENTRANCE`});duckMusic(1150,.07);defenseBossCue("arrival",boss.id);defenseHaptic("bossWarn");}if(enemy.camo&&!d.camoHintSeen){d.camoHintSeen=true;setDefenseMessage("SHADE BALLOON", "BASE RIZOS ONLY DEAL 25% DAMAGE. AWAKEN OR USE SHADOW, AURORA, OR GLITCH.");}return enemy;
   }
 
   function defenseEnemySkin(enemy,time){
@@ -5979,24 +6833,27 @@
   function updateDefenseEnemyNode(enemy,force=false){
     const time=defenseNow(),d=mini.defense;if(!enemy||!d)return false;
     if(!Number.isFinite(enemy.x)||!Number.isFinite(enemy.y)){const point=defensePointAt(enemy.progress);enemy.x=point.x;enemy.y=point.y;}
-    const phaseSuppressed=enemy.phaseSuppressedUntil>time||d.moonRevealUntil>time,camo=defenseEnemyCamoActive(enemy,time),stormCharging=Boolean(enemy.stormPulse&&Math.sin(time*4+enemy.phaseOffset)>.48),ashCloaked=Boolean(d.ashUntil>time&&enemy.revealUntil<=time&&d.moonRevealUntil<=time),revealed=!camo&&(enemy.camo||enemy.revealUntil>time||d.moonRevealUntil>time),skin=defenseEnemySkin(enemy,time),health=Math.round(clamp(enemy.hp/Math.max(.001,enemy.maxHp)*100)),damaged=health<99;
-    const symbol=enemy.armorBroken?"×":phaseSuppressed&&enemy.phasing?"⌁":revealed?"◉":enemy.telegraphKind||stormCharging?"!":"",stateSignature=`${symbol}|${symbol?0:1}`;
-    enemy.stormCharging=stormCharging;enemy.renderSkin=skin;enemy.renderCamo=camo;enemy.renderRevealed=revealed;enemy.renderStateSymbol=symbol;enemy.phaseActive=Boolean(enemy.phasing&&!phaseSuppressed&&Math.sin(time*3+enemy.phaseOffset)>.12);
+    const phaseSuppressed=enemy.phaseSuppressedUntil>time||d.moonRevealUntil>time,camo=defenseEnemyCamoActive(enemy,time),stormCharging=Boolean(enemy.stormPulse&&((time+enemy.phaseOffset)%4.8)<1.15),ashCloaked=Boolean(d.ashUntil>time&&enemy.revealUntil<=time&&d.moonRevealUntil<=time),revealed=!camo&&(enemy.camo||enemy.revealUntil>time||d.moonRevealUntil>time),skin=defenseEnemySkin(enemy,time),health=Math.round(clamp(enemy.hp/Math.max(.001,enemy.maxHp)*100)),damaged=health<99,relayBoosted=Boolean(enemy.relayBoosted),signalStaggered=(enemy.signalStaggerUntil||0)>time,menderFlashing=(enemy.supportFlashUntil||0)>time;
+    const symbol=enemy.armorBroken?"×":phaseSuppressed&&enemy.phasing?"⌁":revealed?"◉":enemy.telegraphKind||stormCharging?"!":signalStaggered?"∿":relayBoosted?"⌁":menderFlashing?"+":"",stateSignature=`${symbol}|${symbol?0:1}`;
+    enemy.stormCharging=stormCharging;enemy.renderSkin=skin;enemy.renderCamo=camo;enemy.renderRevealed=revealed;enemy.renderStateSymbol=symbol;/* Phase damage state belongs to the fixed simulation, never the renderer. */
     if(!enemy.node){enemy.visualSignature="canvas";enemy.stateSignature=stateSignature;enemy.lastRenderedHealth=health;return true;}
-    const classes=["defense-enemy",enemy.baseVisualClass,`skin-${skin}`,damaged?"damaged":"",enemy.hitFlash>0?"hit":"",enemy.phaseActive?"phased":"",phaseSuppressed&&enemy.phasing?"phase-suppressed":"",camo?"camouflaged":"",revealed?"revealed":"",ashCloaked?"ash-cloaked":"",stormCharging?"storm-charging":"",enemy.telegraphKind?"boss-telegraph":"",enemy.telegraphKind?`telegraph-${enemy.telegraphKind}`:"",enemy.armorBroken?"armor-broken":"",enemy.armorShredded&&!enemy.armorBroken?"armor-shredded":""].filter(Boolean).join(" ");
+    const burnActive=enemy.burnUntil>time,poisonActive=enemy.poisonUntil>time,frostActive=enemy.slowUntil>time,rootActive=enemy.rootUntil>time;
+    const classes=["defense-enemy",enemy.baseVisualClass,`skin-${skin}`,burnActive?"is-burn":"",poisonActive?"is-poison":"",frostActive?"is-frost":"",rootActive?"is-root":"",damaged?"damaged":"",enemy.hitFlash>0?"hit":"",enemy.phaseActive?"phased":"",phaseSuppressed&&enemy.phasing?"phase-suppressed":"",camo?"camouflaged":"",revealed?"revealed":"",ashCloaked?"ash-cloaked":"",stormCharging?"storm-charging":"",enemy.telegraphKind?"boss-telegraph":"",enemy.telegraphKind?`telegraph-${enemy.telegraphKind}`:"",enemy.telegraphKind?"feel-boss-windup":"",enemy.feelEnterUntil>time?"boss-entering":"",enemy.armorBroken?"armor-broken":"",enemy.armorShredded&&!enemy.armorBroken?"armor-shredded":"",relayBoosted?"relay-supported":"",signalStaggered?"signal-staggered":"",menderFlashing?"mender-flashing":""].filter(Boolean).join(" ");
     if(force||classes!==enemy.visualSignature){enemy.node.className=classes;enemy.visualSignature=classes;d.enemyClassWrites=(d.enemyClassWrites||0)+1;}
     if(force||health!==enemy.lastRenderedHealth){enemy.node.style.setProperty("--enemy-health",`${health}%`);enemy.lastRenderedHealth=health;d.enemyHealthWrites=(d.enemyHealthWrites||0)+1;}
     if(force||enemy.lastTelegraphBreak!==enemy.telegraphDisruption){enemy.node.style.setProperty("--telegraph-break",`${Math.round(clamp((enemy.telegraphDisruption||0)*100))}%`);enemy.lastTelegraphBreak=enemy.telegraphDisruption;}
+    if(enemy.hitFlash>0&&Number.isFinite(enemy.hitFromX)&&Number.isFinite(enemy.hitFromY)){const hitDx=enemy.x-enemy.hitFromX,hitDy=enemy.y-enemy.hitFromY,hitLen=Math.hypot(hitDx,hitDy)||1,nx=Math.round(hitDx/hitLen*100)/100,ny=Math.round(hitDy/hitLen*100)/100,hitSignature=`${nx}|${ny}`;if(force||hitSignature!==enemy.feelHitSignature){enemy.node.style.setProperty("--feel-hit-x",`${(nx*2.1).toFixed(2)}px`);enemy.node.style.setProperty("--feel-hit-y",`${(ny*2.1).toFixed(2)}px`);enemy.feelHitSignature=hitSignature;}}
     if(force||stateSignature!==enemy.stateSignature){const stateNode=enemy.node._rizoState;if(stateNode){stateNode.textContent=symbol;stateNode.hidden=!symbol;}enemy.stateSignature=stateSignature;d.enemyStateWrites=(d.enemyStateWrites||0)+1;}
     if(!d.fixedSimulation||force)positionDefenseEnemyNode(enemy,force);return true;
   }
 
   function defenseAuroraBuff(tower){return 1+mini.defense.towers.filter(other=>other!==tower&&(other.pet.variant||other.pet.hiddenVariant)==="aurora"&&Math.hypot(other.x-tower.x,other.y-tower.y)<.25).length*.16;}
-  function defenseEnemyThreat(enemy){const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type,identity=(DEFENSE_THREAT_PRIORITY[key]||30)/100;return (enemy.maxHp||enemy.hp||1)*(1+(enemy.armor||0))*(1+Math.max(0,(enemy.damage||1)-1)*.22)*(1+identity*.16)*(enemy.bossId?2:1);}
+  function defenseEnemyThreat(enemy){const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type,identity=(DEFENSE_THREAT_PRIORITY[key]||30)/100,support=(enemy.type==="relay"||enemy.type==="mender")?1.35:1;return (enemy.maxHp||enemy.hp||1)*(1+(enemy.armor||0))*(1+Math.max(0,(enemy.damage||1)-1)*.22)*(1+identity*.16)*(enemy.bossId?2:1)*support;}
   // Camouflage and phasing reduce damage through dealDefenseDamage; they do not make an
   // already acquired target disappear. This predicate exists only for cached-target validity.
   function canDefenseTowerSee(tower,enemy){return Boolean(tower&&enemy&&!enemy.dead&&enemy.hp>0);}
-  function defenseTargetSnapshot(d=mini.defense,force=false){const realTime=defenseRealNow(d),budget=defensePerformanceBudget(d);if(force||!Array.isArray(d.targetSnapshot)||realTime>=(d.targetSnapshotAtReal||0)){d.targetSnapshot=d.enemies.filter(enemy=>!enemy.dead&&enemy.hp>0);d.targetSnapshotAtReal=realTime+budget.targetRefreshMs/1000;d.targetSnapshotBuilds=(d.targetSnapshotBuilds||0)+1;}return d.targetSnapshot;}
+  function defenseTargetSnapshot(d=mini.defense,force=false){// Cache deadlines use game time despite their legacy property names.
+    const realTime=defenseNow(),budget=DEFENSE_BUDGETS.normal;if(force||!Array.isArray(d.targetSnapshot)||realTime>=(d.targetSnapshotAtReal||0)){d.targetSnapshot=d.enemies.filter(enemy=>!enemy.dead&&enemy.hp>0);d.targetSnapshotAtReal=realTime+budget.targetRefreshMs/1000;d.targetSnapshotBuilds=(d.targetSnapshotBuilds||0)+1;}return d.targetSnapshot;}
   function pickDefenseTarget(tower,stats,candidates=defenseTargetSnapshot()){
     const mode=tower.targetMode||"first",rangeSq=stats.range*stats.range;let best=null,bestDistance=Infinity,bestThreat=-Infinity;
     for(const enemy of candidates){
@@ -6021,81 +6878,247 @@
     }
     return picks;
   }
+  function defenseBasicRestrained(enemy,time=defenseNow()){return Boolean(enemy&&((enemy.rootUntil||0)>time||((enemy.slowUntil||0)>time&&(enemy.slow||0)>=.25)));}
+  function defenseBasicOpened(enemy){return Boolean(enemy&&(enemy.armorBroken||enemy.armorShredded||(enemy.baseArmor||0)>0&&(enemy.armor||0)<Math.max(0,(enemy.baseArmor||0)-.02)));}
+  function defenseBasicRivetTargets(target,radius=.14,limit=2){return defenseProgressTargetsNear(target,radius,12).sort((a,b)=>((b.armor||0)*120+defenseEnemyThreat(b))-((a.armor||0)*120+defenseEnemyThreat(a))).slice(0,limit);}
+  function defenseBasicThreadTargets(target,radius=.13,limit=2){const time=defenseNow();return defenseProgressTargetsNear(target,radius,12).sort((a,b)=>{const aFresh=defenseBasicRestrained(a,time)?0:1,bFresh=defenseBasicRestrained(b,time)?0:1;return bFresh-aFresh||b.progress-a.progress;}).slice(0,limit);}
+  function defenseBasicLinkFlash(from,to,kind="stitch"){
+    const d=mini.defense;if(!d||!from||!to||d.effects.length>=defenseVisualBudget(d).maxImpactEffects)return;const color=kind==="power"?DEFENSE_BASIC_TOWER.powerColor:kind==="control"?DEFENSE_BASIC_TOWER.controlColor:DEFENSE_BASIC_TOWER.color;d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length+1);
+    if(defenseUsesCanvas(d)){d.effects.push({kind:"chain",x:from.x,y:from.y,toX:to.x,toY:to.y,color,startedAt:d.clock,expiresAt:d.clock+.18});return;}
+    const node=acquireDefenseImpactNode();if(!node)return;const dx=(to.x-from.x)*(d.renderWidth||390),dy=(to.y-from.y)*(d.renderHeight||390);node.className=`defense-chain-link worker-d-link worker-d-link-${kind}`;node.style.left=`${from.x*100}%`;node.style.top=`${from.y*100}%`;node.style.width=`${Math.hypot(dx,dy)}px`;node.style.transform=`rotate(${Math.atan2(dy,dx)}rad)`;node.style.setProperty("--worker-d-link",color);const effect={node,expiresAt:d.clock+.18};d.effects.push(effect);
+  }
   function animateDefenseTower(tower,kind="attack"){
     if(!tower.node)return;
     const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",apex=tower.upgrade>=4,classes=[kind==="ability"?"ability-cast":kind==="doctrine"?"doctrine-strike":"firing",`${kind}-${variant}`];if(apex&&kind==="ability")classes.push("apex-cast");tower.node.classList.add(...classes);
-    const attackDurations={classic:210,ember:230,toxic:220,violet:240,moss:235,bubblegum:240,frost:220,glitch:180,obsidian:255,aurora:250,golden:235,diamond:220,shadow:230,retro:180};
+    const attackDurations={classic:210,"defense-basic":tower.doctrine==="power"?245:tower.doctrine==="control"?165:195,ember:230,toxic:220,violet:240,moss:235,bubblegum:240,frost:220,glitch:180,obsidian:255,aurora:250,golden:235,diamond:220,shadow:230,retro:180};
     const duration=kind==="ability"?(apex?900:680):kind==="doctrine"?320:(attackDurations[variant]||220);
+    tower.node.style.setProperty("--attack-life",`${duration}ms`);
     queueMiniTimeout(()=>tower.node?.classList.remove(...classes),duration);
   }
 
-  function spawnDefenseAbilityFx(tower,kind){const node=document.createElement("i");node.className=`defense-ability-fx ability-fx-${kind} ${tower.upgrade>=4?"apex-fx":""}`;node.style.left=`${tower.x*100}%`;node.style.top=`${tower.y*100}%`;$("#defenseEffects")?.appendChild(node);queueMiniTimeout(()=>node.remove(),tower.upgrade>=4?1150:900);}
+  const DEFENSE_ABILITY_REACTIONS=Object.freeze({ember:"heat",toxic:"spore",violet:"storm",moss:"roots",bubblegum:"bounce",frost:"freeze",glitch:"glitch",obsidian:"quake",aurora:"prism",golden:"payday",diamond:"shards",shadow:"blackout",retro:"rewind",classic:"rally"});
+  function spawnDefenseAbilityFx(tower,kind){
+    const d=mini.defense,host=$("#defenseEffects"),world=$("#defenseWorld");if(!d||!tower||!host)return false;
+    const apex=tower.upgrade>=4,doctrine=tower.doctrine||"power",reaction=DEFENSE_ABILITY_REACTIONS[kind]||"rally",node=document.createElement("span");
+    node.className=`defense-ability-fx ability-fx-${kind} ability-${doctrine} ${apex?"apex-fx":""}`;node.style.left=`${tower.x*100}%`;node.style.top=`${tower.y*100}%`;node.innerHTML='<i class="ability-core"></i><i class="ability-detail detail-a"></i><i class="ability-detail detail-b"></i><i class="ability-detail detail-c"></i><i class="ability-apex-mark"></i>';
+    host.appendChild(node);world?.classList.add(`ability-react-${reaction}`,`ability-react-${doctrine}`);if(apex)world?.classList.add("ability-react-apex");
+    const cleanup=()=>{if(!node.isConnected)return;node.remove();if(!host.querySelector(`.ability-fx-${kind}`))world?.classList.remove(`ability-react-${reaction}`);if(!host.querySelector(`.ability-${doctrine}`))world?.classList.remove(`ability-react-${doctrine}`);if(!host.querySelector(".apex-fx"))world?.classList.remove("ability-react-apex");};
+    node.addEventListener("animationend",event=>{if(event.target===node&&event.animationName==="workerE-ability-event")cleanup();});
+    if(defenseReducedMotion()){const reducedCleanup=()=>{if(!node.isConnected)return;if(mini.defense===d&&d.paused){queueMiniTimeout(reducedCleanup,120);return;}cleanup();};queueMiniTimeout(reducedCleanup,apex?620:480);}return true;
+  }
   function defenseVisibleProjectileCount(d=mini.defense){let count=0;for(const shot of d?.projectiles||[])if(shot.node||shot.renderVisible)count+=1;return count;}
   function fireDefenseTower(tower,target,stats){
-    const d=mini.defense,variant=stats.variant,shotNumber=(tower.shots||0)+1,masteryTier=defenseMasteryTierForPet(tower.petId);let damage=stats.damage*defenseAuroraBuff(tower),doctrineStrike=null;
-    if(variant==="shadow"&&Math.random()<stats.crit+.18)damage*=2.25;if(variant==="glitch"&&Math.random()<.28)damage*=1.75;if(tower.doctrine==="power"&&tower.upgrade>=3&&shotNumber%(tower.upgrade>=4?4:5)===0){damage*=tower.upgrade>=4?2.1:1.7;doctrineStrike="power";}else if(tower.doctrine==="control"&&tower.upgrade>=3&&shotNumber%(tower.upgrade>=4?4:5)===0)doctrineStrike="control";
-    const projectile={id:`shot-${d.nextId++}`,tower,target,x:tower.x,y:tower.y,prevX:tower.x,prevY:tower.y,life:0,speed:doctrineStrike?2.05:1.8,damage,kind:stats.projectile,doctrineStrike,masteryTier,node:null,renderVisible:false,renderColor:(VARIANTS.find(item=>item.id===variant)||VARIANTS[0]).color},budget=defenseVisualBudget(d),real=defenseRealNow(d),visibleCount=defenseVisibleProjectileCount(d),visualInterval=1/Math.max(1,budget.projectileEmissionHz||10),visualReady=real>=(tower.nextVisualProjectileAtReal||0),visualAllowed=visualReady&&visibleCount<budget.maxVisibleProjectiles;
+    // Presentation vectors only; do not alter projectile origin or target selection.
+    if(tower.node){const field=mini.defense,dx=(target.x-tower.x)*(field.renderWidth||390),dy=(target.y-tower.y)*(field.renderHeight||500),length=Math.hypot(dx,dy)||1,nx=dx/length,ny=dy/length,investment=tower.superForm?1.46:tower.upgrade>=4?1.30:tower.upgrade>=3?1.20:tower.upgrade>=2?1.12:tower.upgrade>=1?1.06:1;tower.node.style.setProperty("--kick-x",`${-nx*5*investment}px`);tower.node.style.setProperty("--kick-y",`${-ny*5*investment}px`);tower.node.style.setProperty("--soft-kick-x",`${-nx*2.5*investment}px`);tower.node.style.setProperty("--soft-kick-y",`${-ny*2.5*investment}px`);tower.node.style.setProperty("--heavy-kick-x",`${-nx*6.25*investment}px`);tower.node.style.setProperty("--heavy-kick-y",`${-ny*6.25*investment}px`);tower.node.style.setProperty("--lunge-x",`${nx*4*investment}px`);tower.node.style.setProperty("--lunge-y",`${ny*4*investment}px`);tower.node.style.setProperty("--heavy-lunge-x",`${nx*4.8*investment}px`);tower.node.style.setProperty("--heavy-lunge-y",`${ny*4.8*investment}px`);tower.node.style.setProperty("--aim-angle",`${Math.atan2(dy,dx)*180/Math.PI}deg`);}
+    const d=mini.defense,variant=stats.variant,shotNumber=(tower.shots||0)+1,universal=defenseIsUniversalTower(tower),masteryTier=universal?0:defenseMasteryTierForPet(tower.petId);let damage=stats.damage*defenseAuroraBuff(tower),doctrineStrike=null,doubleStitch=false;
+    if(universal){doubleStitch=tower.upgrade>=1&&shotNumber%DEFENSE_BASIC_TOWER.doubleStitchEvery===0;if(doubleStitch)damage*=1.42;if(tower.doctrine==="power"&&tower.upgrade>=2&&shotNumber%(tower.upgrade>=4?DEFENSE_BASIC_TOWER.powerApexEvery:DEFENSE_BASIC_TOWER.powerStrikeEvery)===0){damage*=tower.upgrade>=4?2.2:1.75;doctrineStrike="power";}else if(tower.doctrine==="control"&&tower.upgrade>=2&&shotNumber%(tower.upgrade>=4?DEFENSE_BASIC_TOWER.controlApexEvery:DEFENSE_BASIC_TOWER.controlStrikeEvery)===0)doctrineStrike="control";}else{if(variant==="classic"&&tower.upgrade>=1&&shotNumber%3===0)damage*=1.65;if(variant==="shadow"&&Math.random()<stats.crit+.18)damage*=2.25;if(variant==="glitch"&&Math.random()<.28)damage*=1.75;if(tower.doctrine==="power"&&tower.upgrade>=2&&shotNumber%(tower.upgrade>=4?4:5)===0){damage*=tower.upgrade>=4?2.1:1.7;doctrineStrike="power";}else if(tower.doctrine==="control"&&tower.upgrade>=2&&shotNumber%(tower.upgrade>=4?4:5)===0)doctrineStrike="control";}
+    const projectile={id:`shot-${d.nextId++}`,tower,target,x:tower.x,y:tower.y,prevX:tower.x,prevY:tower.y,life:0,speed:universal?(doctrineStrike?2.25:1.95):(doctrineStrike?2.05:1.8),damage,kind:stats.projectile,doctrineStrike,doubleStitch,masteryTier,node:null,renderVisible:false,renderColor:defenseTowerDisplayColor(tower)},budget=defenseVisualBudget(d),real=defenseRealNow(d),visibleCount=defenseVisibleProjectileCount(d),visualInterval=1/Math.max(1,budget.projectileEmissionHz||10),visualReady=real>=(tower.nextVisualProjectileAtReal||0),visualAllowed=visualReady&&visibleCount<budget.maxVisibleProjectiles;
     tower.shots=shotNumber;
     // Logical projectiles are independent from presentation. A rapid-fire Rizo can
     // remain mathematically exact while only a representative subset gets a DOM
     // tracer. This is the largest v76 projectile-pressure reduction.
     if(d.projectiles.length>=160){d.coalescedLogicalShots=(d.coalescedLogicalShots||0)+1;applyDefenseHit(projectile);if(real>=(tower.nextAttackAnimAtReal||0)){animateDefenseTower(tower,doctrineStrike?"doctrine":"attack");tower.nextAttackAnimAtReal=real+visualInterval;}return;}
-    if(visualAllowed){if(defenseUsesCanvas(d)){projectile.renderVisible=true;tower.nextVisualProjectileAtReal=real+visualInterval;}else{const node=acquireDefenseProjectileNode();if(node){node.className=`defense-shot shot-${stats.projectile} signature-${variant} mastery-shot-${masteryTier} ${doctrineStrike?`shot-doctrine-${doctrineStrike}`:""}`;node.style.setProperty("--signature-color",projectile.renderColor);positionDefenseMovingNode(node,tower.x,tower.y);projectile.node=node;tower.nextVisualProjectileAtReal=real+visualInterval;}}}else d.coalescedVisualShots=(d.coalescedVisualShots||0)+1;
+    if(visualAllowed){if(defenseUsesCanvas(d)){projectile.renderVisible=true;tower.nextVisualProjectileAtReal=real+visualInterval;}else{const node=acquireDefenseProjectileNode();if(node){node.className=`defense-shot shot-${stats.projectile} signature-${variant} mastery-shot-${masteryTier} ${doubleStitch?"shot-double-stitch":""} ${doctrineStrike?`shot-doctrine-${doctrineStrike}`:""}`;node.style.setProperty("--signature-color",projectile.renderColor);node.style.setProperty("--shot-angle",`${Math.atan2(target.y-tower.y,target.x-tower.x)}rad`);positionDefenseMovingNode(node,tower.x,tower.y);projectile.node=node;tower.nextVisualProjectileAtReal=real+visualInterval;}}}else d.coalescedVisualShots=(d.coalescedVisualShots||0)+1;
     d.projectiles.push(projectile);d.maxLogicalProjectilesObserved=Math.max(d.maxLogicalProjectilesObserved||0,d.projectiles.length);d.maxProjectileNodesObserved=Math.max(d.maxProjectileNodesObserved||0,defenseVisibleProjectileCount(d));
-    if(projectile.node||projectile.renderVisible||doctrineStrike||real>=(tower.nextAttackAnimAtReal||0)){animateDefenseTower(tower,doctrineStrike?"doctrine":"attack");tower.nextAttackAnimAtReal=real+visualInterval;}
-    if(projectile.node||projectile.renderVisible)defenseSignatureTone(tower,masteryTier);
+    if(projectile.node||projectile.renderVisible||doctrineStrike||real>=(tower.nextAttackAnimAtReal||0)){animateDefenseTower(tower,doctrineStrike?"doctrine":"attack");spawnDefenseMuzzleFx(tower,target);tower.nextAttackAnimAtReal=real+visualInterval;}
+    if(projectile.node||projectile.renderVisible||doctrineStrike)defenseSignatureTone(tower,masteryTier,doctrineStrike);
   }
-  function dealDefenseDamage(enemy,raw,tower,kind="classic",ignoreArmor=false){if(!enemy||enemy.dead||enemy.hp<=0)return 0;const d=mini.defense,phase=enemy.phaseActive?.34:1,variant=tower?(tower.pet.variant||tower.pet.hiddenVariant||"classic"):null,camoActive=defenseEnemyCamoActive(enemy),camoMultiplier=camoActive&&tower&&!['shadow','aurora','glitch'].includes(variant)&&tower.upgrade<2?.25:1,penetration=tower?(variant==="diamond"?.65:variant==="obsidian"?.35:tower.doctrine==="power"?.28:0):0,effectiveArmor=ignoreArmor?0:Math.max(0,(enemy.armor||0)*(1-penetration)),calculated=Math.max(0,raw*(1-effectiveArmor)*phase*camoMultiplier),dealt=Math.min(enemy.hp,calculated);enemy.hp-=dealt;enemy.hitFlash=.12;if(tower){tower.damage+=dealt;d.totalDamage+=dealt;}markDefenseUi();if(enemy.hp<=0)popDefenseEnemy(enemy,tower);else{applyDefenseEnemyThresholds(enemy,tower);spawnDefenseImpact(enemy.x,enemy.y,kind,0,tower);}return dealt;}
+  function defenseRelaySupport(enemy,d=mini.defense){if(!enemy||enemy.dead||enemy.type==="relay")return 0;for(const support of d?.enemies||[]){if(support.dead||support.type!=="relay"||support.hp<=0)continue;if(Math.abs((support.progress||0)-(enemy.progress||0))<=.105)return 1;}return 0;}
+  function collapseDefenseRelay(enemy,time=defenseNow()){const d=mini.defense;if(!d||!enemy)return 0;let affected=0;for(const other of d.enemies){if(other===enemy||other.dead||other.bossId||other.type==="relay"||Math.abs((other.progress||0)-(enemy.progress||0))>.12)continue;other.signalStaggerUntil=Math.max(other.signalStaggerUntil||0,time+1.05);other.relayBoosted=Boolean(defenseRelaySupport(other,d));affected+=1;updateDefenseEnemyNode(other);}if(affected&&!d.lowFx)spawnDefenseImpact(enemy.x,enemy.y,"control",0,null,{color:"#5fe0b7",enemyType:"relay",popWeight:1.1});return affected;}
+  function pulseDefenseMender(enemy,time){if(!enemy?.healer||enemy.dead)return false;const relayLinked=Boolean(defenseRelaySupport(enemy)),interval=relayLinked?3.0:3.6,cycle=Math.floor((time+(enemy.phaseOffset||0))/interval);if(cycle===enemy.supportCycle)return false;enemy.supportCycle=cycle;const candidates=(mini.defense?.enemies||[]).filter(other=>other!==enemy&&!other.dead&&!other.bossId&&other.hp>0&&Math.abs((other.progress||0)-(enemy.progress||0))<=.13).map(other=>({other,armorNeed:Boolean(other.baseArmor>0&&!other.armorBroken&&other.armorShredded&&other.armor<other.baseArmor-.01),healthRatio:other.hp/other.maxHp})).filter(row=>row.armorNeed||row.healthRatio<.985).sort((a,b)=>Number(b.armorNeed)-Number(a.armorNeed)||a.healthRatio-b.healthRatio||b.other.progress-a.other.progress),row=candidates[0];if(!row)return false;const target=row.other,heal=Math.min(target.maxHp-target.hp,target.maxHp*(relayLinked?.085:.075)+Math.max(0,(mini.defense.currentWave||1)-30)*.03);let repaired=false;if(row.armorNeed){target.armor=Math.min(target.baseArmor,target.armor+Math.max(.025,target.baseArmor*.24));if(target.armor>=target.baseArmor-.012){target.armor=target.baseArmor;target.armorShredded=false;}repaired=true;}if(heal>0)target.hp+=heal;if(!repaired&&heal<=0)return false;target.hitFlash=.06;enemy.supportFlashUntil=time+.42;spawnDefenseImpact(target.x,target.y,"aurora",0,null,{color:repaired?"#ffd0e8":"#ff9fcf",enemyType:"mender",popWeight:.8});updateDefenseEnemyNode(enemy);updateDefenseEnemyNode(target);markDefenseUi();return true;}
+  function dealDefenseDamage(enemy,raw,tower,kind="classic",ignoreArmor=false){if(!enemy||enemy.dead||enemy.hp<=0)return 0;const d=mini.defense,phase=enemy.phaseActive?.34:1,variant=tower?(tower.pet.variant||tower.pet.hiddenVariant||"classic"):null,camoActive=defenseEnemyCamoActive(enemy),mapSight=Boolean(tower&&defenseMapBondForTower(tower,d)?.camoSight),camoMultiplier=camoActive&&tower&&!mapSight&&!['shadow','aurora','glitch'].includes(variant)&&tower.upgrade<2?.25:1,penetration=tower?(variant==="diamond"?.65:variant==="obsidian"?.35:tower.doctrine==="power"?.28:0):0,relayGuard=defenseRelaySupport(enemy,d),effectiveArmor=ignoreArmor?0:Math.min(.72,Math.max(0,(enemy.armor||0)*(1-penetration))+(relayGuard?.10:0)),calculated=Math.max(0,raw*(1-effectiveArmor)*phase*camoMultiplier),dealt=Math.min(enemy.hp,calculated);enemy.hp-=dealt;enemy.hitFlash=.12;if(tower){enemy.hitFromX=tower.x;enemy.hitFromY=tower.y;tower.damage+=dealt;d.totalDamage+=dealt;}markDefenseUi();if(enemy.hp<=0)popDefenseEnemy(enemy,tower);else{applyDefenseEnemyThresholds(enemy,tower);spawnDefenseImpact(enemy.x,enemy.y,kind,0,tower);}return dealt;}
   function dealDefenseDot(enemy,raw,tower,kind){if(!enemy||enemy.dead||enemy.hp<=0||raw<=0)return 0;const dealt=Math.min(enemy.hp,raw);enemy.hp-=dealt;enemy.hitFlash=.08;if(tower&&mini.defense.towers.includes(tower)){tower.damage+=dealt;mini.defense.totalDamage+=dealt;}markDefenseUi();if(enemy.hp<=0)popDefenseEnemy(enemy,tower&&mini.defense.towers.includes(tower)?tower:null);return dealt;}
-  function applyDefenseHit(projectile){const{target,tower}=projectile;if(!target||target.hp<=0)return;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",time=defenseNow();let raw=projectile.damage;if(variant==="ember"&&target.fireproof)raw*=.68;if(variant==="frost"&&target.fireproof)raw*=1.22;const dealt=dealDefenseDamage(target,raw,tower,projectile.doctrineStrike||variant);if(dealt>0&&target.bossId&&tower.doctrine==="control")disruptDefenseBossTelegraph(target,tower,.3+tower.upgrade*.06);if(target.dead)return;if(variant==="ember"&&!target.fireproof){const burn=dealt*.16;if(burn>=target.burn){target.burn=burn;target.burnSource=tower;}target.burnUntil=time+3.2*(tower.doctrine==="control"?1.28:1);}if(variant==="toxic"){const poison=dealt*.12;if(poison>=target.poison){target.poison=poison;target.poisonSource=tower;}target.poisonUntil=time+5*(tower.doctrine==="control"?1.28:1);}if(variant==="frost"){const slow=.38*(1-(target.slowResist||0));target.slow=Math.max(target.slow,slow);target.slowUntil=time+2.6*(tower.doctrine==="control"?1.28:1);}if(variant==="moss")target.rootUntil=Math.max(target.rootUntil,time+(.55+tower.upgrade*.12)*(tower.doctrine==="control"?1.28:1));if(variant==="bubblegum")target.progress=Math.max(0,target.progress-(.026+tower.upgrade*.006)*(tower.doctrine==="control"?1.28:1));if(variant==="glitch"&&(target.phasing||defenseEnemyCamoActive(target,time))&&Math.random()<.38)revealDefenseEnemy(target,1.4,tower);if(projectile.doctrineStrike==="power"){shredDefenseArmor(target,tower.upgrade>=4?.07:.045,tower);const splash=defenseProgressTargetsNear(target,.105,tower.upgrade>=4?3:2);splash.forEach((enemy,index)=>{dealDefenseDamage(enemy,dealt*(tower.upgrade>=4?.38:.28),tower,"power");shredDefenseArmor(enemy,tower.upgrade>=4?.035:.02,tower);spawnDefenseImpact(enemy.x,enemy.y,"power",index,tower);});}else if(projectile.doctrineStrike==="control"){const resist=1-(target.slowResist||0),slow=(tower.upgrade>=4?.45:.34)*resist;target.slow=Math.max(target.slow,slow);target.slowUntil=Math.max(target.slowUntil,time+(tower.upgrade>=4?1.8:1.35));revealDefenseEnemy(target,tower.upgrade>=4?3.6:2.6,tower);if(tower.upgrade>=4&&!target.bossId)target.progress=Math.max(0,target.progress-.018);spawnDefenseImpact(target.x,target.y,"control",0,tower);}if(variant==="violet"||variant==="diamond"){const jumps=defenseProgressTargetsNear(target,.13,variant==="diamond"?2:1);jumps.forEach((enemy,index)=>{dealDefenseDamage(enemy,dealt*(variant==="diamond"?.58:.42),tower,variant);spawnDefenseImpact(enemy.x,enemy.y,variant,index,tower);});}}
+  function applyDefenseHit(projectile){
+    const {target,tower}=projectile;if(!target||target.dead||target.hp<=0)return;
+    const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",time=defenseNow();
+    let raw=projectile.damage;
+    if(defenseIsUniversalTower(tower)){
+      const level=tower.upgrade,restrainedBefore=defenseBasicRestrained(target,time),openedBefore=defenseBasicOpened(target);if(projectile.doctrineStrike==="power"&&restrainedBefore)raw*=level>=4?1.32:1.18;
+      const dealt=dealDefenseDamage(target,raw,tower,projectile.doctrineStrike||"defense-basic");
+      if(projectile.doubleStitch){const mate=defenseProgressTargetsNear(target,.09,1)[0];if(mate){defenseBasicLinkFlash(target,mate,"stitch");dealDefenseDamage(mate,raw*.48,tower,"defense-basic");spawnDefenseImpact(mate.x,mate.y,"defense-basic",1,tower);}}
+      if(projectile.doctrineStrike==="power"){
+        shredDefenseArmor(target,level>=4?.13:.07,tower);const splash=level>=4?defenseBasicRivetTargets(target,.15,2):defenseProgressTargetsNear(target,.09,2);splash.forEach(enemy=>{defenseBasicLinkFlash(target,enemy,"power");shredDefenseArmor(enemy,level>=4?.06:.03,tower);dealDefenseDamage(enemy,raw*(level>=4?.58:.32),tower,"power");spawnDefenseImpact(enemy.x,enemy.y,"power",0,tower);});
+      }else if(projectile.doctrineStrike==="control"){
+        const combo=openedBefore,strength=level>=4?.54:.40,rootBonus=combo?.42:0,rewindBonus=combo?.012:0;target.slow=Math.max(target.slow,strength*(1-(target.slowResist||0)));target.slowUntil=Math.max(target.slowUntil,time+(level>=4?2.5:1.8));revealDefenseEnemy(target,level>=4?4.2:2.8,tower);if(level>=3)target.rootUntil=Math.max(target.rootUntil,time+(level>=4?.95:.62)+rootBonus);if(level>=4&&!target.bossId)target.progress=Math.max(0,target.progress-(.024+rewindBonus));
+        if(level>=3){const threaded=defenseBasicThreadTargets(target,level>=4?.15:.11,level>=4?3:1);threaded.forEach((enemy,index)=>{defenseBasicLinkFlash(index?threaded[index-1]:target,enemy,"control");enemy.slow=Math.max(enemy.slow,(level>=4?.30:.22)*(1-(enemy.slowResist||0)));enemy.slowUntil=Math.max(enemy.slowUntil,time+(level>=4?1.7:1.15));enemy.rootUntil=Math.max(enemy.rootUntil,time+(level>=4?.42:.24)+(defenseBasicOpened(enemy)?.18:0));if(level>=4&&!enemy.bossId)enemy.progress=Math.max(0,enemy.progress-.010);spawnDefenseImpact(enemy.x,enemy.y,"control",index,tower);});}
+        spawnDefenseImpact(target.x,target.y,"control",0,tower);
+      }else if(level>=3&&tower.doctrine==="power")shredDefenseArmor(target,.032,tower);
+      if(dealt>0&&target.bossId&&tower.doctrine==="control")disruptDefenseBossTelegraph(target,tower,level>=4?.34:.22);return;
+    }
+    if(variant==="ember"&&target.fireproof)raw*=.68;
+    if(variant==="frost"&&target.fireproof)raw*=1.22;
+    // Chill sets up the heavy hitter. It is consumed, so two Cold Shoulders
+    // cannot turn a Warden into a permanently frozen damage multiplier.
+    if(variant==="obsidian"&&target.slowUntil>time&&target.slow>=.3){raw*=1.35;target.slowUntil=time;spawnDefenseImpact(target.x,target.y,"frost",0,tower);}
+    if(variant==="obsidian"&&tower.upgrade>=1)shredDefenseArmor(target,.08,tower);
+    const dealt=dealDefenseDamage(target,raw,tower,projectile.doctrineStrike||variant);
+    if(dealt>0&&target.bossId&&tower.doctrine==="control")disruptDefenseBossTelegraph(target,tower,.3+tower.upgrade*.06);
+    // Area attacks carry their own energy. Killing a 1-HP front target must
+    // not erase the chain/splash, or scale the rest of the hit down to 1 HP.
+    if(variant==="violet"){
+      const hit=new Set([target]);let origin=target,energy=raw*.72;
+      for(let hop=0;hop<(tower.upgrade>=1?3:2);hop++){
+        const next=mini.defense.enemies.filter(e=>!e.dead&&!hit.has(e)&&Math.hypot(e.x-origin.x,e.y-origin.y)<.17).sort((a,b)=>Math.hypot(a.x-origin.x,a.y-origin.y)-Math.hypot(b.x-origin.x,b.y-origin.y))[0];
+        if(!next)break;hit.add(next);defenseChainFlash(origin,next,tower);dealDefenseDamage(next,energy,tower,"violet");origin=next;energy*=.8;
+      }
+    }else if(variant==="diamond"||variant==="obsidian"){
+      const radius=variant==="diamond"?.13:.075,scale=variant==="diamond"?.58:.42;
+      defenseProgressTargetsNear(target,radius,2).forEach(e=>dealDefenseDamage(e,raw*scale,tower,variant));
+    }
+    if(variant==="frost"&&tower.upgrade>=1){
+      defenseProgressTargetsNear(target,.10,3).forEach(e=>{e.slow=Math.max(e.slow,.32*(1-(e.slowResist||0)));e.slowUntil=Math.max(e.slowUntil,time+1.8);spawnDefenseImpact(e.x,e.y,"frost",0,tower);});
+    }
+    if(projectile.doctrineStrike==="power"){
+      defenseProgressTargetsNear(target,.105,tower.upgrade>=4?3:2).forEach(e=>{shredDefenseArmor(e,.035,tower);dealDefenseDamage(e,raw*.28,tower,"power");});
+    }
+    if(target.dead)return;
+    if(variant==="ember"&&!target.fireproof){const burn=raw*.16;if(burn>=target.burn){target.burn=burn;target.burnSource=tower;}target.burnUntil=time+3.2*(tower.doctrine==="control"?1.28:1);}
+    if(variant==="toxic"){const poison=raw*.12;if(poison>=target.poison){target.poison=poison;target.poisonSource=tower;}target.poisonUntil=time+5*(tower.doctrine==="control"?1.28:1);}
+    if(variant==="frost"){target.slow=Math.max(target.slow,.42*(1-(target.slowResist||0)));target.slowUntil=time+2.6*(tower.doctrine==="control"?1.28:1);}
+    if(variant==="moss")target.rootUntil=Math.max(target.rootUntil,time+(.55+tower.upgrade*.12)*(tower.doctrine==="control"?1.28:1));
+    if(variant==="bubblegum")target.progress=Math.max(0,target.progress-(.026+tower.upgrade*.006)*(tower.doctrine==="control"?1.28:1));
+    if(variant==="glitch"&&(target.phasing||defenseEnemyCamoActive(target,time))&&Math.random()<.38)revealDefenseEnemy(target,1.4,tower);
+    if(projectile.doctrineStrike==="power")shredDefenseArmor(target,tower.upgrade>=4?.07:.045,tower);
+    if(projectile.doctrineStrike==="control"){
+      target.slow=Math.max(target.slow,(tower.upgrade>=4?.45:.34)*(1-(target.slowResist||0)));
+      target.slowUntil=Math.max(target.slowUntil,time+(tower.upgrade>=4?1.8:1.35));
+      revealDefenseEnemy(target,tower.upgrade>=4?3.6:2.6,tower);
+      if(tower.upgrade>=4&&!target.bossId)target.progress=Math.max(0,target.progress-.018);
+      spawnDefenseImpact(target.x,target.y,"control",0,tower);
+    }
+  }
+  function defenseChainFlash(from,to,tower){
+    const d=mini.defense;if(d.effects.length>=defenseVisualBudget(d).maxImpactEffects)return;
+    d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length+1);
+    if(defenseUsesCanvas(d)){d.effects.push({kind:"chain",x:from.x,y:from.y,toX:to.x,toY:to.y,color:"#ca9aff",startedAt:d.clock,expiresAt:d.clock+.16});return;}
+    const node=acquireDefenseImpactNode();if(!node)return;
+    const dx=(to.x-from.x)*(d.renderWidth||390),dy=(to.y-from.y)*(d.renderHeight||390);
+    node.className="defense-chain-link";node.style.left=`${from.x*100}%`;node.style.top=`${from.y*100}%`;node.style.width=`${Math.hypot(dx,dy)}px`;node.style.transform=`rotate(${Math.atan2(dy,dx)}rad)`;
+    const effect={node,expiresAt:d.clock+.16};d.effects.push(effect);
+  }
   function acquireDefenseImpactNode(){
     const d=mini.defense,host=$("#defenseEffects");if(!d||!host)return null;let node=d.impactNodePool.pop();if(!node){node=document.createElement("i");d.impactNodesCreated=(d.impactNodesCreated||0)+1;}node.hidden=false;node.removeAttribute("style");node.className="defense-impact";host.appendChild(node);d.impactNodesAcquired=(d.impactNodesAcquired||0)+1;return node;
   }
   function releaseDefenseImpactNode(node,owner=mini.defense){if(!node)return;node.remove();node.hidden=true;node.className="defense-impact";node.removeAttribute("style");if(owner&&owner===mini.defense&&owner.impactNodePool.length<36)owner.impactNodePool.push(node);}
-  function spawnDefenseImpact(x,y,kind="classic",index=0,tower=null){const d=mini.defense;if(!d)return;const budget=defenseVisualBudget(d),host=$("#defenseEffects");if(!host||d.effects.length>=budget.maxImpactEffects){d.droppedCosmetics=(d.droppedCosmetics||0)+1;return;}const major=["boss","crown","vortex","mirror","apex","gate"].includes(kind),duration=major?.34:kind==="pop"?.13:.20,safeX=clamp(Number(x)||0,.022,.978),safeY=clamp(Number(y)||0,.022,.978),color=tower?(VARIANTS.find(item=>item.id===(tower.pet.variant||tower.pet.hiddenVariant))||VARIANTS[0]).color:"#fff2cf";if(defenseUsesCanvas(d)){const effect={node:null,x:safeX,y:safeY,kind,index,color,major,startedAt:defenseNow(),expiresAt:defenseNow()+duration};d.effects.push(effect);d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length);queueMiniTimeout(()=>removeDefenseRuntimeItem(d.effects,effect),Math.ceil(duration*1000)+30);return;}const node=acquireDefenseImpactNode();if(!node)return;node.className=`defense-impact impact-${kind}`;node.style.left=`${safeX*100}%`;node.style.top=`${safeY*100}%`;node.style.setProperty("--impact-index",index);node.style.setProperty("--impact-life",`${duration}s`);if(tower)node.style.setProperty("--impact-color",color);host.appendChild(node);const effect={node,x:safeX,y:safeY,kind,index,color,major,startedAt:defenseNow(),expiresAt:defenseNow()+duration};d.effects.push(effect);d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length);queueMiniTimeout(()=>{removeDefenseRuntimeItem(d.effects,effect);releaseDefenseImpactNode(effect.node);},Math.ceil(duration*1000)+20);}
+  function spawnDefenseImpact(x,y,kind="classic",index=0,tower=null,options={}){const d=mini.defense;if(!d)return;const budget=defenseVisualBudget(d),host=$("#defenseEffects");if(!host||d.effects.length>=budget.maxImpactEffects){d.droppedCosmetics=(d.droppedCosmetics||0)+1;return;}const major=["boss","crown","vortex","mirror","apex","gate"].includes(kind),muzzle=kind==="muzzle",resonance=["flashover","bloom","crystal","shatter"].includes(kind),duration=major?.46:(kind==="pop"||kind==="bubble")?.36:resonance?.34:muzzle?.14:.20,safeX=clamp(Number(x)||0,.022,.978),safeY=clamp(Number(y)||0,.022,.978),variant=tower?(tower.pet.variant||tower.pet.hiddenVariant||"classic"):String(options.variant||"classic"),color=String(options.color|| (tower?defenseTowerDisplayColor(tower):"#fff2cf")),angle=Number(options.angle)||0,enemyType=String(options.enemyType||""),impulseX=clamp(Number(options.impulseX)||0,-1,1),impulseY=clamp(Number(options.impulseY)||0,-1,1),routeX=clamp(Number(options.routeX)||0,-1,1),routeY=clamp(Number(options.routeY)||0,-1,1),popWeight=clamp(Number(options.popWeight)||1,.75,1.45);if(defenseUsesCanvas(d)){const effect={node:null,x:safeX,y:safeY,kind,index,color,variant,angle,enemyType,major,impulseX,impulseY,routeX,routeY,popWeight,startedAt:defenseNow(),expiresAt:defenseNow()+duration};d.effects.push(effect);d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length);queueMiniTimeout(()=>removeDefenseRuntimeItem(d.effects,effect),Math.ceil(duration*1000)+30);return;}const node=acquireDefenseImpactNode();if(!node)return;node.className=`defense-impact impact-${kind} impact-variant-${variant}${enemyType?` impact-enemy-${enemyType}`:""}`;node.style.left=`${safeX*100}%`;node.style.top=`${safeY*100}%`;node.style.setProperty("--impact-index",index);node.style.setProperty("--impact-life",`${duration}s`);node.style.setProperty("--impact-color",color);node.style.setProperty("--impact-angle",`${angle}rad`);node.style.setProperty("--impact-bias-x",`${impulseX}`);node.style.setProperty("--impact-bias-y",`${impulseY}`);host.appendChild(node);const effect={node,x:safeX,y:safeY,kind,index,color,variant,angle,enemyType,major,impulseX,impulseY,routeX,routeY,popWeight,startedAt:defenseNow(),expiresAt:defenseNow()+duration};d.effects.push(effect);d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length);queueMiniTimeout(()=>{if(d.effects.includes(effect)){removeDefenseRuntimeItem(d.effects,effect);releaseDefenseImpactNode(effect.node);}},Math.ceil(duration*1000)+20);}
+  function spawnDefenseMuzzleFx(tower,target){if(!tower||!target)return;const d=mini.defense;if(!d||d.lowFx)return;const budget=defenseVisualBudget(d);if(d.effects.length>=Math.max(1,budget.maxImpactEffects-1))return;const dx=(target.x-tower.x)*(d.renderWidth||390),dy=(target.y-tower.y)*(d.renderHeight||500);spawnDefenseImpact(tower.x,tower.y,"muzzle",0,tower,{angle:Math.atan2(dy,dx)});}
+
 
   function removeDefenseRuntimeItem(list,item){const index=list.indexOf(item);if(index>=0)list.splice(index,1);}
   function removeDefenseEnemy(enemy){enemy.dead=true;releaseDefenseEnemyNode(enemy);removeDefenseRuntimeItem(mini.defense.enemies,enemy);removeDefenseRuntimeItem(mini.entities,enemy);}
-  function popDefenseEnemy(enemy,tower=null){if(enemy.dead)return;enemy.dead=true;const d=mini.defense,key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type;queueDefenseIncome(Math.round(enemy.reward*defenseGoldenBonus()),enemy.bossId?"boss":"pop");d.kills+=1;d.waveResolved+=1;defenseRecordEnemyStat("popped",key);mini.hits+=1;markDefenseUi({roster:true});mini.score=Math.max(mini.score,d.clearedWave);if(tower)tower.kills+=1;enemy.node?.classList.add("popped");if(!d.lowFx||enemy.bossId)spawnDefenseImpact(enemy.x,enemy.y,enemy.bossId?enemy.bossId:enemy.type==="split"?"bubble":"pop");queueMiniTimeout(()=>releaseDefenseEnemyNode(enemy),enemy.bossId?240:140);removeDefenseRuntimeItem(d.enemies,enemy);removeDefenseRuntimeItem(mini.entities,enemy);if(enemy.type==="split"){d.waveTotal+=2;queueDefenseChildSpawn("puff",{progress:enemy.progress,delay:.08});queueDefenseChildSpawn("fleet",{progress:Math.max(0,enemy.progress-.018),delay:.16});}if(enemy.bossId){d.bossesBeaten.push(enemy.bossId);d.bossesDefeated=(d.bossesDefeated||0)+1;showDefenseCinematicMoment("clear",{title:"BOSS POPPED",copy:(DEFENSE_BOSSES.find(item=>item.id===enemy.bossId)?.name||"BOSS")+" IS OFF THE TRAIL",priority:7,duration:1100});}if(enemy.bossId||defenseRealNow(d)-d.lastPopSfxAt>.065){d.lastPopSfxAt=defenseRealNow(d);sfx(enemy.bossId?"legendary":"spark");}}
-  function triggerCrownGuards(enemy){enemy.phaseTriggered=true;mini.defense.waveTotal+=2;queueDefenseChildSpawn("shell",{progress:clamp(enemy.progress-.025,0,.98),delay:.08});queueDefenseChildSpawn("shell",{progress:clamp(enemy.progress+.025,0,.98),delay:.18});markDefenseUi();setDefenseMessage("THE WARDEN CALLED GUARDS","Two armored escorts are joining the trail.");spawnDefenseImpact(enemy.x,enemy.y,"boss");}
-  function triggerVortexPulse(enemy){const d=mini.defense,time=defenseNow();enemy.nextBossPulse=time+4;for(const tower of d.towers){if(Math.hypot(tower.x-enemy.x,tower.y-enemy.y)<.32){tower.rangeDebuffUntil=Math.max(tower.rangeDebuffUntil,time+2.5);tower.node?.classList.add("range-weakened");}}const ring=document.createElement("i");ring.className="defense-vortex-pulse";ring.style.left=`${enemy.x*100}%`;ring.style.top=`${enemy.y*100}%`;$("#defenseEffects")?.appendChild(ring);queueMiniTimeout(()=>ring.remove(),850);setDefenseMessage("THE MAW DISTORTS THE FIELD", "NEARBY RIZO RANGE IS WEAKENED FOR 2.5 SECONDS.");}
-  function splitMirrorBoss(enemy){enemy.phaseTriggered=true;const remaining=Math.max(1,enemy.hp),progress=enemy.progress,intensity=enemy.bossIntensity;removeDefenseEnemy(enemy);mini.defense.waveTotal+=1;queueDefenseChildSpawn({type:"boss",bossId:"mirror",intensity},{progress:clamp(progress-.018,0,.98),delay:.08,options:{bossChild:true,hpOverride:remaining*.5,maxHpOverride:remaining*.5,rewardScale:.5}});queueDefenseChildSpawn({type:"boss",bossId:"mirror",intensity},{progress:clamp(progress+.018,0,.98),delay:.2,options:{bossChild:true,hpOverride:remaining*.5,maxHpOverride:remaining*.5,rewardScale:.5}});setDefenseMessage("MIRROR SPLIT","The two children are released sequentially so the visual node budget remains stable.");}
-  function beginDefenseBossTelegraph(enemy,kind){const data=DEFENSE_BOSS_TELEGRAPHS[kind];if(!enemy?.bossId||enemy.dead||!data||enemy.telegraphKind)return false;const time=defenseNow();enemy.telegraphKind=kind;enemy.telegraphStartedAt=time;enemy.telegraphUntil=time+data.duration;enemy.telegraphDisruption=0;updateDefenseEnemyNode(enemy);setDefenseMessage(data.title,data.copy);sfx("ui");haptic([8,16,8]);return true;}
-  function clearDefenseBossTelegraph(enemy,interrupted=false){if(!enemy?.telegraphKind)return false;const kind=enemy.telegraphKind,time=defenseNow();enemy.telegraphKind=null;enemy.telegraphStartedAt=0;enemy.telegraphUntil=0;enemy.telegraphDisruption=0;if(interrupted){if(kind==="guards"||kind==="mirror")enemy.phaseTriggered=true;if(kind==="vortex")enemy.nextBossPulse=time+4;if(kind==="apex")enemy.nextBossPulse=time+4.5;enemy.bossMechanicLocked=true;mini.defense.enemyStats.counters.bossInterrupts=(mini.defense.enemyStats.counters.bossInterrupts||0)+1;setDefenseMessage("BOSS SIGNAL BROKEN","CONTROL doctrine cancelled the mechanic before it resolved.");spawnDefenseImpact(enemy.x,enemy.y,"control");sfx("legendary");haptic([12,18,12]);}updateDefenseEnemyNode(enemy);markDefenseUi();return true;}
+  function popDefenseEnemy(enemy,tower=null){if(enemy.dead)return;enemy.dead=true;const d=mini.defense,key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type;queueDefenseIncome(Math.round(enemy.reward*defenseGoldenBonus()),enemy.bossId?"boss":"pop");d.kills+=1;d.waveResolved+=1;defenseRecordEnemyStat("popped",key);mini.hits+=1;markDefenseUi({roster:true});mini.score=Math.max(mini.score,d.clearedWave);if(tower)tower.kills+=1;const routeDx=(enemy.x-(Number.isFinite(enemy.prevX)?enemy.prevX:enemy.x)),routeDy=(enemy.y-(Number.isFinite(enemy.prevY)?enemy.prevY:enemy.y)),routeLen=Math.hypot(routeDx,routeDy)||1,routeX=routeDx/routeLen,routeY=routeDy/routeLen;const hitDx=tower?(enemy.x-tower.x):routeX,hitDy=tower?(enemy.y-tower.y):routeY,hitLen=Math.hypot(hitDx,hitDy)||1,impulseX=hitDx/hitLen,impulseY=hitDy/hitLen,weight=enemy.bossId?1.45:(enemy.type==="lead"||enemy.type==="brick")?1.28:(enemy.type==="shell"||enemy.type==="fire")?1.14:enemy.type==="fleet"?.9:1,popAngle=Math.atan2(impulseY,impulseX),popKind=enemy.bossId?"heavy":(enemy.type==="fleet"?"fleet":enemy.type==="split"?"split":enemy.type==="fire"?"fire":enemy.type==="shell"?"shell":enemy.type==="ghost"?"ghost":(enemy.type==="lead"||enemy.type==="brick")?"heavy":"base");if(enemy.node){enemy.node.classList.add("popped",`pop-${popKind}`);enemy.node.style.setProperty("--pop-angle",`${popAngle}rad`);enemy.node.style.setProperty("--pop-bias-x",`${impulseX.toFixed(3)}`);enemy.node.style.setProperty("--pop-bias-y",`${impulseY.toFixed(3)}`);enemy.node.style.setProperty("--pop-weight",`${weight.toFixed(3)}`);}if(!d.lowFx||enemy.bossId){spawnDefenseImpact(enemy.x,enemy.y,enemy.bossId?enemy.bossId:enemy.type==="split"?"bubble":"pop",0,tower,{color:enemy.renderColor||"#ff657c",enemyType:enemy.type,angle:popAngle,impulseX,impulseY,routeX,routeY,popWeight:weight});}
+  if(enemy.type==="relay")collapseDefenseRelay(enemy,defenseNow());queueMiniTimeout(()=>releaseDefenseEnemyNode(enemy),enemy.bossId?280:185);removeDefenseRuntimeItem(d.enemies,enemy);removeDefenseRuntimeItem(mini.entities,enemy);if(enemy.type==="split"){d.waveTotal+=2;queueDefenseChildSpawn("puff",{progress:enemy.progress,delay:.08});queueDefenseChildSpawn("fleet",{progress:Math.max(0,enemy.progress-.018),delay:.16});}if(enemy.bossId){d.bossesBeaten.push(enemy.bossId);d.bossesDefeated=(d.bossesDefeated||0)+1;defenseBossStagePulse("defeat",enemy.bossId,760);showDefenseCinematicMoment("clear",{title:d.currentWave>30?`REMIX ${Math.max(1,(enemy.bossIntensity||0)+1)} BROKEN`:"BOSS POPPED",copy:(DEFENSE_BOSSES.find(item=>item.id===enemy.bossId)?.name||"BOSS")+" IS OFF THE TRAIL",priority:7,duration:1100});duckMusic(980,.07);defenseBossCue("down",enemy.bossId);defenseHaptic("bossDown");}else if(defenseRealNow(d)-d.lastPopSfxAt>.075){d.lastPopSfxAt=defenseRealNow(d);if(popKind==="heavy")sfx("defense-pop-heavy",weight);else if(popKind==="split")sfx("defense-pop-split");else sfx("defense-pop",weight);}}
+  function triggerCrownGuards(enemy){const tier=Math.max(0,enemy.bossIntensity||0),lastStand=(enemy.bossPhase||0)>=1;enemy.phaseTriggered=true;enemy.bossPhase=lastStand?2:1;const guards=lastStand?["brick","relay","mender"]:tier>=2?["lead","relay","shell","mender"]:tier>=1?["lead","relay","shell"]:["shell","shell"];mini.defense.waveTotal+=guards.length;guards.forEach((type,index)=>queueDefenseChildSpawn(type,{progress:clamp(enemy.progress+(index-(guards.length-1)/2)*.018,0,.98),delay:.08+index*.10}));markDefenseUi();setDefenseMessage(lastStand?"THE WARDEN'S LAST GUARD":tier?"THE WARDEN CHANGED THE GUARD":"THE WARDEN CALLED GUARDS",lastStand?"Its final formation is smaller but self-supporting. Break the Relay before the Mender rebuilds the wall.":tier?"The returning Warden brought support into the escort. Break the signal, then crack the wall.":"Two armored escorts are joining the trail.");spawnDefenseImpact(enemy.x,enemy.y,"boss");}
+  function triggerVortexPulse(enemy){const d=mini.defense,time=defenseNow(),tier=Math.max(0,enemy.bossIntensity||0),radius=.32+Math.min(.10,tier*.025),duration=2.5+Math.min(1.4,tier*.28);enemy.bossPhase=(enemy.bossPhase||0)+1;enemy.nextBossPulse=time+Math.max(2.8,4-tier*.12);for(const tower of d.towers){if(Math.hypot(tower.x-enemy.x,tower.y-enemy.y)<radius){tower.rangeDebuffUntil=Math.max(tower.rangeDebuffUntil,time+duration);tower.node?.classList.add("range-weakened");}}if(tier>=4&&enemy.bossPhase<=6&&enemy.bossPhase%2===0){const type=enemy.bossPhase%4===0?"mender":"relay";d.waveTotal+=1;queueDefenseChildSpawn(type,{progress:clamp(enemy.progress-.025,0,.98),delay:.14});}const ring=document.createElement("i");ring.className="defense-vortex-pulse";ring.style.left=`${enemy.x*100}%`;ring.style.top=`${enemy.y*100}%`;$("#defenseEffects")?.appendChild(ring);queueMiniTimeout(()=>ring.remove(),850);setDefenseMessage(tier>=4&&enemy.bossPhase%2===0?"THE MAW PULLED SOMETHING THROUGH":tier?"THE MAW LEARNED YOUR RANGE":"THE MAW DISTORTS THE FIELD",tier>=4&&enemy.bossPhase%2===0?"The collapse now drags support into its wake. The pulse and the escort are one problem.":tier?`RANGE COLLAPSE ${duration.toFixed(1)}S • THE REMIX PULSE REACHES FARTHER.`:"NEARBY RIZO RANGE IS WEAKENED FOR 2.5 SECONDS.");}
+  function splitMirrorBoss(enemy){enemy.phaseTriggered=true;const remaining=Math.max(1,enemy.hp),progress=enemy.progress,intensity=enemy.bossIntensity,tier=Math.max(0,intensity||0),parts=tier>=3?3:2,share=1/parts,echoes=tier>=5?["ghost","shade"]:[];removeDefenseEnemy(enemy);mini.defense.waveTotal+=parts-1+echoes.length;for(let index=0;index<parts;index+=1){const offset=(index-(parts-1)/2)*.024;queueDefenseChildSpawn({type:"boss",bossId:"mirror",intensity},{progress:clamp(progress+offset,0,.98),delay:.08+index*.12,options:{bossChild:true,hpOverride:remaining*share,maxHpOverride:remaining*share,rewardScale:share}});}echoes.forEach((type,index)=>queueDefenseChildSpawn(type,{progress:clamp(progress-.018-index*.012,0,.98),delay:.20+index*.14}));setDefenseMessage(echoes.length?"MIRROR FRACTURED WITH ECHOES":parts===3?"MIRROR FRACTURED THREE WAYS":"MIRROR SPLIT",echoes.length?"Late remixes hide real phase threats inside the reflections. Clean up the echoes before they steal the road.":parts===3?"The Endless remix divides its remaining mass across three sequential reflections.":"The two children are released sequentially so the visual node budget remains stable.");}
+  function beginDefenseBossTelegraph(enemy,kind){const data=DEFENSE_BOSS_TELEGRAPHS[kind];if(!enemy?.bossId||enemy.dead||!data||enemy.telegraphKind)return false;const time=defenseNow();enemy.telegraphKind=kind;enemy.telegraphStartedAt=time;enemy.telegraphUntil=time+data.duration;enemy.telegraphDisruption=0;updateDefenseEnemyNode(enemy);setDefenseMessage(data.title,data.copy);enemy.node?.classList.add("feel-boss-windup");defenseBossStagePulse("phase",enemy.bossId,Math.min(900,Math.max(420,data.duration*420)));defenseBossCue("phase",enemy.bossId);defenseHaptic("bossWarn");return true;}
+  function clearDefenseBossTelegraph(enemy,interrupted=false){if(!enemy?.telegraphKind)return false;const kind=enemy.telegraphKind,time=defenseNow();enemy.telegraphKind=null;enemy.telegraphStartedAt=0;enemy.telegraphUntil=0;enemy.telegraphDisruption=0;if(interrupted){if(kind==="guards"||kind==="mirror")enemy.phaseTriggered=true;if(kind==="vortex")enemy.nextBossPulse=time+4;if(kind==="apex")enemy.nextBossPulse=time+4.5;enemy.bossMechanicLocked=true;mini.defense.enemyStats.counters.bossInterrupts=(mini.defense.enemyStats.counters.bossInterrupts||0)+1;setDefenseMessage("BOSS SIGNAL BROKEN","CONTROL doctrine cancelled the mechanic before it resolved.");spawnDefenseImpact(enemy.x,enemy.y,"control");enemy.node?.classList.remove("feel-boss-windup");duckMusic(460,.1);defenseBossCue("break",enemy.bossId);defenseHaptic("bossBreak");}updateDefenseEnemyNode(enemy);markDefenseUi();return true;}
   function disruptDefenseBossTelegraph(enemy,tower,amount=.35){const data=DEFENSE_BOSS_TELEGRAPHS[enemy?.telegraphKind];if(!data?.interruptible||tower?.doctrine!=="control"||enemy.dead)return false;enemy.telegraphDisruption=clamp((enemy.telegraphDisruption||0)+Math.max(.05,Number(amount)||0),0,1);if(enemy.telegraphDisruption>=1)return clearDefenseBossTelegraph(enemy,true);updateDefenseEnemyNode(enemy);markDefenseUi();return true;}
-  function resolveDefenseBossTelegraph(enemy){const kind=enemy?.telegraphKind;if(!kind)return false;enemy.telegraphKind=null;enemy.telegraphStartedAt=0;enemy.telegraphUntil=0;enemy.telegraphDisruption=0;if(kind==="guards")triggerCrownGuards(enemy);else if(kind==="mirror")splitMirrorBoss(enemy);else if(kind==="vortex")triggerVortexPulse(enemy);else if(kind==="apex"){const time=defenseNow();enemy.apexSurgeUntil=time+1.4;enemy.nextBossPulse=time+4.5;setDefenseMessage("REDLINE SURGE","THE WIND-UP COMPLETED. HOLD THE FRONT UNTIL THE BURST ENDS.");spawnDefenseImpact(enemy.x,enemy.y,"boss");}markDefenseUi();return true;}
-  function handleDefenseBossMechanics(enemy){if(!enemy.bossId||enemy.dead)return;const time=defenseNow(),ratio=enemy.hp/enemy.maxHp;if(enemy.telegraphKind){if(time>=enemy.telegraphUntil)resolveDefenseBossTelegraph(enemy);return;}if(enemy.bossId==="crown"&&!enemy.phaseTriggered&&ratio<=.5)beginDefenseBossTelegraph(enemy,"guards");else if(enemy.bossId==="mirror"&&!enemy.bossChild&&!enemy.phaseTriggered&&ratio<=.5)beginDefenseBossTelegraph(enemy,"mirror");else if(enemy.bossId==="vortex"&&time>=enemy.nextBossPulse)beginDefenseBossTelegraph(enemy,"vortex");else if(enemy.bossId==="apex"&&time>=enemy.nextBossPulse)beginDefenseBossTelegraph(enemy,"apex");}
+  function resolveDefenseBossTelegraph(enemy){const kind=enemy?.telegraphKind;if(!kind)return false;enemy.telegraphKind=null;enemy.telegraphStartedAt=0;enemy.telegraphUntil=0;enemy.telegraphDisruption=0;enemy.node?.classList.remove("feel-boss-windup");if(kind==="guards")triggerCrownGuards(enemy);else if(kind==="mirror")splitMirrorBoss(enemy);else if(kind==="vortex")triggerVortexPulse(enemy);else if(kind==="apex"){const time=defenseNow(),tier=Math.max(0,enemy.bossIntensity||0),duration=1.4+Math.min(.9,tier*.18);enemy.bossPhase=(enemy.bossPhase||0)+1;enemy.apexSurgeUntil=time+duration;enemy.nextBossPulse=time+Math.max(3.2,4.5-tier*.12);if(tier>=1&&enemy.bossPhase<=4){const escorts=tier>=4&&enemy.bossPhase%2===0?["fleet","lead","mender"]:tier>=3?["storm","fleet","relay"]:["fleet","storm"];mini.defense.waveTotal+=escorts.length;escorts.forEach((type,index)=>queueDefenseChildSpawn(type,{progress:clamp(enemy.progress-.02-index*.012,0,.98),delay:.10+index*.10}));}setDefenseMessage(tier>=4&&enemy.bossPhase%2===0?"REDLINE SWITCHED LANES":tier?"REDLINE REMIX SURGE":"REDLINE SURGE",tier>=4&&enemy.bossPhase%2===0?"The next burst trades pure speed for a protected repair escort. Re-target instead of repeating the last answer.":tier?"The burst drags a fast escort into the same decision window. Hold CONTROL for the whole event.":"THE WIND-UP COMPLETED. HOLD THE FRONT UNTIL THE BURST ENDS.");spawnDefenseImpact(enemy.x,enemy.y,"boss");}defenseBossCue("resolve",enemy.bossId);markDefenseUi();return true;}
+  function handleDefenseBossMechanics(enemy){if(!enemy.bossId||enemy.dead)return;const time=defenseNow(),ratio=enemy.hp/enemy.maxHp;if(enemy.telegraphKind){if(time>=enemy.telegraphUntil)resolveDefenseBossTelegraph(enemy);return;}if(enemy.bossId==="crown"&&!enemy.phaseTriggered&&ratio<=(enemy.bossIntensity? .62:.5))beginDefenseBossTelegraph(enemy,"guards");else if(enemy.bossId==="crown"&&enemy.bossIntensity>=4&&(enemy.bossPhase||0)===1&&!enemy.bossMechanicLocked&&ratio<=.28)beginDefenseBossTelegraph(enemy,"guards");else if(enemy.bossId==="mirror"&&!enemy.bossChild&&!enemy.phaseTriggered&&ratio<=(enemy.bossIntensity? .60:.5))beginDefenseBossTelegraph(enemy,"mirror");else if(enemy.bossId==="vortex"&&time>=enemy.nextBossPulse)beginDefenseBossTelegraph(enemy,"vortex");else if(enemy.bossId==="apex"&&time>=enemy.nextBossPulse)beginDefenseBossTelegraph(enemy,"apex");}
   function applyDefenseControlActive(tower,variant,stats,time,near,front){const d=mini.defense,targets=(near.length?near:front.slice(0,10)).filter(e=>e.hp>0),root=(enemy,seconds)=>enemy.rootUntil=Math.max(enemy.rootUntil||0,time+seconds),slow=(enemy,amount,seconds)=>{enemy.slow=Math.max(enemy.slow||0,amount*(1-(enemy.slowResist||0)));enemy.slowUntil=Math.max(enemy.slowUntil||0,time+seconds);};if(variant==="classic")front.slice(0,7).forEach(e=>{root(e,1.6);slow(e,.42,4);});else if(variant==="ember")front.slice(0,8).forEach(e=>{slow(e,.48,5);if(!e.fireproof){e.burn=Math.max(e.burn||0,stats.damage*.16);e.burnSource=tower;e.burnUntil=Math.max(e.burnUntil||0,time+5);}});else if(variant==="toxic")front.slice(0,10).forEach(e=>{slow(e,.55,6);e.poison=Math.max(e.poison||0,stats.damage*.18);e.poisonSource=tower;e.poisonUntil=Math.max(e.poisonUntil||0,time+7);});else if(variant==="violet")front.slice(0,8).forEach((e,i)=>{root(e,1.2+i*.08);revealDefenseEnemy(e,4,tower);});else if(variant==="moss")targets.slice(0,12).forEach(e=>root(e,4.4));else if(variant==="bubblegum")front.slice(0,10).forEach(e=>{e.progress=Math.max(0,e.progress-.20);slow(e,.25,3);});else if(variant==="frost")front.slice(0,10).forEach(e=>{root(e,2.4);slow(e,.75,6);});else if(variant==="glitch")front.slice(0,12).forEach(e=>{revealDefenseEnemy(e,6,tower);root(e,1.4);});else if(variant==="obsidian")front.slice(0,8).forEach(e=>{root(e,1.8);shredDefenseArmor(e,.12,tower);});else if(variant==="aurora"){d.prismUntil=Math.max(d.prismUntil,time+7);front.slice(0,12).forEach(e=>revealDefenseEnemy(e,7,tower));}else if(variant==="golden"){front.slice(0,9).forEach(e=>slow(e,.52,5));queueDefenseIncome(Math.max(12,Math.round((d.clearedWave+1)*2.2)),"golden-control");}else if(variant==="diamond")front.sort((a,b)=>defenseEnemyThreat(b)-defenseEnemyThreat(a)).slice(0,6).forEach(e=>{root(e,3);shredDefenseArmor(e,.10,tower);});else if(variant==="shadow")front.slice(0,8).forEach(e=>{e.progress=Math.max(0,e.progress-.08);revealDefenseEnemy(e,5,tower);slow(e,.42,5);});else if(variant==="retro")front.slice(0,10).forEach(e=>{e.progress=Math.max(0,e.progress-.15);});targets.slice(0,10).forEach(e=>spawnDefenseImpact(e.x,e.y,variant,0,tower));}
-  function activateDefenseAbility(id,{keepAbilityTray=false}={}){
-    const d=mini.defense,tower=d.towers.find(item=>item.id===id);if(defenseContractRule("silent",d)){setDefenseMessage("CONTRACT • SEALED ACTIVES","Passive identity still works, but activated effects are disabled.");sfx("no");return false;}if(!tower||tower.upgrade<2||!tower.doctrine||!defenseIsActiveWave(d)||d.paused||defenseAbilityRemaining(tower)>0)return false;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",stats=defenseCombatStats(tower),time=defenseNow(),power=tower.doctrine==="power"?1.28:1,control=tower.doctrine==="control"?1.28:1,near=d.enemies.filter(enemy=>enemy.hp>0&&Math.hypot(enemy.x-tower.x,enemy.y-tower.y)<Math.max(.28,stats.range*1.75)),front=[...d.enemies].filter(enemy=>enemy.hp>0).sort((a,b)=>b.progress-a.progress);tower.abilityReadyAt=time+defenseAbilityCooldown(tower)*(tower.superForm?.7:1);animateDefenseTower(tower,"ability");spawnDefenseAbilityFx(tower,variant);
-    if(tower.doctrine==="control")applyDefenseControlActive(tower,variant,stats,time,near,front);else if(variant==="classic")d.rallyUntil=time+6;else if(variant==="ember")near.forEach(enemy=>{const dealt=dealDefenseDamage(enemy,stats.damage*2.1*power,tower,"ember");if(!enemy.fireproof&&!enemy.dead){const burn=dealt*.28;if(burn>=enemy.burn){enemy.burn=burn;enemy.burnSource=tower;}enemy.burnUntil=time+5;}});else if(variant==="toxic")front.forEach(enemy=>{const poison=stats.damage*.34*power;if(poison>=enemy.poison){enemy.poison=poison;enemy.poisonSource=tower;}enemy.poisonUntil=time+7*control;spawnDefenseImpact(enemy.x,enemy.y,"toxic",0,tower);});else if(variant==="violet")front.slice(0,6).forEach((enemy,index)=>dealDefenseDamage(enemy,stats.damage*(2.15-index*.12)*power,tower,"violet"));else if(variant==="moss")near.forEach(enemy=>{enemy.rootUntil=Math.max(enemy.rootUntil,time+(3.2+tower.upgrade*.25)*control);spawnDefenseImpact(enemy.x,enemy.y,"moss",0,tower);});else if(variant==="bubblegum")near.forEach(enemy=>{enemy.progress=Math.max(0,enemy.progress-(.12+tower.upgrade*.018)*control);dealDefenseDamage(enemy,stats.damage*.9*power,tower,"bubblegum");});else if(variant==="frost")front.forEach(enemy=>{enemy.rootUntil=Math.max(enemy.rootUntil,time+1.2*control);enemy.slow=Math.max(enemy.slow,.72*(1-(enemy.slowResist||0)));enemy.slowUntil=time+5*control;spawnDefenseImpact(enemy.x,enemy.y,"frost",0,tower);});else if(variant==="glitch"){for(let i=0;i<8;i+=1){const enemy=front[Math.floor(Math.random()*front.length)];if(enemy)dealDefenseDamage(enemy,stats.damage*(1.25+Math.random()*1.4)*power,tower,"glitch");}}else if(variant==="obsidian")near.forEach(enemy=>dealDefenseDamage(enemy,stats.damage*4.2*power,tower,"obsidian"));else if(variant==="aurora")d.prismUntil=time+8*control;else if(variant==="golden"){const goldenCount=d.towers.filter(item=>(item.pet.variant||item.pet.hiddenVariant)==="golden").length,gain=DefenseCore.goldenActivePayout({clearedWave:d.clearedWave,upgradeLevel:tower.upgrade,goldenTowerCount:goldenCount});queueDefenseIncome(gain,"golden-active");setDefenseMessage(`PAYDAY • +${gain}`,goldenCount>1?"Golden duplicates split the market. More gold still helps, but with diminishing returns.":"Golden Rizo made the balloons fund their own defeat.");}else if(variant==="diamond")front.slice(0,8).forEach(enemy=>dealDefenseDamage(enemy,stats.damage*2.8*power,tower,"diamond"));else if(variant==="shadow"){const enemy=front[0];if(enemy)dealDefenseDamage(enemy,enemy.hp/enemy.maxHp<.4?enemy.hp+1:stats.damage*4.8*power,tower,"shadow",true);}else if(variant==="retro")tower.overclockUntil=time+9*control;
+  function activateDefenseAbility(id,{keepAbilityTray=false,showPanel=true}={}){
+    const d=mini.defense,tower=d.towers.find(item=>item.id===id);if(defenseContractRule("silent",d)){setDefenseMessage("CONTRACT • SEALED ACTIVES","Passive identity still works, but activated effects are disabled.");sfx("no");return false;}if(!tower||tower.upgrade<2||!tower.doctrine||!defenseIsActiveWave(d)||d.paused||defenseAbilityRemaining(tower)>0)return false;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",stats=defenseCombatStats(tower),time=defenseNow(),power=tower.doctrine==="power"?1.28:1,control=tower.doctrine==="control"?1.28:1,near=d.enemies.filter(enemy=>enemy.hp>0&&Math.hypot(enemy.x-tower.x,enemy.y-tower.y)<Math.max(.28,stats.range*1.75)),front=[...d.enemies].filter(enemy=>enemy.hp>0).sort((a,b)=>b.progress-a.progress),apex=tower.upgrade>=4,preStatus=apex?{burn:new Set(front.filter(enemy=>enemy.burnUntil>time).map(enemy=>enemy.id)),poison:new Set(front.filter(enemy=>enemy.poisonUntil>time).map(enemy=>enemy.id)),controlled:new Set(front.filter(enemy=>enemy.slowUntil>time||enemy.rootUntil>time).map(enemy=>enemy.id))}:null;tower.abilityReadyAt=time+defenseAbilityCooldown(tower)*(tower.superForm?.7:1);animateDefenseTower(tower,"ability");spawnDefenseAbilityFx(tower,variant);
+    if(tower.doctrine==="control")applyDefenseControlActive(tower,variant,stats,time,near,front);else if(variant==="classic")d.rallyUntil=time+6;else if(variant==="ember")near.forEach(enemy=>{const flashover=apex&&preStatus.burn.has(enemy.id),dealt=dealDefenseDamage(enemy,stats.damage*(flashover?2.72:2.1)*power,tower,"ember");if(flashover)spawnDefenseImpact(enemy.x,enemy.y,"flashover",0,tower);if(!enemy.fireproof&&!enemy.dead){const burn=dealt*.28;if(burn>=enemy.burn){enemy.burn=burn;enemy.burnSource=tower;}enemy.burnUntil=time+5;}});else if(variant==="toxic")front.forEach(enemy=>{const bloom=apex&&preStatus.poison.has(enemy.id),poison=stats.damage*.34*power;if(poison>=enemy.poison){enemy.poison=poison;enemy.poisonSource=tower;}enemy.poisonUntil=time+7*control;if(bloom&&!enemy.dead){dealDefenseDot(enemy,Math.max(poison*.75,enemy.poison*.9),tower,"toxic");spawnDefenseImpact(enemy.x,enemy.y,"bloom",0,tower);}else spawnDefenseImpact(enemy.x,enemy.y,"toxic",0,tower);});else if(variant==="violet"){let origin={x:tower.x,y:tower.y};front.slice(0,6).forEach((enemy,index)=>{defenseChainFlash(origin,enemy,tower);dealDefenseDamage(enemy,stats.damage*(2.15-index*.12)*power,tower,"violet");origin=enemy;});}else if(variant==="moss")near.forEach(enemy=>{enemy.rootUntil=Math.max(enemy.rootUntil,time+(3.2+tower.upgrade*.25)*control);spawnDefenseImpact(enemy.x,enemy.y,"moss",0,tower);});else if(variant==="bubblegum")near.forEach(enemy=>{enemy.progress=Math.max(0,enemy.progress-(.12+tower.upgrade*.018)*control);dealDefenseDamage(enemy,stats.damage*.9*power,tower,"bubblegum");spawnDefenseImpact(enemy.x,enemy.y,"bubblegum",0,tower);});else if(variant==="frost")front.forEach(enemy=>{const crystal=apex&&preStatus.controlled.has(enemy.id);enemy.rootUntil=Math.max(enemy.rootUntil,time+(crystal?2.35:1.2)*control);enemy.slow=Math.max(enemy.slow,.72*(1-(enemy.slowResist||0)));enemy.slowUntil=time+5*control;spawnDefenseImpact(enemy.x,enemy.y,crystal?"crystal":"frost",0,tower);});else if(variant==="glitch"){for(let i=0;i<8;i+=1){const enemy=front[Math.floor(Math.random()*front.length)];if(enemy)dealDefenseDamage(enemy,stats.damage*(1.25+Math.random()*1.4)*power,tower,"glitch");}}else if(variant==="obsidian")near.forEach(enemy=>{const shatter=apex&&preStatus.controlled.has(enemy.id);dealDefenseDamage(enemy,stats.damage*4.2*(shatter?1.35:1)*power,tower,"obsidian");if(shatter){enemy.slowUntil=time;enemy.rootUntil=time;spawnDefenseImpact(enemy.x,enemy.y,"shatter",0,tower);}});else if(variant==="aurora")d.prismUntil=time+8*control;else if(variant==="golden"){const goldenCount=d.towers.filter(item=>!defenseStructureType(item)&&(item.pet.variant||item.pet.hiddenVariant)==="golden").length,factoryCount=d.towers.filter(item=>defenseStructureType(item)==="factory").length,baseGain=DefenseCore.goldenActivePayout({clearedWave:d.clearedWave,upgradeLevel:tower.upgrade,goldenTowerCount:goldenCount}),gain=Math.round(baseGain*(1+Math.min(.6,factoryCount*.12)));queueDefenseIncome(gain,"golden-active");setDefenseMessage(`PAYDAY • +${gain}`,factoryCount?`${factoryCount} Factory${factoryCount===1?"":"s"} turned Payday into a brand-wide drop.`:goldenCount>1?"Golden duplicates split the market. More gold still helps, but with diminishing returns.":"Golden Rizo made the balloons fund their own defeat.");}else if(variant==="diamond")front.slice(0,8).forEach(enemy=>dealDefenseDamage(enemy,stats.damage*2.8*power,tower,"diamond"));else if(variant==="shadow"){const enemy=front[0];if(enemy)dealDefenseDamage(enemy,enemy.hp/enemy.maxHp<.4?enemy.hp+1:stats.damage*4.8*power,tower,"shadow",true);}else if(variant==="retro")tower.overclockUntil=time+9*control;
     const doctrineTargets=(near.length?near:front.slice(0,6)).filter(enemy=>enemy.hp>0);
     if(tower.doctrine==="power")doctrineTargets.slice(0,tower.upgrade>=4?8:5).forEach(enemy=>shredDefenseArmor(enemy,tower.upgrade>=4?.08:.05,tower));
     else if(tower.doctrine==="control")doctrineTargets.slice(0,tower.upgrade>=4?10:6).forEach(enemy=>revealDefenseEnemy(enemy,tower.upgrade>=4?5:3.5,tower));
+    tower.node?.classList.remove("ability-ready");tower.node?.classList.add("ability-charging");tower.node?.style.setProperty("--ability-charge","0%");tower.abilityChargedVisual=false;tower.abilityChargingVisual=true;tower.abilityChargeVisual=0;
+    const abilityWorld=$("#defenseWorld");if((d.rallyUntil||0)>time){abilityWorld?.classList.add("rally-active");d.rallyVisualActive=true;}if((d.prismUntil||0)>time){abilityWorld?.classList.add("prism-active");d.prismVisualActive=true;}if((tower.overclockUntil||0)>time){tower.node?.classList.add("overclock-active");tower.overclockVisualActive=true;}
+    const presentation=defenseAbilityPresentation(tower);showDefenseCinematicMoment("ability",{kicker:`${tower.doctrine.toUpperCase()} • ${tower.pet.name}`,title:presentation.active,copy:tower.upgrade>=4?"APEX CAST":"FIELD POWER",duration:d.lowFx?520:760,priority:4,icon:tower.doctrine==="control"?"⌁":"✦"});
     markDefenseUi();
     if(keepAbilityTray){d.abilityTrayOpen=true;closeDefenseTowerPanel();updateDefenseHud();}
-    else{updateDefenseHud();showDefenseTowerPanel(tower);}
-    completeDefenseSchoolLesson("abilities");writeDefenseCheckpoint(true,"ability");sfx("legendary");haptic([10,18,10,24]);return true;
+    else{updateDefenseHud();if(showPanel)showDefenseTowerPanel(tower);}
+    completeDefenseSchoolLesson("abilities");writeDefenseCheckpoint(true,"ability");duckMusic(tower.superForm?720:560,tower.superForm?.075:.105);defenseAbilitySignature(tower);defenseHaptic("ability");return true;
   }
   function updateDefenseProjectiles(dt){
     const d=mini.defense;
     for(let index=d.projectiles.length-1;index>=0;index-=1){
       const shot=d.projectiles[index];
-      if(!shot.target||shot.target.hp<=0){releaseDefenseProjectileNode(shot);d.projectiles.splice(index,1);continue;}
+      if(!shot.target||shot.target.dead||shot.target.hp<=0){releaseDefenseProjectileNode(shot);d.projectiles.splice(index,1);continue;}
       shot.prevX=Number.isFinite(shot.x)?shot.x:shot.tower?.x||0;shot.prevY=Number.isFinite(shot.y)?shot.y:shot.tower?.y||0;
       shot.life+=dt;const tx=shot.target.x,ty=shot.target.y,dx=tx-shot.x,dy=ty-shot.y,dist=Math.hypot(dx,dy),step=Math.min(dist,shot.speed*dt);
       if(dist>.0001){shot.x+=dx/dist*step;shot.y+=dy/dist*step;}
       if(!d.fixedSimulation&&shot.node&&positionDefenseMovingNode(shot.node,shot.x,shot.y))d.projectilePositionWrites=(d.projectilePositionWrites||0)+1;
-      if(dist<.018||shot.life>.7){applyDefenseHit(shot);releaseDefenseProjectileNode(shot);d.projectiles.splice(index,1);}
+      if(dist<=shot.speed*dt+.018||shot.life>.7){applyDefenseHit(shot);releaseDefenseProjectileNode(shot);d.projectiles.splice(index,1);}
     }
   }
 
 
-  function updateDefenseTowers(dt){
-    const d=mini.defense,time=defenseNow(),realTime=defenseRealNow(d),budget=defensePerformanceBudget(d);let goldenAwakened=0;
-    for(const tower of d.towers){const weakened=tower.rangeDebuffUntil>time;if(weakened!==tower.rangeWeakenedActive){tower.node?.classList.toggle("range-weakened",weakened);tower.rangeWeakenedActive=weakened;}if((tower.pet.variant||tower.pet.hiddenVariant)==="golden"&&tower.upgrade>=2)goldenAwakened+=1;tower.cooldown=Math.max(0,tower.cooldown-dt);const hadCachedTarget=Boolean(tower.targetId);let target=tower.targetRef;if(!target||target.id!==tower.targetId||target.dead||target.hp<=0)target=null;const lostCachedTarget=hadCachedTarget&&!target,retargetExpired=realTime>=(tower.retargetAtReal||0);let stats=null;if(lostCachedTarget||retargetExpired){stats=defenseCombatStats(tower);const targetValid=Boolean(target&&Math.hypot(target.x-tower.x,target.y-tower.y)<=stats.range&&canDefenseTowerSee(tower,target)),lostTarget=hadCachedTarget&&!targetValid;if(!targetValid)target=null;d.targetScans=(d.targetScans||0)+1;target=pickDefenseTarget(tower,stats,defenseTargetSnapshot(d,lostTarget));tower.targetRef=target||null;tower.targetId=target?.id||null;tower.retargetAtReal=realTime+budget.targetRefreshMs/1000;}if(tower.cooldown>0||!target)continue;stats||=(defenseCombatStats(tower));tower.cooldown=1/Math.max(.2,stats.rate);fireDefenseTower(tower,target,stats);}
-    if(goldenAwakened){d.goldenCoinCarry+=dt*Math.min(2,goldenAwakened)*.75;const payout=Math.floor(d.goldenCoinCarry);if(payout>0){d.goldenCoinCarry-=payout;queueDefenseIncome(payout,"golden-passive");}}
+  function showDefenseBeaconPulse(beacon,{golden=false}={}){const node=beacon?.node;if(!node)return;node.classList.remove("brand-pulse","golden-brand-pulse");void node.offsetWidth;node.classList.add(golden?"golden-brand-pulse":"brand-pulse");queueMiniTimeout(()=>node.classList.remove("brand-pulse","golden-brand-pulse"),850);}
+  function showDefenseFactoryPayout(tower,gain,econ){const d=mini.defense,node=tower.node;if(!d||!node)return;node.classList.remove("factory-produced","factory-drop","factory-golden-drop");void node.offsetWidth;node.classList.add("factory-produced");if(econ?.isDrop)node.classList.add("factory-drop");if(econ?.isDrop&&econ?.goldenLicensed)node.classList.add("factory-golden-drop");const fx=document.createElement("span");fx.className=`defense-factory-payout ${econ?.isDrop?"drop":""} ${econ?.goldenLicensed?"golden":""}`;const label=econ?.isDrop?(econ.goldenLicensed?"GOLDEN DROP":econ.privateSun?"SUN DROP":"RIZO DROP"):"";fx.innerHTML=`<i aria-hidden="true"></i>${label?`<em>${label}</em>`:""}<b>+${gain}</b>`;node.appendChild(fx);queueMiniTimeout(()=>{fx.remove();node.classList.remove("factory-produced","factory-drop","factory-golden-drop");},900);if(econ?.isDrop&&defenseBeaconInfluence(tower,d)?.network?.privateSun)showDefenseBeaconPulse(defenseBeaconInfluence(tower,d)?.beacon,{golden:Boolean(econ.goldenLicensed)});if(defenseRealNow(d)-(d.lastFactorySfxAt||-99)>.9){d.lastFactorySfxAt=defenseRealNow(d);sfx(econ?.isDrop?"reward":"coin");}}
+  function updateDefenseFactory(tower,d,time){
+    if(!Number.isFinite(tower.factoryLivesSnapshot))tower.factoryLivesSnapshot=d.lives;if(d.lives<tower.factoryLivesSnapshot){tower.factoryCleanCycles=0;tower.node?.classList.add("factory-streak-broken");queueMiniTimeout(()=>tower.node?.classList.remove("factory-streak-broken"),700);}tower.factoryLivesSnapshot=d.lives;
+    let econ=defenseFactoryEconomy(tower,d);if(!(tower.nextProductionAt>0))tower.nextProductionAt=time+econ.interval;if(!(tower.factoryLastInterval>0))tower.factoryLastInterval=econ.interval;else if(Math.abs(tower.factoryLastInterval-econ.interval)>.001&&tower.nextProductionAt>time){const progress=clamp(1-(tower.nextProductionAt-time)/Math.max(.1,tower.factoryLastInterval),0,1);tower.nextProductionAt=time+(1-progress)*econ.interval;tower.factoryLastInterval=econ.interval;}else tower.factoryLastInterval=econ.interval;let bursts=0;
+    while(time+1e-9>=tower.nextProductionAt&&bursts<3){econ=defenseFactoryEconomy(tower,d);const gain=econ.payout;queueDefenseIncome(gain,"factory");tower.totalProduced=(tower.totalProduced||0)+gain;tower.factoryCleanCycles=(tower.factoryCleanCycles||0)+1;tower.nextProductionAt+=econ.interval;bursts+=1;showDefenseFactoryPayout(tower,gain,econ);}
+    econ=defenseFactoryEconomy(tower,d);const beacon=defenseBeaconInfluence(tower,d);tower.beaconSourceId=beacon?.beacon?.id||"";tower.node?.classList.toggle("beacon-buffed",Boolean(beacon));tower.node?.classList.toggle("brand-loop",Boolean(beacon?.network?.brandLoop));tower.node?.classList.toggle("golden-license",Boolean(beacon?.network?.golden));tower.node?.classList.toggle("drop-ready",Boolean(econ.isDrop));if(tower.node){tower.node.style.setProperty("--factory-progress",String(clamp(1-Math.max(0,tower.nextProductionAt-time)/Math.max(.1,econ.interval),0,1)));tower.node.style.setProperty("--factory-momentum",String(clamp((econ.momentumMultiplier-1)/.30,0,1)));tower.node.dataset.production=String(Math.round(tower.totalProduced||0));tower.node.dataset.cleanStreak=String(tower.factoryCleanCycles||0);}
   }
+  // --- INTEGRATION GLUE: one upgrade completion pipeline -------------------------
+  // Five specialists react to an upgrade: Worker D changes the tower's visual state,
+  // Worker G's map bonds may re-derive, Worker B's Beacon/Factory network changes,
+  // Worker I owns motion/audio/haptic punctuation, Worker H owns the UI reads, and
+  // Worker J requires the checkpoint to be rewritten. Worker B's structure upgrade
+  // path grew its own shorter sequence, so evolving a Factory to RIZO INDUSTRIAL or a
+  // Beacon to PRIVATE SUN silently skipped the authored upgrade motion, the authored
+  // SFX family, the music duck and the support refresh. Both paths now finish here.
+  function defenseCommitUpgrade(tower,{reason="upgrade",apex=null}={}){
+    const d=mini.defense;if(!d||!tower)return false;
+    const isApex=apex===null?tower.upgrade>=4:Boolean(apex);
+    refreshDefenseTower(tower);
+    refreshDefenseMapBondVisuals();
+    refreshDefenseSupportVisuals(d);
+    tower.node?.classList.add("just-upgraded");
+    defenseFeelPulseTower(tower,"upgraded",isApex?950:700);
+    markDefenseUi({roster:true});updateDefenseRoster();updateDefenseHud();
+    writeDefenseCheckpoint(true,reason);
+    duckMusic(isApex?1000:720,isApex?.08:.14);
+    sfx(isApex?"defense-apex":"defense-upgrade");
+    defenseHaptic(isApex?"apex":"upgrade");
+    return true;
+  }
+
+  // --- INTEGRATION GLUE: support presentation outside the simulation loop --------
+  // Beacon support classes used to be applied only from updateDefenseTowers(), i.e.
+  // only while the simulation was running. Placing or upgrading a Beacon during the
+  // planning phase therefore changed the mechanic with no visible response until the
+  // next wave started, which breaks the "place a Beacon, watch nearby Rizos speed up"
+  // cause/effect the design depends on. This is the one place that derives the
+  // presentation, so the loop and every out-of-loop refresh cannot drift apart.
+  function defenseSyncDefenderSupportVisual(tower,d=mini.defense){
+    const beacon=defenseBeaconInfluence(tower,d),beaconId=beacon?.beacon?.id||"";
+    const goldenLicensed=(tower.pet.variant||tower.pet.hiddenVariant)==="golden"&&tower.upgrade>=2&&Boolean(beacon?.network?.brandLoop)&&Boolean(beacon?.network?.factories);
+    tower.beaconSourceId=beaconId;
+    // Apply unconditionally rather than only on change: renderDefenseTower() rebuilds
+    // className from scratch (on upgrade, doctrine, ascension, restore), so a
+    // change-gated toggle silently dropped the support halo until the covering Beacon
+    // happened to change again.
+    tower.node?.classList.toggle("beacon-buffed",Boolean(beacon));
+    tower.node?.classList.toggle("golden-license",goldenLicensed);
+    return beacon;
+  }
+  // Re-derive every support/network read from current placement. Presentation only:
+  // it never advances a production timer, grants cash, or touches simulation clocks,
+  // so it is safe to call while paused or in planning.
+  function refreshDefenseSupportVisuals(d=mini.defense){
+    if(!d?.towers)return false;
+    for(const tower of d.towers){
+      const type=defenseStructureType(tower);
+      if(type==="beacon")updateDefenseBeacon(tower,d);
+      else if(type==="factory"){const beacon=defenseBeaconInfluence(tower,d);tower.beaconSourceId=beacon?.beacon?.id||"";tower.node?.classList.toggle("beacon-buffed",Boolean(beacon));tower.node?.classList.toggle("brand-loop",Boolean(beacon?.network?.brandLoop));tower.node?.classList.toggle("private-sun-network",Boolean(beacon?.network?.privateSun));}
+      else defenseSyncDefenderSupportVisual(tower,d);
+    }
+    return true;
+  }
+  function updateDefenseBeacon(tower,d){const network=defenseBeaconNetwork(tower,d);tower._brandNetwork=network;tower.node?.classList.toggle("brand-loop",Boolean(network?.brandLoop));tower.node?.classList.toggle("private-sun-network",Boolean(network?.privateSun));tower.node?.classList.toggle("golden-license",Boolean(network?.golden));if(tower.node){tower.node.dataset.combatLinks=String(network?.combat||0);tower.node.dataset.factoryLinks=String(network?.factories||0);}}
+  function updateDefenseTowers(dt){
+    const d=mini.defense,time=defenseNow(),realTime=time,budget=DEFENSE_BUDGETS.normal,world=$("#defenseWorld"),abilitiesSealed=defenseContractRule("silent",d);let goldenAwakened=0;
+    const rallyActive=(d.rallyUntil||0)>time,prismActive=(d.prismUntil||0)>time;
+    if(rallyActive!==d.rallyVisualActive){world?.classList.toggle("rally-active",rallyActive);d.rallyVisualActive=rallyActive;}
+    if(prismActive!==d.prismVisualActive){world?.classList.toggle("prism-active",prismActive);d.prismVisualActive=prismActive;}
+    for(const tower of d.towers){const structureType=defenseStructureType(tower);if(structureType){if(structureType==="factory")updateDefenseFactory(tower,d,time);else if(structureType==="beacon")updateDefenseBeacon(tower,d);continue;}const weakened=tower.rangeDebuffUntil>time;if(weakened!==tower.rangeWeakenedActive){tower.node?.classList.toggle("range-weakened",weakened);tower.rangeWeakenedActive=weakened;}const overclockActive=(tower.overclockUntil||0)>time;if(overclockActive!==tower.overclockVisualActive){tower.node?.classList.toggle("overclock-active",overclockActive);tower.overclockVisualActive=overclockActive;}const abilityUnlocked=Boolean(tower.upgrade>=2&&tower.doctrine&&!abilitiesSealed),abilityRemaining=abilityUnlocked?defenseAbilityRemaining(tower):Infinity,abilityCharged=Boolean(abilityUnlocked&&abilityRemaining<=0),abilityCharging=Boolean(abilityUnlocked&&!abilityCharged),abilityCooldown=Math.max(.001,defenseAbilityCooldown(tower)*(tower.superForm?.7:1)),abilityCharge=abilityUnlocked?clamp(1-abilityRemaining/abilityCooldown,0,1):0,abilityChargeStep=Math.round(abilityCharge*12)/12;if(abilityCharged!==tower.abilityChargedVisual){tower.node?.classList.toggle("ability-ready",abilityCharged);tower.abilityChargedVisual=abilityCharged;}if(abilityCharging!==tower.abilityChargingVisual){tower.node?.classList.toggle("ability-charging",abilityCharging);tower.abilityChargingVisual=abilityCharging;}if(abilityChargeStep!==tower.abilityChargeVisual){tower.node?.style.setProperty("--ability-charge",`${Math.round(abilityChargeStep*100)}%`);tower.abilityChargeVisual=abilityChargeStep;}if((tower.pet.variant||tower.pet.hiddenVariant)==="golden"&&tower.upgrade>=2)goldenAwakened+=1;const beacon=defenseSyncDefenderSupportVisual(tower,d);tower.cooldown=Math.max(0,tower.cooldown-dt);const hadCachedTarget=Boolean(tower.targetId);let target=tower.targetRef;if(!target||target.id!==tower.targetId||target.dead||target.hp<=0)target=null;const lostCachedTarget=hadCachedTarget&&!target,retargetExpired=realTime>=(tower.retargetAtReal||0);let stats=null;if(lostCachedTarget||retargetExpired){stats=defenseCombatStats(tower);const targetValid=Boolean(target&&Math.hypot(target.x-tower.x,target.y-tower.y)<=stats.range&&canDefenseTowerSee(tower,target)),lostTarget=hadCachedTarget&&!targetValid;if(!targetValid)target=null;d.targetScans=(d.targetScans||0)+1;target=pickDefenseTarget(tower,stats,defenseTargetSnapshot(d,lostTarget));tower.targetRef=target||null;tower.targetId=target?.id||null;tower.retargetAtReal=realTime+budget.targetRefreshMs/1000;}if(tower.cooldown>0||!target)continue;stats||=(defenseCombatStats(tower));if(!canDefenseTowerSee(tower,target)||Math.hypot(target.x-tower.x,target.y-tower.y)>stats.range){tower.targetId=null;tower.targetRef=null;tower.retargetAtReal=0;continue;}tower.cooldown=1/Math.max(.2,stats.rate);fireDefenseTower(tower,target,stats);}
+    if(goldenAwakened){const factoryCount=d.towers.filter(item=>defenseStructureType(item)==="factory").length;d.goldenCoinCarry+=dt*Math.min(2,goldenAwakened)*.75*(1+Math.min(.8,factoryCount*.2));const payout=Math.floor(d.goldenCoinCarry);if(payout>0){d.goldenCoinCarry-=payout;queueDefenseIncome(payout,"golden-passive");}}
+  }
+
   const DEFENSE_GATE_FLAME_DURATION=12;
   const DEFENSE_GATE_FLAME_COOLDOWN=38;
   function toggleDefenseGateFlame(){
@@ -6126,19 +7149,22 @@
       const phaseSuppressed=enemy.phaseSuppressedUntil>time||d.moonRevealUntil>time;if(enemy.phasing)enemy.phaseActive=!phaseSuppressed&&Math.sin(time*2.35+enemy.phaseOffset)>.32;
       if(enemy.burnUntil>time)dealDefenseDot(enemy,enemy.burn*dt,enemy.burnSource,"ember");if(enemy.dead)continue;
       if(enemy.poisonUntil>time)dealDefenseDot(enemy,enemy.poison*dt,enemy.poisonSource,"toxic");if(enemy.dead)continue;
+      if(enemy.healer)pulseDefenseMender(enemy,time);
       handleDefenseBossMechanics(enemy);if(enemy.dead)continue;
-      const rooted=enemy.rootUntil>time,slow=enemy.slowUntil>time?1-enemy.slow:1,stormPulse=enemy.stormPulse?1.18+.2*Math.max(0,Math.sin(time*4+enemy.phaseOffset)):1,apexPulse=enemy.bossId==="apex"?(enemy.apexSurgeUntil>time?1.9:.82):1,mapPulse=d.stormWeatherUntil>time?1.32:1;
-      if(!rooted)enemy.progress+=enemy.speed*DEFENSE_GLOBAL_MOVEMENT_PACE*slow*stormPulse*apexPulse*mapPulse*dt;
+      enemy.stormCharging=Boolean(enemy.stormPulse&&((time+enemy.phaseOffset)%4.8)<1.15);
+      const rooted=enemy.rootUntil>time,slow=enemy.slowUntil>time?1-enemy.slow:1,signalPulse=(enemy.signalStaggerUntil||0)>time?.72:1,previousRelayBoosted=Boolean(enemy.relayBoosted);enemy.relayBoosted=Boolean(defenseRelaySupport(enemy,d));const relayChanged=previousRelayBoosted!==enemy.relayBoosted,relayPulse=enemy.relayBoosted?1.22:1,stormPulse=enemy.stormPulse?(((time+enemy.phaseOffset)%4.8)<1.15?.65:((time+enemy.phaseOffset)%4.8)<2.2?1.85:1):1,apexPulse=enemy.bossId==="apex"?(enemy.apexSurgeUntil>time?1.9:.82):1,mapPulse=d.stormWeatherUntil>time?1.32:1;
+      if(!rooted)enemy.progress+=enemy.speed*DEFENSE_GLOBAL_MOVEMENT_PACE*slow*signalPulse*relayPulse*stormPulse*apexPulse*mapPulse*dt;
       const point=defensePointAt(Math.min(enemy.progress,.999));enemy.x=point.x;enemy.y=point.y;
-      if(enemy.progress>=1){const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type,loss=Math.min(d.lives,enemy.damage);releaseDefenseEnemyNode(enemy);d.enemies.splice(index,1);removeDefenseRuntimeItem(mini.entities,enemy);d.waveResolved+=1;d.lives=Math.max(0,d.lives-enemy.damage);defenseRecordEnemyStat("leaked",key);d.enemyStats.heartLoss+=loss;markDefenseUi();const end=defenseGatePoint(d.map);spawnDefenseImpact(end.x,end.y,"gate");showDefenseGateDamageMoment(loss);haptic([12,25,12]);if(d.lives<=0){finishDefenseRunWithMoment("gate");return;}}
-      else{if(!d.fixedSimulation)positionDefenseEnemyNode(enemy);if(stateStep||enemy.telegraphKind)updateDefenseEnemyNode(enemy);}
+      if(enemy.progress>=1){enemy.dead=true;const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type,loss=Math.min(d.lives,enemy.damage);releaseDefenseEnemyNode(enemy);d.enemies.splice(index,1);removeDefenseRuntimeItem(mini.entities,enemy);d.waveResolved+=1;d.lives=Math.max(0,d.lives-enemy.damage);defenseRecordEnemyStat("leaked",key);d.enemyStats.heartLoss+=loss;markDefenseUi();const end=defenseGatePoint(d.map);spawnDefenseImpact(end.x,end.y,"gate");showDefenseGateDamageMoment(loss);sfx("defense-gate-hit");defenseHaptic("gate");if(d.lives<=0){finishDefenseRunWithMoment("gate");return;}}
+      else{if(!d.fixedSimulation)positionDefenseEnemyNode(enemy);if(stateStep||enemy.telegraphKind||relayChanged)updateDefenseEnemyNode(enemy);}
     }
   }
 
 
-  function defenseReducedMotion(){
-    try{return Boolean(state.settings?.reducedMotion||matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);}catch(error){return Boolean(state.settings?.reducedMotion);}
+  function reducedMotionActive(){
+    try{return Boolean(state?.settings?.reducedMotion||matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);}catch(error){return Boolean(state?.settings?.reducedMotion);}
   }
+  function defenseReducedMotion(){ return reducedMotionActive(); }
   function showDefenseCinematicMoment(kind,options={}){
     const d=mini.defense,host=$("#defenseMoment"),shell=$(".defense-shell"),stage=$(".defense-stage-frame");if(!d||!host)return false;
     const base=DEFENSE_CINEMATIC_MOMENTS[kind]||DEFENSE_CINEMATIC_MOMENTS.clear,real=defenseRealNow(d),priority=Number.isFinite(Number(options.priority))?Number(options.priority):base.priority;
@@ -6163,18 +7189,20 @@
   }
   function hideDefenseMessage(){const host=$("#defenseMessage");if(host)host.hidden=true;}
   function setDefenseMessage(title,text=""){const host=$("#defenseMessage");if(!host)return;host.hidden=false;host.innerHTML=`<b>${escapeHTML(title)}</b>${text?`<span>${escapeHTML(text)}</span>`:""}`;host.classList.remove("flash","milestone");void host.offsetWidth;host.classList.add("flash");}
-  function isWaveFullyResolved(d=mini.defense){return Boolean(d&&d.packetIndex>=d.wavePackets.length&&d.spawnQueue.length===0&&d.childSpawnQueue.length===0&&!d.enemies.some(enemy=>!enemy.dead));}
+  function isWaveFullyResolved(d=mini.defense){return Boolean(d&&d.waveResolved>=d.waveTotal&&d.packetIndex>=d.wavePackets.length&&d.spawnQueue.length===0&&d.childSpawnQueue.length===0&&!d.enemies.some(enemy=>!enemy.dead));}
   function retireDefenseWaveResidue(d=mini.defense){if(!d)return;for(const shot of d.projectiles||[])releaseDefenseProjectileNode(shot);d.projectiles=[];d.effects=(d.effects||[]).filter(effect=>effect?.major&&Number(effect.expiresAt)>defenseNow());}
-  function completeDefenseWave(){const d=mini.defense;if(!isWaveFullyResolved(d))return false;retireDefenseWaveResidue(d);d.gateFlameArmed=false;d.gateFlameUntil=Math.min(d.gateFlameUntil||0,d.clock);$(".defense-shell")?.classList.remove("gate-flame-aiming");flushDefenseIncome(d,"wave-complete");d.clearedWave=Math.max(d.clearedWave,d.currentWave);const heartsLost=Math.max(0,d.enemyStats.heartLoss-(d.waveHeartLossStart||0));if(heartsLost===0)d.perfectWaveCount=Math.min(d.clearedWave,(d.perfectWaveCount||0)+1);const bonus=DefenseCore.calculateWaveBonus({clearedWave:d.clearedWave,heartsLostThisWave:heartsLost,towersPlaced:d.towers.length});d.cash=DefenseCore.clampNumber(d.cash+bonus,0,DEFENSE_LIMITS.MAX_RUN_CASH,d.cash);d.cashWriteCount=(d.cashWriteCount||0)+1;d.lastWaveBonus=bonus;defenseSetPhase(d,DEFENSE_PHASES.WAVE_COMPLETE);d.nextWaveReadyAtReal=defenseRealNow(d)+.72;d.autoStartAtReal=state.settings.defenseAutoStart?defenseRealNow(d)+2.8:0;const contractProgress=recordDefenseContractProgress(d),unlocked=DEFENSE_MILESTONES.find(value=>value===d.clearedWave&&!state.scores.defenseMilestones.includes(value));if(unlocked){state.scores.defenseMilestones.push(unlocked);state.scores.defenseMilestones.sort((a,b)=>a-b);saveState();}if(contractProgress.justCompleted){setDefenseMessage("CONTRACT SEALED • WAVE 10","The Gate recorded ten completed waves. Started waves never count.");$("#defenseMessage")?.classList.add("milestone");haptic([18,28,18,40]);sfx("legendary");}else if(unlocked){setDefenseMessage(`MILESTONE • WAVE ${unlocked}`,unlocked===100?"THE GATE NOW KNOWS YOUR NAME.":"A completed-wave badge was recorded.");$("#defenseMessage")?.classList.add("milestone");haptic([18,30,18,45]);sfx("legendary");}else{setDefenseMessage(`+${bonus} COINS • WAVE ${d.clearedWave} CLEAR`,defenseWaveFlavor(d.mapId,d.clearedWave,{cleared:true,perfect:heartsLost===0}));sfx("reward");haptic([10,18,10]);}renderDefensePresentation(1,true);showDefenseCinematicMoment("money",{kicker:`WAVE ${d.clearedWave} CLEAR`,title:`+${bonus} GOLD`,copy:heartsLost===0?"PERFECT • NOTHING TOUCHED THE GATE":defenseWaveFlavor(d.mapId,d.clearedWave,{cleared:true}),duration:heartsLost===0?2200:1900,priority:5,icon:"🪙",dismissible:true});updateDefenseRoster();markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"wave-clear");return true;}
+  function completeDefenseWave(){const d=mini.defense;if(!d||d.ending||d.lives<=0||d.currentWave<=d.clearedWave||!defenseIsSimulating(d)||!isWaveFullyResolved(d))return false;retireDefenseWaveResidue(d);d.gateFlameArmed=false;d.gateFlameUntil=Math.min(d.gateFlameUntil||0,d.clock);$(".defense-shell")?.classList.remove("gate-flame-aiming");flushDefenseIncome(d,"wave-complete");d.clearedWave=Math.max(d.clearedWave,d.currentWave);const heartsLost=Math.max(0,d.enemyStats.heartLoss-(d.waveHeartLossStart||0));if(heartsLost===0)d.perfectWaveCount=Math.min(d.clearedWave,(d.perfectWaveCount||0)+1);const bonus=DefenseCore.calculateWaveBonus({clearedWave:d.clearedWave,heartsLostThisWave:heartsLost,towersPlaced:d.towers.length});d.cash=DefenseCore.clampNumber(d.cash+bonus,0,DEFENSE_LIMITS.MAX_RUN_CASH,d.cash);d.cashWriteCount=(d.cashWriteCount||0)+1;d.lastWaveBonus=bonus;defenseSetPhase(d,DEFENSE_PHASES.WAVE_COMPLETE);d.nextWaveReadyAtReal=defenseRealNow(d)+.72;d.autoStartAtReal=state.settings.defenseAutoStart?defenseRealNow(d)+2.8:0;const contractProgress=recordDefenseContractProgress(d),unlocked=DEFENSE_MILESTONES.find(value=>value===d.clearedWave&&!state.scores.defenseMilestones.includes(value));if(unlocked){state.scores.defenseMilestones.push(unlocked);state.scores.defenseMilestones.sort((a,b)=>a-b);saveState();}if(contractProgress.justCompleted){setDefenseMessage("CONTRACT SEALED • WAVE 10","The Gate recorded ten completed waves. Started waves never count.");$("#defenseMessage")?.classList.add("milestone");haptic([18,28,18,40]);sfx("legendary");}else if(unlocked){setDefenseMessage(`MILESTONE • WAVE ${unlocked}`,unlocked===100?"THE GATE NOW KNOWS YOUR NAME.":"A completed-wave badge was recorded.");$("#defenseMessage")?.classList.add("milestone");haptic([18,30,18,45]);sfx("legendary");}else{setDefenseMessage(`+${bonus} COINS • WAVE ${d.clearedWave} CLEAR`,defenseWaveFlavor(d.mapId,d.clearedWave,{cleared:true,perfect:heartsLost===0}));duckMusic(520,.14);sfx("defense-wave-clear");defenseHaptic(heartsLost===0?"perfect":"clear");}renderDefensePresentation(1,true);const milestoneMoment=Boolean(contractProgress.justCompleted||unlocked||d.clearedWave===10),perfectMoment=heartsLost===0,momentTone=milestoneMoment?"milestone":perfectMoment?"perfect":"money",momentTitle=d.clearedWave===10?"THE GATE HELD.":unlocked?`WAVE ${unlocked} MARKED`:perfectMoment?"PERFECT CLEAR":`+${bonus} GOLD`,momentCopy=d.clearedWave===10?`+${bonus} GOLD • CHAPTER ONE CLEAR. SOMETHING ELSE HEARD THAT.`:contractProgress.justCompleted?`+${bonus} GOLD • CONTRACT SEALED`:unlocked?`+${bonus} GOLD • THE TRAIL REMEMBERS THIS ONE`:perfectMoment?`+${bonus} GOLD • NOTHING TOUCHED THE GATE`:defenseWaveFlavor(d.mapId,d.clearedWave,{cleared:true});showDefenseCinematicMoment("money",{kicker:`WAVE ${d.clearedWave} CLEAR`,title:momentTitle,copy:momentCopy,duration:milestoneMoment?2300:perfectMoment?2100:1900,priority:milestoneMoment?7:perfectMoment?6:5,tone:momentTone,icon:milestoneMoment?"✦":perfectMoment?"★":"🪙",dismissible:true});updateDefenseRoster();markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"wave-clear");return true;}
   function defenseDensityCap(d=mini.defense,nextEntry=null){if(!d)return 0;return DefenseCore.densityCap({low:false,speed:d.speed,bossActive:d.enemies.some(enemy=>enemy.bossId)||(typeof nextEntry==="object"&&nextEntry?.type==="boss")});}
   function defenseDensityAllowsSpawn(d,nextEntry,child=false){if(!d)return false;const cap=defenseDensityCap(d,nextEntry),reserved=child?0:DefenseCore.childReservationCount(d.childSpawnQueue,d.clock,.2,3),active=d.enemies.length;return active+reserved<cap;}
   function updateDefenseRealTime(realDt){
     const d=mini.defense;if(!d)return;const safeRealDt=Math.max(0,Number(realDt)||0);
     d.realClock=(d.realClock||0)+safeRealDt;d.uiClock=(d.uiClock||0)+safeRealDt;maybeWriteDefenseCheckpoint(safeRealDt);defenseApplyRenderTier(d);
     if(d.pendingIncome&&defenseRealNow(d)>=(d.nextIncomeFlushAtReal||0))flushDefenseIncome(d,"timer");
+    if((d.flowEaseUntilReal||0)>0&&defenseRealNow(d)>=(d.flowEaseUntilReal||0)){d.flowEaseUntilReal=0;markDefenseUi();}
     if(d.phase===DEFENSE_PHASES.WAVE_COMPLETE&&state.settings.defenseAutoStart&&d.towers.length){
-      const planningBusy=Boolean(d.pendingPlacement||defenseContextSurface(d));
-      if(planningBusy)d.autoStartAtReal=defenseRealNow(d)+2.8;
+      const planningBusy=Boolean(d.pendingPlacement||defenseContextSurface(d)),held=d.flowAutoHeldWave===d.clearedWave;
+      if(held)d.autoStartAtReal=0;
+      else if(planningBusy)d.autoStartAtReal=defenseRealNow(d)+2.8;
       else if(!(d.autoStartAtReal>0))d.autoStartAtReal=defenseRealNow(d)+2.8;
       else if(defenseRealNow(d)>=d.autoStartAtReal)startDefenseWave();
     }else if(!state.settings.defenseAutoStart)d.autoStartAtReal=0;
@@ -6184,6 +7212,7 @@
   function stepDefenseSimulation(dt){
     const d=mini.defense;if(!d||d.phase===DEFENSE_PHASES.PAUSED||!defenseIsSimulating(d))return false;
     d.clock+=dt;
+    for(let i=d.effects.length-1;i>=0;i--){const effect=d.effects[i];if(effect.expiresAt<=d.clock){if(effect.node)releaseDefenseImpactNode(effect.node);d.effects.splice(i,1);}}
     if(d.phase===DEFENSE_PHASES.COUNTDOWN&&d.clock>=d.nextSpawnAt)defenseSetPhase(d,DEFENSE_PHASES.COMBAT);
     if(d.phase===DEFENSE_PHASES.PACKET_BREAK&&d.clock>=d.packetBreakUntil){defenseSetPhase(d,DEFENSE_PHASES.COMBAT);}
     updateDefenseWeather();releaseDefenseChildSpawn(d);
@@ -6193,7 +7222,7 @@
       else if(entry!==undefined)d.spawnWaitReason=defenseDensityAllowsSpawn(d,entry)?"timer":"density";
       if(d.packetEnemyIndex>=packet.enemies.length){d.packetIndex+=1;d.packetEnemyIndex=0;if(d.packetIndex<d.wavePackets.length){d.packetBreakUntil=d.clock+DefenseCore.clampNumber(packet.breakAfter,.8,2.4,1.2);defenseSetPhase(d,DEFENSE_PHASES.PACKET_BREAK);}}
     }
-    updateDefenseEnemies(dt);updateDefenseGateFlame();if(!mini.active)return false;d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);d.maxActiveEnemiesObserved=Math.max(d.maxActiveEnemiesObserved||0,d.enemies.length);updateDefenseTowers(dt);updateDefenseProjectiles(dt);if(isWaveFullyResolved(d))completeDefenseWave();return true;
+    updateDefenseEnemies(dt);if(!mini.active||d.ending||d.lives<=0)return false;updateDefenseGateFlame();d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);d.maxActiveEnemiesObserved=Math.max(d.maxActiveEnemiesObserved||0,d.enemies.length);updateDefenseTowers(dt);updateDefenseProjectiles(dt);if(isWaveFullyResolved(d))completeDefenseWave();return true;
   }
 
   function renderDefensePresentation(alpha=1,force=false){
@@ -6211,7 +7240,7 @@
     const d=mini.defense;if(!d)return false;const safeRealDt=Math.max(0,Number(realDt)||0),step=DefenseCore.SIMULATION?.stepSeconds||1/30,maxSteps=DefenseCore.SIMULATION?.maxCatchUpSteps||4;
     updateDefenseRealTime(safeRealDt);d.fixedSimulation=true;
     if(d.phase===DEFENSE_PHASES.PAUSED||!defenseIsSimulating(d)){d.simAccumulator=0;d.presentationAccumulator=(d.presentationAccumulator||0)+safeRealDt;if(forceRender)renderDefensePresentation(1,true);return true;}
-    d.simAccumulator=(d.simAccumulator||0)+safeRealDt*Math.max(.5,d.speed||1);let steps=0;
+    d.simAccumulator=(d.simAccumulator||0)+safeRealDt*Math.max(.5,defensePlaybackSpeed(d)||1);let steps=0;
     while(d.simAccumulator+1e-9>=step&&steps<maxSteps&&mini.active){const began=performance.now();stepDefenseSimulation(step);const elapsed=Math.max(0,performance.now()-began);d.simStepSamples ||= [];d.simStepSamples.push(elapsed);if(d.simStepSamples.length>120)d.simStepSamples.shift();d.simStepWorst=Math.max(d.simStepWorst||0,elapsed);d.simAccumulator-=step;steps+=1;}
     d.lastSimSteps=steps;d.maxCatchUpObserved=Math.max(d.maxCatchUpObserved||0,steps);
     if(d.simAccumulator>=step){d.simBacklogEvents=(d.simBacklogEvents||0)+1;d.performanceLow=true;d.governorTier=2;d.simAccumulator=Math.min(d.simAccumulator,step*.99);}
@@ -6236,12 +7265,13 @@
     if(event.target.closest("[data-defense-field-guide]")){toggleDefenseFieldMenu(false);showDefenseFieldGuide(event.target.closest("[data-defense-field-guide]").dataset.defenseFieldGuide||"rizos");return;}
     const speed=event.target.closest("[data-defense-speed]");
     if(speed){cycleDefenseSpeed();return;}
-    if(event.target.closest("[data-defense-toggle-abilities]")){activateDefenseFieldLeader();return;}
+    if(event.target.closest("[data-defense-toggle-abilities]")){toggleDefenseAbilityTray();return;}
     if(event.target.closest("[data-defense-gate-flame]")){toggleDefenseGateFlame();return;}
     if(event.target.closest("[data-defense-toggle-intel]")){toggleDefenseIntel();return;}
     if(event.target.closest("[data-defense-toggle-bench]")){toggleDefenseBench();return;}
     if(event.target.closest("[data-defense-toggle-field-menu]")){toggleDefenseFieldMenu();return;}
-    if(event.target.closest("[data-defense-auto-start]")){state.settings.defenseAutoStart=!state.settings.defenseAutoStart;saveState(true);if(mini.defense){mini.defense.autoStartAtReal=state.settings.defenseAutoStart&&mini.defense.phase===DEFENSE_PHASES.WAVE_COMPLETE?defenseRealNow(mini.defense)+2.8:0;markDefenseUi();flushDefenseUi(true);}setDefenseMessage(state.settings.defenseAutoStart?"AUTO WAVES ON":"AUTO WAVES OFF",state.settings.defenseAutoStart?"The next cleared field gets a 2.8-second planning countdown. Opening a planning panel resets it.":"Wave boundaries are yours again. Start each formation when you are ready.");sfx("ui");return;}
+    if(event.target.closest("[data-defense-auto-start]")){state.settings.defenseAutoStart=!state.settings.defenseAutoStart;saveState(true);if(mini.defense){mini.defense.flowAutoHeldWave=-1;mini.defense.autoStartAtReal=state.settings.defenseAutoStart&&mini.defense.phase===DEFENSE_PHASES.WAVE_COMPLETE?defenseRealNow(mini.defense)+2.8:0;markDefenseUi();flushDefenseUi(true);}setDefenseMessage(state.settings.defenseAutoStart?"AUTO WAVES ON":"AUTO WAVES OFF",state.settings.defenseAutoStart?"The next cleared field gets a 2.8-second planning countdown. You can HOLD FIELD for one boundary without disabling the setting.":"Wave boundaries are yours again. Start each formation when you are ready.");sfx("ui");return;}
+    if(event.target.closest("[data-arcade-pause]")){toggleDefenseFieldMenu(false);openArcadePause();return;}
     if(event.target.closest("[data-defense-bank-leave]")){writeDefenseCheckpoint(true,"field-menu-leave");finishDefenseRunWithMoment("banked");return;}
     if(event.target.closest("[data-defense-toggle-legend]")){toggleDefenseFieldMenu(false);showDefenseControlLegend();return;}
     if(event.target.closest("[data-defense-toggle-fullscreen]")){toggleDefenseFieldMenu(false);toggleDefenseFullscreen();return;}
@@ -6249,6 +7279,8 @@
     if(cast){activateDefenseAbility(cast,{keepAbilityTray:true});updateDefenseAbilityTray();return;}
     const castGroup=event.target.closest("[data-defense-cast-group]")?.dataset.defenseCastGroup;
     if(castGroup){activateDefenseAbilityGroup(castGroup);return;}
+    const flowAction=event.target.closest("[data-defense-flow-action]")?.dataset.defenseFlowAction;
+    if(flowAction){runDefenseFlowAction(flowAction);return;}
     const cancel=event.target.closest("[data-defense-cancel-placement]");
     if(cancel){clearDefensePlacementMode();setDefenseMessage("PLACEMENT CANCELLED","Tap a Rizo below whenever you are ready.");return;}
     const runControl=event.target.closest("[data-defense-run-control]");
@@ -6273,7 +7305,7 @@
     const rosterButton=event.target.closest("[data-defense-roster-id]");
     const petId=rosterButton?.dataset.defenseRosterId;
     if(petId){
-      const row=defenseRoster().find(item=>item.pet.id===petId),d=mini.defense;
+      const row=defenseDeployRegistry().get(petId),d=mini.defense;
       if(!row)return;
       if(d.towers.length>=d.maxTowers){toast("THE FIELD IS FULL");return;}
       if(defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id)){setDefenseMessage("CONTRACT • NO COPIES",`${row.pet.name} already stands on this field.`);return;}
@@ -6296,7 +7328,7 @@
     }
   }
 
-  function rewardDefenseRun(){const d=mini.defense,clearedWave=DefenseCore.clampInteger(d?.clearedWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0);if(!d||clearedWave<=0)return{embers:0,trained:0};const embers=DefenseCore.calculateRunEmbers({clearedWave,kills:d.kills,bossesDefeated:d.bossesDefeated??new Set(d.bossesBeaten||[]).size,perfectWaveCount:d.perfectWaveCount}),killsByPet=new Map();let trained=0;for(const tower of d.towers)killsByPet.set(tower.petId,(killsByPet.get(tower.petId)||0)+(tower.kills||0));const rosterById=new Map(defenseRoster().map(row=>[row.pet.id,row.pet])),usedIds=new Set(d.usedPetIds?.length?d.usedPetIds:d.towers.map(tower=>tower.petId));for(const petId of usedIds){const pet=rosterById.get(petId);if(!pet)continue;const towerKills=killsByPet.get(petId)||0;pet.skills||={speed:0,power:0,instinct:0,stamina:0,luck:0};pet.genes||=createGenes();const amount=Math.min(8,.25+clearedWave*.12+towerKills*.035);for(const key of["power","instinct","stamina"]){const before=Number(pet.skills[key])||0;pet.skills[key]=clamp(before+amount*(key==="power"?1:.55),0,Number(pet.genes[key])||100);}pet.xp=(Number(pet.xp)||0)+Math.min(90,clearedWave*2.2+towerKills*.5);pet.bond=clamp((Number(pet.bond)||0)+Math.min(8,clearedWave*.18));pet.careProfile||={kind:0,wild:0,balanced:0,foods:{},games:{}};pet.careProfile.games||={};pet.careProfile.games.defense=(pet.careProfile.games.defense||0)+1;trained+=1;}state.wallet.embers+=embers;state.pet.energy=clamp(state.pet.energy-8);state.pet.hunger=clamp(state.pet.hunger-3);state.pet.mood=clamp(state.pet.mood+Math.min(18,clearedWave*.6));state.meta.totalGames+=1;earnHeat(Math.min(80,10+clearedWave*3),false);progressQuest("play");saveState();return{embers,trained};}
+  function rewardDefenseRun(){const d=mini.defense,clearedWave=DefenseCore.clampInteger(d?.clearedWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0);if(!d||clearedWave<=0)return{embers:0,trained:0};const embers=DefenseCore.calculateRunEmbers({clearedWave,kills:d.kills,bossesDefeated:d.bossesDefeated??new Set(d.bossesBeaten||[]).size,perfectWaveCount:d.perfectWaveCount}),killsByPet=new Map();let trained=0;for(const tower of d.towers)killsByPet.set(tower.petId,(killsByPet.get(tower.petId)||0)+(tower.kills||0));const rosterById=new Map(defenseRoster().map(row=>[row.pet.id,row.pet])),usedIds=new Set(d.usedPetIds?.length?d.usedPetIds:d.towers.map(tower=>tower.petId));for(const petId of usedIds){const pet=rosterById.get(petId);if(!pet||pet.defenseGuest)continue;const towerKills=killsByPet.get(petId)||0;pet.skills||={speed:0,power:0,instinct:0,stamina:0,luck:0};pet.genes||=createGenes();const amount=Math.min(8,.25+clearedWave*.12+towerKills*.035);for(const key of["power","instinct","stamina"]){const before=Number(pet.skills[key])||0;pet.skills[key]=clamp(before+amount*(key==="power"?1:.55),0,Number(pet.genes[key])||100);}pet.xp=(Number(pet.xp)||0)+Math.min(90,clearedWave*2.2+towerKills*.5);pet.bond=clamp((Number(pet.bond)||0)+Math.min(8,clearedWave*.18));pet.careProfile||={kind:0,wild:0,balanced:0,foods:{},games:{}};pet.careProfile.games||={};pet.careProfile.games.defense=(pet.careProfile.games.defense||0)+1;trained+=1;}state.wallet.embers+=embers;state.pet.energy=clamp(state.pet.energy-8);state.pet.hunger=clamp(state.pet.hunger-3);state.pet.mood=clamp(state.pet.mood+Math.min(18,clearedWave*.6));state.meta.totalGames+=1;earnHeat(Math.min(80,10+clearedWave*3),false);progressQuest("play");saveState();return{embers,trained};}
 
 
   function cleanupMiniRuntime() {
@@ -6309,14 +7341,12 @@
     document.documentElement.classList.remove("defense-performance-session");
     unlockDefenseViewport();
     clearInterval(mini.timer);
-    clearInterval(mini.mover);
-    for (const id of mini.intervals || []) clearInterval(id);
-    for (const id of mini.timeouts || []) clearTimeout(id);
+    clearArcadeJobs();
     if (mini.frame) cancelAnimationFrame(mini.frame);
     if (defenseResizeFrame) { cancelAnimationFrame(defenseResizeFrame); defenseResizeFrame = null; }
     stopRhythmVoices();
     for (const entity of mini.entities || []) entity.node?.remove?.();
-    mini.intervals = []; mini.timeouts = []; mini.entities = [];
+    mini.intervals = []; mini.entities = [];
   }
 
   function unlockWalkTreasure(force = false) {
@@ -6353,6 +7383,113 @@
     return null;
   }
 
+  // ===== SHARED ARCADE PAUSE / QUIT =====
+  // One pause experience for the whole arcade instead of eleven. Defense and
+  // Ember Beat keep their specialised timing: Defense pauses through its own
+  // interruption path, and Rhythm's audio clock is credited by arcadeThaw().
+  function arcadeCanPause(){ return Boolean(mini?.active && !mini.pausedByFork); }
+  function arcadePauseLabel(){ return mini?.mode==="defense" ? "HOLD THE LINE" : "RUN PAUSED"; }
+  function openArcadePause(){
+    if(!arcadeCanPause() || mini.paused) return false;
+    mini.paused=true;
+    if(mini.mode==="defense"){
+      const d=mini.defense;
+      if(d && !d.paused){ d.paused=true; d.autoPaused=false; mini.defensePauseHeld=true; setDefenseMessage("RUN PAUSED","Nothing advances while this panel is open."); markDefenseUi(); flushDefenseUi(true); }
+      arcadeHoldJobs("menu");
+    } else arcadeFreeze("menu");
+    renderArcadePausePanel();
+    if(el.miniPausePanel) el.miniPausePanel.hidden=false;
+    el.miniGameOverlay.classList.add("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","true"); el.miniPause.textContent="RESUME"; }
+    duckMusic(600,.05);
+    sfx("ui");
+    el.miniPausePanel?.querySelector("[data-arcade-resume]")?.focus({preventScroll:true});
+    return true;
+  }
+  function closeArcadePause(silent=false){
+    const wasPaused=Boolean(mini?.paused);
+    if(mini) mini.paused=false;
+    if(el.miniPausePanel) el.miniPausePanel.hidden=true;
+    el.miniGameOverlay?.classList.remove("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","false"); el.miniPause.textContent="PAUSE"; }
+    if(!wasPaused) return false;
+    if(mini?.active){
+      if(mini.mode==="defense"){
+        if(mini.defensePauseHeld && mini.defense){ mini.defense.paused=false; mini.defensePauseHeld=false; setDefenseMessage("BACK ON THE TRAIL","The wave continues where it stopped."); markDefenseUi(); flushDefenseUi(true); }
+        arcadeReleaseJobs("menu");
+      } else arcadeThaw("menu");
+    }
+    if(!silent) sfx("ui");
+    return true;
+  }
+  function toggleArcadePause(){ return mini?.paused ? closeArcadePause() : openArcadePause(); }
+  function renderArcadePausePanel(){
+    const host=el.miniPausePanel;
+    if(!host || !mini?.active) return;
+    const mode=mini.mode,defense=mode==="defense";
+    const score=Math.max(0,Math.floor(mini.score||0));
+    const remaining=Number.isFinite(mini.endAt)?Math.max(0,(mini.endAt-now())/1000):0;
+    const wave=defense?Math.max(0,Number(mini.defense?.clearedWave)||0):0;
+    const stat=defense
+      ? `<span><small>CLEARED</small><b>WAVE ${wave}</b></span><span><small>GATE</small><b>${Math.max(0,Number(mini.defense?.lives)||0)} ♥</b></span>`
+      : `<span><small>THIS RUN</small><b>${formatNumber(score)}</b></span><span><small>TIME LEFT</small><b>${remaining.toFixed(1)}s</b></span>`;
+    host.innerHTML=`<div class="arcade-pause-card">
+      <small>${escapeHTML(arcadeName(mode))}</small>
+      <h3>${arcadePauseLabel()}</h3>
+      <div class="arcade-pause-stats">${stat}</div>
+      <p>${defense?"Cleared waves are already banked. Nothing on the trail moves until you resume.":"The clock is frozen. Nothing spawns, nothing drains."}</p>
+      <div class="arcade-pause-actions">
+        <button type="button" class="primary" data-arcade-resume>RESUME</button>
+        ${defense?"":`<button type="button" data-arcade-restart>RESTART</button>`}
+        <button type="button" class="danger" data-arcade-quit>${defense?"BANK &amp; LEAVE":"END RUN"}</button>
+      </div>
+    </div>`;
+  }
+  function restartArcadeRun(){
+    if(!mini?.active) return false;
+    const mode=mini.mode;
+    if(mode==="defense") return false;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    // Restarting throws the run away, so a run worth keeping asks first.
+    if(score>0 && arcadeRunQualified(mode,score) && !mini.restartConfirmed){
+      mini.restartConfirmed=true;
+      renderArcadePausePanel();
+      const actions=el.miniPausePanel?.querySelector(".arcade-pause-actions");
+      if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-restart>DISCARD ${formatNumber(score)} • RESTART</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
+      return false;
+    }
+    closeArcadePause(true);
+    finishMiniGame(true,null,{discard:true});
+    startMiniGame(mode);
+    return true;
+  }
+  // A mis-tap used to destroy a personal best with zero friction. A run that
+  // would actually count now confirms, and confirming banks it instead of
+  // silently deleting it — the behaviour Defense already had.
+  function requestArcadeQuit(source="button"){
+    if(!mini?.active) return false;
+    if(mini.mode==="defense"){ closeArcadePause(true); finishDefenseRunWithMoment("banked"); return true; }
+    const mode=mini.mode,score=Math.max(0,Math.floor(mini.score||0));
+    const meaningful=score>0 && arcadeRunQualified(mode,score);
+    if(meaningful && !mini.quitConfirmed){
+      mini.quitConfirmed=true;
+      if(!mini.paused) openArcadePause();
+      renderArcadePausePanel();
+      const card=el.miniPausePanel?.querySelector(".arcade-pause-card");
+      if(card){
+        const copy=card.querySelector("p");
+        if(copy) copy.textContent=`End the run here? ${formatNumber(score)} points bank exactly as they stand — the rest of the clock is forfeit.`;
+        const actions=card.querySelector(".arcade-pause-actions");
+        if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-quit>BANK ${formatNumber(score)} • END RUN</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
+      }
+      sfx("no");
+      return false;
+    }
+    closeArcadePause(true);
+    finishMiniGame(true);
+    return true;
+  }
+
   function arcadeRunQualified(mode, score) {
     if(mode==="defense")return true;
     if(mode==="power")return Boolean(mini.powerEngaged && mini.hits>=2 && score>=2);
@@ -6368,10 +7505,78 @@
     return score>0;
   }
 
-  function finishMiniGame(quit = false, defenseEndReason = null) {
+  // ===== SHARED ARCADE RESULTS =====
+  // Every small game reports four stats drawn from play it already tracked.
+  // Nothing here is invented to fill a slot: if a mode genuinely has only
+  // three honest numbers, it ships three rather than padding.
+  function arcadeResultStats(mode, snap){
+    const lives=()=>({label:"HEARTS LEFT", value:`${snap.livesLeft}/${snap.maxLives}`});
+    const table={
+      power:[{label:"BEST STREAK",value:snap.powerBestStreak},{label:"COACH CALLS",value:snap.powerCallsRead},{label:"FEINTS READ",value:snap.powerGuardReads},{label:"WRONG SHOTS",value:snap.powerWrongCalls}],
+      spark:[{label:"BANKS",value:snap.sparkBanks},{label:"BEST CHAIN",value:snap.sparkBestStreak},{label:"STASH LOST",value:snap.sparkLost},{label:"SPARK RUSHES",value:snap.sparkFrenzies}],
+      forage:[{label:"LUNCH CHAIN",value:snap.forageBestStreak},{label:"TICKETS PACKED",value:snap.forageOrdersDone},{label:"PLATES TAKEN",value:snap.hits},{label:"PRISM ROLLS",value:snap.treasureRolls}],
+      rush:[{label:"DELIVERIES",value:snap.rushDeliveries},{label:"CLEAN STREAK",value:snap.rushBestStreak},{label:"OBSTACLES",value:snap.rushClears},{label:"PACKAGES LOST",value:snap.rushPackagesLost}],
+      walk:[{label:"DISTANCE",value:`${snap.walkDistance}m`},{label:"DISCOVERIES",value:snap.hits},{label:"TRAIL RISK",value:snap.walkRisk},{label:"LUCK READ",value:snap.walkLuck}],
+      memory:[{label:"ROUND REACHED",value:snap.memoryRound},{label:"SIGNALS CLEAN",value:snap.hits},lives(),{label:"FINAL RULE",value:snap.memoryRuleLabel||"CLEAN SIGNAL"}],
+      glide:[{label:"GATES CLEARED",value:snap.glideClears},{label:"THREAD STREAK",value:snap.glideBestStreak},{label:"THERMALS",value:snap.glideThermals},lives()],
+      breaker:[{label:"FORGE REACHED",value:snap.breakerLevel},{label:"BRICKS BROKEN",value:snap.breakerBricks},{label:"CORES BROKEN",value:snap.breakerCoresBroken},{label:"BEST RALLY",value:snap.breakerBestStreak}],
+      maze:[{label:"MAZE REACHED",value:snap.mazeLevel},{label:"BEST HUNT CHAIN",value:snap.mazeBestCombo},{label:"SHADOW TAGS",value:snap.mazeTags},{label:"PRISM HUNTS",value:snap.mazeHunts}]
+    };
+    return table[mode]||[];
+  }
+  function arcadeResultGrid(mode, snap){
+    const stats=arcadeResultStats(mode, snap);
+    if(!stats.length) return "";
+    return `<div class="arcade-result-grid stat-${stats.length}">${stats.map(stat=>`<span>${escapeHTML(String(stat.label))}<b>${escapeHTML(String(stat.value))}</b></span>`).join("")}</div>`;
+  }
+  // Death, the clock running out, and walking away deliberately are three
+  // different feelings and now read as three different screens.
+  function arcadeResultVoice(mode, reason, score){
+    const name=arcadeName(mode);
+    if(reason==="death") return {
+      headline:"RUN ENDED",
+      line:score>=30?`${name} TOOK IT ALL THE WAY DOWN SWINGING.`:score>=10?"THAT LAST ONE GOT YOU.":"GONE ALREADY. BRUTAL.",
+      art:"✖"
+    };
+    if(reason==="quit") return {
+      headline:"RUN BANKED",
+      line:score>=30?"WALKED AWAY RICH. RESPECT.":"CASHED OUT EARLY. NOTHING LOST.",
+      art:"⏻"
+    };
+    if(mode==="walk"&&mini.walkEnding)return {headline:"HOME AGAIN",line:mini.walkEnding,art:"☾"};
+    if(mode==="forage"&&mini.forageOrdersDone>0)return {headline:"LUNCH IS SERVED",line:`${mini.forageOrdersDone} LUNCHES PACKED. RIZO IS INSPECTING YOUR WORK.`,art:"🍓"};
+    if(mode==="rush"&&mini.rushDeliveries>0)return {headline:"SHIFT COMPLETE",line:`${mini.rushDeliveries} PACKAGES SIGNED FOR. ${mini.rushPackagesLost?"WE DO NOT TALK ABOUT THE OTHERS.":"NOT A SINGLE COMPLAINT. YET."}`,art:"◆"};
+    if(reason==="cleared") return { headline:"CLEARED", line:"THE WHOLE BOARD. CLEAN.", art:"✓" };
+    return {
+      headline:"TIME UP",
+      line:score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.",
+      art:null
+    };
+  }
+
+  // Why a run ended is now first-class. A player who died must not receive the
+  // same screen as a player who outlasted the clock.
+  const ARCADE_END_REASONS = Object.freeze({
+    death:{label:"RUN ENDED", tone:"death"},
+    timeup:{label:"TIME UP", tone:"timeup"},
+    cleared:{label:"CLEARED", tone:"cleared"},
+    quit:{label:"RUN BANKED", tone:"quit"}
+  });
+  const ARCADE_LIFE_MODES = Object.freeze(["rush","glide","breaker","maze","memory"]);
+  function arcadeEndReason(mode, quit){
+    if(quit) return "quit";
+    if(mini.endReason && ARCADE_END_REASONS[mini.endReason]) return mini.endReason;
+    if(ARCADE_LIFE_MODES.includes(mode) && (mini.lives||0) >= (mini.maxLives||3)) return "cleared";
+    if(mode==="walk" && (mini.walkChoices||[]).length>=2) return "cleared";
+    return "timeup";
+  }
+  function finishMiniGame(quit = false, defenseEndReason = null, options = {}) {
     if (!mini.active) return;
+    const discard=Boolean(options?.discard);
     const completedMode=mini.mode;
-    if(completedMode==="spark"&&!quit&&mini.sparkStash>0)bankSparkStash(true);
+    const endReason=arcadeEndReason(completedMode, quit);
+    // Voluntarily ending a Spark run still banks the pile the player is holding.
+    if(completedMode==="spark"&&!discard&&mini.sparkStash>0)bankSparkStash(true);
     const score=Math.max(0,Math.floor(mini.score));
     const treasureRolls=mini.treasureRolls||0;
     if(completedMode==="defense"&&mini.defense)flushDefenseIncome(mini.defense,"finish");
@@ -6380,8 +7585,12 @@
     const rhythmQuality=rhythmSnapshot?Math.max(5,Math.min(80,Math.round(rhythmSnapshot.accuracy*.45+Math.min(35,rhythmSnapshot.maxStreak*.7)))):score;
     const previousBest=Math.max(0,Number(state.scores?.[completedMode])||0);
     const qualifiedRun=arcadeRunQualified(completedMode,score);
-    const arcadeSnapshot={powerBestStreak:mini.powerBestStreak||0,powerCallsRead:mini.powerCallsRead||0,powerWrongCalls:mini.powerWrongCalls||0,sparkBestStreak:mini.sparkBestStreak||0,sparkAvoided:mini.sparkAvoided||0,sparkFrenzies:mini.sparkFrenzies||0,sparkBanks:mini.sparkBanks||0,sparkLost:mini.sparkLost||0,forageBestStreak:mini.forageBestStreak||0,rushBestStreak:mini.rushBestStreak||0,rushClears:mini.rushClears||0,rushDeliveries:mini.rushDeliveries||0,memoryRound:mini.memoryBestRound||mini.memoryRound||0,memoryLives:mini.memoryLives||0,memoryMode:mini.memoryMode||"forward",glideBestStreak:mini.glideBestStreak||0,glideGates:mini.glideGateCount||0,glideClears:mini.glideClears||0,glideThermals:mini.glideThermals||0,breakerBestStreak:mini.breakerBestStreak||0,breakerLevel:mini.breakerLevel||1,breakerCoresBroken:mini.breakerCoresBroken||0,powerGuardReads:mini.powerGuardReads||0,mazeLevel:mini.mazeLevel||1,mazeBestCombo:mini.mazeBestCombo||0,mazeTags:mini.mazeHunterTags||0,mazeHunts:mini.mazeHunts||0};
+    const livesLeft=Math.max(0,Math.floor(mini.lives||0));
+    const arcadeSnapshot={endReason,livesLeft,maxLives:Math.max(1,Math.floor(mini.maxLives||3)),hits:Math.max(0,Math.floor(mini.hits||0)),walkDistance:Math.round(mini.walkDistance||0),walkRisk:mini.walkRisk||0,walkLuck:mini.walkLuck||0,walkChoices:[...(mini.walkChoices||[])],walkBiome:mini.walkBiome?.name||"",forageOrdersDone:mini.forageOrdersDone||0,rushPackagesLost:mini.rushPackagesLost||0,breakerBricks:mini.breakerBricks||0,memoryRuleLabel:completedMode==="memory"?memoryRuleLabel():"",treasureRolls,powerBestStreak:mini.powerBestStreak||0,powerCallsRead:mini.powerCallsRead||0,powerWrongCalls:mini.powerWrongCalls||0,sparkBestStreak:mini.sparkBestStreak||0,sparkAvoided:mini.sparkAvoided||0,sparkFrenzies:mini.sparkFrenzies||0,sparkBanks:mini.sparkBanks||0,sparkLost:mini.sparkLost||0,forageBestStreak:mini.forageBestStreak||0,rushBestStreak:mini.rushBestStreak||0,rushClears:mini.rushClears||0,rushDeliveries:mini.rushDeliveries||0,memoryRound:mini.memoryBestRound||mini.memoryRound||0,memoryLives:mini.memoryLives||0,memoryMode:mini.memoryMode||"forward",glideBestStreak:mini.glideBestStreak||0,glideGates:mini.glideGateCount||0,glideClears:mini.glideClears||0,glideThermals:mini.glideThermals||0,breakerBestStreak:mini.breakerBestStreak||0,breakerLevel:mini.breakerLevel||1,breakerCoresBroken:mini.breakerCoresBroken||0,powerGuardReads:mini.powerGuardReads||0,mazeLevel:mini.mazeLevel||1,mazeBestCombo:mini.mazeBestCombo||0,mazeTags:mini.mazeHunterTags||0,mazeHunts:mini.mazeHunts||0};
     mini.active=false;
+    mini.paused=false;
+    mini.pauseSources={};
+    closeArcadePause(true);
     cleanupMiniRuntime();
     el.miniGameOverlay.hidden=true;
     el.miniArena.innerHTML="";
@@ -6389,10 +7598,13 @@
     activeMusicOverride=null;
     syncMusic(true);
     if(lastOverlayFocus?.isConnected) lastOverlayFocus.focus({preventScroll:true});
-    if(quit) return;
+    if(discard) return;
+    // Walking away from a run that never got going is a non-event. Only a run
+    // the arcade would actually have credited earns a screen.
+    if(quit && completedMode!=="defense" && !qualifiedRun) return;
     if(completedMode!=="defense"&&!qualifiedRun){
-      const art={power:"🥊",spark:"★",forage:"🍓",rush:"🔥",walk:"☂",rhythm:"♫",memory:"▦",glide:"☁",breaker:"✦",maze:"⌗"}[completedMode]||"★";
-      showModal(`<div class="modal-card minigame-result-${completedMode} arcade-no-credit"><div class="modal-art">${art}</div><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${completedMode}">TRY AGAIN</button></div></div>`);
+      const art=arcadeArt(completedMode);
+      showModal(`<div class="modal-card arcade-result minigame-result-${completedMode} arcade-no-credit"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(completedMode))}</small><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${completedMode}">TRY AGAIN</button></div></div>`);
       return;
     }
     if(completedMode==="defense") {
@@ -6406,8 +7618,8 @@
       const runRecord=recordDefenseRun(defenseSnapshot);
       if((defenseSnapshot?.clearedWave||0)>0){const memory=lifeMemory();memory.arcadeAfterglowUntil=now()+16000;memory.lastArcadeMode="defense";}
       saveState();renderAll();
-      const wave=defenseSnapshot?.clearedWave||0,reachedWave=defenseSnapshot?.currentWave||wave,kills=defenseSnapshot?.kills||0,lives=defenseSnapshot?.lives||0,bosses=[...new Set(defenseSnapshot?.bossesBeaten||[])],stats=defenseSnapshot?.enemyStats||{},heartLoss=Number(stats.heartLoss)||0,leaks=Object.values(stats.leaked||{}).reduce((sum,value)=>sum+(Number(value)||0),0),counters=stats.counters||{},leaders=[...(defenseSnapshot?.towers||[])].sort((a,b)=>(b.damage||0)-(a.damage||0)).slice(0,3),topTower=leaders[0],perfect=wave>0&&heartLoss===0,mapBest=Math.max(0,Math.floor(Number(state.scores.defenseMaps?.[defenseSnapshot?.mapId])||0)),medal=defenseMedalName(defenseMedalTier(mapBest)),mastery=runRecord?.mvpPetId?state.scores.defenseMastery?.[runRecord.mvpPetId]:null;
-      const century=wave>=100,newBest=wave>priorMapBest;showModal(`<div class="modal-card defense-result defense-run-recap ${century?"century-clear":""}"><div class="defense-result-hero"><div class="modal-art defense-result-balloon"><i></i></div><small>${escapeHTML(defenseSnapshot?.map?.name||"PINE BEND")} • RUN COMPLETE</small><h2>${century?"WAVE 100+":"WAVE "+wave}${newBest?` <u>NEW BEST</u>`:""}</h2><p class="big-line">${century?"THE GATE SURVIVED A CENTURY.":lives<=0?"THE GATE FINALLY FELL.":perfect?"PERFECT GATE. NOTHING GOT THROUGH.":"RUN BANKED."}</p></div><div class="defense-result-primary"><span>${defenseMedalMarkup(defenseSnapshot?.mapId,mapBest)}<b>${escapeHTML(medal)}</b></span><span><small>R EARNED</small><b>+${rewards.embers}</b></span><span><small>MVP</small><b>${escapeHTML(topTower?.pet?.name||state.pet.name)}</b></span></div><div class="defense-result-grid v80"><span>POPS<b>${kills}</b></span><span>HEARTS LOST<b>${heartLoss}</b></span><span>BOSSES<b>${bosses.length}</b></span></div>${runRecord?.contractComplete?`<div class="defense-contract-seal"><span>◇</span><div><small>TRAIL CONTRACT SEALED</small><b>${escapeHTML(defenseSnapshot.contract?.title||"DAILY TRAIL CONTRACT")}</b></div></div>`:""}<details class="defense-result-details"><summary>RUN DETAILS</summary><div class="defense-counter-recap"><span>LEAKS <b>${leaks}</b></span><span>RIZOS TRAINED <b>${rewards.trained}</b></span><span>ARMOR BROKEN <b>${Number(counters.armorBreaks)||0}</b></span><span>ARMOR SHRED <b>${Number(counters.armorShreds)||0}</b></span><span>REVEALS <b>${Number(counters.reveals)||0}</b></span><span>PHASE LOCKS <b>${Number(counters.phaseLocks)||0}</b></span><span>BOSS BREAKS <b>${Number(counters.bossInterrupts)||0}</b></span><span>DAMAGE <b>${Math.round(topTower?.damage||0)}</b></span></div></details><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="defense">RUN IT BACK</button></div></div>`);
+      const wave=defenseSnapshot?.clearedWave||0,reachedWave=defenseSnapshot?.currentWave||wave,kills=defenseSnapshot?.kills||0,lives=defenseSnapshot?.lives||0,bosses=[...new Set(defenseSnapshot?.bossesBeaten||[])],stats=defenseSnapshot?.enemyStats||{},heartLoss=Number(stats.heartLoss)||0,leaks=Object.values(stats.leaked||{}).reduce((sum,value)=>sum+(Number(value)||0),0),counters=stats.counters||{},leaders=[...(defenseSnapshot?.towers||[])].sort((a,b)=>(b.damage||0)-(a.damage||0)).slice(0,3),topTower=[...(defenseSnapshot?.towers||[])].filter(tower=>!String(tower.petId||"").startsWith("defense-crew-")&&!String(tower.petId||"").startsWith("defense-structure-")&&tower.petId!==DEFENSE_BASIC_TOWER.id).sort((a,b)=>(b.damage||0)-(a.damage||0))[0]||null,perfect=wave>0&&heartLoss===0,mapBest=Math.max(0,Math.floor(Number(state.scores.defenseMaps?.[defenseSnapshot?.mapId])||0)),medal=defenseMedalName(defenseMedalTier(mapBest)),mastery=runRecord?.mvpPetId?state.scores.defenseMastery?.[runRecord.mvpPetId]:null;
+      const century=wave>=100,newBest=wave>priorMapBest;showModal(`<div class="modal-card arcade-result defense-result defense-run-recap ${century?"century-clear":""}"><div class="defense-result-hero"><div class="modal-art defense-result-balloon"><i></i></div><small>${escapeHTML(defenseSnapshot?.map?.name||"PINE BEND")} • RUN COMPLETE</small><h2>${century?"WAVE 100+":"WAVE "+wave}</h2>${newBest?`<div class="arcade-best-banner"><i aria-hidden="true">\u2605</i><div><small>NEW PERSONAL BEST</small><b>WAVE ${wave}</b><em>PREVIOUS WAVE ${priorMapBest}</em></div></div>`:""}<p class="big-line">${century?"THE GATE SURVIVED A CENTURY.":lives<=0?"THE GATE FINALLY FELL.":perfect?"PERFECT GATE. NOTHING GOT THROUGH.":"RUN BANKED."}</p></div><div class="defense-result-primary"><span>${defenseMedalMarkup(defenseSnapshot?.mapId,mapBest)}<b>${escapeHTML(medal)}</b></span><span><small>R EARNED</small><b>+${rewards.embers}</b></span><span><small>MVP</small><b>${escapeHTML(topTower?.pet?.name||runRecord?.mvpName||state.pet.name)}</b></span></div><div class="defense-result-grid v80"><span>POPS<b>${kills}</b></span><span>HEARTS LOST<b>${heartLoss}</b></span><span>BOSSES<b>${bosses.length}</b></span></div>${runRecord?.contractComplete?`<div class="defense-contract-seal"><span>◇</span><div><small>TRAIL CONTRACT SEALED</small><b>${escapeHTML(defenseSnapshot.contract?.title||"DAILY TRAIL CONTRACT")}</b></div></div>`:""}<details class="defense-result-details"><summary>RUN DETAILS</summary><div class="defense-counter-recap"><span>LEAKS <b>${leaks}</b></span><span>RIZOS TRAINED <b>${rewards.trained}</b></span><span>ARMOR BROKEN <b>${Number(counters.armorBreaks)||0}</b></span><span>ARMOR SHRED <b>${Number(counters.armorShreds)||0}</b></span><span>REVEALS <b>${Number(counters.reveals)||0}</b></span><span>PHASE LOCKS <b>${Number(counters.phaseLocks)||0}</b></span><span>BOSS BREAKS <b>${Number(counters.bossInterrupts)||0}</b></span><span>DAMAGE <b>${Math.round(topTower?.damage||runRecord?.mvpDamage||0)}</b></span></div></details><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="defense">RUN IT BACK</button></div></div>`);
       advanceTutorial("play");if(wave>=10)celebrate();return;
     }
     state.scores[completedMode]=Math.max(state.scores[completedMode]||0,score);
@@ -6462,19 +7674,22 @@
     evaluateForm(true);
     const rareDiscovery = maybeUnlockSpecialRizo(completedMode, score, mini.walkPath);
     const trainedSkill = ({power:"power",spark:"instinct",forage:"instinct",rush:"speed",walk:"stamina",rhythm:"speed",memory:"instinct",glide:"stamina",breaker:"power",maze:"instinct",defense:"power"})[completedMode];
-    const art={power:"🥊",spark:"★",forage:"🍓",rush:"🔥",walk:"☂",rhythm:"♫",memory:"▦",glide:"☁",breaker:"✦",maze:"⌗",defense:"🎈"}[completedMode];
+    const voice=arcadeResultVoice(completedMode,endReason,score);
+    const art=voice.art||arcadeArt(completedMode);
     const trackTitle=completedMode==="rhythm"?(rhythmSnapshot?.track?.title||"EMBER BEAT"):null;
-    const line=score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.";
+    const line=voice.line;
     const treasureCopy=foundTreasure?`<div class="event-reward">${foundTreasure.icon} FOUND: ${foundTreasure.name}</div>`:"";
     const rareCopy=rareDiscovery?`<div class="rare-discovery-stage ${rareDiscovery.id}">${petMarkup({extraClass:"rare-reaction-pet",id:"rareReactionPet"})}<div class="rare-found-pet"><img src="${rareDiscovery.sprite}" alt="${rareDiscovery.name}"></div><b>${rareDiscovery.name} DISCOVERED</b></div>`:"";
     if(rareDiscovery){activeMusicOverride=rareDiscovery.id==="shadow"?"shadow":rareDiscovery.id==="retro"?"retro":"forest";startMusicForScene(activeMusicOverride,true);duckMusic(1400,.08);}
     const skill=SKILLS.find(item=>item.id===trainedSkill);
-    const rhythmBreakdown=rhythmSnapshot?`<div class="rhythm-result-grid"><span>ACCURACY<b>${rhythmSnapshot.accuracy}%</b></span><span>MAX COMBO<b>${rhythmSnapshot.maxStreak}</b></span><span>PERFECT<b>${rhythmSnapshot.judgements.perfect||0}</b></span><span>MISSES<b>${rhythmSnapshot.judgements.miss||0}</b></span></div>`:"";
-    const arcadeBreakdown=completedMode==="power"?`<div class="arcade-result-grid"><span>BEST STREAK<b>${arcadeSnapshot.powerBestStreak}</b></span><span>COACH CALLS<b>${arcadeSnapshot.powerCallsRead}</b></span><span>FEINTS READ<b>${arcadeSnapshot.powerGuardReads}</b></span><span>WRONG SHOTS<b>${arcadeSnapshot.powerWrongCalls}</b></span></div>`:completedMode==="spark"?`<div class="arcade-result-grid"><span>BANKS<b>${arcadeSnapshot.sparkBanks}</b></span><span>STASH LOST<b>${arcadeSnapshot.sparkLost}</b></span><span>DECOYS READ<b>${arcadeSnapshot.sparkAvoided}</b></span><span>SPARK RUSHES<b>${arcadeSnapshot.sparkFrenzies}</b></span></div>`:completedMode==="forage"?`<div class="arcade-result-grid"><span>LUNCH CHAIN<b>${arcadeSnapshot.forageBestStreak}</b></span><span>PRISM ROLLS<b>${treasureRolls}</b></span></div>`:completedMode==="rush"?`<div class="arcade-result-grid"><span>DELIVERIES<b>${arcadeSnapshot.rushDeliveries}</b></span><span>CLEAN STREAK<b>${arcadeSnapshot.rushBestStreak}</b></span><span>OBSTACLES<b>${arcadeSnapshot.rushClears}</b></span></div>`:completedMode==="memory"?`<div class="arcade-result-grid"><span>ROUND REACHED<b>${arcadeSnapshot.memoryRound}</b></span><span>HEARTS LEFT<b>${arcadeSnapshot.memoryLives}</b></span></div>`:completedMode==="glide"?`<div class="arcade-result-grid"><span>THERMALS<b>${arcadeSnapshot.glideThermals}</b></span><span>THREAD STREAK<b>${arcadeSnapshot.glideBestStreak}</b></span><span>GATES<b>${arcadeSnapshot.glideClears}</b></span></div>`:completedMode==="breaker"?`<div class="arcade-result-grid"><span>FORGE REACHED<b>${arcadeSnapshot.breakerLevel}</b></span><span>CORES BROKEN<b>${arcadeSnapshot.breakerCoresBroken}</b></span></div>`:completedMode==="maze"?`<div class="arcade-result-grid"><span>MAZE REACHED<b>${arcadeSnapshot.mazeLevel}</b></span><span>BEST HUNT CHAIN<b>${arcadeSnapshot.mazeBestCombo}</b></span><span>SHADOW TAGS<b>${arcadeSnapshot.mazeTags}</b></span><span>PRISM HUNTS<b>${arcadeSnapshot.mazeHunts}</b></span></div>`:"";
-    const newBest=score>previousBest?`<div class="new-arcade-best">NEW PERSONAL BEST</div>`:"";
-    showModal(`<div class="modal-card minigame-result-${completedMode} ${rareDiscovery?"rare-result":""}"><div class="modal-art">${art}</div>${trackTitle?`<div class="result-track-title">${trackTitle} • ${rhythmSnapshot?.track?.difficulty||"NORMAL"}</div>`:""}${newBest}<h2>${score} POINTS</h2><p class="big-line">${line}</p>${rhythmBreakdown}${arcadeBreakdown}${treasureCopy}${rareCopy}<p>${skill?.name || "Growth"} rose permanently. The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${completedMode}">RUN IT BACK</button></div></div>`);
+    const rhythmBreakdown=rhythmSnapshot?`<div class="arcade-result-grid stat-4"><span>ACCURACY<b>${rhythmSnapshot.accuracy}%</b></span><span>MAX COMBO<b>${rhythmSnapshot.maxStreak}</b></span><span>PERFECT<b>${rhythmSnapshot.judgements.perfect||0}</b></span><span>MISSES<b>${rhythmSnapshot.judgements.miss||0}</b></span></div>`:"";
+    const arcadeBreakdown=rhythmSnapshot?"":arcadeResultGrid(completedMode,arcadeSnapshot);
+    // A personal record deserves more than a bare div.
+    const newBest=score>previousBest?`<div class="arcade-best-banner"><i aria-hidden="true">★</i><div><small>NEW PERSONAL BEST</small><b>${formatNumber(score)}</b><em>PREVIOUS ${formatNumber(previousBest)}</em></div></div>`:"";
+    if(score>previousBest&&qualifiedRun){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
+    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${completedMode} ${rareDiscovery?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(completedMode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${trackTitle?`<div class="result-track-title">${trackTitle} • ${rhythmSnapshot?.track?.difficulty||"NORMAL"}</div>`:""}${newBest}<h2>${score} POINTS</h2><p class="big-line">${line}</p>${rhythmBreakdown}${arcadeBreakdown}${treasureCopy}${rareCopy}<p>${skill?.name || "Growth"} rose permanently. The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${completedMode}">RUN IT BACK</button></div></div>`);
     advanceTutorial("play");
-    if(score>20) celebrate();
+    if(score>20 && (endReason!=="death" || score>previousBest)) celebrate();
   }
 
 
@@ -6898,11 +8113,75 @@
     else if(name==="hatch"){[260,390,520,780].forEach((f,i)=>tone(f,.16,"triangle",.03,i*.06,100));}
     else if(name==="level"||name==="reward"){[440,554,659,880].forEach((f,i)=>tone(f,.12,"square",.026,i*.055,80));}
     else if(name==="depart"){tone(500,.12,"sine",.022,0,-180);tone(300,.2,"sine",.018,.1,-120);}
+    else if(name==="ui"){tone(540,.026,"triangle",.016);tone(760,.02,"sine",.01,.022);}
+    else if(name==="coin"){tone(880,.045,"square",.022,0,90);tone(1320,.07,"square",.018,.04);}
+    // ===== DEFENSE FEEL FAMILIES =====
+    // These are deliberately short and sparse. Signature attack tones still carry
+    // character identity; these punctuate state changes and physical consequences.
+    else if(name==="defense-deploy"){tone(196,.055,"triangle",.026,0,80);tone(294,.07,"sine",.018,.045,120);noise(.035,.009,.018);}
+    else if(name==="defense-select"){tone(470,.026,"triangle",.012,0,42);}
+    else if(name==="defense-upgrade"){tone(246,.09,"triangle",.026,0,160);tone(369,.12,"sine",.025,.07,210);tone(554,.16,"triangle",.022,.145,170);}
+    else if(name==="defense-apex"){tone(164,.18,"sawtooth",.026,0,90);tone(328,.22,"triangle",.026,.1,260);tone(656,.28,"sine",.024,.21,360);noise(.18,.014,.11);}
+    else if(name==="defense-pop"){tone(330+Math.min(130,intensity*24),.025,"triangle",.012,0,70);noise(.022,.006,0);}
+    else if(name==="defense-pop-heavy"){tone(138,.052,"square",.02,0,-34);noise(.048,.014,.008);tone(92,.07,"triangle",.012,.025,-18);}
+    else if(name==="defense-pop-split"){tone(292,.035,"sine",.014,0,90);tone(438,.045,"sine",.011,.024,120);}
+    else if(name==="defense-wave-clear"){tone(392,.08,"triangle",.022);tone(523,.1,"triangle",.022,.055,70);tone(659,.13,"sine",.021,.12,90);}
+    else if(name==="defense-gate-hit"){tone(116,.085,"square",.024,0,-48);noise(.075,.014,.015);}
+    else if(name==="defense-sell"){tone(440,.055,"triangle",.018,0,-120);tone(294,.08,"sine",.016,.045,-80);}
+    // ===== ARCADE SIGNATURES =====
+    // Eleven games used to share two failure sounds. Each mode family now has a
+    // recognisable win and loss so a dropped package cannot sound like a
+    // corrupted broadcast.
+    else if(name==="fail-air"){tone(520,.16,"sine",.03,0,-330);noise(.13,.016,.05);tone(180,.2,"triangle",.026,.12,-60);}
+    else if(name==="fail-drop"){noise(.09,.026);tone(190,.16,"square",.032,.02,-70);tone(120,.14,"triangle",.022,.12,-40);}
+    else if(name==="fail-chase"){tone(300,.1,"sawtooth",.03,0,-90);tone(226,.12,"sawtooth",.028,.09,-70);tone(168,.18,"sawtooth",.024,.19,-50);}
+    else if(name==="fail-signal"){noise(.16,.024);tone(410,.09,"square",.026,0,-190);tone(300,.13,"square",.022,.1,240);}
+    else if(name==="fail-forge"){tone(260,.07,"square",.034,0,-40);noise(.11,.02,.04);tone(140,.2,"triangle",.028,.08,-45);}
+    else if(name==="fail-lunch"){tone(360,.08,"triangle",.028,0,-130);tone(240,.11,"sine",.022,.07,-90);}
+    else if(name==="fail-spark"){noise(.1,.018);tone(600,.14,"sine",.026,0,-400);}
+    else if(name==="fail-power"){tone(200,.1,"square",.034,0,-60);noise(.08,.022,.02);}
+    else if(name==="win-air"){[660,880,1100].forEach((f,i)=>tone(f,.11,"sine",.026,i*.045,80));}
+    else if(name==="win-forge"){tone(330,.06,"square",.03);[520,780].forEach((f,i)=>tone(f,.09,"triangle",.026,.05+i*.05,60));}
+    else if(name==="win-chase"){[590,740,990].forEach((f,i)=>tone(f,.07,"square",.028,i*.04,120));}
+    else if(name==="win-signal"){[440,660,880].forEach((f,i)=>tone(f,.1,"sine",.026,i*.05,60));noise(.05,.008,.14);}
+    else if(name==="win-lunch"){tone(620,.055,"triangle",.026);tone(830,.07,"triangle",.024,.05);noise(.04,.01,.02);}
+    else if(name==="win-drop"){[500,700,940,1180].forEach((f,i)=>tone(f,.08,"square",.026,i*.038,90));}
     else tone(420,.05,"square",.03);
+  }
+
+  // Per-mode audio identity without eleven bespoke sound banks: the family a
+  // mode belongs to picks the signature, and anything unmapped keeps the old
+  // generic tone rather than going silent.
+  const ARCADE_SFX = Object.freeze({
+    air:{win:"win-air", fail:"fail-air"},
+    street:{win:"win-drop", fail:"fail-drop"},
+    chase:{win:"win-chase", fail:"fail-chase"},
+    signal:{win:"win-signal", fail:"fail-signal"},
+    forge:{win:"win-forge", fail:"fail-forge"},
+    forest:{win:"win-lunch", fail:"fail-lunch"},
+    spark:{win:"reward", fail:"fail-spark"},
+    training:{win:"perfect", fail:"fail-power"},
+    stage:{win:"perfect", fail:"no"},
+    defense:{win:"reward", fail:"no"}
+  });
+  function arcadeSfx(kind="fail", mode=mini?.mode, intensity=0){
+    const family=ARCADE_GAMES[mode]?.family;
+    sfx(ARCADE_SFX[family]?.[kind] || (kind==="win"?"reward":"no"), intensity);
   }
 
   function haptic(pattern = 15) {
     if (state.settings.haptics && navigator.vibrate) navigator.vibrate(pattern);
+  }
+
+  const DEFENSE_HAPTICS=Object.freeze({
+    select:{pattern:6,wait:.09}, deploy:{pattern:[7,12,7],wait:.16}, upgrade:{pattern:[12,16,12],wait:.2}, apex:{pattern:[18,24,18,42,24],wait:.35},
+    ability:{pattern:[9,16,9,22],wait:.18}, bossWarn:{pattern:[14,22,14,34],wait:.3}, bossBreak:{pattern:[10,14,10,20],wait:.2},
+    bossDown:{pattern:[18,22,18,36,24],wait:.4}, gate:{pattern:[12,22,12],wait:.18}, clear:{pattern:[8,14,8],wait:.2}, perfect:{pattern:[10,16,10,24],wait:.22}, sell:{pattern:[7,10],wait:.12}
+  });
+  function defenseHaptic(kind="select"){
+    const d=mini?.defense,profile=DEFENSE_HAPTICS[kind]||DEFENSE_HAPTICS.select;if(!d||!state.settings.haptics)return false;
+    const real=defenseRealNow(d),last=Number(d.lastFeelHapticAtReal)||-99;if(real-last<profile.wait)return false;
+    d.lastFeelHapticAtReal=real;haptic(profile.pattern);return true;
   }
 
 
@@ -6929,7 +8208,13 @@
     "mini-rush":{tempo:155,lead:[64,67,71,76,74,71,79,76],bass:[40,40,47,47,45,45,52,52],wave:"square"},
     "mini-defense":{tempo:330,lead:[40,null,43,47,50,null,47,43,38,null,43,47,52,null,48,45,36,null,40,43,47,null,50,47,43,null,45,48,52,50,47,null],bass:[24,null,31,null,27,null,34,null,22,null,29,null,25,null,32,null,20,null,27,null,23,null,30,null,19,null,26,null,31,null,34,null],wave:"triangle"},
     "mini-walk":{tempo:360,lead:[67,null,71,74,72,null,69,67],bass:[43,null,50,null,45,null,52,null],wave:"triangle"},
-    "mini-memory":{tempo:520,lead:[60,null,64,null,67,71,null,67],bass:[36,null,null,43,null,null,40,null],wave:"sine"}
+    "mini-memory":{tempo:520,lead:[60,null,64,null,67,71,null,67],bass:[36,null,null,43,null,null,40,null],wave:"sine"},
+    // Skybound: open air, long lift, nothing underneath you.
+    "mini-glide":{tempo:335,lead:[72,null,76,79,83,null,79,76,74,null,78,81,86,null,81,78],bass:[48,null,null,55,52,null,null,59,50,null,null,57,54,null,null,61],wave:"sine"},
+    // Ember Forge: hammer rhythm, metal on metal, no melody wasted.
+    "mini-breaker":{tempo:186,lead:[52,52,59,null,55,55,62,null,53,53,60,null,57,64,60,55],bass:[28,28,null,35,31,31,null,38,29,29,null,36,33,33,40,null],wave:"square"},
+    // Rizo Runaway: the chase. Fast, minor, always one step behind you.
+    "mini-maze":{tempo:132,lead:[62,65,69,65,62,68,65,62,60,63,67,63,60,66,63,60],bass:[38,38,45,45,43,43,50,50,36,36,43,43,41,41,48,48],wave:"square"}
   };
 
   function midiFrequency(note){ return 440 * Math.pow(2,(note-69)/12); }
@@ -6951,19 +8236,28 @@
     const i=musicStep%track.lead.length;
     const lead=track.lead[i], bass=track.bass[i%track.bass.length];
     if(musicScene==="mini-defense"){
-      const wave=Math.max(0,Number(mini?.defense?.currentWave)||0),active=defenseIsSimulating(mini?.defense),boss=active&&wave>0&&wave%10===0;
+      const d=mini?.defense,wave=Math.max(0,Number(d?.currentWave)||0),active=defenseIsSimulating(d),phase=d?.phase||DEFENSE_PHASES.PLANNING,leader=active?defenseFieldLeader(d):null,leaderVariant=leader?(leader.pet.variant||leader.pet.hiddenVariant||"classic"):"classic",leaderShift=DEFENSE_FEEL_PITCH[leaderVariant]||0;
+      const boss=Boolean(active&&d?.enemies?.some(enemy=>enemy?.bossId&&!enemy.dead)),critical=Boolean(active&&d&&d.lives<=Math.max(5,Math.ceil((d.map?.lives||20)*.35)));
+      const breakBeat=phase===DEFENSE_PHASES.PACKET_BREAK,late=wave>=20;
+      // Planning breathes. Combat adds the lead. Packet breaks pull the lead back.
+      // Bosses replace the groove instead of stacking on it, keeping the mix legible.
       if(boss){
         const bossPulse=[28,null,28,null,31,null,27,null][i%8];
         if(bossPulse!=null)musicTone(bossPulse,track.tempo/1000*2.35,.044,0,"sawtooth");
         if(i%4===2)musicTone(34,.16,.014,.02,"square");
         if(i%8===7)musicTone(40,.48,.018,.02,"triangle");
+        if(critical&&i%4===3)musicTone(52,.055,.009,.01,"square");
         musicStep+=1;return;
       }
-      if(bass!=null)musicTone(bass,track.tempo/1000*1.75,.03,0,"sawtooth");
-      if(lead!=null&&active)musicTone(lead,track.tempo/1000*.9,.022,.015,"triangle");
-      if(i%4===0)musicTone(40,.18,.022,0,"sine");
-      if(active&&i%4===1)musicTone(43,.06,.008,0,"triangle");
-      if(i%8===7)musicTone(43,.32,.014,.02,"triangle");
+      if(bass!=null)musicTone(bass,track.tempo/1000*(active?1.75:2.25),active?.028:.018,0,active?"sawtooth":"triangle");
+      if(lead!=null&&active&&!breakBeat)musicTone(lead,track.tempo/1000*.9,critical?.024:.02,.015,"triangle");
+      if(i%4===0)musicTone(active?40:36,.18,active?.018:.011,0,"sine");
+      if(active&&!breakBeat&&i%4===1)musicTone(late?47:43,.06,late?.009:.0065,0,"triangle");
+      if(late&&active&&!breakBeat&&i%8===5)musicTone(55,.05,.0055,.015,"square");
+      if(active&&!breakBeat&&leader?.doctrine&&i%8===3){const doctrineNote=(leader.doctrine==="power"?34:57)+leaderShift;musicTone(doctrineNote,leader.doctrine==="power"?.13:.09,leader.superForm?.012:.0085,.012,leader.doctrine==="power"?"sawtooth":"sine");}
+      if(active&&!breakBeat&&leader?.superForm&&i%8===6)musicTone(leader.superForm==="power"?46+leaderShift:69+leaderShift,.14,.0095,.016,"triangle");
+      if(critical&&i%4===3)musicTone(48,.045,.0075,.01,"square");
+      if(i%8===7)musicTone(active?43:40,.32,active?.012:.008,.02,"triangle");
       musicStep+=1;return;
     }
     if(lead!=null) musicTone(lead,track.tempo/1000*.72,.026,0,track.wave);
@@ -7496,6 +8790,8 @@ Streak: ${state.player.streak}`;
       setTimeout(()=>startMiniGame("defense",{mapId:checkpoint.mapId,resumeCheckpoint:checkpoint}),180);
       return;
     }
+    const rosterPick=event.target.closest("[data-defense-roster-pick]")?.dataset.defenseRosterPick;
+    if(rosterPick){if(toggleDefenseRosterPick(rosterPick)){showDefenseWorldLobby(pendingDefenseMapChoice);sfx("ui");}else if(readDefenseCheckpoint())toast("RESUME OR DISCARD THE CHECKPOINT FIRST");else toast("CREW SLOTS ARE FULL");return;}
     const lobbyMap = event.target.closest("[data-defense-lobby-map]")?.dataset.defenseLobbyMap;
     if (lobbyMap) { showDefenseWorldLobby(lobbyMap); return; }
     const enterContract = event.target.closest("[data-enter-defense-contract]")?.dataset.enterDefenseContract;
@@ -7661,9 +8957,10 @@ Streak: ${state.player.streak}`;
     writeDefenseCheckpoint(true, reason);
     saveState(true);
     if (mini?.active) mini.lastFrame = performance.now();
-    if (mini?.active && mini.mode === "rhythm" && !mini.pausedByAd) {
-      mini.pausedByAd = true; mini.pauseAt = now(); mini.rhythmPauseClock = rhythmClockNow(); stopRhythmVoices();
-    }
+    // Defense keeps its own interruption/checkpoint path (above); every other
+    // mode is timestamp-driven and needs the freeze.
+    if (mini?.active && mini.mode !== "defense") arcadeFreeze("background");
+    else if (mini?.active) arcadeHoldJobs("background");
     stopMusic();
     try { if (audioContext?.state === "running") audioContext.suspend(); } catch (error) {}
     return true;
@@ -7676,13 +8973,8 @@ Streak: ${state.player.streak}`;
     if (mini?.active) mini.lastFrame = performance.now();
     scheduleRuntimeViewportSync("resume");
     if (!wasSuspended) return false;
-    if(mini?.active && mini.mode==="rhythm" && mini.pausedByAd){
-      const pausedFor=Math.max(0,now()-(mini.pauseAt||now()));
-      mini.endAt+=pausedFor;
-      mini.rhythmStartClock+=Math.max(0,rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));
-      mini.pausedByAd=false;
-      scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));
-    }
+    if(mini?.active && mini.mode!=="defense") arcadeThaw("background");
+    else if(mini?.active) arcadeReleaseJobs("background");
     processElapsedTime(); renderAll(); surfaceDefenseInterruptionPause(); syncMusic(true); window.RizoBoot?.heartbeat?.(`runtime-${reason}`);
     schedulePetBehavior(4000); scheduleIdleLife(); scheduleLifeWow(9000); greetForSession();
     if (state.pet.resting) showRecoveryModal();
@@ -7806,10 +9098,16 @@ Streak: ${state.player.streak}`;
     document.addEventListener("pointermove", event => { if (mini?.active && mini.mode === "defense" && mini.defenseDrag) moveDefenseDrag(event); }, { passive: false });
     document.addEventListener("pointerdown", beginFoodDrag);
     document.addEventListener("pointermove", moveFoodDrag, { passive: true });
-    document.addEventListener("pointerup", event => { endFoodDrag(event); if(mini?.active&&mini.mode==="defense")endDefenseDrag(event); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; });
-    document.addEventListener("pointercancel", event => { if(mini?.active&&mini.mode==="defense")endDefenseDrag(event,true); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; });
+    document.addEventListener("pointerup", event => { endFoodDrag(event); if(mini?.active&&mini.mode==="defense")endDefenseDrag(event); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; if(mini?.active&&mini.mode==="breaker")mini.breakerGrab=null; });
+    document.addEventListener("pointercancel", event => { if(mini?.active&&mini.mode==="defense")endDefenseDrag(event,true); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; if(mini?.active&&mini.mode==="breaker")mini.breakerGrab=null; });
     document.addEventListener("pointercancel", event => endFoodDrag(event, true));
-    el.miniQuit.addEventListener("click", () => mini.mode==="defense"?finishDefenseRunWithMoment("banked"):finishMiniGame(true));
+    el.miniQuit.addEventListener("click", () => requestArcadeQuit("button"));
+    el.miniPause?.addEventListener("click", () => toggleArcadePause());
+    el.miniPausePanel?.addEventListener("click", event => {
+      if(event.target.closest("[data-arcade-resume]")){ mini.quitConfirmed=false; mini.restartConfirmed=false; closeArcadePause(); return; }
+      if(event.target.closest("[data-arcade-restart]")){ restartArcadeRun(); return; }
+      if(event.target.closest("[data-arcade-quit]")){ requestArcadeQuit("panel"); return; }
+    });
     el.tutorialClose.addEventListener("click", () => {
       state.player.tutorialDismissed = true;
       saveState();
@@ -7827,17 +9125,56 @@ Streak: ${state.player.streak}`;
       }
       if(mini?.active&&mini.mode==="defense"&&defenseHandleContextKeydown(event))return;
       if(mini?.active&&mini.mode==="maze"&&!mini.pausedByAd){const keyDir={arrowup:"up",w:"up",arrowdown:"down",s:"down",arrowleft:"left",a:"left",arrowright:"right",d:"right"}[String(event.key).toLowerCase()];if(keyDir){event.preventDefault();mazeSetDirection(keyDir);return;}}
+      if(mini?.active&&mini.mode==="walk"&&!mini.pausedByAd){
+        const key=String(event.key).toLowerCase();
+        if(mini.pausedByFork&&["1","2"].includes(key)){
+          event.preventDefault();mini.playerInputs+=1;
+          if(mini.walkEncounter)chooseWalkEnding(key==="1"?"quiet":"bold");
+          else chooseWalkFork(walkDecisionConfig(mini.walkDecisionIndex).choices[Number(key)-1].id);
+          return;
+        }
+        if(!mini.pausedByFork&&(key===" "||key==="enter")){
+          event.preventDefault();mini.playerInputs+=1;
+          const find=mini.entities.filter(item=>item.kind==="walk"&&!item.handled&&item.x>=0&&item.x<el.miniArena.clientWidth-20).sort((a,b)=>a.x-b.x)[0];
+          if(find)collectWalkObject(find.node);return;
+        }
+      }
       if(mini?.active&&mini.mode==="rhythm"&&!mini.pausedByAd){
         const keyLane={"1":0,"2":1,"3":2,"4":3,"d":0,"f":1,"j":2,"k":3}[String(event.key).toLowerCase()];
         if(keyLane!==undefined){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;rhythmTap(keyLane);return;}
       }
       if(mini?.active&&mini.mode==="power"&&!mini.pausedByAd){const tech={"1":"jab","2":"body","3":"hook","j":"jab","k":"body","l":"hook"}[String(event.key).toLowerCase()];if(tech){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;powerTap(tech);return;}}
       if(mini?.active&&mini.mode==="spark"&&!mini.pausedByAd&&String(event.key).toLowerCase()==="b"){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;bankSparkStash(false);return;}
+      const typingTarget=Boolean(event.target?.closest?.("input, textarea, select, [contenteditable='true']"));
+      if(mini?.active && !typingTarget && !event.metaKey && !event.ctrlKey && !event.altKey){
+        const key=String(event.key);
+        // P pauses any arcade run, including Defense.
+        if(key.toLowerCase()==="p" && el.modalOverlay && !el.modalOverlay.classList.contains("show")){ event.preventDefault(); toggleArcadePause(); return; }
+        if(!mini.pausedByAd && !mini.paused){
+          if(mini.mode==="glide" && (key===" " || key==="Spacebar" || key==="ArrowUp" || key==="w" || key==="W")){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; glideFlap(); return; }
+          if(mini.mode==="rush" && (key===" " || key==="Spacebar" || key==="ArrowUp" || key==="w" || key==="W")){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; rushJump(); return; }
+          if(mini.mode==="breaker" && (key==="ArrowLeft" || key==="ArrowRight" || key.toLowerCase()==="a" || key.toLowerCase()==="d")){
+            event.preventDefault(); mini.breakerGrab=null;
+            setBreakerPaddle(mini.breakerX + ((key==="ArrowLeft"||key.toLowerCase()==="a")?-.075:.075)); return;
+          }
+          if(mini.mode==="forage" && (key==="ArrowLeft" || key==="ArrowRight" || key.toLowerCase()==="a" || key.toLowerCase()==="d")){
+            event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1;
+            setForageLane((mini.lane||0) + ((key==="ArrowLeft"||key.toLowerCase()==="a")?-1:1)); return;
+          }
+          if(mini.mode==="memory"){
+            const rune={"1":0,"2":1,"3":2,"4":3,"d":0,"f":1,"j":2,"k":3}[key.toLowerCase()];
+            if(rune!==undefined){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; memoryTap(rune); return; }
+          }
+        }
+      }
       if (event.key !== "Escape") return;
-      if (!el.miniGameOverlay.hidden) finishMiniGame(mini.mode!=="defense");
+      // Escape used to silently destroy a personal best with zero friction.
+      if (!el.miniGameOverlay.hidden) { if(mini?.paused) closeArcadePause(); else if(!openArcadePause()) requestArcadeQuit("escape"); }
       else if (el.modalOverlay.classList.contains("show")) closeModal();
       else if (el.bottomSheet.classList.contains("show")) closeSheet();
     });
+    // A live OS reduced-motion change re-applies without a reload.
+    try{ matchMedia("(prefers-reduced-motion: reduce)")?.addEventListener?.("change",()=>{ document.body.classList.toggle("reduce-motion", reducedMotionActive()); }); }catch(error){}
     document.addEventListener("visibilitychange", () => document.hidden ? suspendRuntime("background") : resumeRuntime("visible"));
     window.addEventListener("pagehide", () => suspendRuntime("pagehide"), { capture: true });
     window.addEventListener("pageshow", () => resumeRuntime("pageshow"), { capture: true });
@@ -7856,8 +9193,8 @@ Streak: ${state.player.streak}`;
   }
 
   function boot() {
-    document.addEventListener("rizo:ad-start", () => { if (mini?.active) { mini.pausedByAd = true; mini.pauseAt = now(); if(mini.mode==="rhythm"){mini.rhythmPauseClock=rhythmClockNow();stopRhythmVoices();} } stopMusic(); });
-    document.addEventListener("rizo:ad-end", () => { if (mini?.active) { const pausedFor=Math.max(0, now() - (mini.pauseAt || now())); mini.endAt += pausedFor; if(mini.mode==="rhythm"){const seconds=Math.max(0,rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));mini.rhythmStartClock+=seconds;scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));} mini.pausedByAd = false; } syncMusic(true); });
+    document.addEventListener("rizo:ad-start", () => { arcadeFreeze("ad"); stopMusic(); });
+    document.addEventListener("rizo:ad-end", () => { arcadeThaw("ad"); syncMusic(true); });
     loadState();
     buildRain();
     bindEvents();
@@ -7947,6 +9284,8 @@ Streak: ${state.player.streak}`;
     defenseShowFieldGuideForQA: tab => {showDefenseFieldGuide(tab||"rizos");const card=document.querySelector("#modalOverlay .defense-field-guide");return{shown:Boolean(card),text:card?.textContent||""};},
     defenseShowRecordsForQA: () => {showDefenseRecords();const card=document.querySelector("#modalOverlay .defense-records-modal");return{shown:Boolean(card),text:card?.textContent||""};},
     defenseShowLobbyForQA: mapId => {showDefenseWorldLobby(mapId||"grove");const card=document.querySelector("#modalOverlay .defense-world-lobby");return{shown:Boolean(card),text:card?.textContent||""};},
+    defenseRosterConfigForQA: () => {const configured=defenseConfiguredRoster(),mapId=defenseResolvedMapId(pendingDefenseMapChoice),read=defenseRosterRead(configured,mapId);return{slots:DEFENSE_ROSTER_WING_SLOTS,guestAllowed:defenseGuestAccessAllowed(),configured:configured.map(row=>({id:row.pet.id,name:row.pet.name,source:row.source,variant:row.pet.variant||row.pet.hiddenVariant,tags:defenseRosterIdentity(row.pet).tags,training:defenseRosterTrainingEdge(row.pet),masteryLean:defenseMasteryLean(state.scores?.defenseMastery?.[row.pet.id]),trailFit:defenseRosterTrailFit(row.pet,mapId)})),owned:defenseOwnedRosterEntries().map(row=>({id:row.pet.id,source:row.source,variant:row.pet.variant||row.pet.hiddenVariant})),read:{mapId,captainPower:read.captainPower,tools:read.tools,fitIds:read.fits.map(row=>row.pet.id),openingLabel:read.openingLabel,hasOpeningDeal:read.hasOpeningDeal}};},
+    defenseSetRosterForQA: ids => {if(readDefenseCheckpoint())clearDefenseCheckpoint();defenseSetConfiguredWingIds(Array.isArray(ids)?ids:[]);return defenseConfiguredRoster().map(row=>({id:row.pet.id,source:row.source}));},
     defenseShowTowerPanelForQA: () => {const tower=mini.defense?.towers[0];if(!tower)return false;showDefenseTowerPanel(tower);return{shown:!$("#defenseTowerPanel")?.hidden,text:$("#defenseTowerPanel")?.textContent||""};},
     showDefenseFieldGuideForQA: tab => {showDefenseFieldGuide(tab||"rizos");return true;},
     defenseMapMetaForQA: () => Object.fromEntries(DEFENSE_MAP_ORDER.map(id=>[id,{entrance:DEFENSE_MAPS[id].entrance,lore:DEFENSE_MAPS[id].lore,lesson:DEFENSE_MAPS[id].lesson}])),
@@ -7963,7 +9302,8 @@ Streak: ${state.player.streak}`;
     defenseSellForQA: () => {const tower=mini.defense?.towers[0];return tower?sellDefenseTower(tower.id):false;},
     defenseSellLastForQA: () => {const tower=mini.defense?.towers.at(-1);return tower?sellDefenseTower(tower.id):false;},
     defenseBuyUpgradeForQA: id => {const tower=id?mini.defense?.towers.find(item=>item.id===id):mini.defense?.towers.at(-1);return tower?upgradeDefenseTower(tower.id):false;},
-    defenseEconomyForQA: () => {const d=mini.defense,tower=d?.towers.at(-1);return d?{baseStartingCash:BASE_DEFENSE_STARTING_CASH,cash:d.cash,mapId:d.mapId,worldPerk:defenseWorldPerkLabel(d),worldPerkUsed:Boolean(d.worldPerkUsed),phase:d.phase,placementAllowed:defensePlacementAllowed(d),sellAllowed:defenseSellAllowed(d),upgradeAllowed:defenseUpgradeAllowed(d),goldenBonus:defenseGoldenBonus(),tower:tower?{id:tower.id,cost:tower.cost,spent:tower.spent,upgrade:tower.upgrade,openingPerkApplied:Boolean(tower.openingPerkApplied),canUndo:defenseCanUndoPlacement(tower,d),sellRefund:defenseSellRefund(tower,d),nextUpgradeCost:defenseUpgradeCost(tower,d)}:null}:null;},
+    defenseEconomyForQA: () => {const d=mini.defense,tower=d?.towers.at(-1);return d?{baseStartingCash:BASE_DEFENSE_STARTING_CASH,cash:d.cash,mapId:d.mapId,worldPerk:defenseWorldPerkLabel(d),worldPerkUsed:Boolean(d.worldPerkUsed),phase:d.phase,placementAllowed:defensePlacementAllowed(d),sellAllowed:defenseSellAllowed(d),upgradeAllowed:defenseUpgradeAllowed(d),goldenBonus:defenseGoldenBonus(),goldenFactoryMultiplier:DefenseCore.goldenFactoryMultiplier(defenseAwakenedGoldenCount(d)),tower:tower?{id:tower.id,structureType:defenseStructureType(tower),cost:tower.cost,spent:tower.spent,upgrade:tower.upgrade,openingPerkApplied:Boolean(tower.openingPerkApplied),canUndo:defenseCanUndoPlacement(tower,d),sellRefund:defenseSellRefund(tower,d),nextUpgradeCost:defenseUpgradeCost(tower,d)}:null}:null;},
+    defenseStructuresForQA: () => {const d=mini.defense;return d?d.towers.filter(t=>defenseStructureType(t)).map(t=>({id:t.id,type:defenseStructureType(t),upgrade:t.upgrade,cost:t.cost,spent:t.spent,totalProduced:t.totalProduced||0,nextProductionAt:t.nextProductionAt||0,cleanCycles:t.factoryCleanCycles||0,factory:defenseStructureType(t)==="factory"?defenseFactoryEconomy(t,d):null,beacon:defenseStructureType(t)==="beacon"?{...DefenseCore.beaconSupport(t.upgrade),network:defenseBeaconNetwork(t,d)}:null})):[];},
     defenseCastForQA: () => {const tower=mini.defense?.towers[0],d=mini.defense;if(!tower||!d)return false;tower.upgrade=Math.max(2,tower.upgrade);tower.doctrine=tower.doctrine||defenseContractForcedDoctrine()||"power";tower.abilityReadyAt=0;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.paused=false;return activateDefenseAbility(tower.id);},
     defenseAbilityGroupsForQA: () => defenseAbilityGroups().map(group=>({id:group.id,active:group.ability.active,total:group.instances.length,ready:group.ready.length,nextRemaining:Number.isFinite(group.nextRemaining)?group.nextRemaining:null,instances:group.instances.map(row=>({id:row.tower.id,remaining:row.remaining,level:row.tower.upgrade+1,copy:row.tower.copyNumber||1,field:defenseTowerFieldLabel(row.tower)}))})),
     defenseSetAbilityStateForQA: (id,values={}) => {const d=mini.defense,tower=d?.towers.find(item=>item.id===id);if(!tower)return false;tower.upgrade=Math.max(2,Math.floor(Number(values.upgrade??tower.upgrade)||2));tower.doctrine=DEFENSE_DOCTRINES[values.doctrine]?values.doctrine:(tower.doctrine||"power");const remaining=Math.max(0,Number(values.remaining)||0);tower.abilityReadyAt=defenseNow()+remaining;defenseSetPhase(d,DefenseCore.normalizePhase(values.phase,DEFENSE_PHASES.COMBAT),{force:true});d.paused=Boolean(values.paused);refreshDefenseTower(tower);markDefenseUi();flushDefenseUi(true);return{id:tower.id,abilityId:defenseAbilityId(tower),remaining:Math.ceil(defenseAbilityRemaining(tower)),doctrine:tower.doctrine,upgrade:tower.upgrade};},
@@ -7985,20 +9325,119 @@ Streak: ${state.player.streak}`;
     setBehaviorForQA(behavior = "") { activePetBehavior = behavior; if(currentView === "home") renderHome(); return el.petActor.className; },
     markupForQA(context = "cutscene", accessory = state.pet.accessory) { return petMarkup({context,overrides:{accessory}}); },
     miniSnapshot: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,track:mini?.rhythmTrack?.id||null,voices:(mini?.rhythmVoices||[]).length,intervals:(mini?.intervals||[]).length,timeouts:(mini?.timeouts||[]).length,entities:(mini?.entities||[]).length,defense:mini?.defense?{mapId:mini.defense.mapId,contract:mini.defense.contract?{...mini.defense.contract}:null,maxTowers:mini.defense.maxTowers,speed:mini.defense.speed,currentWave:mini.defense.currentWave,clearedWave:mini.defense.clearedWave,wave:mini.defense.currentWave,lives:mini.defense.lives,cash:mini.defense.cash,towers:(mini.defense.towers||[]).length,enemies:(mini.defense.enemies||[]).length,phase:mini.defense.phase}:null}),
-    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,power:{streak:mini?.powerStreak||0,best:mini?.powerBestStreak||0,heat:mini?.powerHeat||0,guard:Boolean((mini?.powerGuardUntil||0)>now()),reads:mini?.powerGuardReads||0,call:mini?.powerCall||null,callsRead:mini?.powerCallsRead||0,wrongCalls:mini?.powerWrongCalls||0},spark:{type:mini?.sparkType||null,streak:mini?.sparkStreak||0,best:mini?.sparkBestStreak||0,avoided:mini?.sparkAvoided||0,frenzy:Boolean((mini?.sparkFeverUntil||0)>now()),frenzies:mini?.sparkFrenzies||0,stash:mini?.sparkStash||0,banked:mini?.sparkBanked||0,banks:mini?.sparkBanks||0,lost:mini?.sparkLost||0},forage:{lane:mini?.lane||0,streak:mini?.forageStreak||0,best:mini?.forageBestStreak||0,order:[...(mini?.forageOrder||[])],orderIndex:mini?.forageOrderIndex||0,ordersDone:mini?.forageOrdersDone||0,panic:Boolean((mini?.forageRushUntil||0)>now())},rush:{jumpY:mini?.jumpY||0,airJumps:mini?.rushAirJumps||0,streak:mini?.rushStreak||0,clears:mini?.rushClears||0,parcel:Boolean(mini?.rushParcel),parcelClears:mini?.rushParcelClears||0,deliveries:mini?.rushDeliveries||0},memory:{round:mini?.memoryRound||0,mode:mini?.memoryMode||null,lives:mini?.memoryLives||0,sequence:[...(mini?.memorySequence||[])],expected:mini?.mode==="memory"?memoryExpectedSequence():[]},glide:{y:mini?.glideY||0,v:mini?.glideV||0,wind:mini?.glideWind||0,hearts:mini?.glideHearts||0,streak:mini?.glideStreak||0,gates:mini?.glideGateCount||0,clears:mini?.glideClears||0,draft:mini?.glideDraft||0,thermals:mini?.glideThermals||0,thermal:Boolean((mini?.glideThermalUntil||0)>now())},breaker:{level:mini?.breakerLevel||0,hearts:mini?.breakerHearts||0,streak:mini?.breakerStreak||0,moves:mini?.breakerMoves||0,piercing:Boolean((mini?.breakerPierceUntil||0)>now()),cores:mini?.breakerCores||0,coresBroken:mini?.breakerCoresBroken||0,pattern:mini?.breakerPatternName||""},maze:{level:mini?.mazeLevel||0,lives:mini?.mazeLives||0,inputs:mini?.mazeInputs||0,pellets:mini?.mazePellets||0,combo:mini?.mazeCombo||0,bestCombo:mini?.mazeBestCombo||0,hunts:mini?.mazeHunts||0,tags:mini?.mazeHunterTags||0,hunting:Boolean((mini?.mazeHuntUntil||0)>now()),player:mini?.mazePlayer?{r:mini.mazePlayer.r,c:mini.mazePlayer.c,dir:mini.mazePlayer.dir,nextDir:mini.mazePlayer.nextDir}:null,favoriteDir:mini?.mazeFavoriteDir||null,hunters:(mini?.mazeHunters||[]).map(h=>({r:h.r,c:h.c,kind:h.kind}))}}),
+    arcadeAuthoredForQA: () => ({
+      rush:{route:mini?.rushRoute||0,parcel:Boolean(mini?.rushParcel),tips:mini?.rushTips||0,deliveries:mini?.rushDeliveries||0,lost:mini?.rushPackagesLost||0,clears:mini?.rushParcelClears||0,lives:mini?.lives||0,objects:(mini?.entities||[]).filter(e=>e.kind==="rush").map(e=>({type:e.type,x:e.x,handled:e.handled}))},
+      forage:{rows:mini?.forageRows||0,mistakes:mini?.forageMistakes||0,nextIn:Math.max(0,(mini?.forageNextAt||0)-now()),drops:(mini?.entities||[]).filter(e=>e.kind==="forage").map(e=>({lane:e.lane,food:e.foodId,y:e.y,rare:e.rare,good:e.good}))},
+      walk:{notes:[...(mini?.walkNotes||[])],choices:[...(mini?.walkChoices||[])],ending:mini?.walkEnding||"",encounter:mini?.walkEncounter||null,paused:Boolean(mini?.pausedByFork)}
+    }),
+    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,power:{streak:mini?.powerStreak||0,best:mini?.powerBestStreak||0,heat:mini?.powerHeat||0,guard:Boolean((mini?.powerGuardUntil||0)>now()),reads:mini?.powerGuardReads||0,call:mini?.powerCall||null,callsRead:mini?.powerCallsRead||0,wrongCalls:mini?.powerWrongCalls||0},spark:{type:mini?.sparkType||null,streak:mini?.sparkStreak||0,best:mini?.sparkBestStreak||0,avoided:mini?.sparkAvoided||0,frenzy:Boolean((mini?.sparkFeverUntil||0)>now()),frenzies:mini?.sparkFrenzies||0,stash:mini?.sparkStash||0,banked:mini?.sparkBanked||0,banks:mini?.sparkBanks||0,lost:mini?.sparkLost||0},forage:{lane:mini?.lane||0,streak:mini?.forageStreak||0,best:mini?.forageBestStreak||0,order:[...(mini?.forageOrder||[])],orderIndex:mini?.forageOrderIndex||0,ordersDone:mini?.forageOrdersDone||0,panic:Boolean((mini?.forageRushUntil||0)>now())},rush:{jumpY:mini?.jumpY||0,airJumps:mini?.rushAirJumps||0,streak:mini?.rushStreak||0,clears:mini?.rushClears||0,parcel:Boolean(mini?.rushParcel),parcelClears:mini?.rushParcelClears||0,deliveries:mini?.rushDeliveries||0},memory:{round:mini?.memoryRound||0,mode:mini?.memoryMode||null,lives:mini?.mode==="memory"?(mini?.lives||0):0,sequence:[...(mini?.memorySequence||[])],expected:mini?.mode==="memory"?memoryExpectedSequence():[]},glide:{y:mini?.glideY||0,v:mini?.glideV||0,wind:mini?.glideWind||0,hearts:mini?.mode==="glide"?(mini?.lives||0):0,streak:mini?.glideStreak||0,gates:mini?.glideGateCount||0,clears:mini?.glideClears||0,draft:mini?.glideDraft||0,thermals:mini?.glideThermals||0,thermal:Boolean((mini?.glideThermalUntil||0)>now())},breaker:{level:mini?.breakerLevel||0,hearts:mini?.mode==="breaker"?(mini?.lives||0):0,streak:mini?.breakerStreak||0,moves:mini?.breakerMoves||0,piercing:Boolean((mini?.breakerPierceUntil||0)>now()),cores:mini?.breakerCores||0,coresBroken:mini?.breakerCoresBroken||0,pattern:mini?.breakerPatternName||""},maze:{level:mini?.mazeLevel||0,lives:mini?.mode==="maze"?(mini?.lives||0):0,inputs:mini?.mazeInputs||0,pellets:mini?.mazePellets||0,combo:mini?.mazeCombo||0,bestCombo:mini?.mazeBestCombo||0,hunts:mini?.mazeHunts||0,tags:mini?.mazeHunterTags||0,hunting:Boolean((mini?.mazeHuntUntil||0)>now()),player:mini?.mazePlayer?{r:mini.mazePlayer.r,c:mini.mazePlayer.c,dir:mini.mazePlayer.dir,nextDir:mini.mazePlayer.nextDir}:null,favoriteDir:mini?.mazeFavoriteDir||null,hunters:(mini?.mazeHunters||[]).map(h=>({r:h.r,c:h.c,kind:h.kind}))}}),
+    // Shared arcade-layer QA surface: interruption safety, pause state, end
+    // reason and the canonical name table are all player-visible contracts.
+    musicSceneForQA: () => ({scene:musicScene||null, requested:sceneMusicKey(), known:Boolean(MUSIC_TRACKS[sceneMusicKey()])}),
+    arcadePauseForQA: () => openArcadePause(),
+    arcadeResumeForQA: () => closeArcadePause(true),
+    // A neutral probe job: proves remaining-delay banking without depending on
+    // any one game's timing.
+    arcadeProbeJobForQA: (delay=500) => {
+      if(!mini?.active) return null;
+      mini.qaProbe = {fired:false, count:0, id:null};
+      mini.qaProbe.id = queueMiniTimeout(() => { mini.qaProbe.fired = true; mini.qaProbe.count += 1; }, delay);
+      return mini.qaProbe.id;
+    },
+    arcadeProbeStateForQA: () => {
+      const probe = mini?.qaProbe;
+      const job = probe ? mini?.jobs?.get(probe.id) : null;
+      return {fired:Boolean(probe?.fired), count:Number(probe?.count)||0,
+              remaining: job ? Math.round(job.remaining) : -1, armed: Boolean(job?.timer)};
+    },
+    arcadeClearBreakerBoardForQA: () => {
+      if(!mini?.active || mini.mode !== "breaker") return false;
+      for(const item of mini.entities.filter(e => e.kind === "breaker-block")) item.node?.remove?.();
+      mini.entities = mini.entities.filter(e => e.kind !== "breaker-block");
+      return true;
+    },
+    arcadeGrantBuffsForQA: () => {
+      if(!mini?.active) return false;
+      const t = now();
+      if(mini.mode === "breaker"){ mini.breakerBoostUntil = t + 5200; mini.breakerPierceUntil = t + 4200; }
+      if(mini.mode === "glide"){ mini.glideThermalUntil = t + 4200; mini.glideInvulnerableUntil = t + 1250; }
+      if(mini.mode === "maze"){ mini.mazeHuntUntil = t + 5000; mini.mazeInvulnerableUntil = t + 1500; }
+      if(mini.mode === "spark"){ mini.sparkFeverUntil = t + 2700; }
+      return true;
+    },
+    // A deadline that had already lapsed when the hold began must stay lapsed;
+    // crediting it blindly would hand the player back a buff they had lost.
+    arcadeExpiredDeadlineSurvivesForQA: () => {
+      if(!mini?.active) return false;
+      mini.glideInvulnerableUntil = now() - 400;
+      const before = mini.glideInvulnerableUntil;
+      arcadeFreeze("qa-expiry");
+      arcadeThaw("qa-expiry");
+      return mini.glideInvulnerableUntil === before && mini.glideInvulnerableUntil < now();
+    },
+    // Everything a held run could wrongly advance, in one comparable value.
+    arcadeFingerprintForQA: () => {
+      const round = value => typeof value === "number" && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : value;
+      return JSON.stringify({
+        score: round(mini?.score), hits: mini?.hits, lives: mini?.lives, endReason: mini?.endReason,
+        entities: (mini?.entities || []).length,
+        memory: {round: mini?.memoryRound, seq: (mini?.memorySequence || []).length, showing: mini?.memoryShowing, input: mini?.memoryInput},
+        breaker: {level: mini?.breakerLevel, cores: mini?.breakerCores, bricks: mini?.breakerBricks, ball: round(mini?.breakerBall?.x)},
+        glide: {y: round(mini?.glideY), v: round(mini?.glideV), gates: mini?.glideGateCount, clears: mini?.glideClears},
+        maze: {level: mini?.mazeLevel, pellets: mini?.mazePellets, r: mini?.mazePlayer?.r, c: mini?.mazePlayer?.c},
+        rush: {jumpY: round(mini?.jumpY), clears: mini?.rushClears},
+        forage: {orders: mini?.forageOrdersDone, index: mini?.forageOrderIndex, streak: mini?.forageStreak},
+        spark: {stash: mini?.sparkStash, banked: mini?.sparkBanked, streak: mini?.sparkStreak, type: mini?.sparkType},
+        power: {call: mini?.powerCall, streak: mini?.powerStreak, heat: round(mini?.powerHeat), reads: mini?.powerCallsRead},
+        walk: {distance: round(mini?.walkDistance), decision: mini?.walkDecisionIndex, finds: (mini?.walkChoices || []).length},
+        rhythm: {ready: mini?.rhythmReady, index: mini?.rhythmChartIndex, streak: mini?.rhythmStreak, misses: mini?.rhythmMisses}
+      });
+    },
+    arcadeJobsForQA: () => ({
+      count: mini?.jobs?.size || 0,
+      held: arcadeJobsHeld(),
+      holds: Object.keys(mini?.jobHolds || {}).sort(),
+      armed: [...(mini?.jobs?.values() || [])].filter(job => job.timer != null).length,
+      pending: [...(mini?.jobs?.values() || [])].map(job => ({id: job.id, remaining: Math.round(job.remaining), repeat: Boolean(job.repeat)}))
+    }),
+    arcadeDeadlinesForQA: () => {
+      const out = {};
+      for(const key of arcadeDeadlineKeys()){
+        const value = mini?.[key];
+        if(typeof value === "number" && Number.isFinite(value) && value > 0) out[key] = Math.round(value - now());
+      }
+      return out;
+    },
+    arcadeDeadlineKeysForQA: () => arcadeDeadlineKeys().sort(),
+    arcadeAdvanceClockForQA: ms => {if(!mini?.active||!Number.isFinite(mini.endAt))return false;mini.endAt-=Math.max(0,Number(ms)||0);return true;},
+    arcadeClockForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,endless:!Number.isFinite(mini?.endAt),
+      remaining:Number.isFinite(mini?.endAt)?Math.max(0,mini.endAt-now()):Infinity,
+      frozen:arcadeFrozen(),paused:Boolean(mini?.paused),sources:Object.keys(mini?.pauseSources||{}).sort(),
+      jobsHeld:arcadeJobsHeld(),jobHolds:Object.keys(mini?.jobHolds||{}).sort()}),
+    arcadeStateForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Math.max(0,Math.floor(mini?.score||0)),
+      lives:mini?.lives??null,maxLives:mini?.maxLives??null,endReason:mini?.endReason||"",paused:Boolean(mini?.paused),
+      quitConfirmed:Boolean(mini?.quitConfirmed),rhythmReady:Boolean(mini?.rhythmReady)}),
+    arcadeSetScoreForQA: value => {if(!mini?.active)return false;mini.score=Math.max(0,Number(value)||0);return true;},
+    arcadeKillForQA: () => {if(!mini?.active)return false;mini.lives=0;mini.endReason="death";return true;},
+    arcadeFreezeForQA: (source="background") => arcadeFreeze(source),
+    arcadeThawForQA: (source="background") => arcadeThaw(source),
+    suspendRuntimeForQA: (reason="background") => suspendRuntime(reason),
+    resumeRuntimeForQA: (reason="visible") => resumeRuntime(reason),
+    arcadeGamesForQA: () => JSON.parse(JSON.stringify(ARCADE_GAMES)),
     arcadeQualifyForQA: (mode=mini?.mode) => {if(!mini.active||mini.mode!==mode)return false;if(mode==="power"){mini.powerEngaged=true;mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="spark"){mini.hits=Math.max(2,mini.hits||0);mini.sparkBanked=Math.max(2,mini.sparkBanked||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="forage"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="rush"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.rushClears=Math.max(2,mini.rushClears||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="walk"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="rhythm"){mini.hits=Math.max(3,mini.hits||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="memory"){mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="glide"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.glideClears=Math.max(1,mini.glideClears||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="breaker"){mini.breakerMoves=Math.max(1,mini.breakerMoves||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="maze"){mini.mazeInputs=Math.max(1,mini.mazeInputs||0);mini.score=Math.max(5,mini.score||0);}return arcadeRunQualified(mode,Math.max(0,Math.floor(mini.score||0)));},
     arcadePowerStrikeForQA: (tech=mini?.powerCall||"jab",needle=null) => {if(!mini.active||mini.mode!=="power")return null;mini.needle=needle===null?mini.powerZone:(Number.isFinite(Number(needle))?clamp(Number(needle),0,1):mini.needle);powerTap(String(tech||"jab"));return RizoRuntimeQA.arcadeSnapshotForQA().power},
     arcadeSparkCatchForQA: (type="normal",streak=null) => {if(!mini.active||mini.mode!=="spark")return null;if(streak!==null)mini.sparkStreak=Math.max(0,Math.floor(Number(streak)||0));moveSparkTarget(String(type||"normal"));catchSpark();return RizoRuntimeQA.arcadeSnapshotForQA().spark},
     arcadeSparkBankForQA: () => {if(!mini.active||mini.mode!=="spark")return null;bankSparkStash(false);return RizoRuntimeQA.arcadeSnapshotForQA().spark},
     arcadeForageCompleteOrderForQA: () => {if(!mini.active||mini.mode!=="forage")return null;mini.forageOrderIndex=Math.max(0,(mini.forageOrder||[]).length-1);advanceForageOrder();return RizoRuntimeQA.arcadeSnapshotForQA().forage},
     arcadeBreakerCollapseCoreForQA: () => {if(!mini.active||mini.mode!=="breaker")return null;const core=mini.entities.find(item=>item.kind==="breaker-block"&&item.special==="core"&&item.node?.isConnected);if(core){core.node.remove();mini.entities=mini.entities.filter(item=>item!==core);breakerCollapseCore(core);}return RizoRuntimeQA.arcadeSnapshotForQA().breaker},
-    arcadeMemoryRoundForQA: round => {if(!mini.active||mini.mode!=="memory")return null;for(const id of mini.timeouts||[])clearTimeout(id);mini.timeouts=[];mini.memoryRound=Math.max(0,Math.floor(Number(round)||1)-1);mini.memorySequence=[];startMemoryRound();return RizoRuntimeQA.arcadeSnapshotForQA().memory;},
+    arcadeMemoryRoundForQA: round => {if(!mini.active||mini.mode!=="memory")return null;clearArcadeJobs();mini.memoryRound=Math.max(0,Math.floor(Number(round)||1)-1);mini.memorySequence=[];startMemoryRound();return RizoRuntimeQA.arcadeSnapshotForQA().memory;},
     arcadeMazeDirectionForQA: dir => {if(!mini.active||mini.mode!=="maze")return null;mazeSetDirection(String(dir||""));return RizoRuntimeQA.arcadeSnapshotForQA().maze;},
     defenseMapsForQA: () => ({best:Number(state.scores?.defense)||0,unlocked:defenseUnlockedMaps().map(map=>map.id),all:Object.values(DEFENSE_MAPS).map(map=>({id:map.id,unlockWave:map.unlockWave,level:map.level}))}),
     defenseRandomMapsForQA: (count=30) => Array.from({length:Math.max(1,Number(count)||1)},()=>chooseDefenseMapId()),
     defenseSetMapForQA: selection => { const map=DEFENSE_MAPS[selection]; if(!mini.defense||!map||mini.defense.towers.length||mini.defense.currentWave>0)return mini.defense?.mapId||null; mini.defense.mapId=map.id;mini.defense.map=map;mini.defense.pathMetrics=defensePathMetrics(map.path);mini.defense.lives=map.lives;mini.defense.cash=BASE_DEFENSE_STARTING_CASH;renderDefenseWorld();return map.id; },
     defenseSetPetVariantForQA: (variant,petId=null) => {const row=petId?defenseRoster().find(item=>item.pet.id===petId):defenseRoster()[0];if(!row||!VARIANTS.some(item=>item.id===variant))return false;row.pet.variant=String(variant);row.pet.hiddenVariant=null;markDefenseUi({roster:true});flushDefenseUi(true);return{petId:row.pet.id,variant:row.pet.variant};},
-    defenseMapRoutesForQA: () => Object.fromEntries(DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],metrics=map.pathMetrics||defensePathMetrics(map.path);return[id,{name:map.name,routeType:map.routeType,strategy:map.strategy,anchors:map.route.map(point=>({...point})),points:map.path.map(point=>({...point})),length:metrics.total,segments:metrics.segments.length,blockedZones:(map.blockedZones||[]).map(zone=>({...zone})),landmarks:(map.landmarks||[]).map(item=>({...item})),buildPockets:(map.buildPockets||[]).map(item=>({...item}))}];})),
+    defenseMapRoutesForQA: () => Object.fromEntries(DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],metrics=map.pathMetrics||defensePathMetrics(map.path);return[id,{name:map.name,routeType:map.routeType,strategy:map.strategy,anchors:map.route.map(point=>({...point})),points:map.path.map(point=>({...point})),length:metrics.total,segments:metrics.segments.length,blockedZones:(map.blockedZones||[]).map(zone=>({...zone})),landmarks:(map.landmarks||[]).map(item=>({...item})),buildPockets:(map.buildPockets||[]).map(item=>({...item})),mechanic:map.mechanic?{...map.mechanic}:null,mechanicZones:(map.mechanicZones||[]).map(item=>({...item}))}];})),
+    defenseTowerCombatStatsForQA: (id=null) => {const d=mini.defense;if(!d)return[];return d.towers.filter(tower=>!id||tower.id===id).map(tower=>{const stats=defenseCombatStats(tower),bond=defenseMapBondForTower(tower,d);return{id:tower.id,mapId:d.mapId,mapBond:bond?{...bond}:null,damage:stats.damage,rate:stats.rate,range:stats.range,variant:stats.variant};});},
     defenseMapPointForQA: (mapId,progress) => {const map=DEFENSE_MAPS[mapId]||DEFENSE_MAPS.grove;return defenseMapPointAt(map,progress);},
     defenseMapSvgPathForQA: mapId => defenseMapSvgPath(DEFENSE_MAPS[mapId]||DEFENSE_MAPS.grove),
     defensePlacementGeometryForQA: () => {const g=defensePlacementGeometry();return{footprintPx:g.footprintPx,safetyPx:g.safetyPx,pathHalf:g.pathHalf,pathClearance:g.pathClearance,towerGap:g.towerGap,bounds:{...g.bounds},snap:g.snap,width:g.width,height:g.height};},
@@ -8014,26 +9453,27 @@ Streak: ${state.player.streak}`;
     releaseStatusForQA: () => releaseStatus(),
     activateReleaseUpdateForQA: () => activateReleaseUpdate(),
     injectReleaseUpdateForQA: () => {const messages=[];const waiting={postMessage:message=>messages.push(JSON.parse(JSON.stringify(message)))};const registration={waiting};announceReleaseUpdate(registration);return{messages,activate:()=>activateReleaseUpdate(),status:()=>releaseStatus()};},
-    defensePlaceForQA: (petId,x=.2,y=.42) => { const row=defenseRoster().find(item=>item.pet.id===petId)||defenseRoster()[0]; if(!row)return false; placeDefenseTower(row,Number(x),Number(y),defenseDeployCost(row)); return mini.defense.towers.length; },
+    defensePlaceForQA: (petId,x=.2,y=.42) => { const row=defenseDeployRegistry().get(petId)||defenseRoster()[0]; if(!row)return false; placeDefenseTower(row,Number(x),Number(y),defenseDeployCost(row)); return mini.defense.towers.length; },
     defenseStartWaveForQA: () => { startDefenseWave(); return mini.defense?.wave||0; },
-    defensePlanForQA: wave => { if(!mini.defense)return null; const prior=mini.defense.waveAnnouncement; const plan=defenseWavePlan(Math.max(1,Number(wave)||1)); const announcement=mini.defense.waveAnnouncement; mini.defense.waveAnnouncement=prior; return {wave:plan.wave,modifier:plan.modifier,total:plan.plannedEnemyCount,estimatedDuration:plan.estimatedDuration,packets:plan.packets.map(packet=>({spawnGap:packet.spawnGap,breakAfter:packet.breakAfter,enemies:packet.enemies.map(item=>typeof item==="string"?item:{...item})})),announcement}; },
+    defensePlanForQA: wave => { if(!mini.defense)return null; const prior=mini.defense.waveAnnouncement; const plan=defenseWavePlan(Math.max(1,Number(wave)||1)); const announcement=mini.defense.waveAnnouncement; mini.defense.waveAnnouncement=prior; return {wave:plan.wave,modifier:plan.modifier,total:plan.plannedEnemyCount,estimatedDuration:plan.estimatedDuration,formationTier:plan.formationTier||0,pressureTags:[...(plan.pressureTags||[])],packets:plan.packets.map(packet=>({spawnGap:packet.spawnGap,breakAfter:packet.breakAfter,enemies:packet.enemies.map(item=>typeof item==="string"?item:{...item})})),announcement}; },
     defenseSetWaveForQA: wave => { if(mini.defense)mini.defense.wave=Math.max(0,Number(wave)||0); return mini.defense?.wave||0; },
     defenseSpawnBossForQA: id => { if(!mini.defense)return false; const boss=DEFENSE_BOSSES.find(item=>item.id===id)||DEFENSE_BOSSES[0]; spawnDefenseEnemy({type:"boss",bossId:boss.id,intensity:0}); return mini.defense.enemies.at(-1)?.bossId||null; },
     defenseSetEnemyHealthForQA: ratio => { const enemy=mini.defense?.enemies.at(-1); if(!enemy)return false; enemy.hp=Math.max(1,enemy.maxHp*clamp(Number(ratio)||0,0,1)); return enemy.hp; },
+    defenseSetEnemyHealthByIdForQA: (enemyId,ratio) => {const enemy=mini.defense?.enemies.find(item=>item.id===enemyId);if(!enemy)return false;enemy.hp=Math.max(1,enemy.maxHp*clamp(Number(ratio)||0,0,1));return enemy.hp;},
     defenseTickForQA: seconds => { if(!mini.defense)return false; const real=Math.max(0,Number(seconds)||0);updateDefenseGame(real*(mini.defense.speed||1),real); return defenseNow(); },
     defenseRecordFrameForQA: ms => {const d=mini.defense;if(!d)return null;defenseRecordFramePerformance(Number(ms)||16.7);defenseApplyRenderTier(d);return{frameP95:d.frameP95,frameP99:d.frameP99,governorTier:d.governorTier,renderTier:d.renderTier,performanceLow:Boolean(d.performanceLow),densityCap:defenseDensityCap(d,d.spawnQueue[0]),visualBudget:defenseVisualBudget(d)};},
     defenseRapidFireForQA: count => {const d=mini.defense,tower=d?.towers[0];if(!d||!tower)return null;let target=d.enemies.find(enemy=>!enemy.dead&&enemy.hp>0);if(!target){let nearest={progress:.2,distance:Infinity};for(let i=0;i<=200;i+=1){const progress=i/200,point=defensePointAt(progress),distance=Math.hypot(point.x-tower.x,point.y-tower.y);if(distance<nearest.distance)nearest={progress,distance};}target=spawnDefenseEnemy("shell",{progress:nearest.progress,hpOverride:1e9,maxHpOverride:1e9});}const stats=defenseCombatStats(tower),shots=clamp(Math.floor(Number(count)||24),1,120);for(let i=0;i<shots;i+=1)fireDefenseTower(tower,target,stats);return{requested:shots,logical:d.projectiles.length,visible:defenseVisibleProjectileCount(d),coalescedVisual:d.coalescedVisualShots||0,coalescedLogical:d.coalescedLogicalShots||0,budget:defenseVisualBudget(d)};},
     defenseTryCompleteWaveForQA: () => {const d=mini.defense;if(!d)return null;const completed=completeDefenseWave();return{completed,currentWave:d.currentWave,clearedWave:d.clearedWave,spawnQueue:d.spawnQueue.length,childSpawnQueue:d.childSpawnQueue.length,enemies:d.enemies.length,projectiles:d.projectiles.length};},
-    defenseResidueResolutionForQA: () => {const d=mini.defense;if(!d)return null;d.currentWave=Math.max(1,d.currentWave||1);d.clearedWave=Math.min(d.clearedWave,d.currentWave-1);defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.spawnQueue=[];d.wavePackets=[];d.packetIndex=0;d.packetEnemyIndex=0;d.childSpawnQueue=[];for(const enemy of d.enemies)releaseDefenseEnemyNode(enemy);d.enemies=[];d.projectiles.push({id:"qa-stale-shot",node:null,life:99});const before=d.projectiles.length,resolved=isWaveFullyResolved(d),completed=completeDefenseWave();return{before,resolved,completed,after:d.projectiles.length,phase:d.phase,clearedWave:d.clearedWave};},
+    defenseResidueResolutionForQA: () => {const d=mini.defense;if(!d)return null;d.currentWave=Math.max(1,d.currentWave||1);d.clearedWave=Math.min(d.clearedWave,d.currentWave-1);defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.spawnQueue=[];d.wavePackets=[];d.packetIndex=0;d.packetEnemyIndex=0;d.childSpawnQueue=[];for(const enemy of d.enemies)releaseDefenseEnemyNode(enemy);d.enemies=[];d.waveResolved=Math.max(d.waveResolved||0,d.waveTotal||0);d.projectiles.push({id:"qa-stale-shot",node:null,life:99});const before=d.projectiles.length,resolved=isWaveFullyResolved(d),completed=completeDefenseWave();return{before,resolved,completed,after:d.projectiles.length,phase:d.phase,clearedWave:d.clearedWave};},
     defenseGateFlameForQA: progress => {const d=mini.defense;if(!d)return null;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.gateFlameArmed=false;d.gateFlameProgress=clamp(Number(progress)||.5,0,1);d.gateFlameUntil=d.clock+DEFENSE_GATE_FLAME_DURATION;d.gateFlameReadyAt=d.clock+DEFENSE_GATE_FLAME_COOLDOWN;d.gateFlameNextTick=d.clock;updateDefenseGateFlame();markDefenseUi();flushDefenseUi(true);return RizoRuntimeQA.defenseSnapshotForQA().gateFlame;},
     defenseQueueChildForQA: (type="fleet",delay=.08) => {const d=mini.defense;if(!d)return null;const queued=queueDefenseChildSpawn(String(type||"fleet"),{progress:.45,delay:Number(delay)||0});return{queued,childSpawnQueue:d.childSpawnQueue.length};},
     defensePendingIncomeForQA: amount => {const d=mini.defense;if(!d)return null;queueDefenseIncome(Number(amount)||0,"qa");return{cash:d.cash,pendingIncome:d.pendingIncome};},
     defenseSetLowPerformanceForQA: low => {const d=mini.defense;if(!d)return null;d.performanceLow=Boolean(low);defenseApplyRenderTier(d,d.performanceLow?2:0);return{performanceLow:d.performanceLow,renderTier:d.renderTier,densityCap:defenseDensityCap(d,d.spawnQueue[0]),budget:defensePerformanceBudget(d)};},
-    defenseCompleteWaveForQA: wave => { const d=mini.defense;if(!d)return false;d.currentWave=DefenseCore.clampInteger(wave,1,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,1);d.clearedWave=Math.min(d.clearedWave,d.currentWave-1);defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.spawnQueue=[];d.wavePackets=[];d.packetIndex=0;d.packetEnemyIndex=0;d.childSpawnQueue=[];d.enemies.forEach(enemy=>releaseDefenseEnemyNode(enemy));d.enemies=[];d.projectiles.forEach(shot=>releaseDefenseProjectileNode(shot));d.projectiles=[];const completed=completeDefenseWave();return{completed,currentWave:d.currentWave,clearedWave:d.clearedWave,milestones:[...(state.scores.defenseMilestones||[])]}; },
+    defenseCompleteWaveForQA: wave => { const d=mini.defense;if(!d)return false;d.currentWave=DefenseCore.clampInteger(wave,1,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,1);d.clearedWave=Math.min(d.clearedWave,d.currentWave-1);defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.spawnQueue=[];d.wavePackets=[];d.packetIndex=0;d.packetEnemyIndex=0;d.childSpawnQueue=[];d.enemies.forEach(enemy=>releaseDefenseEnemyNode(enemy));d.enemies=[];d.projectiles.forEach(shot=>releaseDefenseProjectileNode(shot));d.projectiles=[];d.waveResolved=Math.max(d.waveResolved||0,d.waveTotal||0);const completed=completeDefenseWave();return{completed,currentWave:d.currentWave,clearedWave:d.clearedWave,milestones:[...(state.scores.defenseMilestones||[])]}; },
     defenseSetSpeedForQA: speed => { if(!mini.defense)return false; mini.defense.speed=[.5,1,2].includes(Number(speed))?Number(speed):1; defenseApplyRenderTier(mini.defense);updateDefenseHud(); return mini.defense.speed; },
     defenseSetEnemiesForQA: (progress=.35) => { if(!mini.defense)return 0; for(const enemy of mini.defense.enemies){enemy.progress=clamp(Number(progress)||0,0,.98);const point=defensePointAt(enemy.progress);enemy.x=point.x;enemy.y=point.y;enemy.prevX=point.x;enemy.prevY=point.y;updateDefenseEnemyNode(enemy,true);} return mini.defense.enemies.length; },
     defenseArrangeEnemiesForQA: () => { if(!mini.defense)return 0; mini.defense.enemies.forEach((enemy,index)=>{enemy.progress=clamp(.11+index*.095,0,.9);const point=defensePointAt(enemy.progress);enemy.x=point.x;enemy.y=point.y;enemy.prevX=point.x;enemy.prevY=point.y;updateDefenseEnemyNode(enemy,true);}); return mini.defense.enemies.length; },
-    defensePlaceNextForQA: petId => { const row=defenseRoster().find(item=>item.pet.id===petId)||defenseRoster()[0]; if(!row)return false; for(let y=.14;y<=.74;y+=.08)for(let x=.11;x<=.89;x+=.08){if(isValidDefensePlacement(x,y)){placeDefenseTower(row,x,y,defenseDeployCost(row));return mini.defense.towers.length;}} return mini.defense.towers.length; },
+    defensePlaceNextForQA: petId => { const row=defenseDeployRegistry().get(petId)||defenseRoster()[0]; if(!row)return false; for(let y=.14;y<=.74;y+=.08)for(let x=.11;x<=.89;x+=.08){if(isValidDefensePlacement(x,y)){placeDefenseTower(row,x,y,defenseDeployCost(row));return mini.defense.towers.length;}} return mini.defense.towers.length; },
     defenseAbilityForQA: id => { const tower=mini.defense?.towers.find(item=>item.id===id)||mini.defense?.towers[0]; if(!tower)return false; tower.upgrade=Math.max(tower.upgrade,2); tower.abilityReadyAt=0; refreshDefenseTower(tower); activateDefenseAbility(tower.id); return {id:tower.id,variant:tower.pet.variant||tower.pet.hiddenVariant,readyAt:tower.abilityReadyAt}; },
     defenseUpgradeForQA: level => { const tower=mini.defense?.towers[0]; if(!tower)return false; tower.upgrade=clamp(Math.floor(Number(level)||0)-1,0,4); refreshDefenseTower(tower); const aura=tower.node?.querySelector(".defense-aura"); return {upgrade:tower.upgrade,tier:defenseTowerTier(tower),className:tower.node?.className||"",silhouette:tower.node?.style.getPropertyValue("--tower-silhouette")||"",auraDisplay:aura?getComputedStyle(aura).display:null,auraMask:aura?getComputedStyle(aura).webkitMaskImage||getComputedStyle(aura).maskImage:null}; },
     defenseTargetForQA: mode => { const tower=mini.defense?.towers[0]; if(!tower||!DEFENSE_TARGET_MODES.includes(mode))return false;tower.targetMode=mode;tower.targetId=null;tower.retargetAtReal=0;return tower.targetMode; },
@@ -8042,10 +9482,13 @@ Streak: ${state.player.streak}`;
     defenseInterruptionForQA: () => { const paused=pauseDefenseForInterruption();return {paused,autoPaused:Boolean(mini.defense?.autoPaused),clock:defenseNow()}; },
     defenseResumeSurfaceForQA: () => { const surfaced=surfaceDefenseInterruptionPause();return {surfaced,paused:Boolean(mini.defense?.paused),autoPaused:Boolean(mini.defense?.autoPaused)}; },
     defenseSpawnForQA: (type="puff",progress=.25,hp=null,maxHp=null) => { if(!mini.defense)return false;const options={progress:clamp(Number(progress)||0,0,.98)};if(Number.isFinite(Number(hp)))options.hpOverride=Number(hp);if(Number.isFinite(Number(maxHp)))options.maxHpOverride=Number(maxHp);const enemy=spawnDefenseEnemy(type,options);return {id:enemy.id,type:enemy.type,hp:enemy.hp,maxHp:enemy.maxHp}; },
+    defensePopEnemyForQA: enemyId => {const enemy=mini.defense?.enemies.find(item=>item.id===enemyId);if(!enemy)return false;popDefenseEnemy(enemy,null);return true;},
+    defenseShredEnemyForQA: (enemyId,amount=.05) => {const enemy=mini.defense?.enemies.find(item=>item.id===enemyId);if(!enemy)return false;return shredDefenseArmor(enemy,Number(amount)||.05,null);},
+    defensePulseMenderForQA: enemyId => {const enemy=mini.defense?.enemies.find(item=>item.id===enemyId);if(!enemy)return false;enemy.supportCycle=-999;return pulseDefenseMender(enemy,defenseNow());},
     defenseNearestProgressForQA: () => { const tower=mini.defense?.towers[0];if(!tower)return null;let best={progress:0,distance:Infinity};for(let i=0;i<=200;i+=1){const progress=i/200,point=defensePointAt(progress),distance=Math.hypot(point.x-tower.x,point.y-tower.y);if(distance<best.distance)best={progress,distance};}return best; },
     defenseStrongTargetForQA: () => { const tower=mini.defense?.towers[0];if(!tower)return null;const stats=defenseCombatStats(tower),enemy=pickDefenseTarget(tower,stats);return enemy?{id:enemy.id,type:enemy.type,hp:enemy.hp,maxHp:enemy.maxHp,threat:defenseEnemyThreat(enemy)}:null; },
     defenseDamageCreditForQA: (raw=50,hp=3) => { const d=mini.defense,tower=d?.towers[0];if(!d||!tower)return false;const enemy=spawnDefenseEnemy("puff",{progress:.2,hpOverride:Number(hp)||3,maxHpOverride:Number(hp)||3}),before={damage:tower.damage,kills:tower.kills};const dealt=dealDefenseDamage(enemy,Number(raw)||50,tower,"classic");return {dealt,before,after:{damage:tower.damage,kills:tower.kills},enemyDead:enemy.dead}; },
-    defenseDoctrineShotForQA: doctrine => { const d=mini.defense,tower=d?.towers[0];if(!d||!tower||!DEFENSE_DOCTRINES[doctrine])return false;tower.upgrade=3;tower.doctrine=doctrine;tower.shots=4;refreshDefenseTower(tower);const nearest=(()=>{let best={progress:0,distance:Infinity};for(let i=0;i<=200;i+=1){const progress=i/200,point=defensePointAt(progress),distance=Math.hypot(point.x-tower.x,point.y-tower.y);if(distance<best.distance)best={progress,distance};}return best;})(),enemy=spawnDefenseEnemy("shell",{progress:nearest.progress,hpOverride:100,maxHpOverride:100});fireDefenseTower(tower,enemy,defenseCombatStats(tower));const shot=d.projectiles.at(-1);return {doctrine:tower.doctrine,shotClass:shot?.node?.className||"",strike:shot?.doctrineStrike||null,shots:tower.shots,masteryTier:shot?.masteryTier||0,towerClass:tower.node?.className||""}; },
+    defenseDoctrineShotForQA: (doctrine,options={}) => { const d=mini.defense,tower=d?.towers[0];if(!d||!tower||!DEFENSE_DOCTRINES[doctrine])return false;tower.upgrade=options.apex?4:3;tower.doctrine=doctrine;tower.shots=defenseIsUniversalTower(tower)?(doctrine==="control"?(tower.upgrade>=4?3:4):(tower.upgrade>=4?2:3)):4;refreshDefenseTower(tower);const nearest=(()=>{let best={progress:0,distance:Infinity};for(let i=0;i<=200;i+=1){const progress=i/200,point=defensePointAt(progress),distance=Math.hypot(point.x-tower.x,point.y-tower.y);if(distance<best.distance)best={progress,distance};}return best;})(),enemy=spawnDefenseEnemy(options.type||"shell",{progress:nearest.progress,hpOverride:options.hp||100,maxHpOverride:options.maxHp||options.hp||100});if(options.restrained){enemy.slow=.45;enemy.slowUntil=defenseNow()+10;}if(options.opened){enemy.armorShredded=true;enemy.armor=Math.max(0,(enemy.baseArmor||0)-.08);}const neighbors=[];for(let i=0;i<Math.max(0,Math.min(4,Number(options.neighbors)||0));i+=1){const neighborType=Array.isArray(options.neighborTypes)&&options.neighborTypes[i]?options.neighborTypes[i]:(options.neighborType||"shell"),near=spawnDefenseEnemy(neighborType,{progress:clamp(nearest.progress-(i+1)*.012,0,.98),hpOverride:100,maxHpOverride:100});neighbors.push(near.id);}fireDefenseTower(tower,enemy,defenseCombatStats(tower));const shot=d.projectiles.at(-1);return {doctrine:tower.doctrine,targetId:enemy.id,neighborIds:neighbors,shotClass:shot?.node?.className||"",strike:shot?.doctrineStrike||null,doubleStitch:Boolean(shot?.doubleStitch),shots:tower.shots,masteryTier:shot?.masteryTier||0,towerClass:tower.node?.className||""}; },
     defenseCrownGuardsForQA: () => { const d=mini.defense;if(!d)return false;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});const enemy=spawnDefenseEnemy({type:"boss",bossId:"crown",intensity:0},{progress:.4});const before=d.waveTotal;enemy.hp=enemy.maxHp*.49;handleDefenseBossMechanics(enemy);d.clock=Math.max(d.clock,enemy.telegraphUntil+.01);handleDefenseBossMechanics(enemy);return {before,after:d.waveTotal,guards:d.enemies.filter(item=>item.type==="shell").length}; },
     defenseDotCreditForQA: kind => { const d=mini.defense,tower=d?.towers[0];if(!d||!tower)return false;const enemy=spawnDefenseEnemy("puff",{progress:.2,hpOverride:2,maxHpOverride:2});updateDefenseEnemyNode(enemy);if(kind==="burn"){enemy.burn=4;enemy.burnUntil=defenseNow()+2;enemy.burnSource=tower;}else{enemy.poison=4;enemy.poisonUntil=defenseNow()+2;enemy.poisonSource=tower;}const before={damage:tower.damage,kills:tower.kills};updateDefenseEnemies(1);return {before,after:{damage:tower.damage,kills:tower.kills},enemyDead:enemy.dead}; },
     defenseForceWaveForQA: wave => { const d=mini.defense;if(!d)return false;d.currentWave=Math.max(0,(Number(wave)||1)-1);d.clearedWave=Math.min(d.clearedWave,d.currentWave);d.nextWaveReadyAtReal=0;d.autoStartAtReal=0;defenseSetPhase(d,DEFENSE_PHASES.PLANNING,{force:true});startDefenseWave();return{currentWave:d.currentWave,clearedWave:d.clearedWave,total:d.waveTotal,announcement:d.waveAnnouncement}; },
@@ -8069,7 +9512,7 @@ Streak: ${state.player.streak}`;
     defenseMomentForQA: (kind="clear",options={}) => showDefenseCinematicMoment(String(kind||"clear"),options||{}),
     defenseEndRunForQA: (reason="banked") => finishDefenseRunWithMoment(reason==="gate"?"gate":"banked"),
     defenseArtCohesionForQA: () => {const world=$("#defenseWorld"),style=world?getComputedStyle(world):null;return world?{mapId:mini.defense?.mapId||null,featureCount:world.querySelectorAll(".defense-world-feature").length,featureKinds:[...world.querySelectorAll(".defense-world-feature")].map(node=>node.dataset.worldFeature),buildPocketCount:world.querySelectorAll(".defense-build-pocket").length,unitScale:world.style.getPropertyValue("--def-unit-scale"),playOutline:style?.getPropertyValue("--play-outline").trim()||"",playHalo:style?.getPropertyValue("--play-halo").trim()||"",roadFill:style?.getPropertyValue("--road-fill").trim()||"",visibleLandmarkLabels:[...world.querySelectorAll(".defense-landmark span,.defense-entrance span,.defense-gate b")].filter(node=>getComputedStyle(node).display!=="none").length}:null;},
-    defenseSnapshotForQA: () => mini.defense?{map:mini.defense.mapId,currentWave:mini.defense.currentWave,clearedWave:mini.defense.clearedWave,reachedWave:mini.defense.currentWave,contract:mini.defense.contract?{...mini.defense.contract}:null,maxTowers:mini.defense.maxTowers,wave:mini.defense.wave,lives:mini.defense.lives,cash:mini.defense.cash,worldPerkUsed:Boolean(mini.defense.worldPerkUsed),phase:mini.defense.phase,paused:Boolean(mini.defense.paused),autoPaused:Boolean(mini.defense.autoPaused),waveTotal:mini.defense.waveTotal,waveResolved:mini.defense.waveResolved,lowFx:Boolean(mini.defense.lowFx),performanceLow:Boolean(mini.defense.performanceLow),frameMs:Number(mini.defense.frameMs||0),frameP95:Number(mini.defense.frameP95||0),frameP99:Number(mini.defense.frameP99||0),frameStress:Number(mini.defense.frameStress||0),governorTier:mini.defense.governorTier||0,simStepP95:Number(mini.defense.simStepP95||0),simStepWorst:Number(mini.defense.simStepWorst||0),simBacklogEvents:mini.defense.simBacklogEvents||0,maxCatchUpObserved:mini.defense.maxCatchUpObserved||0,lastSimSteps:mini.defense.lastSimSteps||0,simAccumulator:Number(mini.defense.simAccumulator||0),presentationFrames:mini.defense.presentationFrames||0,rendererMode:mini.defense.rendererMode||"dom",canvasFrames:mini.defense.canvasFrames||0,canvasFallbacks:mini.defense.canvasFallbacks||0,canvasRenderer:mini.defense.canvasRenderer?.snapshot?.()||null,renderTier:mini.defense.renderTier||0,potatoFx:Boolean(mini.defense.potatoFx),renderTierChanges:mini.defense.renderTierChanges||0,densityCap:defenseDensityCap(mini.defense,mini.defense.spawnQueue[0]),poolStats:{enemy:mini.defense.enemyNodePool.length,projectile:mini.defense.projectileNodePool.length,impact:mini.defense.impactNodePool.length,enemyCreated:mini.defense.enemyNodesCreated||0,enemyAcquired:mini.defense.enemyNodesAcquired||0,projectileCreated:mini.defense.projectileNodesCreated||0,projectileAcquired:mini.defense.projectileNodesAcquired||0,impactCreated:mini.defense.impactNodesCreated||0,impactAcquired:mini.defense.impactNodesAcquired||0},visualWrites:{enemyPosition:mini.defense.enemyPositionWrites||0,enemyClass:mini.defense.enemyClassWrites||0,enemyHealth:mini.defense.enemyHealthWrites||0,enemyState:mini.defense.enemyStateWrites||0,projectilePosition:mini.defense.projectilePositionWrites||0},peakAlive:mini.defense.peakAlive||0,spawnWaitReason:mini.defense.spawnWaitReason||"",lastSpawnedEnemyId:mini.defense.lastSpawnedEnemyId||null,ashUntil:mini.defense.ashUntil,moonRevealUntil:mini.defense.moonRevealUntil,intelOpen:Boolean(mini.defense.intelOpen),enemyStats:JSON.parse(JSON.stringify(mini.defense.enemyStats||{})),hudRenderCount:mini.defense.hudRenderCount||0,rosterRenderCount:mini.defense.rosterRenderCount||0,trayRenderCount:mini.defense.trayRenderCount||0,intelRenderCount:mini.defense.intelRenderCount||0,checkpointWrites:mini.defense.checkpointWrites||0,pendingIncome:mini.defense.pendingIncome||0,pendingIncomeEvents:mini.defense.pendingIncomeEvents||0,lastIncomeBatch:mini.defense.lastIncomeBatch?JSON.parse(JSON.stringify(mini.defense.lastIncomeBatch)):null,cashWriteCount:mini.defense.cashWriteCount||0,targetScans:mini.defense.targetScans||0,targetSnapshotBuilds:mini.defense.targetSnapshotBuilds||0,realClock:defenseRealNow(mini.defense),simulationClock:mini.defense.clock||0,visualBudget:defenseVisualBudget(mini.defense),childSpawnsReleased:mini.defense.childSpawnsReleased||0,nextChildReleaseAtReal:mini.defense.nextChildReleaseAtReal||0,maxActiveEnemiesObserved:mini.defense.maxActiveEnemiesObserved||0,maxProjectileNodesObserved:mini.defense.maxProjectileNodesObserved||0,maxLogicalProjectilesObserved:mini.defense.maxLogicalProjectilesObserved||0,visibleProjectileCount:defenseVisibleProjectileCount(mini.defense),coalescedVisualShots:mini.defense.coalescedVisualShots||0,coalescedLogicalShots:mini.defense.coalescedLogicalShots||0,droppedCosmetics:mini.defense.droppedCosmetics||0,maxEffectNodesObserved:mini.defense.maxEffectNodesObserved||0,childSpawnQueue:mini.defense.childSpawnQueue.length,packetIndex:mini.defense.packetIndex,packetCount:mini.defense.wavePackets.length,lastInputCancelReason:mini.defense.lastInputCancelReason||null,frameDiscontinuities:mini.defense.frameDiscontinuities||0,cinematicMomentKind:mini.defense.cinematicMomentKind||null,cinematicMomentCount:mini.defense.cinematicMomentCount||0,gateFlame:{armed:Boolean(mini.defense.gateFlameArmed),readyAt:mini.defense.gateFlameReadyAt||0,until:mini.defense.gateFlameUntil||0,progress:mini.defense.gateFlameProgress||0,ticks:mini.defense.gateFlameTicks||0},ending:Boolean(mini.defense.ending),endingReason:mini.defense.endingReason||null,projectiles:mini.defense.projectiles.map(shot=>({id:shot.id,towerId:shot.tower?.id||null,targetId:shot.target?.id||null,x:shot.x,y:shot.y,life:shot.life,speed:shot.speed,damage:shot.damage,kind:shot.kind,doctrineStrike:shot.doctrineStrike||null})),towers:mini.defense.towers.map(t=>({id:t.id,petId:t.petId,variant:t.pet.variant||t.pet.hiddenVariant,copy:t.copyNumber,x:t.x,y:t.y,upgrade:t.upgrade,cost:t.cost,spent:t.spent,openingPerkApplied:Boolean(t.openingPerkApplied),placedAtReal:t.placedAtReal,kills:t.kills,damage:t.damage,shots:t.shots,targetMode:t.targetMode,doctrine:t.doctrine,superForm:t.superForm||null,readyAt:t.abilityReadyAt,nextUpgradeCost:defenseUpgradeCost(t,mini.defense),sellRefund:defenseSellRefund(t,mini.defense),canUndo:defenseCanUndoPlacement(t,mini.defense)})),enemies:mini.defense.enemies.map(e=>({id:e.id,type:e.type,bossId:e.bossId||null,camo:Boolean(e.camo),camoActive:defenseEnemyCamoActive(e),hp:e.hp,maxHp:e.maxHp,armor:e.armor,baseArmor:e.baseArmor,armorBroken:Boolean(e.armorBroken),armorShredded:Boolean(e.armorShredded),progress:e.progress,phaseActive:Boolean(e.phaseActive),phaseSuppressedUntil:e.phaseSuppressedUntil,revealUntil:e.revealUntil,slow:e.slow,burn:e.burn,poison:e.poison,rootUntil:e.rootUntil,telegraphKind:e.telegraphKind||null,telegraphDisruption:e.telegraphDisruption||0,apexSurgeUntil:e.apexSurgeUntil||0,className:e.node?.className||""}))}:null,
+    defenseSnapshotForQA: () => mini.defense?{map:mini.defense.mapId,currentWave:mini.defense.currentWave,clearedWave:mini.defense.clearedWave,reachedWave:mini.defense.currentWave,contract:mini.defense.contract?{...mini.defense.contract}:null,maxTowers:mini.defense.maxTowers,wave:mini.defense.wave,lives:mini.defense.lives,cash:mini.defense.cash,worldPerkUsed:Boolean(mini.defense.worldPerkUsed),phase:mini.defense.phase,paused:Boolean(mini.defense.paused),autoPaused:Boolean(mini.defense.autoPaused),waveTotal:mini.defense.waveTotal,waveResolved:mini.defense.waveResolved,lowFx:Boolean(mini.defense.lowFx),performanceLow:Boolean(mini.defense.performanceLow),frameMs:Number(mini.defense.frameMs||0),frameP95:Number(mini.defense.frameP95||0),frameP99:Number(mini.defense.frameP99||0),frameStress:Number(mini.defense.frameStress||0),governorTier:mini.defense.governorTier||0,simStepP95:Number(mini.defense.simStepP95||0),simStepWorst:Number(mini.defense.simStepWorst||0),simBacklogEvents:mini.defense.simBacklogEvents||0,maxCatchUpObserved:mini.defense.maxCatchUpObserved||0,lastSimSteps:mini.defense.lastSimSteps||0,simAccumulator:Number(mini.defense.simAccumulator||0),presentationFrames:mini.defense.presentationFrames||0,rendererMode:mini.defense.rendererMode||"dom",canvasFrames:mini.defense.canvasFrames||0,canvasFallbacks:mini.defense.canvasFallbacks||0,canvasRenderer:mini.defense.canvasRenderer?.snapshot?.()||null,renderTier:mini.defense.renderTier||0,potatoFx:Boolean(mini.defense.potatoFx),renderTierChanges:mini.defense.renderTierChanges||0,densityCap:defenseDensityCap(mini.defense,mini.defense.spawnQueue[0]),poolStats:{enemy:mini.defense.enemyNodePool.length,projectile:mini.defense.projectileNodePool.length,impact:mini.defense.impactNodePool.length,enemyCreated:mini.defense.enemyNodesCreated||0,enemyAcquired:mini.defense.enemyNodesAcquired||0,projectileCreated:mini.defense.projectileNodesCreated||0,projectileAcquired:mini.defense.projectileNodesAcquired||0,impactCreated:mini.defense.impactNodesCreated||0,impactAcquired:mini.defense.impactNodesAcquired||0},visualWrites:{enemyPosition:mini.defense.enemyPositionWrites||0,enemyClass:mini.defense.enemyClassWrites||0,enemyHealth:mini.defense.enemyHealthWrites||0,enemyState:mini.defense.enemyStateWrites||0,projectilePosition:mini.defense.projectilePositionWrites||0},peakAlive:mini.defense.peakAlive||0,spawnWaitReason:mini.defense.spawnWaitReason||"",lastSpawnedEnemyId:mini.defense.lastSpawnedEnemyId||null,ashUntil:mini.defense.ashUntil,moonRevealUntil:mini.defense.moonRevealUntil,intelOpen:Boolean(mini.defense.intelOpen),enemyStats:JSON.parse(JSON.stringify(mini.defense.enemyStats||{})),hudRenderCount:mini.defense.hudRenderCount||0,rosterRenderCount:mini.defense.rosterRenderCount||0,trayRenderCount:mini.defense.trayRenderCount||0,intelRenderCount:mini.defense.intelRenderCount||0,checkpointWrites:mini.defense.checkpointWrites||0,pendingIncome:mini.defense.pendingIncome||0,pendingIncomeEvents:mini.defense.pendingIncomeEvents||0,lastIncomeBatch:mini.defense.lastIncomeBatch?JSON.parse(JSON.stringify(mini.defense.lastIncomeBatch)):null,cashWriteCount:mini.defense.cashWriteCount||0,targetScans:mini.defense.targetScans||0,targetSnapshotBuilds:mini.defense.targetSnapshotBuilds||0,realClock:defenseRealNow(mini.defense),simulationClock:mini.defense.clock||0,visualBudget:defenseVisualBudget(mini.defense),childSpawnsReleased:mini.defense.childSpawnsReleased||0,nextChildReleaseAtReal:mini.defense.nextChildReleaseAtReal||0,maxActiveEnemiesObserved:mini.defense.maxActiveEnemiesObserved||0,maxProjectileNodesObserved:mini.defense.maxProjectileNodesObserved||0,maxLogicalProjectilesObserved:mini.defense.maxLogicalProjectilesObserved||0,visibleProjectileCount:defenseVisibleProjectileCount(mini.defense),coalescedVisualShots:mini.defense.coalescedVisualShots||0,coalescedLogicalShots:mini.defense.coalescedLogicalShots||0,droppedCosmetics:mini.defense.droppedCosmetics||0,maxEffectNodesObserved:mini.defense.maxEffectNodesObserved||0,childSpawnQueue:mini.defense.childSpawnQueue.length,packetIndex:mini.defense.packetIndex,packetCount:mini.defense.wavePackets.length,lastInputCancelReason:mini.defense.lastInputCancelReason||null,frameDiscontinuities:mini.defense.frameDiscontinuities||0,cinematicMomentKind:mini.defense.cinematicMomentKind||null,cinematicMomentCount:mini.defense.cinematicMomentCount||0,gateFlame:{armed:Boolean(mini.defense.gateFlameArmed),readyAt:mini.defense.gateFlameReadyAt||0,until:mini.defense.gateFlameUntil||0,progress:mini.defense.gateFlameProgress||0,ticks:mini.defense.gateFlameTicks||0},ending:Boolean(mini.defense.ending),endingReason:mini.defense.endingReason||null,projectiles:mini.defense.projectiles.map(shot=>({id:shot.id,towerId:shot.tower?.id||null,targetId:shot.target?.id||null,x:shot.x,y:shot.y,life:shot.life,speed:shot.speed,damage:shot.damage,kind:shot.kind,doctrineStrike:shot.doctrineStrike||null,doubleStitch:Boolean(shot.doubleStitch)})),towers:mini.defense.towers.map(t=>({id:t.id,petId:t.petId,variant:t.pet.variant||t.pet.hiddenVariant,copy:t.copyNumber,x:t.x,y:t.y,upgrade:t.upgrade,cost:t.cost,spent:t.spent,openingPerkApplied:Boolean(t.openingPerkApplied),placedAtReal:t.placedAtReal,kills:t.kills,damage:t.damage,shots:t.shots,targetMode:t.targetMode,doctrine:t.doctrine,superForm:t.superForm||null,structureType:defenseStructureType(t),totalProduced:t.totalProduced||0,beaconBuffed:Boolean(t.beaconSourceId),readyAt:t.abilityReadyAt,nextUpgradeCost:defenseUpgradeCost(t,mini.defense),sellRefund:defenseSellRefund(t,mini.defense),canUndo:defenseCanUndoPlacement(t,mini.defense),mapBond:defenseMapBondForTower(t,mini.defense)?.label||null})),enemies:mini.defense.enemies.map(e=>({id:e.id,type:e.type,bossId:e.bossId||null,camo:Boolean(e.camo),camoActive:defenseEnemyCamoActive(e),hp:e.hp,maxHp:e.maxHp,armor:e.armor,baseArmor:e.baseArmor,armorBroken:Boolean(e.armorBroken),armorShredded:Boolean(e.armorShredded),progress:e.progress,phaseActive:Boolean(e.phaseActive),phaseSuppressedUntil:e.phaseSuppressedUntil,revealUntil:e.revealUntil,slow:e.slow,burn:e.burn,poison:e.poison,rootUntil:e.rootUntil,signalStaggerUntil:e.signalStaggerUntil||0,bossPhase:e.bossPhase||0,telegraphKind:e.telegraphKind||null,telegraphDisruption:e.telegraphDisruption||0,apexSurgeUntil:e.apexSurgeUntil||0,className:e.node?.className||""}))}:null,
     keeperCodeForQA: () => keeperRecoveryCode(),
     preRecoveryForQA: () => {const recovered=readPreRecoveryBackup();return recovered?{name:recovered.pet?.name||null,embers:recovered.wallet?.embers||0,version:recovered.version}:null;},
     rushSnapshotForQA: () => ({hits:mini.hits,jumpY:mini.jumpY,entities:mini.entities.filter(e=>e.kind==="rush").map(e=>({type:e.type,x:e.x,speed:e.speed,handled:e.handled}))}),

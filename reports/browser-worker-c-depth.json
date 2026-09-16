@@ -1,0 +1,71 @@
+{
+  "passed": 13,
+  "total": 13,
+  "results": [
+    {
+      "name": "crew read exposes both Captain doctrine powers",
+      "passed": true,
+      "detail": "{'mapId': 'storm', 'captainPower': 'RALLY / GUARD LINE', 'tools': ['BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'ROOT'], 'fitIds': ['HOUSE-2', 'HOUSE-3'], 'openingLabel': 'FIRST CONTROL UPGRADE \u2022 20% OFF', 'hasOpeningDeal': True}"
+    },
+    {
+      "name": "storm trail exposes real opening-deal matches",
+      "passed": true,
+      "detail": "{'mapId': 'storm', 'captainPower': 'RALLY / GUARD LINE', 'tools': ['BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'ROOT'], 'fitIds': ['HOUSE-2', 'HOUSE-3'], 'openingLabel': 'FIRST CONTROL UPGRADE \u2022 20% OFF', 'hasOpeningDeal': True}"
+    },
+    {
+      "name": "changing trail changes which selected Rizo can claim the opening deal",
+      "passed": true,
+      "detail": "{'mapId': 'ember', 'captainPower': 'RALLY / GUARD LINE', 'tools': ['BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'ROOT'], 'fitIds': ['HOUSE-1'], 'openingLabel': 'FIRST DAMAGE UPGRADE \u2022 20% OFF', 'hasOpeningDeal': True}"
+    },
+    {
+      "name": "balanced trail does not fake a missing roster deal",
+      "passed": true,
+      "detail": "{'mapId': 'grove', 'captainPower': 'RALLY / GUARD LINE', 'tools': ['BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'ROOT'], 'fitIds': [], 'openingLabel': 'BALANCED OPENING', 'hasOpeningDeal': False}"
+    },
+    {
+      "name": "owned Rizo exposes care-trained combat identity",
+      "passed": true,
+      "detail": "{'id': 'HOUSE-1', 'name': 'HOUSE 1', 'source': 'house', 'variant': 'ember', 'tags': ['BURN', 'PRESSURE'], 'training': 'POWER-TRAINED', 'masteryLean': 'POWER-LEANING', 'trailFit': False}"
+    },
+    {
+      "name": "mastery history exposes doctrine tendency",
+      "passed": true,
+      "detail": "{'id': 'HOUSE-1', 'name': 'HOUSE 1', 'source': 'house', 'variant': 'ember', 'tags': ['BURN', 'PRESSURE'], 'training': 'POWER-TRAINED', 'masteryLean': 'POWER-LEANING', 'trailFit': False}"
+    },
+    {
+      "name": "variant cards expose tactical language",
+      "passed": true,
+      "detail": "['BURN', 'PRESSURE']"
+    },
+    {
+      "name": "crew read is visible without opening guide",
+      "passed": true,
+      "detail": "{'read': 'CAPTAIN FIELD POWERRALLY / GUARD LINECREW TOOLSBURN \u2022 PRESSURE \u2022 SLOW \u2022 FIRE COUNTER \u2022 ROOTTRAIL OPENINGFIRST CONTROL UPGRADE \u2022 20% OFF \u2022 HOUSE 2 + HOUSE 3', 'trail': 4, 'chips': ['BALANCED', 'RALLY', 'BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'TRAIL FIT', 'ROOT', 'HOLD', 'TRAIL FIT', 'BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'TRAIL FIT', 'ROOT', 'HOLD', 'TRAIL FIT'], 'lean': True, 'training': True}"
+    },
+    {
+      "name": "matching Rizos are visually flagged for selected trail",
+      "passed": true,
+      "detail": "4"
+    },
+    {
+      "name": "selected crew communicates identity, training, mastery",
+      "passed": true,
+      "detail": "{'read': 'CAPTAIN FIELD POWERRALLY / GUARD LINECREW TOOLSBURN \u2022 PRESSURE \u2022 SLOW \u2022 FIRE COUNTER \u2022 ROOTTRAIL OPENINGFIRST CONTROL UPGRADE \u2022 20% OFF \u2022 HOUSE 2 + HOUSE 3', 'trail': 4, 'chips': ['BALANCED', 'RALLY', 'BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'TRAIL FIT', 'ROOT', 'HOLD', 'TRAIL FIT', 'BURN', 'PRESSURE', 'SLOW', 'FIRE COUNTER', 'TRAIL FIT', 'ROOT', 'HOLD', 'TRAIL FIT'], 'lean': True, 'training': True}"
+    },
+    {
+      "name": "Captain remains visually authored on the field",
+      "passed": true,
+      "detail": "{'exists': True, 'mark': 'CAPTAIN', 'aria': 'CAPTAIN TEST, Level 1 BALANCED defender. Power 7, Speed 1.1, Reach 22. Tap for tower actions.'}"
+    },
+    {
+      "name": "depth layer remains phone-scrollable and touch-safe",
+      "passed": true,
+      "detail": "{'scroll': 'auto', 'sh': 2259, 'ch': 550, 'readW': 223.40625, 'buttonH': 144.828125}"
+    },
+    {
+      "name": "depth pass produced no runtime errors",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

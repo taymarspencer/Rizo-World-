@@ -5,7 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function createRizoDefenseCore() {
   "use strict";
 
-  const VERSION = 7;
+  const VERSION = 10;
   const STATE_SAVE_VERSION = 1;
   const CHECKPOINT_SALTS = Object.freeze({
     2: "RIZO-DEFENSE-V64-EMBER-GATE",
@@ -13,19 +13,22 @@
     4: "RIZO-DEFENSE-V67-PACKET-CLOCK",
     5: "RIZO-DEFENSE-V68-ECONOMY-FLOW",
     6: "RIZO-DEFENSE-V79-GATE-FLAME",
-    7: "RIZO-DEFENSE-V80-STRATEGY-FEEL"
+    7: "RIZO-DEFENSE-V80-STRATEGY-FEEL",
+    8: "RIZO-DEFENSE-V87-FIRST-TEN",
+    9: "RIZO-DEFENSE-WORKER-J-CONTINUATION-GUARD",
+    10: "RIZO-DEFENSE-MASTER-SUPPORT-CONTINUATION"
   });
   const STATE_SAVE_SALT = "RIZO-LIFE-V66-VERIFIED-TIMELINE";
 
   const LIMITS = Object.freeze({
-    MAX_SUPPORTED_WAVE: 250,
+    MAX_SUPPORTED_WAVE: 9999,
     MAX_RUN_CASH: 2_000_000,
     MAX_TOWER_LEVEL: 4,
     MAX_DEFENSE_TOWERS: 10,
-    MAX_REASONABLE_KILLS: 100_000,
-    MAX_REASONABLE_DAMAGE: 1_000_000_000,
+    MAX_REASONABLE_KILLS: 1_000_000,
+    MAX_REASONABLE_DAMAGE: 1_000_000_000_000,
     MAX_REASONABLE_BOSSES: 2_000,
-    MAX_REASONABLE_PERFECT_WAVES: 250,
+    MAX_REASONABLE_PERFECT_WAVES: 9999,
     MAX_PLANNED_ENEMIES: 46,
     MAX_CHILD_BUFFER: 48,
     MAX_CHECKPOINT_ENEMIES: 24,
@@ -118,8 +121,52 @@
     duplicateSurcharge: 45,
     goldenIncomeCap: 0.22,
     goldenActiveDuplicateDecay: 0.12,
+    goldenFactoryCap: 0.36,
     lateRunSoftCapThreshold: 1600,
     lateRunSoftCapSlope: 0.35
+  });
+
+  // Universal Defense structures intentionally use their own price curves. They
+  // occupy real field slots, so greed has a spatial/defensive opportunity cost
+  // instead of being a free background stat. Beacon effects never stack; the
+  // strongest field covering a unit wins, which keeps support powerful without
+  // producing one solved pile-of-beacons build.
+  const STRUCTURES = Object.freeze({
+    factory: Object.freeze({
+      id: "defense-structure-factory",
+      name: "CLOTHING FACTORY",
+      deployBaseCost: 160,
+      deployGrowth: 1.30,
+      duplicateFlat: 25,
+      upgradeCosts: Object.freeze([140, 260, 520, 980]),
+      payouts: Object.freeze([12, 25, 49, 94, 170]),
+      wavePayoutGrowth: Object.freeze([0.25, 0.45, 0.8, 1.4, 2.3]),
+      intervals: Object.freeze([7.2, 6.4, 5.5, 4.5, 3.4]),
+      // Depth pass: upgraded lines build clean-run momentum. From PRINT LINE
+      // onward they periodically turn that momentum into a branded DROP. A
+      // mixed Beacon field can shorten the DROP cycle; Private Sun + an
+      // awakened Golden inside that same field amplify the event rather than
+      // adding another passive currency or button.
+      momentumSteps: Object.freeze([0, 0.025, 0.035, 0.045, 0.055]),
+      momentumCaps: Object.freeze([0, 0.08, 0.14, 0.22, 0.30]),
+      dropEvery: Object.freeze([0, 0, 4, 4, 3]),
+      dropMultipliers: Object.freeze([1, 1, 1.50, 1.80, 2.25]),
+      brandLoopDropReduction: 1,
+      privateSunDropMultiplier: 1.20,
+      goldenLicenseDropMultiplier: 1.35
+    }),
+    beacon: Object.freeze({
+      id: "defense-structure-beacon",
+      name: "BEACON",
+      deployBaseCost: 175,
+      deployGrowth: 1.32,
+      duplicateFlat: 25,
+      upgradeCosts: Object.freeze([125, 245, 485, 950]),
+      radii: Object.freeze([0.18, 0.205, 0.235, 0.27, 0.32]),
+      rateMultipliers: Object.freeze([1.14, 1.20, 1.28, 1.38, 1.55]),
+      damageMultipliers: Object.freeze([1.00, 1.05, 1.10, 1.18, 1.30]),
+      factoryCadenceMultipliers: Object.freeze([1.00, 0.96, 0.91, 0.82, 0.70])
+    })
   });
 
   function clampNumber(value, min, max, fallback = min) {
@@ -164,9 +211,9 @@
     const normalized = normalizePhase(phase);
     const table = {
       [PHASES.PLANNING]: new Set(["place", "move", "sell", "upgrade", "target", "start", "bank", "open-overlay"]),
-      [PHASES.COUNTDOWN]: new Set(["pause", "target", "upgrade", "bank", "open-overlay"]),
-      [PHASES.COMBAT]: new Set(["pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
-      [PHASES.PACKET_BREAK]: new Set(["pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
+      [PHASES.COUNTDOWN]: new Set(["place", "pause", "target", "upgrade", "bank", "open-overlay"]),
+      [PHASES.COMBAT]: new Set(["place", "pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
+      [PHASES.PACKET_BREAK]: new Set(["place", "pause", "ability", "target", "upgrade", "bank", "open-overlay"]),
       [PHASES.WAVE_COMPLETE]: new Set(["place", "move", "sell", "upgrade", "target", "start", "bank", "open-overlay"]),
       [PHASES.PAUSED]: new Set(["resume", "target", "upgrade", "bank", "open-overlay"]),
       [PHASES.RUN_COMPLETE]: new Set([])
@@ -232,6 +279,71 @@
     const latePaid = Math.max(0, paid - ECONOMY.deployGrowthPivot);
     const raw = ECONOMY.deployBaseCost * Math.pow(ECONOMY.deployGrowth, earlyPaid) * Math.pow(ECONOMY.deployLateGrowth, latePaid) + copies * ECONOMY.duplicateSurcharge;
     return Math.min(LIMITS.MAX_RUN_CASH, Math.max(0, Math.round(raw / 10) * 10));
+  }
+
+  function structureDefinition(type) {
+    return typeof type === "string" ? STRUCTURES[type] || null : null;
+  }
+
+  function structureDeploymentCost(type, copyCount = 0) {
+    const def = structureDefinition(type);
+    if (!def) return LIMITS.MAX_RUN_CASH;
+    const copies = clampInteger(copyCount, 0, LIMITS.MAX_DEFENSE_TOWERS, 0);
+    const raw = def.deployBaseCost * Math.pow(def.deployGrowth, copies) + copies * def.duplicateFlat;
+    return Math.min(LIMITS.MAX_RUN_CASH, Math.max(0, Math.round(raw / 5) * 5));
+  }
+
+  function structureUpgradeCost(type, currentUpgradeLevel = 0) {
+    const def = structureDefinition(type);
+    if (!def) return LIMITS.MAX_RUN_CASH;
+    const index = clampInteger(currentUpgradeLevel, 0, def.upgradeCosts.length - 1, 0);
+    return Math.max(0, clampInteger(def.upgradeCosts[index], 0, LIMITS.MAX_RUN_CASH, 0));
+  }
+
+  function calculateStructureInvestment(type, baseCost, upgradeLevel = 0) {
+    const level = clampInteger(upgradeLevel, 0, LIMITS.MAX_TOWER_LEVEL, 0);
+    let spent = clampInteger(baseCost, 0, LIMITS.MAX_RUN_CASH, 0);
+    for (let index = 0; index < level; index += 1) spent += structureUpgradeCost(type, index);
+    return Math.min(LIMITS.MAX_RUN_CASH, spent);
+  }
+
+  function beaconSupport(upgradeLevel = 0) {
+    const def = STRUCTURES.beacon;
+    const level = clampInteger(upgradeLevel, 0, LIMITS.MAX_TOWER_LEVEL, 0);
+    return Object.freeze({
+      level,
+      radius: def.radii[level],
+      rateMultiplier: def.rateMultipliers[level],
+      damageMultiplier: def.damageMultipliers[level],
+      factoryCadenceMultiplier: def.factoryCadenceMultipliers[level]
+    });
+  }
+
+  function goldenFactoryMultiplier(count = 0) {
+    const total = clampInteger(count, 0, LIMITS.MAX_DEFENSE_TOWERS, 0);
+    return 1 + Math.min(ECONOMY.goldenFactoryCap, total * 0.12);
+  }
+
+  function factoryEconomy({ upgradeLevel = 0, wave = 0, goldenTowerCount = 0, beaconUpgradeLevel = -1, cleanCycles = 0, brandLoop = false, privateSun = false, goldenLicensed = false } = {}) {
+    const def = STRUCTURES.factory;
+    const level = clampInteger(upgradeLevel, 0, LIMITS.MAX_TOWER_LEVEL, 0);
+    const safeWave = clampInteger(wave, 0, LIMITS.MAX_SUPPORTED_WAVE, 0);
+    const streak = clampInteger(cleanCycles, 0, 9999, 0);
+    const goldenMultiplier = goldenFactoryMultiplier(goldenTowerCount);
+    const support = beaconUpgradeLevel >= 0 ? beaconSupport(beaconUpgradeLevel) : null;
+    const cadenceMultiplier = support ? support.factoryCadenceMultiplier : 1;
+    const interval = Math.max(1.2, def.intervals[level] * cadenceMultiplier);
+    const basePayout = def.payouts[level] + Math.min(safeWave, 90) * def.wavePayoutGrowth[level];
+    const momentumMultiplier = 1 + Math.min(def.momentumCaps[level], streak * def.momentumSteps[level]);
+    const baseDropEvery = def.dropEvery[level];
+    const dropEvery = baseDropEvery > 0 ? Math.max(2, baseDropEvery - (brandLoop ? def.brandLoopDropReduction : 0)) : 0;
+    const nextCycle = streak + 1;
+    const isDrop = dropEvery > 0 && nextCycle % dropEvery === 0;
+    const privateSunMultiplier = isDrop && privateSun ? def.privateSunDropMultiplier : 1;
+    const licenseMultiplier = isDrop && goldenLicensed ? def.goldenLicenseDropMultiplier : 1;
+    const dropMultiplier = isDrop ? def.dropMultipliers[level] * privateSunMultiplier * licenseMultiplier : 1;
+    const payout = Math.max(1, Math.round(basePayout * goldenMultiplier * momentumMultiplier * dropMultiplier));
+    return Object.freeze({ level, payout, interval, goldenMultiplier, cadenceMultiplier, momentumMultiplier, cleanCycles: streak, nextCycle, dropEvery, isDrop, dropMultiplier, brandLoop: Boolean(brandLoop), privateSun: Boolean(privateSun), goldenLicensed: Boolean(goldenLicensed) });
   }
 
   function goldenBonus(count) {
@@ -360,88 +472,200 @@
     return packets;
   }
 
-  function createWavePlan({ wave, specialBias = 0, weather = "clear", bossIds = ["crown", "vortex", "mirror", "apex"] } = {}) {
-    const safeWave = clampInteger(wave, 1, LIMITS.MAX_SUPPORTED_WAVE, 1);
-    const effective = safeWave + clampInteger(specialBias, 0, 20, 0);
-    let modifier = "normal";
-    let announcement = null;
-    let enemies = [];
+  // The opening is a score, not a seeded mix. Every packet has a job.
+  // Keep entries in the existing checkpoint grammar; old in-flight packets
+  // restore exactly as saved and new waves use this score.
+  function openingWavePlan(wave, bossIds) {
+    const p = (enemies, spawnGap, breakAfter = 1.8) => ({ enemies, spawnGap, breakAfter });
+    const score = [
+      ["KNOCK KNOCK", "Own a bend. One Rizo can hit the road twice.", [p(["puff","puff","puff"],.95,2.2),p(["puff","puff","puff"],.72,0)]],
+      ["WRONG SPEED", "Blue Zips overtake the reds. FRONT catches the runner.", [p(["puff","puff","fleet"],.85,2.1),p(["puff","fleet","puff","fleet"],.65,0)]],
+      ["PLUS ONE. PLUS TWO.", "Pink Bubbles pop into two children. Chain hits clean up.", [p(["split","puff","puff"],.85,2.2),p(["puff","split","puff","fleet"],.65,0)]],
+      ["TIN CAN PARADE", "Iron distracts the front line. Heavy hits crack it; Zips slip past.", [p(["shell","puff","fleet"],.9,1.8),p(["shell","puff","fleet","puff","fleet"],.6,0)]],
+      ["THEY BROUGHT FRIENDS", "Three Zip bursts. Spread coverage or freeze the rush.", [p(["fleet","fleet","fleet","fleet"],.28,2.4),p(["fleet","fleet","fleet","fleet"],.24,2.4),p(["fleet","fleet","fleet","fleet"],.2,0)]],
+      ["DO NOT POP HERE", "Crack Bubbles early. Their children need road left to die on.", [p(["shell","split","split"],.9,2.3),p(["puff","puff","fleet"],.72,2.1),p(["shell","split","fleet"],.65,0)]],
+      ["TOO HOT TO HOLD", "Fireproof escorts punish all-Ember fields. Chill makes them brittle.", [p(["fire","puff","fleet"],.85,2),p(["shell","fire","fleet","fleet"],.6,2.2),p(["split","fire","fleet"],.7,0)]],
+      ["YELLOW MEANS RUN", "Storms wind up, then surge. Save control for the charge.", [p(["storm","puff","puff"],.85,2.2),p(["shell","storm","fleet"],.72,2.2),p(["split","storm","fleet","fleet"],.5,0)]],
+      ["ONE LAST QUIET NIGHT", "The dress rehearsal: armor, children, then a late rush.", [p(["shell","fire","puff","split"],.8,2.4),p(["split","shell","puff","split"],.65,2.4),p(["storm","fleet","fleet","storm"],.38,0)]],
+      ["THE WARDEN", "He walks with the crowd. TOUGHEST breaks him; FRONT catches his cover.", [p(["shell","fleet","fleet"],.7,2.4),p([{type:"boss",bossId:bossIds[0]||"crown",intensity:0},"puff","split","fire"],.95,2.4),p(["shell","split","fleet"],.8,2.4),p(["storm","fleet","fleet"],.4,0)]]
+    ];
+    const [title,copy,packets] = score[wave-1];
+    return { wave, modifier:wave===10?"boss":wave===5?"rush":"authored", packets,
+      plannedEnemyCount:flattenPackets(packets).length,
+      estimatedDuration:packets.reduce((sum,p)=>sum+(p.enemies.length-1)*p.spawnGap+p.breakAfter,0),
+      announcement:{title,copy} };
+  }
+
+  function authoredSecondChapterPlan(wave, bossIds) {
+    const p = (enemies, spawnGap, breakAfter = 1.8) => ({ enemies, spawnGap, breakAfter });
+    const boss = (bossId, intensity = 0) => ({ type: "boss", bossId, intensity });
+    const vortex = bossIds[1] || "vortex", mirror = bossIds[2] || "mirror";
+    const score = {
+      11:["AFTER THE CROWN","A recovery lap. Rebuild before the trail starts combining rules again.","recovery",[p(["puff","puff","fleet","puff"],.72,2.25),p(["puff","fleet","puff","puff","fleet"],.62,0)]],
+      12:["CROSS TRAFFIC","Iron holds your shots while Zips steal road. FRONT and TOUGHEST now want different jobs.","crossfire",[p(["shell","puff","fleet","fleet"],.62,2.1),p(["fleet","shell","puff","fleet","shell"],.54,0)]],
+      13:["POPULATION PROBLEM","Bubble children arrive behind armor. Kill the parents early or inherit a second wave.","swarm",[p(["split","shell","split"],.72,2.2),p(["fleet","split","puff","split"],.48,2.0),p(["shell","split","fleet"],.58,0)]],
+      14:["BAD TEMPERATURES","Heat and cold share the trail. One elemental answer is no longer enough.","hazard",[p(["fire","frost","puff"],.72,2.15),p(["shell","fire","fleet","frost"],.55,2.15),p(["fire","split","frost"],.62,0)]],
+      15:["FIVE SECOND MISTAKE","The rush is short enough to look harmless. It is not.","rush",[p(["fleet","fleet","storm","fleet","fleet"],.18,2.3),p(["fleet","storm","fleet","fleet","storm"],.16,2.2),p(["fleet","fleet","fleet","fleet"],.14,0)]],
+      16:["LIGHTS OUT","Shade Balloons expose fields that depended on unawakened sight.","veil",[p(["shade","puff","shade","fleet"],.62,2.1),p(["shell","shade","split","shade"],.56,2.15),p(["fleet","shade","fire"],.50,0)]],
+      17:["KILL THE SIGNAL","Relay Balloons make the pack faster and tougher while they are nearby. Pick the support target first.","support",[p(["relay","puff","fleet","puff"],.56,2.2),p(["shell","fleet","relay","fleet"],.48,2.15),p(["split","relay","puff"],.58,0)]],
+      18:["THEY FIX EACH OTHER","Menders repair wounded neighbors. Burst them or separate the formation with control.","support",[p(["mender","shell","puff"],.68,2.25),p(["split","mender","fleet","shell"],.54,2.2),p(["mender","fire","puff"],.60,0)]],
+      19:["NO SINGLE ANSWER","Support, armor, speed, children. This is the first real build check.","exam",[p(["relay","shell","fleet","split"],.52,2.3),p(["mender","fire","storm","puff"],.50,2.3),p(["frost","split","relay","fleet"],.46,0)]],
+      20:["THE MAW","It does not need to reach the Gate to hurt you. Break its range-collapse pulse.","boss",[p(["relay","shell","fleet","storm"],.52,2.35),p(["mender","frost","fleet","shell"],.58,2.4),p([boss(vortex,0)],1.05,0)]],
+      21:["THE FIELD BREATHES","A deliberate valley after the Maw. Move money into the weakness it just exposed.","recovery",[p(["puff","fleet","puff","puff"],.70,2.3),p(["split","puff","fleet","puff"],.62,0)]],
+      22:["HALF HERE","Phase Balloons only fully exist some of the time. Reveal or CONTROL turns them honest.","veil",[p(["ghost","puff","fleet"],.66,2.2),p(["ghost","shell","shade","puff"],.58,2.2),p(["split","ghost","fleet"],.52,0)]],
+      23:["ESCORT DUTY","Relay support hides behind camouflage. FRONT is not always the target that matters most.","support",[p(["shade","relay","fleet","shade"],.52,2.2),p(["shell","relay","ghost","fleet"],.50,2.2),p(["mender","shade","split"],.58,0)]],
+      24:["HEAVY METAL","Lead plating laughs at weak repetition. Shred first, then spend your damage.","wall",[p(["lead","puff","fleet"],.76,2.3),p(["shell","lead","mender"],.68,2.35),p(["lead","storm","fleet"],.60,0)]],
+      25:["NESTING SEASON","Parents, children, and support arrive in pulses instead of one screen-filling blob.","swarm",[p(["split","split","relay","split"],.35,2.35),p(["fleet","split","mender","split","fleet"],.30,2.4),p(["split","storm","split","relay"],.32,0)]],
+      26:["REPAIR THE WALL","A Mender behind Ceramic turns time into enemy health. Reach the support balloon.","support",[p(["brick","mender","puff"],.72,2.4),p(["shell","brick","mender","fleet"],.64,2.35),p(["brick","relay","fleet"],.58,0)]],
+      27:["WEATHERPROOF","The map's own hazard now joins a mixed formation. Build for the world, not a spreadsheet.","hazard",[p(["storm","fire","frost","fleet"],.55,2.25),p(["relay","storm","shell","fire"],.50,2.3),p(["frost","mender","split"],.58,0)]],
+      28:["DEAD SIGNAL","Phase threats inside a Relay pack force detection and priority damage at the same time.","veil-support",[p(["ghost","relay","ghost","fleet"],.52,2.3),p(["shade","mender","ghost","shell"],.54,2.3),p(["relay","ghost","storm"],.48,0)]],
+      29:["THE DRESS REHEARSAL","Everything learned since the Warden arrives in three readable acts.","exam",[p(["lead","relay","fleet","split"],.52,2.4),p(["mender","brick","ghost","shade"],.58,2.45),p(["storm","fire","frost","fleet","fleet"],.34,0)]],
+      30:["THE MIRROR","The split is inevitable. Your question is whether both halves still cross real coverage.","boss",[p(["ghost","relay","shell","split"],.54,2.4),p(["mender","lead","fleet","shade"],.60,2.45),p([boss(mirror,0)],1.05,0)]]
+    };
+    const row = score[wave];
+    if (!row) return null;
+    const [title, copy, modifier, packets] = row;
+    return {
+      wave,
+      modifier,
+      packets,
+      plannedEnemyCount: flattenPackets(packets).length,
+      estimatedDuration: packets.reduce((sum, packet) => sum + Math.max(0, packet.enemies.length - 1) * packet.spawnGap + packet.breakAfter, 0),
+      announcement: { title, copy },
+      chapter: "pressure-school"
+    };
+  }
+
+  function buildEndlessAct(pattern, size) {
+    const source = Array.isArray(pattern) && pattern.length ? pattern : ["puff"];
+    return Array.from({ length: Math.max(1, size) }, (_, index) => source[index % source.length]);
+  }
+
+  function endlessFormationPackets(archetype, count, hazard, pressureWave) {
+    const mastery = Math.min(4, Math.max(0, Math.floor((pressureWave - 31) / 30)));
+    const veteran = mastery >= 2, deep = mastery >= 3;
+    const acts = {
+      "support-convoy": [
+        ["fleet","puff","relay","puff","fleet"],
+        veteran ? ["shell","mender","relay","shell","brick"] : ["shell","mender","shell","relay"],
+        deep ? ["lead","relay","mender","fleet","brick"] : ["brick","mender","relay","fleet"]
+      ],
+      blackout: [
+        ["shade","fleet","ghost","shade","relay"],
+        veteran ? ["ghost","shade","relay","ghost","shell"] : ["shade","ghost","puff","relay"],
+        deep ? ["mender","ghost","shade","relay","fleet"] : ["ghost","shade","fleet","relay"]
+      ],
+      stampede: [
+        ["fleet","fleet","fleet","storm"],
+        veteran ? ["fleet","relay","fleet","fleet","storm"] : ["fleet","fleet","relay","fleet"],
+        deep ? ["storm","fleet","relay","fleet","fleet"] : ["fleet","storm","fleet","fleet"]
+      ],
+      siege: [
+        ["shell","brick","shell","mender"],
+        veteran ? ["lead","brick","mender","shell","brick"] : ["brick","shell","mender","brick"],
+        deep ? ["relay","lead","brick","mender","brick"] : ["lead","brick","mender","shell"]
+      ],
+      "hazard-lock": [
+        [hazard,"fire","frost","relay"],
+        veteran ? [hazard,"relay",hazard,"shell","mender"] : [hazard,"relay","frost","fire"],
+        deep ? ["lead",hazard,"mender","relay",hazard] : [hazard,"mender","relay","fire"]
+      ],
+      fracture: [
+        ["split","fleet","split","ghost"],
+        veteran ? ["ghost","mender","split","ghost","fleet"] : ["split","mender","fleet","ghost"],
+        deep ? ["relay","ghost","split","mender","ghost"] : ["mender","split","ghost","fleet"]
+      ],
+      triage: [
+        ["puff","fire","mender","lead"],
+        veteran ? ["lead","mender","relay","fire","puff"] : ["mender","fire","puff","relay"],
+        deep ? ["brick","mender","relay",hazard,"lead"] : ["lead","mender","relay","puff"]
+      ],
+      crossfire: [
+        ["fleet","split","shell","relay"],
+        veteran ? ["ghost","fleet","shell","split","relay"] : ["ghost","fleet","split","shell"],
+        deep ? ["mender","lead","ghost","relay","fleet"] : ["relay","ghost","shell","fleet"]
+      ],
+      gauntlet: [
+        ["fleet","split","storm","relay"],
+        ["shell","lead","brick","mender"],
+        ["ghost","shade","split",hazard],
+        deep ? ["relay","mender","lead",hazard,"fleet"] : ["relay","mender","fleet",hazard]
+      ]
+    }[archetype] || [["puff","fleet"],["shell","split"],[hazard,"relay"]];
+    const packetCount = acts.length;
+    const base = Math.floor(count / packetCount), remainder = count % packetCount;
+    const rush = archetype === "stampede", wall = archetype === "siege";
+    return acts.map((pattern, index) => {
+      const size = base + (index >= packetCount - remainder ? 1 : 0);
+      const enemies = buildEndlessAct(pattern, size);
+      const spawnGap = rush ? Math.max(.13, .24 - mastery * .012 + index * .012) : wall ? Math.min(.78, .62 + index * .045) : Math.max(.28, .52 - mastery * .018 + index * .018);
+      const breakAfter = index === packetCount - 1 ? 0 : rush ? 2.05 + index * .18 : 2.20 + index * .12;
+      return { enemies, spawnGap, breakAfter };
+    });
+  }
+
+  function endlessWavePlan({ wave, effective, weather, bossIds }) {
+    const safeWave = wave;
+    const pressureWave = Math.max(safeWave, effective || safeWave);
+    const cycle = Math.max(0, pressureWave - 31);
+    const decade = Math.floor(pressureWave / 10);
+    const bossOrdinal = Math.max(0, Math.floor(safeWave / 10) - 1);
+    const remixTier = Math.min(12, Math.floor(bossOrdinal / Math.max(1, bossIds.length)));
+    const hazard = weather === "blizzard" ? "frost" : weather === "storm" ? "storm" : weather === "ash" ? "fire" : weather === "eclipse" ? "shade" : cycle % 3 === 0 ? "storm" : cycle % 3 === 1 ? "fire" : "frost";
+    const bossProfiles = {
+      crown:["lead","relay","shell","mender","fleet"],
+      vortex:["storm","fleet","relay","mender","frost"],
+      mirror:["ghost","split","relay","shade","mender"],
+      apex:["fleet","storm","relay","lead","mender","brick"]
+    };
 
     if (safeWave % 10 === 0) {
-      modifier = "boss";
-      const count = plannedEnemyCount(safeWave, modifier) - 1;
-      for (let index = 0; index < count; index += 1) enemies.push(index % 4 === 2 && effective >= 4 ? "shell" : index % 3 === 1 ? "fleet" : "puff");
-      const ordinal = Math.max(0, Math.floor(safeWave / 10) - 1);
-      enemies.push({ type: "boss", bossId: bossIds[ordinal % bossIds.length] || bossIds[0], intensity: Math.floor(ordinal / bossIds.length) });
-      announcement = { title: "BOSS WAVE", copy: "Escorts first. Then the apex threat gets the trail to itself." };
-    } else if (safeWave > 10 && safeWave % 10 === 1) {
-      modifier = "recovery";
-      const count = plannedEnemyCount(safeWave, modifier);
-      for (let index = 0; index < count; index += 1) enemies.push(index % 5 === 4 ? "fleet" : "puff");
-      announcement = { title: "RECOVERY WAVE", copy: "A lighter formation. Read the field, rebuild the plan, then prepare for the next test." };
-    } else if (safeWave % 11 === 0 && effective >= 15) {
-      modifier = "veil";
-      const count = plannedEnemyCount(safeWave);
-      for (let index = 0; index < count; index += 1) enemies.push(index % 4 === 0 && effective >= 22 ? "ghost" : index % 2 === 0 ? "shade" : "puff");
-      announcement = { title: "VEIL WAVE", copy: "Camouflage and phase threats. Reveal and control matter more than raw fire rate." };
-    } else if (safeWave % 7 === 0 && effective >= 8) {
-      modifier = "hazard";
-      const hazard = weather === "blizzard" ? "frost" : weather === "storm" ? "storm" : weather === "ash" ? "fire" : effective >= 17 ? "storm" : effective >= 12 ? "frost" : "fire";
-      const count = plannedEnemyCount(safeWave);
-      for (let index = 0; index < count; index += 1) enemies.push(index % 3 === 0 ? hazard : index % 4 === 1 ? "fleet" : "puff");
-      announcement = { title: "HAZARD WAVE", copy: `${hazard.toUpperCase()} threats are mixed into the formation. Solve the property, not the head count.` };
-    } else if (safeWave % 5 === 0) {
-      const themeIndex = Math.floor(safeWave / 5) % 3;
-      if (themeIndex === 1 && effective >= 2) {
-        modifier = "rush";
-        enemies = Array.from({ length: plannedEnemyCount(safeWave, modifier) }, (_, index) => index % 8 === 7 && effective >= 12 ? "storm" : "fleet");
-        announcement = { title: "RUSH WAVE", copy: "A brief dense burst, followed by room to recover. FIRST targeting earns its keep." };
-      } else if (themeIndex === 2 && effective >= 4) {
-        modifier = "wall";
-        enemies = Array.from({ length: plannedEnemyCount(safeWave, modifier) }, (_, index) => index % 5 === 4 && effective >= 12 ? "frost" : "shell");
-        announcement = { title: "WALL WAVE", copy: "Fewer bodies, more durability. Crack armor and focus damage." };
-      } else if (effective >= 6) {
-        modifier = "swarm";
-        enemies = Array.from({ length: plannedEnemyCount(safeWave, modifier) }, (_, index) => index % 3 === 0 ? "split" : index % 5 === 4 ? "fleet" : "puff");
-        announcement = { title: "SWARM WAVE", copy: "Split threats arrive in authored bursts. Save headroom for what comes out of them." };
-      }
+      const bossId = bossIds[bossOrdinal % bossIds.length] || bossIds[0] || "crown";
+      const count = Math.max(8, plannedEnemyCount(safeWave, "boss") - 1);
+      const profile = bossProfiles[bossId] || bossProfiles.crown;
+      const escorts = Array.from({length:count}, (_, index) => profile[(index + decade) % profile.length]);
+      if (remixTier >= 1) escorts[Math.max(0, escorts.length - 2)] = "brick";
+      if (remixTier >= 2) escorts[Math.max(0, escorts.length - 4)] = hazard;
+      escorts.push({type:"boss",bossId,intensity:remixTier});
+      const packets = splitIntoPackets(escorts, safeWave, {boss:true});
+      return {wave:safeWave,modifier:"boss-remix",plannedEnemyCount:escorts.length,packets,estimatedDuration:packets.reduce((sum,p)=>sum+Math.max(0,p.enemies.length-1)*p.spawnGap+p.breakAfter,0),announcement:{title:`BOSS REMIX • TIER ${remixTier+1}`,copy:`${bossId.toUpperCase()} returns with a formation built around its mechanic. The escorts are part of the boss fight.`},chapter:"endless",pressureTags:["boss-remix",hazard,remixTier>=1?"support":"escort"]};
     }
 
-    if (!enemies.length) {
-      const count = plannedEnemyCount(safeWave);
-      for (let index = 0; index < count; index += 1) {
-        let type = "puff";
-        if (effective >= 2 && index % 5 === 3) type = "fleet";
-        if (effective >= 4 && index % 7 === 5) type = "shell";
-        if (effective >= 6 && index % 8 === 2) type = "split";
-        if (effective >= 8 && index % 11 === 4) type = "fire";
-        if (effective >= 12 && index % 13 === 7) type = "frost";
-        if (effective >= 15 && index % 17 === 8) type = "shade";
-        if (effective >= 17 && index % 19 === 6) type = "storm";
-        if (effective >= 22 && index % 23 === 9) type = "ghost";
-        enemies.push(type);
-      }
+    if (safeWave % 10 === 1) {
+      const count = plannedEnemyCount(safeWave, "recovery");
+      const recoveryProfiles = [
+        {id:"aftershock",title:"AFTERSHOCK",copy:"A real recovery wave. Fix the board before Endless asks a different question.",acts:[["puff","puff","split","puff"],["fleet","puff","puff","split"]]},
+        {id:"open-road",title:"OPEN ROAD",copy:"Fragile traffic, a little faster. Recover without falling asleep at the wheel.",acts:[["puff","fleet","puff"],["fleet","puff","split","puff"]]},
+        {id:"patch-window",title:"PATCH WINDOW",copy:"One light armor note, otherwise breathing room. Repair the plan before the next formation.",acts:[["puff","shell","puff"],["split","puff","shell","puff"]]}
+      ];
+      const recovery = recoveryProfiles[decade % recoveryProfiles.length];
+      const firstCount = Math.ceil(count * .48), secondCount = Math.max(0,count-firstCount);
+      const packets = [
+        {enemies:buildEndlessAct(recovery.acts[0],firstCount),spawnGap:.34,breakAfter:2.25},
+        {enemies:buildEndlessAct(recovery.acts[1],secondCount),spawnGap:.32,breakAfter:0}
+      ].filter(packet=>packet.enemies.length);
+      const enemies = flattenPackets(packets);
+      return {wave:safeWave,modifier:"recovery",recoveryStyle:recovery.id,plannedEnemyCount:enemies.length,packets,estimatedDuration:packets.reduce((sum,p)=>sum+Math.max(0,p.enemies.length-1)*p.spawnGap+p.breakAfter,0),announcement:{title:recovery.title,copy:recovery.copy},chapter:"endless",formationTier:0,pressureTags:["recovery",recovery.id]};
     }
 
-    // v80 makes late waves harder through durability rather than object count.
-    // Replace existing slots with heavy identities; never append density.
-    if (safeWave >= 18 && modifier !== "recovery") {
-      enemies = enemies.map((entry,index) => {
-        if (typeof entry === "object") return entry;
-        if (safeWave >= 28 && index % Math.max(4, 9 - Math.floor(Math.min(40,safeWave-28)/10)) === 2) return "lead";
-        if (index % Math.max(5, 10 - Math.floor(Math.min(50,safeWave-18)/12)) === 4) return "brick";
-        return entry;
-      });
-    }
-    const packets = splitIntoPackets(enemies, safeWave, { boss: modifier === "boss", rush: modifier === "rush", wall: modifier === "wall" });
-    return {
-      wave: safeWave,
-      modifier,
-      plannedEnemyCount: enemies.length,
-      packets,
-      estimatedDuration: packets.reduce((sum, packet) => sum + Math.max(0, packet.enemies.length - 1) * packet.spawnGap + packet.breakAfter, 0),
-      announcement
-    };
+    const archetypes = ["support-convoy","blackout","stampede","siege","hazard-lock","fracture","triage","crossfire"];
+    let archetype = archetypes[(cycle + decade) % archetypes.length];
+    if (safeWave % 25 === 0) archetype = "gauntlet";
+    const count = plannedEnemyCount(safeWave, archetype === "stampede" ? "rush" : archetype === "siege" ? "wall" : "normal");
+    const packets = endlessFormationPackets(archetype, count, hazard, pressureWave);
+    const enemies = flattenPackets(packets);
+    const formationTier = Math.min(5, 1 + Math.max(0, Math.floor((pressureWave - 31) / 30)));
+    const titles={"support-convoy":"PROTECT THE SUPPORT","blackout":"BLACKOUT PACK","stampede":"STAMPEDE","siege":"MOVING WALL","hazard-lock":"WEATHER LOCK","fracture":"FRACTURE TRAIN","triage":"TRIAGE LINE","crossfire":"CROSSFIRE","gauntlet":"ENDLESS GAUNTLET"};
+    const copies={"support-convoy":"Relays amplify the pack while Menders erase sloppy chip damage. Reach the support line.","blackout":"Hidden and phased threats travel under a Relay signal. Detection without target priority is not enough.","stampede":"Fast bodies arrive in separated bursts. Spend control on the surge, not the empty road.","siege":"Heavy armor advances around Menders. Shred, focus, then move to the next wall.","hazard-lock":`${hazard.toUpperCase()} pressure stacks with support. The world hazard and the formation are now one problem.`,"fracture":"Split bodies and phase bodies make cleanup matter as much as the first hit.","triage":"Menders sit inside mixed armor. A balanced field can win; a solved single-target script cannot.","crossfire":"Fast, armored, hidden and split threats take turns owning the front.","gauntlet":"A milestone remix: every major enemy language appears without exceeding the field density budget."};
+    return {wave:safeWave,modifier:archetype,plannedEnemyCount:enemies.length,packets,estimatedDuration:packets.reduce((sum,p)=>sum+Math.max(0,p.enemies.length-1)*p.spawnGap+p.breakAfter,0),announcement:{title:titles[archetype],copy:copies[archetype]},chapter:"endless",formationTier,pressureTags:[archetype,hazard,`formation-tier-${formationTier}`,pressureWave>=60?"elite-heavy":"mixed"]};
+  }
+
+  function createWavePlan({ wave, specialBias = 0, weather = "clear", bossIds = ["crown", "vortex", "mirror", "apex"] } = {}) {
+    const safeWave = clampInteger(wave, 1, LIMITS.MAX_SUPPORTED_WAVE, 1);
+    if (safeWave <= 10) return openingWavePlan(safeWave, bossIds);
+    if (safeWave <= 30) return authoredSecondChapterPlan(safeWave, bossIds);
+    const effective = safeWave + clampInteger(specialBias, 0, 20, 0);
+    return endlessWavePlan({wave:safeWave,effective,weather,bossIds});
   }
 
   function flattenPackets(packets) {
@@ -544,6 +768,68 @@
       modern.gateFlameProgress = Math.round(clampNumber(source.gateFlameProgress, 0, 1, .86) * 10000) / 10000;
       modern.gateFlameNextTick = Math.round(clampNumber(source.gateFlameNextTick, 0, 1e9, 0) * 1000) / 1000;
       modern.gateFlameTicks = clampInteger(source.gateFlameTicks, 0, 1000, 0);
+    }
+    if(signatureVersion>=8){
+      // Sign the full combat continuation; old salts/payloads remain untouched.
+      modern.continuation=stableValue({
+        wavePackets:source.wavePackets||[],packetIndex:source.packetIndex||0,packetEnemyIndex:source.packetEnemyIndex||0,
+        nextSpawnAt:source.nextSpawnAt||0,packetBreakUntil:source.packetBreakUntil||0,
+        projectiles:source.projectiles||[],armor:(source.enemies||[]).map(e=>e.armor??null)
+      });
+    }
+    if(signatureVersion>=9){
+      // v9 closes the remaining combat-continuation holes without changing the
+      // v8 payload, so existing v8 checkpoints remain verifiable/migratable.
+      modern.tacticalContinuation=stableValue({
+        contract:source.contract&&typeof source.contract==="object"?source.contract:null,
+        towers:(Array.isArray(source.towers)?source.towers:[]).slice(0,LIMITS.MAX_DEFENSE_TOWERS).map(tower=>({
+          id:typeof tower?.id==="string"?tower.id.slice(0,80):"",
+          cooldown:Math.round(clampNumber(tower?.cooldown,0,60,0)*1000)/1000,
+          abilityReadyAt:Math.round(clampNumber(tower?.abilityReadyAt,0,1e9,0)*1000)/1000,
+          overclockUntil:Math.round(clampNumber(tower?.overclockUntil,0,1e9,0)*1000)/1000,
+          rangeDebuffUntil:Math.round(clampNumber(tower?.rangeDebuffUntil,0,1e9,0)*1000)/1000,
+          targetMode:typeof tower?.targetMode==="string"?tower.targetMode.slice(0,20):"",
+          shots:clampInteger(tower?.shots,0,LIMITS.MAX_REASONABLE_KILLS*20,0),
+          placedAt:Math.round(clampNumber(tower?.placedAt,0,1e9,0)*1000)/1000
+        })),
+        enemies:(Array.isArray(source.enemies)?source.enemies:[]).slice(0,LIMITS.MAX_CHECKPOINT_ENEMIES).map(enemy=>({
+          id:typeof enemy?.id==="string"?enemy.id.slice(0,80):"",
+          bossIntensity:clampInteger(enemy?.bossIntensity,0,99,0),bossChild:Boolean(enemy?.bossChild),
+          armor:Math.round(clampNumber(enemy?.armor,0,.95,0)*10000)/10000,
+          phaseOffset:Math.round(clampNumber(enemy?.phaseOffset,-100,100,0)*1000)/1000,
+          revealUntil:Math.round(clampNumber(enemy?.revealUntil,0,1e9,0)*1000)/1000,
+          phaseSuppressedUntil:Math.round(clampNumber(enemy?.phaseSuppressedUntil,0,1e9,0)*1000)/1000,
+          revealCredited:Boolean(enemy?.revealCredited),phaseLockCredited:Boolean(enemy?.phaseLockCredited),
+          slow:Math.round(clampNumber(enemy?.slow,0,.95,0)*10000)/10000,slowUntil:Math.round(clampNumber(enemy?.slowUntil,0,1e9,0)*1000)/1000,
+          burn:Math.round(clampNumber(enemy?.burn,0,1e6,0)*1000)/1000,burnUntil:Math.round(clampNumber(enemy?.burnUntil,0,1e9,0)*1000)/1000,burnSourceId:typeof enemy?.burnSourceId==="string"?enemy.burnSourceId.slice(0,80):"",
+          poison:Math.round(clampNumber(enemy?.poison,0,1e6,0)*1000)/1000,poisonUntil:Math.round(clampNumber(enemy?.poisonUntil,0,1e9,0)*1000)/1000,poisonSourceId:typeof enemy?.poisonSourceId==="string"?enemy.poisonSourceId.slice(0,80):"",
+          rootUntil:Math.round(clampNumber(enemy?.rootUntil,0,1e9,0)*1000)/1000,phaseTriggered:Boolean(enemy?.phaseTriggered),
+          nextBossPulse:Math.round(clampNumber(enemy?.nextBossPulse,0,1e9,0)*1000)/1000,telegraphKind:typeof enemy?.telegraphKind==="string"?enemy.telegraphKind.slice(0,40):"",
+          telegraphStartedAt:Math.round(clampNumber(enemy?.telegraphStartedAt,0,1e9,0)*1000)/1000,telegraphUntil:Math.round(clampNumber(enemy?.telegraphUntil,0,1e9,0)*1000)/1000,
+          telegraphDisruption:Math.round(clampNumber(enemy?.telegraphDisruption,0,1,0)*10000)/10000,apexSurgeUntil:Math.round(clampNumber(enemy?.apexSurgeUntil,0,1e9,0)*1000)/1000,bossMechanicLocked:Boolean(enemy?.bossMechanicLocked)
+        })),
+        rallyUntil:Math.round(clampNumber(source.rallyUntil,0,1e9,0)*1000)/1000,prismUntil:Math.round(clampNumber(source.prismUntil,0,1e9,0)*1000)/1000,
+        whiteoutUntil:Math.round(clampNumber(source.whiteoutUntil,0,1e9,0)*1000)/1000,stormWeatherUntil:Math.round(clampNumber(source.stormWeatherUntil,0,1e9,0)*1000)/1000,
+        eclipseUntil:Math.round(clampNumber(source.eclipseUntil,0,1e9,0)*1000)/1000,ashUntil:Math.round(clampNumber(source.ashUntil,0,1e9,0)*1000)/1000,
+        moonRevealUntil:Math.round(clampNumber(source.moonRevealUntil,0,1e9,0)*1000)/1000,nextWeatherAt:Math.round(clampNumber(source.nextWeatherAt,0,1e9,0)*1000)/1000,
+        bossesBeaten:(Array.isArray(source.bossesBeaten)?source.bossesBeaten:[]).slice(0,LIMITS.MAX_REASONABLE_BOSSES),
+        waveHeartLossStart:clampInteger(source.waveHeartLossStart,0,9999,0),enemyStats:source.enemyStats&&typeof source.enemyStats==="object"?source.enemyStats:{}
+      });
+    }
+    if(signatureVersion>=10){
+      // v10 signs the support/boss-phase continuation that the enemy layer persists
+      // (Relay signal staggering, Mender triage cadence, bounded boss second acts).
+      // These change combat outcomes on restore, so leaving them unsigned would let a
+      // tampered save freeze a convoy or hand a boss an arbitrary phase. Added as its
+      // own block so the v9 payload is byte-identical and v2-v9 stay verifiable.
+      modern.supportContinuation=stableValue({
+        enemies:(Array.isArray(source.enemies)?source.enemies:[]).slice(0,LIMITS.MAX_CHECKPOINT_ENEMIES).map(enemy=>({
+          id:typeof enemy?.id==="string"?enemy.id.slice(0,80):"",
+          supportCycle:clampInteger(enemy?.supportCycle,-1e6,1e6,0),
+          signalStaggerUntil:Math.round(clampNumber(enemy?.signalStaggerUntil,0,1e9,0)*1000)/1000,
+          bossPhase:clampInteger(enemy?.bossPhase,0,99,0)
+        }))
+      });
     }
     return stableValue(modern);
   }
@@ -705,6 +991,7 @@
     SIMULATION,
     UPGRADE_COSTS,
     ECONOMY,
+    STRUCTURES,
     clampNumber,
     clampInteger,
     isKnownId,
@@ -719,6 +1006,13 @@
     upgradeCost,
     calculateTowerInvestment,
     deploymentCost,
+    structureDefinition,
+    structureDeploymentCost,
+    structureUpgradeCost,
+    calculateStructureInvestment,
+    beaconSupport,
+    goldenFactoryMultiplier,
+    factoryEconomy,
     goldenBonus,
     goldenActivePayout,
     recommendedTowerCount,

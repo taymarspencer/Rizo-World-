@@ -1,11 +1,11 @@
 /* Offline shell for Rizo.game. Third-party ad requests are intentionally never cached. */
 const CACHE_PREFIX = "rizo-game-";
-const CACHE = "rizo-game-v86-launch-hotfix";
+const CACHE = "rizo-game-v87-first-ten-rtd-master-integrated";
 const SHELL = [
-  "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js",
+  "./", "./index.html", "./launch-v79-defense-alive.css", "./rtd-defense-integration.css", "./worker-b-economy.css", "./worker-e-abilities-depth.css", "./worker-h-ui.css", "./v81-art.css", "./rtd-worker-i-feel.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./worker-d-towers.css", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js",
   "./monetization.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
   "./privacy.html", "./terms.html", "./support.html", "./assets/icon-192.png",
-  "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
+  "./assets/defense-pine-bend.svg", "./assets/defense-ember-switchback.svg", "./assets/defense-moon-loop.svg", "./assets/defense-storm-circuit.svg", "./assets/defense-whiteout-pass.svg", "./assets/defense-eclipse-ridge.svg", "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
   "./assets/rizo-ember.png", "./assets/rizo-toxic.png", "./assets/rizo-violet.png",
   "./assets/rizo-bubblegum.png", "./assets/rizo-frost.png", "./assets/rizo-glitch.png",
   "./assets/rizo-obsidian.png", "./assets/rizo-golden.png", "./assets/rizo-diamond.png",
@@ -37,10 +37,10 @@ const SHELL = [
   "./assets/wearables/visor-back.svg", "./assets/wearables/visor-front.svg", "./assets/wearables/wings-back.svg"
 ];
 const REQUIRED_SHELL = [
-  "./", "./index.html", "./launch-v79-defense-alive.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css",
+  "./", "./index.html", "./launch-v79-defense-alive.css", "./rtd-defense-integration.css", "./worker-b-economy.css", "./worker-h-ui.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./worker-d-towers.css",
   "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js", "./monetization.js",
   "./game-v79-defense.js", "./manifest.webmanifest", "./assets/icon-192.png",
-  "./assets/icon-512.png", "./assets/rizo-classic.png"
+  "./assets/defense-pine-bend.svg", "./assets/icon-512.png", "./assets/rizo-classic.png"
 ];
 const NETWORK_FIRST_PATHS = new Set(REQUIRED_SHELL.map(path => new URL(path, self.location.href).pathname));
 

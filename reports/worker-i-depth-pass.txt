@@ -1,0 +1,47 @@
+WORKER I — DEPTH & FLATNESS PASS
+
+Flatness/issues discovered:
+1. Investment payoff was not physically/sonically different enough at high levels.
+2. Activated powers shared generic punctuation.
+3. POWER and CONTROL doctrine choices did not perform differently enough.
+4. Boss species shared too much entrance/phase sensory grammar.
+5. Enemy recoil and the combat score were too generic for repeated compositions.
+
+Improvements made:
+- Investment-weighted attack motion plus deeper mastery accents.
+- Variant + doctrine + Super-aware activated-power audio.
+- Distinct POWER brace/release and CONTROL coil/snap body motion.
+- Sparse Field-Leader-driven combat-score motifs.
+- Identity-specific Crown/Vortex/Mirror/Apex boss entrance, phase and audio language.
+- Directional DOM enemy hit recoil from attack source.
+- Token-safe boss stage cues.
+- Removed superseded generic ability/boss SFX and tightened doctrine audio throttling.
+
+Deeper interactions now present:
+- Investment -> performance weight/harmonics.
+- Variant x doctrine x Super -> cast identity.
+- Field Leader -> score vocabulary.
+- Attacker position -> recoil direction.
+- Boss identity x lifecycle -> recognizable set-piece grammar.
+
+Intentionally left simple:
+- Ambient idles; haptics; and adaptive-score motifs remain restrained to preserve battlefield readability, mobile performance, and audio space.
+- No new gameplay rules/buttons/currencies were added.
+
+Remaining opportunities outside jurisdiction:
+- E/F/D should preserve or rebind the corresponding visual/boss/upgrade lifecycle hooks during merge.
+- J/integration should add rtd-worker-i-feel.css to the shared browser harness.
+- Physical phone-speaker/haptic mastering needs real hardware; iOS navigator.vibrate remains unavailable.
+
+Regression checks rerun:
+- Worker-I depth audit 27/27
+- defense-core 31/31
+- static-defense-audit 80/80
+- service-worker policy 4/4
+- v77 feel 33/33
+- v80 strategy/feel 17/17
+- first-ten deterministic 41/41
+- defense integration 77/77
+- v78 canvas/flow 11/11
+- launch/recovery 5/5
+- Worker-I CSS !important count 0

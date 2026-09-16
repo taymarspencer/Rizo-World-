@@ -1,0 +1,279 @@
+{
+  "worker": "J",
+  "purpose": "merge-safety static audit; future feature names are informational, not required",
+  "checks": [
+    {
+      "name": "deployment root contains index.html",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Defense scripts load core before canvas/game",
+      "pass": true,
+      "detail": "107726,107774,107824"
+    },
+    {
+      "name": "service worker remains present",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "single canonical DEFENSE_MAPS",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical DEFENSE_ENEMIES",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical DEFENSE_BOSSES",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical DEFENSE_ABILITIES",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical defenseRoster()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical normalizeDefenseCheckpoint()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical buildDefenseCheckpoint()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical restoreDefenseCheckpoint()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical startDefenseWave()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical spawnDefenseEnemy()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical updateDefenseProjectiles()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical completeDefenseWave()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical rewardDefenseRun()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical recordDefenseRun()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical stepDefenseSimulation()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "single canonical advanceDefenseFixedFrame()",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "runtime checkpoint version delegates to DefenseCore.VERSION",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "all legacy checkpoint schemas stay accepted after the v10 bump",
+      "pass": true,
+      "detail": "accepted=[1, 2, 3, 4, 5, 6, 7, 8, 9] current=10"
+    },
+    {
+      "name": "checkpoint builder enforces projectile cap",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "checkpoint normalizer enforces projectile cap",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "checkpoint core budget is 32",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "current signature includes tactical continuation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "permanent rewards use clearedWave",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "mastery requires a cleared wave",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "guest crew excluded from permanent mastery",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "checkpoint enemy ids are canonicalized uniquely",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "checkpoint scheduler contradictions are repaired",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "checkpoint reached progress cannot skip cleared waves",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "checkpoint stale combat for cleared progress fails safe",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "wave completion requires resolution accounting",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "max supported cleared wave cannot be replay-started",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "simulation remains fixed at 30 Hz",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "catch-up remains bounded at four steps",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "density cap stays quality/speed invariant",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "low-power mode changes presentation budget",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "lifecycle hook: visibilitychange",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "lifecycle hook: pagehide",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "lifecycle hook: pageshow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "lifecycle hook: freeze",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "lifecycle hook: resume",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "lifecycle hook: beforeunload",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "runtime has explicit suspend/resume functions",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Defense interruption pause exists",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "integration seam available: economy",
+      "pass": true,
+      "detail": "anchors=queueDefenseIncome,flushDefenseIncome,defenseDeployCost,defenseUpgradeCost"
+    },
+    {
+      "name": "integration seam available: roster",
+      "pass": true,
+      "detail": "anchors=defenseRoster,defenseRosterMarkup,updateDefenseRoster"
+    },
+    {
+      "name": "integration seam available: abilities",
+      "pass": true,
+      "detail": "anchors=DEFENSE_ABILITIES,defenseAbilityGroups,activateDefenseAbilityGroup"
+    },
+    {
+      "name": "integration seam available: maps",
+      "pass": true,
+      "detail": "anchors=DEFENSE_MAPS,defenseMapSvgPath,defensePlacementAllowed,defensePlacementEvaluation"
+    },
+    {
+      "name": "integration seam available: waves/endless-range",
+      "pass": true,
+      "detail": "anchors=defenseWavePlan,startDefenseWave,createWavePlan"
+    },
+    {
+      "name": "integration seam available: ui events",
+      "pass": true,
+      "detail": "anchors=updateDefenseHud,flushDefenseUi,defenseContextSurface,defenseHandleContextKeydown"
+    },
+    {
+      "name": "QA namespace remains environment/query gated",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "future_feature_probe": {
+    "factory_named_in_baseline": true,
+    "beacon_named_in_baseline": true,
+    "explicit_endless_mode_named_in_baseline": true,
+    "interactive_map_hook_named_in_baseline": false
+  },
+  "passed": 53,
+  "failed": 0
+}
