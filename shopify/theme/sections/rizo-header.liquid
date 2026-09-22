@@ -19,6 +19,8 @@
     endcase
   endif
 %}
+{%- capture event_message -%}{% render 'rizo-event-value', key: 'announcement' %}{%- endcapture -%}
+{%- assign event_message = event_message | strip -%}
 <div class="header-stack header-stack--v5" data-header-stack>
   {% if section.settings.show_dateline and settings.heritage_mode %}
     <div class="header-dateline page-width">
@@ -26,10 +28,15 @@
     </div>
   {% endif %}
 
-  {% if section.settings.show_announcement and state_message != blank %}
-    <a class="announcement announcement--{{ state }}" href="{{ section.settings.announcement_link | default: routes.all_products_collection_url }}">
+  {% if section.settings.show_announcement and state_message != blank or section.settings.show_announcement and event_message != blank %}
+    <a class="announcement announcement--{{ state }}{% if state_message == blank %} rizo-event-only{% endif %}" href="{{ section.settings.announcement_link | default: routes.all_products_collection_url }}">
       <span class="announcement-state"><i aria-hidden="true"></i>{{ state_label }}</span>
-      <span class="announcement-copy">{{ state_message }}</span>
+      {%- if state_message != blank %}
+      <span class="announcement-copy"{% if event_message != blank %} data-rizo-event-default{% endif %}>{{ state_message }}</span>
+      {%- endif %}
+      {%- if event_message != blank %}
+      <span class="announcement-copy rizo-event-only">{{ event_message }}</span>
+      {%- endif %}
       {% render 'icon', name: 'arrow' %}
     </a>
   {% endif %}

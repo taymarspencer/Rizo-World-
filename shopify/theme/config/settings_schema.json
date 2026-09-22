@@ -266,5 +266,401 @@
         "info": "Set to 0 to disable. Only enable when the offer is real."
       }
     ]
+  },
+  {
+    "name": "Event layer",
+    "settings": [
+      {
+        "type": "paragraph",
+        "content": "A seasonal layer that sits on top of normal Rizo. Choose Off to return to normal Rizo instantly — nothing is deleted. Halloween is October mode."
+      },
+      {
+        "type": "select",
+        "id": "event_layer",
+        "label": "Active event",
+        "default": "off",
+        "options": [
+          {
+            "value": "off",
+            "label": "Off — normal Rizo"
+          },
+          {
+            "value": "halloween",
+            "label": "Halloween (October mode)"
+          }
+        ]
+      },
+      {
+        "type": "select",
+        "id": "event_activation",
+        "label": "Activation",
+        "default": "scheduled",
+        "options": [
+          {
+            "value": "scheduled",
+            "label": "Scheduled — between start and end"
+          },
+          {
+            "value": "always",
+            "label": "Always on — manual override"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "id": "event_start",
+        "label": "Start",
+        "placeholder": "2026-10-01T00:00:00-04:00",
+        "info": "ISO date/time. Without an offset it is read in the event's timezone (New York for Halloween). Blank uses the event's own window."
+      },
+      {
+        "type": "text",
+        "id": "event_end",
+        "label": "End",
+        "placeholder": "2026-11-01T06:00:00-05:00",
+        "info": "Halloween's own window: Oct 1 12:00 AM to Nov 1 6:00 AM, New York time."
+      },
+      {
+        "type": "checkbox",
+        "id": "event_editor_preview",
+        "label": "Always preview in the theme editor",
+        "default": true,
+        "info": "Shows the selected event while you edit, even outside its schedule. Customers still follow the schedule. Add ?rizo_event=on to a storefront URL to preview it in a browser tab; ?rizo_event=clear to stop."
+      },
+      {
+        "type": "text",
+        "id": "event_announcement",
+        "label": "Signal bar message during the event",
+        "info": "Replaces the header signal bar message only while the event is live. Blank keeps the normal message."
+      },
+      {
+        "type": "header",
+        "content": "Atmosphere"
+      },
+      {
+        "type": "checkbox",
+        "id": "event_night",
+        "label": "Night treatment",
+        "default": true,
+        "info": "Deepens the dark surfaces and dims paper surfaces slightly. Product photography is never tinted."
+      },
+      {
+        "type": "range",
+        "id": "event_night_intensity",
+        "label": "Night intensity",
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "unit": "%",
+        "default": 60
+      },
+      {
+        "type": "range",
+        "id": "event_motion",
+        "label": "Motion intensity",
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "unit": "%",
+        "default": 60,
+        "info": "Scales fog drift, moon drift and bat flight. 0% keeps everything still. The theme's Calm motion level halves it."
+      },
+      {
+        "type": "select",
+        "id": "event_reduced_motion",
+        "label": "Visitors who prefer reduced motion",
+        "default": "still",
+        "options": [
+          {
+            "value": "still",
+            "label": "Still moon and fog, no bats"
+          },
+          {
+            "value": "minimal",
+            "label": "Night treatment and countdown only"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Event layer: moon",
+    "settings": [
+      {
+        "type": "checkbox",
+        "id": "event_moon",
+        "label": "Show moon in the hero",
+        "default": true
+      },
+      {
+        "type": "image_picker",
+        "id": "event_moon_image",
+        "label": "Moon artwork",
+        "info": "Transparent PNG, WebP or SVG. Blank uses the event's placeholder moon."
+      },
+      {
+        "type": "range",
+        "id": "event_moon_size",
+        "label": "Size on desktop",
+        "min": 120,
+        "max": 640,
+        "step": 10,
+        "unit": "px",
+        "default": 340
+      },
+      {
+        "type": "range",
+        "id": "event_moon_size_mobile",
+        "label": "Size on mobile",
+        "min": 80,
+        "max": 360,
+        "step": 10,
+        "unit": "px",
+        "default": 170
+      },
+      {
+        "type": "range",
+        "id": "event_moon_x",
+        "label": "Horizontal position on desktop",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 72
+      },
+      {
+        "type": "range",
+        "id": "event_moon_y",
+        "label": "Vertical position on desktop",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 34
+      },
+      {
+        "type": "range",
+        "id": "event_moon_x_mobile",
+        "label": "Horizontal position on mobile",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 70
+      },
+      {
+        "type": "range",
+        "id": "event_moon_y_mobile",
+        "label": "Vertical position on mobile",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 23
+      },
+      {
+        "type": "range",
+        "id": "event_moon_opacity",
+        "label": "Opacity",
+        "min": 10,
+        "max": 100,
+        "step": 5,
+        "unit": "%",
+        "default": 90
+      },
+      {
+        "type": "range",
+        "id": "event_moon_glow",
+        "label": "Glow",
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "unit": "%",
+        "default": 45
+      },
+      {
+        "type": "select",
+        "id": "event_moon_layer",
+        "label": "Layer",
+        "default": "behind",
+        "options": [
+          {
+            "value": "behind",
+            "label": "Behind the hero artwork"
+          },
+          {
+            "value": "front",
+            "label": "In front of the artwork, behind the text"
+          }
+        ]
+      },
+      {
+        "type": "checkbox",
+        "id": "event_moon_motion",
+        "label": "Moon drift and scroll parallax",
+        "default": true,
+        "info": "Off keeps the moon visible but perfectly still."
+      }
+    ]
+  },
+  {
+    "name": "Event layer: fog",
+    "settings": [
+      {
+        "type": "checkbox",
+        "id": "event_fog",
+        "label": "Hero fog",
+        "default": true
+      },
+      {
+        "type": "checkbox",
+        "id": "event_fog_page",
+        "label": "Low page fog",
+        "default": true,
+        "info": "A faint band along the bottom of the screen after the hero. It thins out automatically over product grids, product pages and the cart."
+      },
+      {
+        "type": "image_picker",
+        "id": "event_fog_texture",
+        "label": "Fog texture",
+        "info": "Soft, horizontally tileable PNG or WebP with transparency, roughly 4:1 to 6:1. Blank uses the event's texture."
+      },
+      {
+        "type": "range",
+        "id": "event_fog_intensity",
+        "label": "Fog intensity",
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "unit": "%",
+        "default": 55
+      },
+      {
+        "type": "range",
+        "id": "event_fog_speed",
+        "label": "Fog speed",
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "unit": "%",
+        "default": 40
+      }
+    ]
+  },
+  {
+    "name": "Event layer: bats",
+    "settings": [
+      {
+        "type": "checkbox",
+        "id": "event_flock",
+        "label": "Show bats",
+        "default": true
+      },
+      {
+        "type": "range",
+        "id": "event_flock_density",
+        "label": "Bat count",
+        "min": 0,
+        "max": 100,
+        "step": 10,
+        "unit": "%",
+        "default": 60,
+        "info": "Share of the flock limit allowed on screen at once: 16 on desktop, 8 on phones, 5 on low-power devices."
+      },
+      {
+        "type": "range",
+        "id": "event_flock_activity",
+        "label": "Idle activity",
+        "min": 0,
+        "max": 100,
+        "step": 10,
+        "unit": "%",
+        "default": 50,
+        "info": "How often bats cross on their own. Lower values leave longer quiet periods; 0% means only scrolling and taps wake them."
+      },
+      {
+        "type": "checkbox",
+        "id": "event_flock_scroll",
+        "label": "Scrolling wakes bats",
+        "default": true
+      },
+      {
+        "type": "checkbox",
+        "id": "event_flock_tap",
+        "label": "Taps and clicks scatter bats",
+        "default": true,
+        "info": "Bats never block a tap: buttons, links and cart controls always receive the click."
+      }
+    ]
+  },
+  {
+    "name": "Event layer: countdown",
+    "settings": [
+      {
+        "type": "checkbox",
+        "id": "event_countdown",
+        "label": "Show countdown in the hero",
+        "default": true
+      },
+      {
+        "type": "select",
+        "id": "event_countdown_position",
+        "label": "Position",
+        "default": "after_actions",
+        "options": [
+          {
+            "value": "after_actions",
+            "label": "Below the hero buttons"
+          },
+          {
+            "value": "before_heading",
+            "label": "Above the hero heading"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "id": "event_countdown_target",
+        "label": "Target date/time",
+        "placeholder": "2026-10-31T00:00:00-04:00",
+        "info": "ISO date/time. Blank uses the event's moment — Halloween: Oct 31 2026, 12:00 AM New York time, whatever the visitor's timezone."
+      },
+      {
+        "type": "text",
+        "id": "event_countdown_label",
+        "label": "Label",
+        "placeholder": "HALLOWEEN IN",
+        "info": "Blank uses the event's label."
+      },
+      {
+        "type": "checkbox",
+        "id": "event_countdown_seconds",
+        "label": "Show seconds",
+        "default": true
+      },
+      {
+        "type": "select",
+        "id": "event_countdown_expired",
+        "label": "When it reaches zero",
+        "default": "message",
+        "options": [
+          {
+            "value": "message",
+            "label": "Show the ended message"
+          },
+          {
+            "value": "hide",
+            "label": "Hide the countdown"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "id": "event_countdown_expired_label",
+        "label": "Ended message",
+        "placeholder": "HALLOWEEN IS HERE",
+        "info": "Blank uses the event's message."
+      }
+    ]
   }
 ]
