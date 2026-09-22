@@ -1421,8 +1421,9 @@
 
   /* Sticky mobile purchase action */
   const initStickyAtc = (container = doc) => {
-    const form = $('[data-product-form]', container); const sticky = $('[data-sticky-atc]'); const action = $('[data-sticky-submit]', sticky);
+    const form = $('[data-product-form]', container); const sticky = $('[data-sticky-atc]');
     if (!form || !sticky || sticky.dataset.initialized) return; sticky.dataset.initialized='true';
+    const action = $('[data-sticky-submit]', sticky);
     if ('IntersectionObserver' in window) {
       sticky._stickyObserver = new IntersectionObserver(([entry]) => { sticky.hidden = entry.isIntersecting; }, { threshold: 0 });
       sticky._stickyObserver.observe(form);
