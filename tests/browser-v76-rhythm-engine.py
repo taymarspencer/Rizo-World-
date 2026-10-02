@@ -76,7 +76,7 @@ with sync_playwright() as p:
 
     # Wave completion is a player-owned boundary with a short punctuation lock; auto remains opt-in.
     page,errors=boot(browser)
-    default_auto=page.evaluate('Boolean(RizoRuntimeQA.snapshot().settings.defenseAutoStart)')
+    default_auto=page.evaluate('Boolean(RizoRuntimeQA.modeSliceForQA("defense").data.settings.autoStart)')
     page.evaluate('RizoRuntimeQA.defenseCompleteWaveForQA(1)')
     immediate=page.evaluate('RizoRuntimeQA.defenseStartWaveForQA()')
     page.evaluate('RizoRuntimeQA.defenseTickForQA(.76)')

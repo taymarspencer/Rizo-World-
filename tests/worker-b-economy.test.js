@@ -1,5 +1,5 @@
 const assert = require('assert');
-const Core = require('../defense-core-v79.js');
+const Core = require('../modes/defense/defense-core.js');
 
 const checks = [];
 function test(name, fn){

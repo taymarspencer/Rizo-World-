@@ -85,7 +85,8 @@ with sync_playwright() as p:
     page.evaluate('RizoRuntimeQA.defenseFinishForQA()')
     after=page.evaluate('RizoRuntimeQA.snapshot()')
     records=page.evaluate('RizoRuntimeQA.defenseRecordsForQA()')
-    record('banking unfinished first wave grants no wave reward',after['wallet']['embers']==before and after['scores']['defense']==0,f"embers {before}->{after['wallet']['embers']} best={after['scores']['defense']}")
+    best=page.evaluate('RizoRuntimeQA.defenseStoreForQA().records.best')
+    record('banking unfinished first wave grants no wave reward',after['wallet']['embers']==before and best==0,f"embers {before}->{after['wallet']['embers']} best={best}")
     run=records['history'][0] if records['history'] else {}
     record('banking unfinished first wave stores analytics without completion credit',run.get('clearedWave',run.get('wave'))==0 and run.get('reachedWave')==1,f"history={records['history']}")
     record('zero-clear bank does not create permanent Rizo mastery',not records['mastery'],str(records['mastery']))
@@ -112,13 +113,17 @@ with sync_playwright() as p:
 
     # Whole-save progression migration keeps cleared/reached semantics conservative
     page,errors=new_page(browser,True)
-    migrated=page.evaluate('''(()=>{const s=RizoRuntimeQA.defaultState();s.scores.defense=9999;s.scores.defenseMaps={grove:9999};s.scores.defenseHistory=[{id:"legacy",at:1,mapId:"grove",wave:7,clearedWave:6,reachedWave:7,kills:12,perfectWaveCount:5,ended:"gate"}];s.scores.defenseMastery={fake:{name:"FAKE",variant:"classic",runs:9,waves:0,bestWave:99,pops:100,damage:1000}};s.scores.defenseContracts=[{id:"fake-contract",date:"2026-07-31",mapId:"grove",title:"FAKE",rules:["unique","lean","power-only"],bestWave:0,completed:true,perfect:true}];return RizoRuntimeQA.normalizeState(s)})()''')
-    run=migrated['scores']['defenseHistory'][0]
+    migrated=page.evaluate('''(()=>{const s=RizoRuntimeQA.defaultState();s.scores.defense=9999;s.scores.defenseMaps={grove:9999};s.scores.defenseHistory=[{id:"legacy",at:1,mapId:"grove",wave:7,clearedWave:6,reachedWave:7,kills:12,perfectWaveCount:5,ended:"gate"}];s.scores.defenseMastery={fake:{name:"FAKE",variant:"classic",runs:9,waves:0,bestWave:99,pops:100,damage:1000}};s.scores.defenseContracts=[{id:"fake-contract",date:"2026-07-31",mapId:"grove",title:"FAKE",rules:["unique","lean","power-only"],bestWave:0,completed:true,perfect:true}];RizoRuntimeQA.loadForQA(s);return RizoRuntimeQA.modeSliceForQA("defense").data.records})()''')
+    # Since v88 these records live in the Defense save slice: the hub hands the
+    # old fields over once (state.modeInbox) and the mode's migration owns them.
+    run=migrated['history'][0]
     record('save migration preserves cleared and reached wave separately',run['wave']==6 and run['clearedWave']==6 and run['reachedWave']==7,str(run))
-    record('zero-wave imported mastery is removed',not migrated['scores']['defenseMastery'],str(migrated['scores']['defenseMastery']))
-    contract=migrated['scores']['defenseContracts'][0]
+    record('zero-wave imported mastery is removed',not migrated['mastery'],str(migrated['mastery']))
+    contract=migrated['contracts'][0]
     record('contract completion is derived from cleared progress',contract['bestWave']==0 and not contract['completed'] and not contract['perfect'],str(contract))
-    record('permanent wave records are clamped to supported maximum',migrated['scores']['defense']==9999 and migrated['scores']['defenseMaps']['grove']==9999,str({'best':migrated['scores']['defense'],'map':migrated['scores']['defenseMaps']['grove']}))
+    record('permanent wave records are clamped to supported maximum',migrated['best']==9999 and migrated['maps']['grove']==9999,str({'best':migrated['best'],'map':migrated['maps']['grove']}))
+    hub_left=page.evaluate("(()=>{const s=RizoRuntimeQA.snapshot();return Object.keys(s.scores).filter(k=>k.startsWith('defense')).concat(Object.keys(s.modeInbox||{}))})()")
+    record('the hub keeps no Defense records after migration',hub_left==[],str(hub_left))
     page.close()
 
     # Whole-save signatures, legacy migration, and unverified-state sanitation
@@ -128,7 +133,11 @@ with sync_playwright() as p:
     tampered=json.loads(json.dumps(envelope));tampered['state']['wallet']['embers']=49_000_000;tampered['state']['scores']['defense']=250;tampered['state']['achievements']=[]
     record('whole-save signature detects progression edits',not page.evaluate('(e)=>RizoRuntimeQA.verifyStateEnvelopeForQA(e)',tampered),tampered['signature'])
     decoded=page.evaluate('(e)=>RizoRuntimeQA.decodeStatePayloadForQA(e)',tampered)
-    record('invalid whole save is sanitized instead of blindly trusted',decoded['status']=='sanitized' and decoded['state']['wallet']['embers']==100 and decoded['state']['wallet']['shards']==0 and decoded['state']['scores']['defense']==0 and not decoded['state']['scores']['defenseHistory'],str({'status':decoded['status'],'wallet':decoded['state']['wallet'],'defense':decoded['state']['scores']['defense'],'history':decoded['state']['scores']['defenseHistory']}))
+    # Since v88 an old save's Defense records travel in state.modeInbox to the
+    # Defense slice; a sanitized save must carry none of them.
+    inbox_records=(decoded['state'].get('modeInbox') or {}).get('defense',{}).get('scores',{})
+    hub_defense=[k for k in decoded['state']['scores'] if k.startswith('defense')]
+    record('invalid whole save is sanitized instead of blindly trusted',decoded['status']=='sanitized' and decoded['state']['wallet']['embers']==100 and decoded['state']['wallet']['shards']==0 and not hub_defense and not inbox_records,str({'status':decoded['status'],'wallet':decoded['state']['wallet'],'hub':hub_defense,'inbox':inbox_records}))
     legacy=page.evaluate('''(()=>{const s=RizoRuntimeQA.defaultState();s.version=17;s.wallet.embers=777;return RizoRuntimeQA.decodeStatePayloadForQA(s)})()''')
     record('phase 2 raw saves migrate without requiring a new signature',legacy['status']=='migrated' and legacy['state']['wallet']['embers']==777,str({'status':legacy['status'],'embers':legacy['state']['wallet']['embers']}))
     qa_surfaces=page.evaluate('''()=>({visual:RizoRuntimeQA.visualMatrixForQA().variants.length,beats:RizoRuntimeQA.beatTracksForQA().tracks.length,legacyVisual:typeof window.RizoVisualQA,legacyBeat:typeof window.RizoBeatQA})''')

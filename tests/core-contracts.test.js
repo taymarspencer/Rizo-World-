@@ -5,7 +5,7 @@ const ROOT = path.resolve(__dirname, "..");
 const Save = require(path.join(ROOT, "core/rizo-save-core.js"));
 const Training = require(path.join(ROOT, "core/rizo-training.js"));
 const Modes = require(path.join(ROOT, "core/rizo-modes.js"));
-const Defense = require(path.join(ROOT, "defense-core-v79.js"));
+const golden = require(path.join(ROOT, "tests/fixtures/v1-signature-golden.json"));
 const fixture = require(path.join(ROOT, "tests/fixtures/v86-live-checkpoint.json")).state;
 
 let passed = 0, total = 0;
@@ -17,16 +17,17 @@ function test(name, fn) {
 const clone = value => JSON.parse(JSON.stringify(value));
 
 // ---------- save core ----------
+// golden: signatures the pre-v88 implementation (defense-core-v79.js) produced.
 test("frozen v1 signature is byte-identical to the one every pre-v88 save used", () => {
   const states = [fixture, {}, { ...clone(fixture), wallet: { embers: "9e99" } }, { ...clone(fixture), scores: { ...fixture.scores, defense: 12000, power: 1e13 } }];
   for (const [index, state] of states.entries()) {
-    for (const savedAt of [0, 123456789, Date.now()]) {
-      assert.strictEqual(Save.createStateSignatureV1(state, savedAt), Defense.createStateSignature(state, savedAt, 1), `state ${index} @ ${savedAt}`);
+    for (const [column, savedAt] of golden.savedAts.entries()) {
+      assert.strictEqual(Save.createStateSignatureV1(state, savedAt), golden.signatures[index][column], `state ${index} @ ${savedAt}`);
     }
   }
 });
 test("v1 envelopes written by older builds still verify, and edits are caught", () => {
-  const envelope = { app: "RIZO LIFE", saveVersion: 1, stateVersion: 19, savedAt: 42, state: clone(fixture), signature: Defense.createStateSignature(fixture, 42, 1) };
+  const envelope = { app: "RIZO LIFE", saveVersion: 1, stateVersion: 19, savedAt: 42, state: clone(fixture), signature: golden.envelope42 };
   assert(Save.verifyEnvelope(envelope));
   const edited = clone(envelope); edited.state.wallet.embers += 1;
   assert(!Save.verifyEnvelope(edited));
@@ -55,9 +56,47 @@ test("mode slices keep only well-formed ids and object data", () => {
   const modes = Save.normalizeModes({ defense: { schema: 2, data: { a: 1 } }, "Bad Id": { schema: 1, data: {} }, list: [], dungeon: { schema: "3", data: [1, 2] } });
   assert.deepStrictEqual(modes, { defense: { schema: 2, data: { a: 1 } }, dungeon: { schema: 3, data: {} } });
 });
-test("hub limits no longer come from the Defense module", () => {
+test("hub limits live in the save core; Defense keeps only its own", () => {
+  const DefenseCore = require(path.join(ROOT, "modes/defense/defense-core.js"));
   assert.strictEqual(Save.LIMITS.MAX_ARCADE_SCORE, 1e9);
-  assert.strictEqual(Save.LIMITS.MAX_WALLET_EMBERS, Defense.LIMITS.MAX_WALLET_EMBERS);
+  assert.strictEqual(Save.LIMITS.MAX_WALLET_EMBERS, 50_000_000);
+  for (const key of ["MAX_WALLET_EMBERS", "MAX_PLAYER_XP", "MAX_META_COUNTER"]) assert(!(key in DefenseCore.LIMITS), `${key} is a hub limit`);
+  assert(!("createStateSignature" in DefenseCore), "the whole-save signature belongs to the save core");
+});
+// Moved from the Defense core tests in v88: the frozen v1 signature still
+// covers every field the v87 one did, Defense history and mastery included.
+const v1Envelope = (state, savedAt) => ({ app: "RIZO LIFE", saveVersion: 1, stateVersion: 18, savedAt, state, signature: Save.createStateSignatureV1(state, savedAt) });
+test("v1 whole-save signatures detect progression edits", () => {
+  const state = {version:18,player:{keeperId:'keeper-1',streak:4,totalSessions:8},wallet:{embers:321,shards:12},pet:{id:'p1',number:1,name:'RIZO',stage:'kid',variant:'classic',xp:400,bond:20,skills:{power:10},genes:{power:100}},inventory:{accessories:['none'],rooms:['rain'],phoenix:0,growth:0,care:0},collection:{classic:1},scores:{power:12,spark:9,defense:3,defenseMaps:{grove:3},defenseMilestones:[],defensePerfectMaps:[],defenseContracts:[],defenseHistory:[],defenseMastery:{}},farm:{roster:[],unlockedRooms:[0]},meta:{totalGames:2,totalHatched:1,totalTaps:5,capsules:0,rebirths:0,bondEggs:0},achievements:['origin'],daily:{date:'2026-07-31',type:'tap',progress:2,claimed:false,giftClaimed:false},season:{xp:10,level:1},expedition:{active:false},treasures:{},loreUnlocked:['keeper']};
+  const envelope = v1Envelope(state, 123456);
+  assert(Save.verifyEnvelope(envelope));
+  state.wallet.embers = 999999;
+  assert(!Save.verifyEnvelope(envelope));
+});
+test("v1 whole-save signatures cover arcade and unlock progression", () => {
+  const state = {version:18,player:{keeperId:'keeper-1'},wallet:{embers:100,shards:0},pet:{id:'p1',number:1,name:'RIZO',stage:'egg',variant:'classic',skills:{},genes:{}},inventory:{accessories:['none'],rooms:['rain']},collection:{classic:1},scores:{power:10,defense:0,defenseMaps:{},defenseMilestones:[],defensePerfectMaps:[],defenseContracts:[],defenseHistory:[],defenseMastery:{}},farm:{roster:[],unlockedRooms:[0]},meta:{},achievements:[],daily:{},season:{level:1},expedition:{},treasures:{},loreUnlocked:['keeper']};
+  const envelope = v1Envelope(state, 123456);
+  state.scores.power = 999999;
+  assert(!Save.verifyEnvelope(envelope));
+});
+test("v1 whole-save signature protects Defense history and mastery", () => {
+  const state = {
+    version:18, player:{keeperId:'keeper-qa',streak:0,totalSessions:1}, wallet:{embers:10,shards:0},
+    pet:{id:'pet-main',number:1,name:'RIZO',stage:'kid',variant:'classic',xp:10,bond:10,skills:{},genes:{}},
+    inventory:{accessories:[],rooms:[],phoenix:0,growth:0,care:0}, collection:{classic:1}, achievements:[],
+    daily:{date:'2026-09-12',type:'tap',progress:0,claimed:false,giftClaimed:false}, season:{xp:0,level:1},
+    expedition:{}, treasures:{}, farm:{activeRoom:0,unlockedRooms:[0],totalAdoptions:0,totalReleased:0,materials:0,roster:[]},
+    meta:{totalGames:0,totalHatched:1,totalTaps:0,totalCareActions:0,totalWalks:0,deaths:0,recoveries:0,capsules:0,rebirths:0,bondEggs:0,pity:0,shadowFinds:0}, loreUnlocked:[],
+    scores:{defense:10,defenseMaps:{grove:10},defenseMilestones:[],defensePerfectMaps:[],defenseContracts:[],
+      defenseHistory:[{id:'run-1',mapId:'grove',clearedWave:10,reachedWave:10,kills:40,bosses:1,perfectWaveCount:8}],
+      defenseMastery:{'pet-main':{runs:1,waves:10,bestWave:10,pops:40,damage:5000}}}
+  };
+  const envelope = v1Envelope(state, 1_726_154_000_000);
+  assert(Save.verifyEnvelope(envelope));
+  const historyTamper = clone(envelope); historyTamper.state.scores.defenseHistory[0].clearedWave = 20;
+  assert(!Save.verifyEnvelope(historyTamper));
+  const masteryTamper = clone(envelope); masteryTamper.state.scores.defenseMastery['pet-main'].waves = 999;
+  assert(!Save.verifyEnvelope(masteryTamper));
 });
 
 // ---------- training contract ----------

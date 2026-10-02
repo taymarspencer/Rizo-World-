@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const core = require('../defense-core-v79.js');
+const core = require('../modes/defense/defense-core.js');
 
 const tests = [];
 function test(name, fn) { tests.push({name, fn}); }
@@ -208,23 +208,6 @@ test('legacy v2 checkpoint signatures remain verifiable for migration', () => {
   save.signature = core.createSaveSignature(save, 2);
   assert.match(save.signature, /^v2\./);
   assert.equal(core.verifySaveSignature(save), true);
-});
-
-test('whole-save signatures detect progression edits', () => {
-  const state = {version:18,player:{keeperId:'keeper-1',streak:4,totalSessions:8},wallet:{embers:321,shards:12},pet:{id:'p1',number:1,name:'RIZO',stage:'kid',variant:'classic',xp:400,bond:20,skills:{power:10},genes:{power:100}},inventory:{accessories:['none'],rooms:['rain'],phoenix:0,growth:0,care:0},collection:{classic:1},scores:{power:12,spark:9,defense:3,defenseMaps:{grove:3},defenseMilestones:[],defensePerfectMaps:[],defenseContracts:[],defenseHistory:[],defenseMastery:{}},farm:{roster:[],unlockedRooms:[0]},meta:{totalGames:2,totalHatched:1,totalTaps:5,capsules:0,rebirths:0,bondEggs:0},achievements:['origin'],daily:{date:'2026-07-31',type:'tap',progress:2,claimed:false,giftClaimed:false},season:{xp:10,level:1},expedition:{active:false},treasures:{},loreUnlocked:['keeper']};
-  const envelope = {saveVersion:core.STATE_SAVE_VERSION,savedAt:123456,state};
-  envelope.signature = core.createStateSignature(state,envelope.savedAt,envelope.saveVersion);
-  assert.equal(core.verifyStateSignature(envelope), true);
-  state.wallet.embers = 999999;
-  assert.equal(core.verifyStateSignature(envelope), false);
-});
-
-test('whole-save signatures cover arcade and unlock progression', () => {
-  const state = {version:18,player:{keeperId:'keeper-1'},wallet:{embers:100,shards:0},pet:{id:'p1',number:1,name:'RIZO',stage:'egg',variant:'classic',skills:{},genes:{}},inventory:{accessories:['none'],rooms:['rain']},collection:{classic:1},scores:{power:10,defense:0,defenseMaps:{},defenseMilestones:[],defensePerfectMaps:[],defenseContracts:[],defenseHistory:[],defenseMastery:{}},farm:{roster:[],unlockedRooms:[0]},meta:{},achievements:[],daily:{},season:{level:1},expedition:{},treasures:{},loreUnlocked:['keeper']};
-  const envelope = {saveVersion:core.STATE_SAVE_VERSION,savedAt:123456,state};
-  envelope.signature = core.createStateSignature(state,envelope.savedAt,envelope.saveVersion);
-  state.scores.power = 999999;
-  assert.equal(core.verifyStateSignature(envelope), false);
 });
 
 test('phase transitions form one explicit runtime state machine', () => {

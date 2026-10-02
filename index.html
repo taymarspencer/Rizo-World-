@@ -9,7 +9,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Rizo.game" name="apple-mobile-web-app-title"/>
-<meta name="rizo-build" content="v88-p1-contracts"/>
+<meta name="rizo-build" content="v88-p2-defense-mode"/>
 <style id="rizo-boot-critical">
 /* This shell is intentionally inline and dependency-free. If every external
    stylesheet/script fails, the player still gets a dark, actionable surface. */
@@ -35,7 +35,7 @@ html,body{background:#07090d;color:#fff}
 <script id="rizo-boot-inline">
 (() => {
   "use strict";
-  const expected = "v88-p1-contracts";
+  const expected = "v88-p2-defense-mode";
   const problems = [];
   let ready = false;
   let recoveryVisible = false;
@@ -527,8 +527,8 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <meta content="Rizo.game: raise, collect, customize, and discover Rizos in a browser pet game by Rizo Apparel." name="description"/>
 <link href="https://play.rizo.store/" rel="canonical"/>
 
-<link href="./manifest.webmanifest" rel="manifest"/><link href="./launch-v79-defense-alive.css" rel="stylesheet"/><link href="./rtd-defense-integration.css" rel="stylesheet"/><link href="./worker-b-economy.css" rel="stylesheet"/><link href="./worker-e-abilities-depth.css" rel="stylesheet"/>
-<link href="./v81-art.css" rel="stylesheet"/><link href="./rtd-worker-i-feel.css" rel="stylesheet"/><link href="./arcade-v75.css" rel="stylesheet"/><link href="./arcade-v83.css" rel="stylesheet"/><link href="./arcade-v84-depth.css" rel="stylesheet"/><link href="./rizo-v85-handmade.css" rel="stylesheet"/><link href="./arcade-v87-system.css" rel="stylesheet"/><link href="./worker-d-towers.css" rel="stylesheet"/><link href="./worker-h-ui.css" rel="stylesheet"/><style id="rizo-egg-anchor-v363">
+<link href="./manifest.webmanifest" rel="manifest"/><link href="./launch-v79-defense-alive.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-defense-integration.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-b-economy.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-e-abilities-depth.css" rel="stylesheet"/>
+<link href="./modes/defense/styles/v81-art.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-worker-i-feel.css" rel="stylesheet"/><link href="./arcade-v75.css" rel="stylesheet"/><link href="./arcade-v83.css" rel="stylesheet"/><link href="./arcade-v84-depth.css" rel="stylesheet"/><link href="./rizo-v85-handmade.css" rel="stylesheet"/><link href="./arcade-v87-system.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-d-towers.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-h-ui.css" rel="stylesheet"/><style id="rizo-egg-anchor-v363">
 /* V36.3 live-iPhone fix: explicit flex centering with a non-positioned egg.
    This deliberately does not depend on inset sizing, CSS translate, or an
    external stylesheet cache. */
@@ -766,10 +766,10 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div><small>BROKEN X // FIRE TEETH // MORE</small><h2>EMBER FORGE</h2><p>Read authored Rizo-mark walls, shape the rebound, and crack CORE blocks to collapse the structure around them.</p><div class="game-meta" data-arcade-meta="breaker"></div></div>
 <button data-minigame="breaker" type="button">FORGE</button>
 </div>
-<div class="game-card defense-card">
+<div class="game-card defense-card" data-mode-card="defense">
 <div class="game-art defense-art"><img alt="" src="./assets/rizo-ember.png"/><span class="defense-card-balloon"><i></i></span></div>
-<div><small>THE BIG MACHINE // ENDLESS</small><h2>RIZO DEFENSE</h2><p>Your raised Rizos become the roster. Place, upgrade, read the route, survive bosses, weather, and stranger balloon properties.</p><div class="game-meta" data-arcade-meta="defense"></div></div>
-<button data-minigame="defense" type="button">DEFEND</button>
+<div><small>THE BIG MACHINE // ENDLESS</small><h2>RIZO DEFENSE</h2><p>Your raised Rizos become the roster. Place, upgrade, read the route, survive bosses, weather, and stranger balloon properties.</p><div class="game-meta" data-mode-meta="defense"></div></div>
+<button data-mode="defense" data-mode-label="DEFEND" type="button">DEFEND</button>
 </div>
 <section class="expedition-card">
 <div class="expedition-head"><div><small>PASSIVE ADVENTURE</small><h2>FOREST EXPEDITIONS</h2></div><div class="expedition-status" id="expeditionStatus">SEND RIZO OUT FOR LOOT AND LORE.</div></div>
@@ -782,7 +782,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </section>
 <section class="high-score-card">
 <div><small>PERSONAL BESTS</small><h2>YOUR ARCADE LORE</h2></div>
-<div class="score-grid"><div data-arcade-best="rhythm"><b id="bestRhythm">0</b><span>EMBER BEAT</span></div><div data-arcade-best="maze"><b id="bestMaze">0</b><span>RIZO RUNAWAY</span></div><div data-arcade-best="walk"><b id="bestWalk">0</b><span>RAIN WALK</span></div><div data-arcade-best="power"><b id="bestPower">0</b><span>POWER TAPE</span></div><div data-arcade-best="spark"><b id="bestSpark">0</b><span>SPARK STASH</span></div><div data-arcade-best="forage"><b id="bestForage">0</b><span>FOREST LUNCH</span></div><div data-arcade-best="rush"><b id="bestRush">0</b><span>RIZO COURIER</span></div><div data-arcade-best="memory"><b id="bestMemory">0</b><span>LOST SIGNAL</span></div><div data-arcade-best="glide"><b id="bestGlide">0</b><span>SKYBOUND</span></div><div data-arcade-best="breaker"><b id="bestBreaker">0</b><span>EMBER FORGE</span></div><div data-arcade-best="defense"><b id="bestDefense">0</b><span>RIZO DEFENSE • WAVE</span></div></div>
+<div class="score-grid"><div data-arcade-best="rhythm"><b id="bestRhythm">0</b><span>EMBER BEAT</span></div><div data-arcade-best="maze"><b id="bestMaze">0</b><span>RIZO RUNAWAY</span></div><div data-arcade-best="walk"><b id="bestWalk">0</b><span>RAIN WALK</span></div><div data-arcade-best="power"><b id="bestPower">0</b><span>POWER TAPE</span></div><div data-arcade-best="spark"><b id="bestSpark">0</b><span>SPARK STASH</span></div><div data-arcade-best="forage"><b id="bestForage">0</b><span>FOREST LUNCH</span></div><div data-arcade-best="rush"><b id="bestRush">0</b><span>RIZO COURIER</span></div><div data-arcade-best="memory"><b id="bestMemory">0</b><span>LOST SIGNAL</span></div><div data-arcade-best="glide"><b id="bestGlide">0</b><span>SKYBOUND</span></div><div data-arcade-best="breaker"><b id="bestBreaker">0</b><span>EMBER FORGE</span></div><div data-mode-best="defense"><b>—</b><span>RIZO DEFENSE • WAVE</span></div></div>
 </section>
 <section aria-label="Sponsored content" class="ad-slot" data-ad-slot="arcade-between-games" hidden=""></section>
 </section>
@@ -872,8 +872,10 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
   <script src="./core/rizo-save-core.js"></script>
   <script src="./core/rizo-training.js"></script>
   <script src="./core/rizo-modes.js"></script>
-  <script src="./defense-core-v79.js"></script>
-  <script src="./defense-canvas-v79.js"></script>
+  <script src="./core/rizo-catalog.js"></script>
+  <script src="./modes/defense/defense-core.js"></script>
+  <script src="./modes/defense/defense-canvas.js"></script>
+  <script src="./modes/defense/defense-mode.js"></script>
   <script src="./game-v79-defense.js"></script>
 </body>
 </html>

@@ -39,9 +39,27 @@ test("every required shell file exists and is also in the full shell", () => {
 });
 test("core modules load before anything that depends on them", () => {
   const order = name => loadedScripts.indexOf(name);
-  for (const core of ["core/rizo-save-core.js", "core/rizo-training.js", "core/rizo-modes.js"]) {
+  for (const core of ["core/rizo-save-core.js", "core/rizo-training.js", "core/rizo-modes.js", "core/rizo-catalog.js"]) {
     assert(order(core) >= 0, `${core} is not loaded`);
     assert(order(core) < order("game-v79-defense.js"), `${core} must load before the hub`);
+  }
+});
+test("each game mode's files load after the core and before the hub", () => {
+  const order = name => loadedScripts.indexOf(name);
+  const modeScripts = loadedScripts.filter(file => file.startsWith("modes/"));
+  assert(modeScripts.includes("modes/defense/defense-mode.js"), "Defense mode is not loaded");
+  for (const file of modeScripts) {
+    assert(order(file) > order("core/rizo-modes.js"), `${file} must load after the mode contract`);
+    assert(order(file) < order("game-v79-defense.js"), `${file} must load before the hub`);
+  }
+  // A mode's own engine files load before its registration file.
+  assert(order("modes/defense/defense-core.js") < order("modes/defense/defense-mode.js"));
+  assert(order("modes/defense/defense-canvas.js") < order("modes/defense/defense-mode.js"));
+});
+test("no file a mode owns is left at its pre-v88 root path", () => {
+  for (const old of ["defense-core-v79.js", "defense-canvas-v79.js", "worker-d-towers.css", "v81-art.css"]) {
+    assert(!fs.existsSync(path.join(ROOT, old)), `${old} should live under modes/defense/`);
+    assert(!index.includes(`"./${old}"`) && !sw.includes(`"./${old}"`), `${old} is still referenced at the root`);
   }
 });
 

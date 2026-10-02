@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # this as a named constant: it replaced a hard-coded filename list that silently
 # stopped covering each new specialist layer, and a bare inline pattern here is a
 # magnet for merge damage when several branches add a stylesheet link at once.
-STYLESHEET_LINK_RE = r'<link href="\./([A-Za-z0-9_.-]+\.css)" rel="stylesheet"'
+STYLESHEET_LINK_RE = r'<link href="\./([A-Za-z0-9_./-]+\.css)" rel="stylesheet"'
 SCRIPT_SRC_RE = r'<script src="\./([A-Za-z0-9_./-]+\.js)"></script>'
 
 def _embed_asset_refs(text):
@@ -23,6 +23,18 @@ def _embed_asset_refs(text):
         return cache[ref]
     return pattern.sub(replace,text)
 
+def _rebase_css_urls(text, sheet):
+    # A stylesheet in a mode folder writes url('../../../assets/x.svg'); once it
+    # is inlined into the page those refs must be relative to the page instead.
+    def replace(match):
+        quote, ref = match.group(1), match.group(2)
+        if ref.startswith(('data:', 'http:', 'https:', '#', '/')): return match.group(0)
+        target = (sheet.parent/ref).resolve()
+        try: rebased = './' + target.relative_to(ROOT.resolve()).as_posix()
+        except ValueError: return match.group(0)
+        return f'url({quote}{rebased}{quote})'
+    return re.sub(r"url\((['\"]?)([^'\")]+)\1\)", replace, text)
+
 def build_inline_app(qa=False, embed_assets=False):
     html=(ROOT/'index.html').read_text()
     # Derive the stylesheet list from index.html instead of hard-coding it.
@@ -33,7 +45,7 @@ def build_inline_app(qa=False, embed_assets=False):
     for name in re.findall(STYLESHEET_LINK_RE, html):
         path=ROOT/name
         if path.exists():
-            text=path.read_text()
+            text=_rebase_css_urls(path.read_text(), path)
             local_css[name]=_embed_asset_refs(text) if embed_assets else text
     if embed_assets:
         html=_embed_asset_refs(html)

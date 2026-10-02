@@ -21,7 +21,7 @@ CHECKPOINT = f"{V1}:defense-checkpoint-v68"
 FIXTURES = subprocess.run(["node", "-e", r"""
 const path=require('path'),root=process.argv[1];
 const Save=require(path.join(root,'core/rizo-save-core.js'));
-const Defense=require(path.join(root,'defense-core-v79.js'));
+const Defense=require(path.join(root,'modes/defense/defense-core.js'));
 const fx=require(path.join(root,'tests/fixtures/v86-live-checkpoint.json'));
 const t=Date.now()-2*3600e3;
 function livedIn(){
@@ -31,7 +31,12 @@ function livedIn(){
   Object.assign(s.pet,{name:'MOSSY',xp:1500,bond:61,stage:'beast',lastTick:t,accessory:'crown'});
   s.pet.skills={speed:40,power:55,instinct:33,stamina:47,luck:12};
   s.inventory.accessories=['none','crown','beanie'];
-  Object.assign(s.scores,{power:88,glide:61,rhythm:72,defense:23,defenseMaps:{grove:23,ember:11},defenseMilestones:[10]});
+  Object.assign(s.scores,{power:88,glide:61,rhythm:72,defense:23,defenseMaps:{grove:23,ember:11},defenseMilestones:[10],defensePerfectMaps:['grove'],
+    defenseHistory:[{id:'run-a',at:t,mapId:'grove',wave:23,clearedWave:23,reachedWave:24,kills:410,bosses:2,perfectWaveCount:9,ended:'banked'}],
+    defenseMastery:{[s.pet.id]:{name:'MOSSY',variant:'classic',runs:3,waves:40,bestWave:23,pops:410,damage:52000}}});
+  Object.assign(s.settings,{defenseAutoStart:true,defenseFx:'low',defenseUiScale:'large',defenseWaveIntel:'full',defenseSignatures:false});
+  s.player.defenseSchool={dismissed:true,completed:['route','placement'],replay:false};
+  s.meta.unlockScenes=[...(s.meta.unlockScenes||[]),'defense-origin-v37'];
   s.collection={classic:1,ember:2};s.meta.totalGames=140;
   return s;
 }
@@ -64,7 +69,9 @@ READ = """()=>{
   const v2=read('rizo-save-v2'),s=v2&&v2.state;
   const quarantine=Object.keys(localStorage).filter(k=>k.startsWith('rizo-save-quarantine:')).map(k=>read(k));
   let warning=null;try{warning=JSON.parse(localStorage.getItem('rizo-life-overhaul-v2:save-validation-warning'))?.kind||null}catch(e){}
-  return {saveVersion:v2?.saveVersion||0,embers:s?.wallet?.embers,name:s?.pet?.name,stage:s?.pet?.stage,defense:s?.scores?.defense,games:s?.meta?.totalGames,
+  const slice=v2?.modes?.defense?.data||null;
+  return {saveVersion:v2?.saveVersion||0,embers:s?.wallet?.embers,name:s?.pet?.name,stage:s?.pet?.stage,defense:slice?.records?.best,games:s?.meta?.totalGames,
+    slice,hubDefenseKeys:s?Object.keys(s.scores||{}).filter(k=>k.startsWith('defense')).concat(Object.keys(s.settings||{}).filter(k=>k.startsWith('defense')),Object.keys(s.player||{}).filter(k=>k.startsWith('defense')),Object.keys(s.modeInbox||{})):null,
     v1:localStorage.getItem('rizo-life-overhaul-v2'),quarantine,warning,blocked:Boolean(document.querySelector('#rizoSaveBlocked:not([hidden])')),
     blockedText:document.querySelector('#rizoSaveBlocked h2')?.textContent||'',v2Raw:localStorage.getItem('rizo-save-v2')};
 }"""
@@ -134,8 +141,49 @@ with sync_playwright() as p:
     for label, key in (("1 hour", "checkpoint1h"), ("8 days", "checkpoint8d")):
         ctx, page, _ = boot(browser, {V1: F["signedV1"], V1_BACKUP: F["signedV1"], CHECKPOINT: F[key]})
         seen = page.evaluate("()=>window.RizoRuntimeQA.showDefenseLobbyForQA('auto').checkpoint")
-        stored = page.evaluate("()=>Boolean(localStorage.getItem('rizo-life-overhaul-v2:defense-checkpoint-v68'))")
-        record(f"a Defense run left for {label} is still resumable (C4)", seen and stored); ctx.close()
+        stored = page.evaluate("()=>({run:localStorage.getItem('rizo-mode-run:defense'),old:localStorage.getItem('rizo-life-overhaul-v2:defense-checkpoint-v68')})")
+        record(f"a Defense run left for {label} is still resumable (C4)", seen and stored["run"] == F[key] and stored["old"] is None, str({k: bool(v) for k, v in stored.items()})); ctx.close()
+
+    # ---- Phase 2: Defense moves out of the hub into its own save slice ----
+    MAP_SEEN = {"rizo-defense-map-seen:grove": "1", "rizo-defense-map-seen:ember": "1"}
+    ctx, page, errors = boot(browser, {V1: F["signedV1"], V1_BACKUP: F["signedV1"], CHECKPOINT: F["checkpoint1h"], **MAP_SEEN}); r = page.evaluate(READ)
+    sl = r["slice"] or {}
+    rec = sl.get("records", {})
+    record("v87 Defense records move into the Defense slice", rec.get("best") == 23 and rec.get("maps") == {"grove": 23, "ember": 11} and rec.get("milestones") == [10] and rec.get("perfectMaps") == ["grove"], str(rec)[:300])
+    hist = (rec.get("history") or [{}])[0]
+    record("v87 Defense run history and mastery survive the move", hist.get("clearedWave") == 23 and hist.get("reachedWave") == 24 and any(row.get("waves") == 40 for row in rec.get("mastery", {}).values()), str(hist)[:200])
+    record("v87 Defense settings and school progress survive the move", sl.get("settings") == {"signatures": False, "autoStart": True, "fx": "low", "uiScale": "large", "waveIntel": "full"} and sl.get("school", {}).get("completed") == ["route", "placement"] and sl.get("introSeen") is True, str({k: sl.get(k) for k in ("settings", "school", "introSeen")}))
+    record("map intros already seen stay seen, and their loose keys are tidied", sorted(sl.get("mapIntrosSeen", [])) == ["ember", "grove"] and page.evaluate("()=>Object.keys(localStorage).filter(k=>k.startsWith('rizo-defense-map-seen:')).length") == 0, str(sl.get("mapIntrosSeen")))
+    record("the hub keeps no Defense fields after the move", r["hubDefenseKeys"] == [], str(r["hubDefenseKeys"]))
+    record("the v87 save stays byte-identical as the rollback copy", r["v1"] == F["signedV1"])
+    record("the in-progress v87 run is handed to the Defense run store", page.evaluate("()=>localStorage.getItem('rizo-mode-run:defense')") == F["checkpoint1h"])
+    page.evaluate("()=>RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(150)
+    shelf = page.evaluate("()=>({best:document.querySelector('[data-mode-best=defense] b')?.textContent,badge:document.querySelector('[data-mode-card=defense] .mode-badge')?.textContent,summary:RizoModes.summary('defense')})")
+    record("the arcade shelf shows the migrated best wave and milestone", shelf["best"] == "W23" and shelf["badge"] == "W10", str(shelf)[:200])
+    record("Defense migration boot has no page errors", not errors, "; ".join(errors[:2]))
+    # Second boot: the slice is the source of truth; nothing migrates twice.
+    page.reload(); page.wait_for_timeout(1300); r2 = page.evaluate(READ)
+    record("a second boot keeps the Defense slice exactly as migrated", r2["slice"] == r["slice"], "changed" if r2["slice"] != r["slice"] else "")
+    # A finished run awards through the host and records into the slice.
+    page.evaluate("""()=>{const s=RizoRuntimeQA.snapshot();Object.assign(s.pet,{energy:100,hunger:100,mood:100,health:100,resting:false,sleeping:false});RizoRuntimeQA.loadForQA(s);
+      localStorage.removeItem('rizo-mode-run:defense');}""")
+    before = page.evaluate("()=>RizoRuntimeQA.snapshot().wallet.embers")
+    page.evaluate('RizoRuntimeQA.startMiniGame("defense",{mapId:"grove"})'); page.wait_for_timeout(400)
+    page.evaluate('document.querySelector("[data-defense-skip-map-intro]")?.click()'); page.wait_for_timeout(100)
+    page.evaluate("RizoRuntimeQA.defensePlaceNextForQA();RizoRuntimeQA.defenseCompleteWaveForQA(1);RizoRuntimeQA.defenseForceWaveForQA(2);RizoRuntimeQA.defenseCompleteWaveForQA(2);RizoRuntimeQA.defenseForceWaveForQA(3);RizoRuntimeQA.defenseFinishForQA()")
+    page.wait_for_timeout(500)
+    page.evaluate("()=>RizoRuntimeQA.saveForQA()")
+    after = page.evaluate(READ)
+    gained = page.evaluate("()=>RizoRuntimeQA.snapshot().wallet.embers") - before
+    hist2 = (after["slice"] or {}).get("records", {}).get("history", [])
+    record("a finished Defense run pays out in the hub and is recorded in the slice", gained > 0 and len(hist2) == 2 and hist2[0].get("clearedWave") == 2 and after["slice"]["records"]["best"] == 23, f"gained={gained} history={len(hist2)}")
+    stored = page.evaluate("()=>{RizoRuntimeQA.saveForQA();const e=JSON.parse(localStorage.getItem('rizo-save-v2'));return RizoSaveCore.verifyEnvelope(e)&&!localStorage.getItem('rizo-mode-run:defense')}")
+    record("the run's result is inside the signed save and no stale run is left", stored); ctx.close()
+
+    # An unverifiable v87 save: Defense records reset with the rest, settings survive.
+    ctx, page, _ = boot(browser, {V1: F["tampered"], V1_BACKUP: F["tampered"]}); r = page.evaluate(READ)
+    sl = r["slice"] or {}
+    record("a tampered v87 save resets Defense records but keeps Defense settings", (sl.get("records") or {}).get("best") == 0 and (sl.get("settings") or {}).get("fx") == "low", str({k: sl.get(k) for k in ("records", "settings")})[:240]); ctx.close()
 
     # ---- C3: two tabs ----
     ctx = browser.new_context(service_workers="block")

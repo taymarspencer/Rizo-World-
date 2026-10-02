@@ -11,8 +11,11 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-GAME = (ROOT / 'game-v79-defense.js').read_text(encoding='utf-8')
-CORE = (ROOT / 'defense-core-v79.js').read_text(encoding='utf-8')
+# Since v88 Defense is a game mode: GAME is the hub plus the Defense mode file.
+HUB = (ROOT / 'game-v79-defense.js').read_text(encoding='utf-8')
+MODE = (ROOT / 'modes' / 'defense' / 'defense-mode.js').read_text(encoding='utf-8')
+GAME = HUB + '\n' + MODE
+CORE = (ROOT / 'modes' / 'defense' / 'defense-core.js').read_text(encoding='utf-8')
 INDEX = (ROOT / 'index.html').read_text(encoding='utf-8')
 SW = (ROOT / 'sw.js').read_text(encoding='utf-8')
 
@@ -21,11 +24,11 @@ def check(name, condition, detail=''):
     checks.append({'name': name, 'pass': bool(condition), 'detail': detail})
 
 # Deployment / boot anchors.
-core_pos = INDEX.find('defense-core-v79.js')
-canvas_pos = INDEX.find('defense-canvas-v79.js')
-game_pos = INDEX.find('game-v79-defense.js')
+core_pos = INDEX.find('modes/defense/defense-core.js')
+canvas_pos = INDEX.find('modes/defense/defense-canvas.js')
+game_pos = INDEX.find('modes/defense/defense-mode.js')
 check('deployment root contains index.html', (ROOT / 'index.html').is_file())
-check('Defense scripts load core before canvas/game', -1 < core_pos < canvas_pos < game_pos, f'{core_pos},{canvas_pos},{game_pos}')
+check('Defense scripts load core before canvas/mode, and the mode before the hub', -1 < core_pos < canvas_pos < game_pos < INDEX.find('game-v79-defense.js'), f'{core_pos},{canvas_pos},{game_pos}')
 check('service worker remains present', (ROOT / 'sw.js').is_file() and 'serviceWorker' in INDEX + GAME + SW)
 
 # Single authoritative live registries / systems. Multiple definitions are a merge-danger signal.
@@ -53,7 +56,7 @@ check('checkpoint builder enforces projectile cap', '.slice(0,DEFENSE_LIMITS.MAX
 check('checkpoint normalizer enforces projectile cap', '.slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_PROJECTILES).filter(shot=>' in GAME)
 check('checkpoint core budget is 32', bool(re.search(r'MAX_CHECKPOINT_PROJECTILES:\s*32\b', CORE)))
 check('current signature includes tactical continuation', 'tacticalContinuation' in CORE and 'signatureVersion>=9' in CORE)
-check('permanent rewards use clearedWave', bool(re.search(r'function\s+rewardDefenseRun\([^)]*\)\{[^\n]*clearedWave', GAME)))
+check('permanent rewards use clearedWave', bool(re.search(r'function\s+rewardDefenseRun\([^)]*\)\s*\{\s*[^\n]*clearedWave', GAME)))
 check('mastery requires a cleared wave', 'if(clearedWave>0)for(const row of persistentLeaders)' in GAME)
 check('guest crew excluded from permanent mastery', '!row.petId.startsWith("defense-crew-")' in GAME)
 check('checkpoint enemy ids are canonicalized uniquely', 'const enemyIds=new Set()' in GAME and 'enemyIds.has(id)' in GAME)

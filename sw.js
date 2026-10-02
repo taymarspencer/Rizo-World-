@@ -1,9 +1,9 @@
 /* Offline shell for Rizo.game. Third-party ad requests are intentionally never cached. */
 const CACHE_PREFIX = "rizo-game-";
-const CACHE = "rizo-game-v88-p1-contracts";
+const CACHE = "rizo-game-v88-p2-defense-mode";
 const SHELL = [
-  "./", "./index.html", "./launch-v79-defense-alive.css", "./rtd-defense-integration.css", "./worker-b-economy.css", "./worker-e-abilities-depth.css", "./worker-h-ui.css", "./v81-art.css", "./rtd-worker-i-feel.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./worker-d-towers.css", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js",
-  "./monetization.js", "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
+  "./", "./index.html", "./launch-v79-defense-alive.css", "./modes/defense/styles/rtd-defense-integration.css", "./modes/defense/styles/worker-b-economy.css", "./modes/defense/styles/worker-e-abilities-depth.css", "./modes/defense/styles/worker-h-ui.css", "./modes/defense/styles/v81-art.css", "./modes/defense/styles/rtd-worker-i-feel.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./modes/defense/styles/worker-d-towers.css", "./modes/defense/defense-core.js", "./modes/defense/defense-canvas.js", "./modes/defense/defense-mode.js", "./rizo-config.js", "./install-manager.js",
+  "./monetization.js", "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./core/rizo-catalog.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
   "./privacy.html", "./terms.html", "./support.html", "./assets/icon-192.png",
   "./assets/defense-pine-bend.svg", "./assets/defense-ember-switchback.svg", "./assets/defense-moon-loop.svg", "./assets/defense-storm-circuit.svg", "./assets/defense-whiteout-pass.svg", "./assets/defense-eclipse-ridge.svg", "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
   "./assets/rizo-ember.png", "./assets/rizo-toxic.png", "./assets/rizo-violet.png",
@@ -37,8 +37,8 @@ const SHELL = [
   "./assets/wearables/visor-back.svg", "./assets/wearables/visor-front.svg", "./assets/wearables/wings-back.svg"
 ];
 const REQUIRED_SHELL = [
-  "./", "./index.html", "./launch-v79-defense-alive.css", "./rtd-defense-integration.css", "./worker-b-economy.css", "./worker-h-ui.css", "./v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./worker-d-towers.css", "./worker-e-abilities-depth.css", "./rtd-worker-i-feel.css",
-  "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./defense-core-v79.js", "./defense-canvas-v79.js", "./rizo-config.js", "./install-manager.js", "./monetization.js",
+  "./", "./index.html", "./launch-v79-defense-alive.css", "./modes/defense/styles/rtd-defense-integration.css", "./modes/defense/styles/worker-b-economy.css", "./modes/defense/styles/worker-h-ui.css", "./modes/defense/styles/v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./modes/defense/styles/worker-d-towers.css", "./modes/defense/styles/worker-e-abilities-depth.css", "./modes/defense/styles/rtd-worker-i-feel.css",
+  "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./core/rizo-catalog.js", "./modes/defense/defense-core.js", "./modes/defense/defense-canvas.js", "./modes/defense/defense-mode.js", "./rizo-config.js", "./install-manager.js", "./monetization.js",
   "./game-v79-defense.js", "./manifest.webmanifest", "./assets/icon-192.png",
   "./assets/defense-pine-bend.svg", "./assets/icon-512.png", "./assets/rizo-classic.png"
 ];

@@ -27,5 +27,13 @@
   Content-Type: text/css; charset=utf-8
   Cache-Control: no-cache, must-revalidate
 
+# Shared contracts and game modes live in folders; keep them revalidating like
+# the root scripts (the service worker bumps its cache per build).
+/core/*
+  Cache-Control: no-cache, must-revalidate
+
+/modes/*
+  Cache-Control: no-cache, must-revalidate
+
 /assets/*
   Cache-Control: public, max-age=3600, must-revalidate

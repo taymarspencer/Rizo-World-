@@ -15,7 +15,7 @@ def new_page(browser, viewport=(390,844)):
     page.on('pageerror',lambda e:errors.append('pageerror '+str(e)))
     page.on('console',lambda m: errors.append('console '+m.type+' '+m.text) if m.type=='error' else None)
     page.set_content(INLINE_APP,wait_until='load',timeout=120000)
-    page.add_style_tag(path=str(ROOT/'worker-d-towers.css'))
+    page.add_style_tag(path=str(ROOT/'modes'/'defense'/'styles'/'worker-d-towers.css'))
     page.wait_for_timeout(120)
     start_defense(page)
     return page,errors

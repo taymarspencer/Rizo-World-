@@ -9,7 +9,7 @@
 
     RizoModes.register(definition)     at load, from modes/<id>/<id>-mode.js
     RizoModes.launch(id, options)      the hub opens a mode
-    definition.create(host)            → instance { start, suspend, resume, stop }
+    definition.create(host)            → instance { start, stop, suspend?, resume?, key?, resize?, quit? }
     host.exit(summary)                 the mode returns the player to the hub
 
   The pure parts (definition checks, slice migration, award validation) run in
@@ -62,7 +62,44 @@
     if (!Number.isInteger(schema) || schema < 1) fail("schema must be a positive integer (the slice format version)");
     if (typeof def.create !== "function") fail("create(host) is required");
     if (typeof def.migrate !== "function") fail("migrate(data, fromSchema, legacy) is required");
-    return Object.freeze({ ...def, id, schema, contract: CONTRACT_VERSION, name: String(def.name || id.toUpperCase()) });
+    if (def.summary !== undefined && typeof def.summary !== "function") fail("summary(data) must be a function");
+    const settings = (Array.isArray(def.settings) ? def.settings : []).map(setting => {
+      const key = String(setting?.key || "");
+      if (!/^[a-zA-Z][a-zA-Z0-9]{0,31}$/.test(key)) fail(`setting key "${key}" must be a short identifier`);
+      const kind = setting.kind === "choice" ? "choice" : "toggle";
+      const choices = kind === "choice" ? (setting.choices || []).map(([value, label]) => [String(value), String(label)]) : [];
+      if (kind === "choice" && !choices.some(([value]) => value === String(setting.default))) fail(`setting "${key}" default must be one of its choices`);
+      return Object.freeze({ key, kind, title: String(setting.title || key), copy: String(setting.copy || ""), choices: Object.freeze(choices), default: kind === "toggle" ? Boolean(setting.default) : String(setting.default) });
+    });
+    const entry = def.entry && typeof def.entry === "object" ? def.entry : {};
+    return Object.freeze({
+      ...def, id, schema, contract: CONTRACT_VERSION, name: String(def.name || id.toUpperCase()),
+      settings: Object.freeze(settings),
+      // What the hub checks before opening the mode from the shelf.
+      entry: Object.freeze({ energy: Math.max(0, Math.floor(Number(entry.energy) || 0)) })
+    });
+  }
+
+  // Player settings declared by a mode live in its slice under data.settings.
+  // The hub renders them in the Journal; these helpers keep both sides honest.
+  function readSettings(def, data) {
+    const stored = isPlainObject(data?.settings) ? data.settings : {};
+    const output = {};
+    for (const setting of def.settings || []) {
+      const value = stored[setting.key];
+      output[setting.key] = setting.kind === "toggle" ? (typeof value === "boolean" ? value : setting.default)
+        : setting.choices.some(([choice]) => choice === value) ? value : setting.default;
+    }
+    return output;
+  }
+  function writeSetting(def, data, key, value) {
+    const setting = (def.settings || []).find(item => item.key === key);
+    if (!setting) return null;
+    const next = setting.kind === "toggle" ? Boolean(value) : String(value);
+    if (setting.kind === "choice" && !setting.choices.some(([choice]) => choice === next)) return null;
+    const base = isPlainObject(data) ? plain(data) : {};
+    base.settings = { ...(isPlainObject(base.settings) ? base.settings : {}), [key]: next };
+    return base;
   }
 
   // Brings a stored slice up to the definition's schema. `legacy` is a
@@ -132,11 +169,11 @@
   // The hub calls this once at boot. Adapter methods (all required):
   //   readSlice(id) / writeSlice(id, {schema,data}) / legacyView(id)
   //   petSnapshot() / rosterSnapshots() / petMarkup(snapshot, opts)
-  //   applyAward(id, award) → applied   settings() / audio
-  //   runStore(id) → {read, write, clear}   mount(id) → element   unmount(id)
-  //   save()   onExit(id, summary)
+  //   applyAward(id, award) → applied   settings() / audio / ui
+  //   runStore(id) → {read, write, clear}   mount(id, options) → stage   unmount(id)
+  //   keeperId()   report(id, kind, details)   save()   onExit(id, summary)
   function attachHub(adapter) {
-    const required = ["readSlice", "writeSlice", "legacyView", "petSnapshot", "rosterSnapshots", "petMarkup", "applyAward", "settings", "runStore", "mount", "unmount", "save", "onExit"];
+    const required = ["readSlice", "writeSlice", "legacyView", "petSnapshot", "rosterSnapshots", "petMarkup", "applyAward", "settings", "runStore", "mount", "unmount", "keeperId", "report", "save", "onExit"];
     for (const name of required) if (typeof adapter?.[name] !== "function") throw new TypeError(`hub adapter is missing ${name}()`);
     hub = adapter;
   }
@@ -162,7 +199,14 @@
       roster: () => deepFreeze(plain(hub.rosterSnapshots())),
       petMarkup: (snapshot, options = {}) => hub.petMarkup(snapshot, options),
       settings: () => deepFreeze(plain(hub.settings())),
+      // The mode's own player settings (declared in def.settings), read from its slice.
+      modeSettings: () => Object.freeze(readSettings(def, hub.readSlice(id)?.data)),
+      keeperId: () => String(hub.keeperId() || ""),
+      debug: Boolean(hub.debug),
+      build: String(hub.build || ""),
+      report: (kind, details = {}) => hub.report(id, String(kind || "note").slice(0, 60), plain(details)),
       audio: hub.audio || {},
+      ui: hub.ui || {},
       slice: {
         read: () => {
           const stored = hub.readSlice(id);
@@ -172,7 +216,9 @@
       },
       run: hub.runStore(id),
       award: raw => hub.applyAward(id, normalizeAward(raw)),
-      mount: () => hub.mount(id),
+      // The shared full-screen stage: { root, arena, panel, header(fields), close() }.
+      // The mode may add classes to root and fill arena; the hub resets both on exit.
+      mount: (options = {}) => hub.mount(id, options),
       exit: (summary = {}) => {
         if (exited) return false;
         exited = true;
@@ -223,7 +269,23 @@
     get: id => registry.get(id) || null,
     list: () => [...registry.values()],
     active: () => (active ? active.id : null),
+    readSettings,
+    writeSetting,
+    // Hub → active mode notifications. Each is optional on the instance.
     suspendActive: reason => active?.instance?.suspend?.(reason),
-    resumeActive: reason => active?.instance?.resume?.(reason)
+    resumeActive: reason => active?.instance?.resume?.(reason),
+    keyActive: event => Boolean(active?.instance?.key?.(event)),
+    resizeActive: reason => active?.instance?.resize?.(reason),
+    // Asks the active mode to wrap up and exit (an update is waiting, the save
+    // was blocked). Modes bank what they must and call host.exit().
+    quitActive: reason => active?.instance?.quit?.(reason),
+    // Small public facts a mode publishes about its own slice (best run,
+    // milestones) for hub surfaces such as the shelf card and keeper path.
+    summary: id => {
+      const def = registry.get(id);
+      if (!def?.summary || !hub) return null;
+      try { const stored = hub.readSlice(id); return deepFreeze(plain(def.summary(stored && isPlainObject(stored.data) ? plain(stored.data) : {}) || null)); }
+      catch (error) { return null; }
+    }
   };
 });

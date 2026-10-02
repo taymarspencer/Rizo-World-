@@ -56,7 +56,7 @@
 .defense-field-menu-grid button,.defense-extra-grid button{border:1.5px solid #413748;border-radius:14px;background:linear-gradient(#302936,#241f2a);box-shadow:0 3px 0 #111014}.defense-sheet-title small{color:var(--v81-cyan);letter-spacing:.13em}.defense-sheet-title b{font-family:var(--def-font-display);letter-spacing:-.02em}
 
 /* Phase 1: Pine Bend, printed terrain and responsive combat poses. */
-.defense-world.map-grove{--road-border:#746044;--road-fill:#d3b88a;--road-shadow:#536849;--road-light:#edd4a4;--road-texture:#aa865d;background:#92a878 url('./assets/defense-pine-bend.svg') center/100% 100% no-repeat}
+.defense-world.map-grove{--road-border:#746044;--road-fill:#d3b88a;--road-shadow:#536849;--road-light:#edd4a4;--road-texture:#aa865d;background:#92a878 url('../../../assets/defense-pine-bend.svg') center/100% 100% no-repeat}
 .defense-world.map-grove :is(.defense-sky,.defense-hills,.defense-trees,.defense-map-props){display:none}
 .defense-world.map-grove .defense-road-shadow{stroke-width:80;opacity:.5;transform:translateY(5px)}
 .defense-world.map-grove .defense-road-border{stroke-width:70}
@@ -151,11 +151,11 @@ body.reduce-motion .defense-tower.firing .defense-rizo{animation:none}
 .defense-impact.impact-pop.impact-enemy-ghost::after{width:32px;height:24px;border-radius:50%;border-style:dashed;border-color:rgba(234,220,255,.88);rotate:calc(var(--impact-angle) - 12deg)}
 
 /* Worker G — authored world plates. Route SVG remains a separate gameplay layer. */
-.defense-world.map-ember{background:#503637 url('./assets/defense-ember-switchback.svg') center/100% 100% no-repeat}
-.defense-world.map-moon{background:#42415f url('./assets/defense-moon-loop.svg') center/100% 100% no-repeat}
-.defense-world.map-storm{background:#43646c url('./assets/defense-storm-circuit.svg') center/100% 100% no-repeat}
-.defense-world.map-blizzard{background:#92b4be url('./assets/defense-whiteout-pass.svg') center/100% 100% no-repeat}
-.defense-world.map-eclipse{background:#221b2e url('./assets/defense-eclipse-ridge.svg') center/100% 100% no-repeat}
+.defense-world.map-ember{background:#503637 url('../../../assets/defense-ember-switchback.svg') center/100% 100% no-repeat}
+.defense-world.map-moon{background:#42415f url('../../../assets/defense-moon-loop.svg') center/100% 100% no-repeat}
+.defense-world.map-storm{background:#43646c url('../../../assets/defense-storm-circuit.svg') center/100% 100% no-repeat}
+.defense-world.map-blizzard{background:#92b4be url('../../../assets/defense-whiteout-pass.svg') center/100% 100% no-repeat}
+.defense-world.map-eclipse{background:#221b2e url('../../../assets/defense-eclipse-ridge.svg') center/100% 100% no-repeat}
 .defense-world:is(.map-ember,.map-moon,.map-storm,.map-blizzard,.map-eclipse) :is(.defense-sky,.defense-hills,.defense-trees,.defense-map-props){display:none}
 .defense-world:is(.map-ember,.map-moon,.map-storm,.map-blizzard,.map-eclipse) .defense-road-shadow{stroke-width:80;opacity:.48;transform:translateY(5px)}
 .defense-world:is(.map-ember,.map-moon,.map-storm,.map-blizzard,.map-eclipse) .defense-road-border{stroke-width:70}

@@ -21,9 +21,9 @@ is what the player brings into game modes.
 
 Neither side ever writes the save, the wallet or a pet directly. The hub is the only writer.
 
-> **Status (Phase 1):** both contracts exist and are tested. Phase 2 moves Rizo Defense onto the game-mode
-> contract. Phase 3 moves the ten minigames onto the training contract. Until then they still run through the
-> legacy arcade runtime inside `game-v79-defense.js`.
+> **Status (Phase 2):** both contracts exist and are tested. Rizo Defense runs on the game-mode contract from
+> `modes/defense/` (§8) and is the template for later modes. Phase 3 moves the ten minigames onto the training
+> contract; until then they still run through the legacy arcade runtime inside `game-v79-defense.js`.
 
 ---
 
@@ -37,10 +37,14 @@ Order matters. Each file may use only the files above it.
 | 2 | `core/rizo-save-core.js` | **pure** (browser + Node) | Hub limits, the signed save envelope (v1 frozen, v2 current), mode-slice shape. |
 | 3 | `core/rizo-training.js` | **pure** | The training contract: game definitions and score → stat conversion. |
 | 4 | `core/rizo-modes.js` | pure rules + browser host | The game-mode contract: registry, slice migration, award limits, host API. |
-| 5 | `modes/<id>/…` *(Phase 2)* | browser | One game mode each. Registers with `RizoModes.register`. |
-| 6 | `training/<id>.js` *(Phase 3)* | browser | One training game each. Registers with `RizoTraining.register`. |
-| 7 | `defense-core-v79.js`, `defense-canvas-v79.js` | pure / browser | Rizo Defense rules and canvas presenter. They move under `modes/defense/` in Phase 2. |
-| 8 | `game-v79-defense.js` | browser | **The hub**: save I/O, pet simulation, care, House, UI, the legacy arcade runtime, `petMarkup()`, and the host adapter both contracts talk to. |
+| 5 | `core/rizo-catalog.js` | **pure** | Shared read-only game data every layer may use: the Rizo variants. |
+| 6 | `modes/<id>/…` | browser | One game mode each. Registers with `RizoModes.register`. Today: `modes/defense/defense-core.js` (pure rules), `defense-canvas.js` (canvas presenter), `defense-mode.js` (registration + runtime). |
+| 7 | `training/<id>.js` *(Phase 3)* | browser | One training game each. Registers with `RizoTraining.register`. |
+| 8 | `game-v79-defense.js` | browser | **The hub**: save I/O, pet simulation, care, House, UI, the legacy arcade runtime, `petMarkup()`, and the host adapter both contracts talk to. (The file keeps its historical name; Defense no longer lives in it.) |
+
+Stylesheets follow the same split: a mode's own styles live in `modes/<id>/styles/` and resolve `url()`
+paths from there (`../../../assets/…`). `launch-v79-defense-alive.css` is still shared: about 40% of it is
+Defense rules mixed in with hub rules, and splitting it is left for a later pass.
 
 "Pure" files have no DOM access and are `require()`-able, so their rules are unit-tested in Node.
 
@@ -68,13 +72,14 @@ Order matters. Each file may use only the files above it.
 | `rizo-life-save-v1` | Pre-v66 raw save. | Never. Read as a migration source. |
 | `rizo-save-quarantine:<time>` | A save this build could not load, set aside before anything overwrote it (newest 5 kept). | Only on failure |
 | `rizo-mode-run:<modeId>` | A game mode's resumable in-progress run. | By the mode, through `host.run` |
-| `rizo-life-overhaul-v2:defense-checkpoint-v68` | Defense's in-progress run (moves to `rizo-mode-run:defense` in Phase 2). | Defense |
+| `rizo-life-overhaul-v2:defense-checkpoint-v68` … `-v42` | Pre-v88 Defense runs. | Never. Copied once into `rizo-mode-run:defense`, removed only after the copy is written. |
+| `rizo-defense-map-seen:<mapId>` | Pre-v88 "map intro seen" flags. | Never. Folded into the Defense slice at first boot, then removed. |
 
 ### Envelope v2
 
 ```json
 {
-  "app": "RIZO LIFE", "saveVersion": 2, "stateVersion": 19, "savedAt": 1790000000000,
+  "app": "RIZO LIFE", "saveVersion": 2, "stateVersion": 20, "savedAt": 1790000000000,
   "writeId": "W-1A2B3C4D5E6F",
   "state":  { "...hub state: player, wallet, pet, farm, scores, settings, meta..." },
   "modes":  { "defense": { "schema": 1, "data": { "...owned by the mode..." } } },
@@ -115,6 +120,7 @@ a trusted legacy migration) wins. Then:
 | Add or rename a hub state field | Bump `VERSION` (state version), normalise it defensively in `normalizeState()`, add an old-save case to `tests/save-safety.py`. No signature change is needed. |
 | Change the envelope layout | Add `saveVersion: 3` in `core/rizo-save-core.js`. Keep the v2 verifier and the v1 block exactly as they are. |
 | Change a mode's data | Bump the mode's `schema` and extend its `migrate()`. The hub never inspects slice contents. |
+| Move hub fields into a mode | List them in `LEGACY_MODE_FIELDS` (hub). `normalizeState()` moves them out of the hub state into `state.modeInbox[<id>]`; the mode's first `migrate(…, 0, legacy)` receives them; the hub clears that inbox entry only after the slice exists. Bump `VERSION`. Defense (state version 20) is the worked example. |
 | **Never** | Edit the frozen `SAVE VERSION 1` block in `core/rizo-save-core.js`, write to a v1 key, or delete a save key outside an explicit player reset. |
 
 ---
@@ -211,7 +217,15 @@ A mode may depend on `core/*`. It may not depend on another mode, or on the hub'
 | `name` | Display name. |
 | `schema` | Integer. The version of the mode's slice format. |
 | `migrate(data, fromSchema, legacy)` | Returns slice data at `schema`. Called with `fromSchema` 0 (no slice yet) and `legacy`: a frozen, read-only view of any pre-contract hub fields the mode used to own. Called again whenever `schema` grows. Must return a plain object. |
-| `create(host)` | Returns the instance: `{ start(options), suspend(reason), resume(reason), stop() }`. |
+| `create(host)` | Returns the instance (below). Called on every launch; the instance lives until `host.exit()`. |
+| `entry` | Optional `{ energy }`: what the shelf checks before launching (the mode charges it itself through `award`). |
+| `settings` | Optional player settings: `[{ key, kind: "toggle" \| "choice", title, copy, default, choices: [[value, label]] }]`. The hub draws them in Journal → Settings and stores them in the slice under `data.settings`. |
+| `summary(data)` | Optional. Small public facts for hub surfaces: `{ best, bestLabel, unit, milestones, badge: { text, title } }`. The hub reads nothing else from a slice. |
+| `qa(hubQA)` | Optional, QA builds only. Returns hooks merged into `window.RizoRuntimeQA`; may wrap the hub's own. |
+
+Instance hooks (all optional except `start` and `stop`): `start(options)`, `stop()`, `suspend(reason)` /
+`resume(reason)` (app backgrounded, ad, save blocked), `key(event)` → `true` if the mode handled the key,
+`resize(reason)`, `quit(reason)` (the hub needs the player back: bank or checkpoint, then `host.exit()`).
 
 The hub calls `ensureSlice()` for every registered mode at boot, so migrations run once, before first play. A
 slice written by a newer build (higher `schema`) is preserved untouched, and that mode refuses to launch.
@@ -227,10 +241,16 @@ slice written by a newer build (higher `schema`) is preserved untouched, and tha
 | `host.run.read()` / `.write(value)` / `.clear()` | Resumable in-progress run (checkpoint). Its own key; writes are refused while the save is blocked. |
 | `host.award(award)` | Grants rewards back to the hub (below). Returns what was actually applied. |
 | `host.settings()` | Read-only player settings (sound, music, haptics, reduced motion). |
-| `host.audio` | `sfx(name)`, `haptic(pattern)`, `music(scene)`. |
-| `host.ui` | `toast(text)`, `modal(markup)`, `closeModal()`. |
-| `host.mount()` | Shows the shared stage and returns its element. |
+| `host.modeSettings()` | The mode's own declared settings, resolved against their defaults. |
+| `host.keeperId()`, `host.build`, `host.debug` | The player's keeper id (to bind a checkpoint to its owner), the build marker, and whether this is a QA build. |
+| `host.report(kind, details)` | Records a validation warning in the hub's log (e.g. a rejected checkpoint). |
+| `host.audio` | `sfx(name)`, `tone(…)`, `noise(…)`, `haptic(pattern)`, `duck(ms, level)`, `music(track)`: a built-in scene name, an adaptive track `{ id, tempo, lead, bass, beat(step, play) }`, or `null` to hand music back. |
+| `host.ui` | `toast(text)`, `modal(markup, { onClose })`, `closeModal({ silent })`, `modalOpen()`, `cutscene(options)`, `celebrate()`. `onClose` runs only when the **player** closes the modal, never on a silent close or a replacement. |
+| `host.mount(header)` | Shows the shared stage and returns a frozen `stage`: `root` (add classes), `arena` (draw here), `panel` (pause panel), `header({ kicker, title, timer, score, hint, quit })`, and `close()` (hide the stage but stay open, e.g. for a results modal). Everything is reset on exit. |
 | `host.exit(summary)` | Stops the mode and returns to the hub. Idempotent. |
+
+The hub draws a mode's shelf from markup alone: `[data-mode="<id>"]` launches it (after the `entry` check),
+`[data-mode-best]`, `[data-mode-meta]` and `[data-mode-card]` show its `summary()`.
 
 ### Awards
 
@@ -275,9 +295,45 @@ Every delivery that changes a runtime file:
 | `tests/core-contracts.test.js` | `node` | Save core (v1 frozen signature, v2), training conversion, mode rules. |
 | `tests/release-integrity.test.js` | `node` | Build marker and service-worker shell. |
 | `tests/save-safety.py` | `python3` | Old-save migration and every save-loss path from the audit, in a real browser. |
-| `tests/mode-contract.py` | `python3` | A probe mode through the real hub: snapshots, slices, awards, exit, reload. |
+| `tests/mode-contract.py` | `python3` | A probe mode through the real hub: snapshots, stage, modal `onClose`, settings, summary, slices, awards, exit, reload. |
 | `tests/defense-core.test.js`, `worker-*.test.js`, `service-worker-policy.test.js` | `node` | Defense rules and the service worker. |
 | `tests/browser-*.py`, `static-defense-audit.py`, `worker-j-integration-risk-audit.py` | `python3` | Inherited browser and static suites. |
 
 The browser suites need Playwright for Python and Chromium at `/usr/bin/chromium`. Some write JSON into the
 tracked `reports/` folder; restore it with `git checkout -- reports/` before committing.
+
+---
+
+## 8. Rizo Defense, the reference mode
+
+`modes/defense/` is the blueprint for Dungeon and Scroll Fighter.
+
+| Piece | Where |
+|---|---|
+| Rules (waves, economy, checkpoint signature) | `defense-core.js`, pure and Node-tested. It no longer knows about the whole save. |
+| Canvas presenter | `defense-canvas.js` |
+| Registration, runtime, UI, QA hooks | `defense-mode.js` |
+| Styles | `styles/*.css` (seven Defense-only sheets) |
+
+Its slice (`schema: 1`):
+
+```json
+{ "records":  { "best": 23, "maps": {}, "milestones": [], "perfectMaps": [], "history": [], "mastery": {}, "contracts": [] },
+  "settings": { "signatures": true, "autoStart": false, "fx": "auto", "uiScale": "standard", "waveIntel": "simple" },
+  "crew": { "ids": [], "configured": false }, "school": { "dismissed": false, "completed": [], "replay": false },
+  "introSeen": false, "mapIntrosSeen": [] }
+```
+
+How it follows the contract:
+
+- **Reads** the captain and House crew only as frozen snapshots (`host.pet()`, `host.roster()`), drawn with
+  `host.petMarkup()`.
+- **Awards once per run**, when it ends or is banked: Embers, season heat, the run count, per-pet XP/skills for
+  the Rizos that fought, and the captain's energy/hunger cost. Discarding a saved run banks it instead of deleting
+  it.
+- **Checkpoints** through `host.run` (signed by `defense-core.js`, bound to `host.keeperId()`); runs never
+  expire.
+- **Owns its loop and timers**: a `requestAnimationFrame` frame loop and a deadline job queue polled each frame
+  and held while paused or backgrounded.
+- **Migrated from v87** without loss: records, settings, school and crew (from `state.modeInbox`), map-intro
+  flags (loose keys) and the in-progress checkpoint (old keys). `tests/save-safety.py` replays a v87 save.

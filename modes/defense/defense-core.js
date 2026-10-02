@@ -6,7 +6,6 @@
   "use strict";
 
   const VERSION = 10;
-  const STATE_SAVE_VERSION = 1;
   const CHECKPOINT_SALTS = Object.freeze({
     2: "RIZO-DEFENSE-V64-EMBER-GATE",
     3: "RIZO-DEFENSE-V66-HARDENED-GATE",
@@ -18,7 +17,6 @@
     9: "RIZO-DEFENSE-WORKER-J-CONTINUATION-GUARD",
     10: "RIZO-DEFENSE-MASTER-SUPPORT-CONTINUATION"
   });
-  const STATE_SAVE_SALT = "RIZO-LIFE-V66-VERIFIED-TIMELINE";
 
   const LIMITS = Object.freeze({
     MAX_SUPPORTED_WAVE: 9999,
@@ -34,16 +32,8 @@
     MAX_CHECKPOINT_ENEMIES: 24,
     MAX_CHECKPOINT_PROJECTILES: 32,
     MAX_QUEUE_ENTRIES: 64,
-    MAX_WALLET_EMBERS: 50_000_000,
-    MAX_WALLET_SHARDS: 5_000_000,
-    MAX_INVENTORY_STACK: 100_000,
-    MAX_COLLECTION_COUNT: 100_000,
-    MAX_PLAYER_XP: 1_000_000_000,
-    MAX_META_COUNTER: 100_000_000,
     MAX_MASTERY_WAVES: 50_000,
-    MAX_MASTERY_RUNS: 10_000,
-    MAX_SEASON_XP: 100_000_000,
-    MAX_SEASON_LEVEL: 100_000
+    MAX_MASTERY_RUNS: 10_000
   });
 
   const PHASES = Object.freeze({
@@ -848,142 +838,8 @@
     return Boolean(CHECKPOINT_SALTS[version]) && checkpoint.signature === createSaveSignature(checkpoint, version);
   }
 
-  function stateSignaturePayload(state, savedAt, schemaVersion = STATE_SAVE_VERSION) {
-    const source = state && typeof state === "object" ? state : {};
-    const scores = source.scores && typeof source.scores === "object" ? source.scores : {};
-    const pet = source.pet && typeof source.pet === "object" ? source.pet : {};
-    const farm = source.farm && typeof source.farm === "object" ? source.farm : {};
-    const inventory = source.inventory && typeof source.inventory === "object" ? source.inventory : {};
-    const collection = source.collection && typeof source.collection === "object" && !Array.isArray(source.collection) ? source.collection : {};
-    const defenseMaps = scores.defenseMaps && typeof scores.defenseMaps === "object" && !Array.isArray(scores.defenseMaps) ? scores.defenseMaps : {};
-    const defenseMastery = scores.defenseMastery && typeof scores.defenseMastery === "object" && !Array.isArray(scores.defenseMastery) ? scores.defenseMastery : {};
-    return stableValue({
-      schemaVersion,
-      stateVersion: clampInteger(source.version, 0, 10_000, 0),
-      savedAt: clampInteger(savedAt, 0, Number.MAX_SAFE_INTEGER, 0),
-      player: {
-        keeperId: typeof source.player?.keeperId === "string" ? source.player.keeperId.slice(0, 80) : "",
-        streak: clampInteger(source.player?.streak, 0, LIMITS.MAX_META_COUNTER, 0),
-        totalSessions: clampInteger(source.player?.totalSessions, 0, LIMITS.MAX_META_COUNTER, 0)
-      },
-      wallet: {
-        embers: clampInteger(source.wallet?.embers, 0, LIMITS.MAX_WALLET_EMBERS, 0),
-        shards: clampInteger(source.wallet?.shards, 0, LIMITS.MAX_WALLET_SHARDS, 0)
-      },
-      pet: {
-        id: typeof pet.id === "string" ? pet.id.slice(0, 80) : "",
-        number: clampInteger(pet.number, 0, LIMITS.MAX_META_COUNTER, 0),
-        name: typeof pet.name === "string" ? pet.name.slice(0, 20) : "",
-        stage: typeof pet.stage === "string" ? pet.stage.slice(0, 30) : "",
-        variant: typeof (pet.variant || pet.hiddenVariant) === "string" ? (pet.variant || pet.hiddenVariant).slice(0, 30) : "",
-        form: typeof pet.form === "string" ? pet.form.slice(0, 30) : "",
-        xp: Math.round(clampNumber(pet.xp, 0, LIMITS.MAX_PLAYER_XP, 0)),
-        bond: Math.round(clampNumber(pet.bond, 0, 100, 0) * 100) / 100,
-        skills: stableValue(pet.skills || {}),
-        genes: stableValue(pet.genes || {})
-      },
-      inventory: {
-        accessories: (Array.isArray(inventory.accessories) ? inventory.accessories : []).slice(0, 200),
-        rooms: (Array.isArray(inventory.rooms) ? inventory.rooms : []).slice(0, 200),
-        phoenix: clampInteger(inventory.phoenix, 0, LIMITS.MAX_INVENTORY_STACK, 0),
-        growth: clampInteger(inventory.growth, 0, LIMITS.MAX_INVENTORY_STACK, 0),
-        care: clampInteger(inventory.care, 0, LIMITS.MAX_INVENTORY_STACK, 0)
-      },
-      achievements: (Array.isArray(source.achievements) ? source.achievements : []).slice(0, 500),
-      daily: {
-        date: typeof source.daily?.date === "string" ? source.daily.date.slice(0, 20) : "",
-        type: typeof source.daily?.type === "string" ? source.daily.type.slice(0, 30) : "",
-        progress: clampNumber(source.daily?.progress, 0, LIMITS.MAX_META_COUNTER, 0),
-        claimed: Boolean(source.daily?.claimed),
-        giftClaimed: Boolean(source.daily?.giftClaimed)
-      },
-      season: {
-        xp: clampNumber(source.season?.xp, 0, LIMITS.MAX_SEASON_XP, 0),
-        level: clampInteger(source.season?.level, 1, LIMITS.MAX_SEASON_LEVEL, 1)
-      },
-      expedition: stableValue(source.expedition || {}),
-      treasures: stableValue(source.treasures || {}),
-      collection: Object.fromEntries(Object.entries(collection).slice(0, 200).map(([id, count]) => [id.slice(0, 40), clampInteger(count, 0, LIMITS.MAX_COLLECTION_COUNT, 0)])),
-      arcade: Object.fromEntries(["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze"].map(id => [id, clampNumber(scores[id], 0, LIMITS.MAX_REASONABLE_DAMAGE, 0)])),
-      defense: {
-        best: clampInteger(scores.defense, 0, LIMITS.MAX_SUPPORTED_WAVE, 0),
-        maps: Object.fromEntries(Object.entries(defenseMaps).slice(0, 20).map(([id, wave]) => [id.slice(0, 40), clampInteger(wave, 0, LIMITS.MAX_SUPPORTED_WAVE, 0)])),
-        milestones: (Array.isArray(scores.defenseMilestones) ? scores.defenseMilestones : []).slice(0, 20),
-        perfectMaps: (Array.isArray(scores.defensePerfectMaps) ? scores.defensePerfectMaps : []).slice(0, 20),
-        contracts: (Array.isArray(scores.defenseContracts) ? scores.defenseContracts : []).slice(0, 60).map(contract => ({
-          id: typeof contract?.id === "string" ? contract.id.slice(0, 80) : "",
-          date: typeof contract?.date === "string" ? contract.date.slice(0, 20) : "",
-          mapId: typeof contract?.mapId === "string" ? contract.mapId.slice(0, 40) : "",
-          targetWave: clampInteger(contract?.targetWave, 0, LIMITS.MAX_SUPPORTED_WAVE, 0),
-          bestWave: clampInteger(contract?.bestWave, 0, LIMITS.MAX_SUPPORTED_WAVE, 0),
-          completed: Boolean(contract?.completed),
-          perfect: Boolean(contract?.perfect)
-        })),
-        history: (Array.isArray(scores.defenseHistory) ? scores.defenseHistory : []).slice(0, 12).map(run => ({
-          id: typeof run?.id === "string" ? run.id.slice(0, 80) : "",
-          mapId: typeof run?.mapId === "string" ? run.mapId.slice(0, 40) : "",
-          clearedWave: clampInteger(run?.clearedWave ?? run?.wave, 0, LIMITS.MAX_SUPPORTED_WAVE, 0),
-          reachedWave: clampInteger(run?.reachedWave ?? run?.currentWave ?? run?.wave, 0, LIMITS.MAX_SUPPORTED_WAVE, 0),
-          kills: clampInteger(run?.kills, 0, LIMITS.MAX_REASONABLE_KILLS, 0),
-          bosses: clampInteger(run?.bosses, 0, LIMITS.MAX_REASONABLE_BOSSES, 0),
-          perfectWaveCount: clampInteger(run?.perfectWaveCount, 0, LIMITS.MAX_REASONABLE_PERFECT_WAVES, 0)
-        })),
-        mastery: Object.fromEntries(Object.entries(defenseMastery).slice(0, 100).map(([id, row]) => [id.slice(0, 80), {
-          runs: clampInteger(row?.runs, 0, LIMITS.MAX_MASTERY_RUNS, 0),
-          waves: clampInteger(row?.waves, 0, LIMITS.MAX_MASTERY_WAVES, 0),
-          bestWave: clampInteger(row?.bestWave, 0, LIMITS.MAX_SUPPORTED_WAVE, 0),
-          pops: clampInteger(row?.pops, 0, LIMITS.MAX_REASONABLE_KILLS, 0),
-          damage: Math.round(clampNumber(row?.damage, 0, LIMITS.MAX_REASONABLE_DAMAGE, 0))
-        }]))
-      },
-      farm: {
-        activeRoom: clampInteger(farm.activeRoom, 0, 100, 0),
-        unlockedRooms: (Array.isArray(farm.unlockedRooms) ? farm.unlockedRooms : []).slice(0, 100),
-        totalAdoptions: clampInteger(farm.totalAdoptions, 0, LIMITS.MAX_META_COUNTER, 0),
-        totalReleased: clampInteger(farm.totalReleased, 0, LIMITS.MAX_META_COUNTER, 0),
-        materials: clampInteger(farm.materials, 0, LIMITS.MAX_INVENTORY_STACK, 0),
-        roster: (Array.isArray(farm.roster) ? farm.roster : []).slice(0, 100).map(row => ({
-          id: typeof row?.id === "string" ? row.id.slice(0, 80) : "",
-          number: clampInteger(row?.number, 0, LIMITS.MAX_META_COUNTER, 0),
-          stage: typeof row?.stage === "string" ? row.stage.slice(0, 30) : "",
-          variant: typeof (row?.variant || row?.hiddenVariant) === "string" ? (row.variant || row.hiddenVariant).slice(0, 30) : "",
-          xp: Math.round(clampNumber(row?.xp, 0, LIMITS.MAX_PLAYER_XP, 0)),
-          skills: stableValue(row?.skills || {})
-        }))
-      },
-      meta: {
-        totalGames: clampInteger(source.meta?.totalGames, 0, LIMITS.MAX_META_COUNTER, 0),
-        totalHatched: clampInteger(source.meta?.totalHatched, 0, LIMITS.MAX_META_COUNTER, 0),
-        totalTaps: clampInteger(source.meta?.totalTaps, 0, LIMITS.MAX_META_COUNTER, 0),
-        totalCareActions: clampInteger(source.meta?.totalCareActions, 0, LIMITS.MAX_META_COUNTER, 0),
-        totalWalks: clampInteger(source.meta?.totalWalks, 0, LIMITS.MAX_META_COUNTER, 0),
-        deaths: clampInteger(source.meta?.deaths, 0, LIMITS.MAX_META_COUNTER, 0),
-        recoveries: clampInteger(source.meta?.recoveries, 0, LIMITS.MAX_META_COUNTER, 0),
-        capsules: clampInteger(source.meta?.capsules, 0, LIMITS.MAX_META_COUNTER, 0),
-        rebirths: clampInteger(source.meta?.rebirths, 0, LIMITS.MAX_META_COUNTER, 0),
-        bondEggs: clampInteger(source.meta?.bondEggs, 0, LIMITS.MAX_META_COUNTER, 0),
-        pity: clampInteger(source.meta?.pity, 0, LIMITS.MAX_META_COUNTER, 0),
-        shadowFinds: clampInteger(source.meta?.shadowFinds, 0, LIMITS.MAX_META_COUNTER, 0)
-      },
-      loreUnlocked: (Array.isArray(source.loreUnlocked) ? source.loreUnlocked : []).slice(0, 200)
-    });
-  }
-
-  function createStateSignature(state, savedAt, schemaVersion = STATE_SAVE_VERSION) {
-    const version = clampInteger(schemaVersion, 1, STATE_SAVE_VERSION, STATE_SAVE_VERSION);
-    return `s${version}.${fnv1a(`${STATE_SAVE_SALT}|${JSON.stringify(stateSignaturePayload(state, savedAt, version))}`)}`;
-  }
-
-  function verifyStateSignature(envelope) {
-    if (!envelope || typeof envelope !== "object" || typeof envelope.signature !== "string") return false;
-    const version = clampInteger(envelope.saveVersion, 1, STATE_SAVE_VERSION, 0);
-    if (!version || !envelope.state || typeof envelope.state !== "object") return false;
-    return envelope.signature === createStateSignature(envelope.state, envelope.savedAt, version);
-  }
-
   return {
     VERSION,
-    STATE_SAVE_VERSION,
     LIMITS,
     PHASES,
     PHASE_TRANSITIONS,
@@ -1025,8 +881,6 @@
     createWavePlan,
     flattenPackets,
     createSaveSignature,
-    verifySaveSignature,
-    createStateSignature,
-    verifyStateSignature
+    verifySaveSignature
   };
 });

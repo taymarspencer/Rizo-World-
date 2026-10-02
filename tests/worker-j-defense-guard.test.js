@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const core = require('../defense-core-v79.js');
+const core = require('../modes/defense/defense-core.js');
 
 const tests = [];
 const test = (name, fn) => tests.push({name, fn});
@@ -155,27 +155,6 @@ test('gameplay density remains invariant while presentation budgets degrade safe
   assert.ok(lowFast.presentationFps <= normal.presentationFps);
 });
 
-test('whole-save signature protects Defense history and mastery progression', () => {
-  const state = {
-    version:18, player:{keeperId:'keeper-qa',streak:0,totalSessions:1}, wallet:{embers:10,shards:0},
-    pet:{id:'pet-main',number:1,name:'RIZO',stage:'kid',variant:'classic',xp:10,bond:10,skills:{},genes:{}},
-    inventory:{accessories:[],rooms:[],phoenix:0,growth:0,care:0}, collection:{classic:1}, achievements:[],
-    daily:{date:'2026-09-12',type:'tap',progress:0,claimed:false,giftClaimed:false}, season:{xp:0,level:1},
-    expedition:{}, treasures:{}, farm:{activeRoom:0,unlockedRooms:[0],totalAdoptions:0,totalReleased:0,materials:0,roster:[]},
-    meta:{totalGames:0,totalHatched:1,totalTaps:0,totalCareActions:0,totalWalks:0,deaths:0,recoveries:0,capsules:0,rebirths:0,bondEggs:0,pity:0,shadowFinds:0}, loreUnlocked:[],
-    scores:{defense:10,defenseMaps:{grove:10},defenseMilestones:[],defensePerfectMaps:[],defenseContracts:[],
-      defenseHistory:[{id:'run-1',mapId:'grove',clearedWave:10,reachedWave:10,kills:40,bosses:1,perfectWaveCount:8}],
-      defenseMastery:{'pet-main':{runs:1,waves:10,bestWave:10,pops:40,damage:5000}}}
-  };
-  const savedAt = 1_726_154_000_000;
-  const envelope = {saveVersion:core.STATE_SAVE_VERSION,savedAt,state};
-  envelope.signature = core.createStateSignature(state,savedAt,envelope.saveVersion);
-  assert.equal(core.verifyStateSignature(envelope), true);
-  const historyTamper = clone(envelope); historyTamper.state.scores.defenseHistory[0].clearedWave = 20;
-  assert.equal(core.verifyStateSignature(historyTamper), false);
-  const masteryTamper = clone(envelope); masteryTamper.state.scores.defenseMastery['pet-main'].waves = 999;
-  assert.equal(core.verifyStateSignature(masteryTamper), false);
-});
 
 let failures = 0;
 for (const {name, fn} of tests) {

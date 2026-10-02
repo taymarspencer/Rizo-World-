@@ -1,0 +1,37 @@
+{
+  "note": "Whole-save v1 signatures produced by the pre-v88 implementation (defense-core-v79.js createStateSignature, schema 1). The frozen copy in core/rizo-save-core.js must reproduce every value.",
+  "states": [
+    "fixture",
+    "empty",
+    "fixture+wallet.embers=\"9e99\"",
+    "fixture+scores.defense=12000,power=1e13"
+  ],
+  "savedAts": [
+    0,
+    123456789,
+    1767225600000
+  ],
+  "signatures": [
+    [
+      "s1.1gz1v5r",
+      "s1.pq4hza",
+      "s1.a0wx8z"
+    ],
+    [
+      "s1.40d0rf",
+      "s1.q4529g",
+      "s1.1iyuwt3"
+    ],
+    [
+      "s1.1n9m6zf",
+      "s1.k96cl8",
+      "s1.1d269n3"
+    ],
+    [
+      "s1.gq33li",
+      "s1.uggf5b",
+      "s1.1csna5u"
+    ]
+  ],
+  "envelope42": "s1.1wyqvgp"
+}
