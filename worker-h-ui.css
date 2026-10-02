@@ -299,3 +299,156 @@
   .defense-ability-stack{flex-basis:48px;width:48px;height:44px}
   .defense-ability-stack .defense-ability-rizo{width:48px;height:48px}
 }
+
+/* Final player-experience pass — presentation only. The opening choice should read
+   before secondary status, and the first four deploy tools must identify themselves
+   without turning the phone UI into a wall of copy. */
+@media (max-width:599px) and (orientation:portrait){
+  /* Make portrait breathing room feel framed without changing Worker G's square field. */
+  .defense-stage-frame{
+    background:
+      radial-gradient(circle at 50% 50%,rgb(255 255 255/.035),transparent 58%),
+      linear-gradient(180deg,#0b0910,#070609 38%,#070609 62%,#0b0910);
+  }
+
+  /* The opening action is enough; NEXT becomes useful after the first placement. */
+  .defense-shell:not(.has-towers) .defense-wave-preview{display:none}
+  .defense-shell.has-towers .defense-wave-preview{
+    display:flex;align-items:center;gap:.28rem;min-height:27px;max-height:30px;overflow:hidden;
+    padding:.18rem .34rem;
+  }
+  .defense-shell.has-towers .defense-wave-preview em,
+  .defense-shell.has-towers .defense-wave-preview>span{display:none}
+  .defense-shell:has(.defense-boss-overlay:not([hidden])) .defense-wave-preview{visibility:hidden}
+
+  /* Four opening choices fit in one glance. Extra/loaner Rizos can still scroll. */
+  .defense-roster{
+    grid-auto-columns:calc((100% - .66rem)/4);
+    gap:.22rem;padding:.1rem .04rem .2rem;
+    scroll-snap-type:x proximity;
+  }
+  .defense-roster-pet{
+    height:72px;grid-template-columns:1fr;grid-template-rows:37px minmax(0,1fr);
+    align-items:center;justify-items:center;gap:.05rem;padding:.14rem .12rem .12rem;
+    border-radius:10px;scroll-snap-align:start;overflow:hidden;
+  }
+  .defense-roster-pet .defense-roster-frame{border-radius:8px}
+  .defense-roster-rizo,
+  .defense-roster-structure .defense-structure-thumb{
+    grid-column:1;grid-row:1;width:38px;height:40px;align-self:center;justify-self:center;
+  }
+  .defense-roster-rizo{height:45px}
+  .defense-roster-info{
+    grid-column:1;grid-row:2;width:100%;min-width:0;display:grid;place-items:center;gap:1px;
+    text-align:center;align-self:stretch;padding:0;
+  }
+  .defense-roster-info b{
+    width:100%;overflow:visible;text-overflow:clip;white-space:normal;word-break:normal;
+    font-size:.62rem;line-height:.92;letter-spacing:-.015em;
+  }
+  .defense-roster-info small{
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-size:.53rem;line-height:1;font-weight:900;letter-spacing:.025em;
+  }
+  .defense-roster-tag{
+    position:absolute;left:3px;top:3px;z-index:4;max-width:40px;padding:2px 3px;
+    border:1px solid #17151b;border-radius:6px;background:#fff2cf;color:#17151b;
+    font-size:.44rem;line-height:1;letter-spacing:.045em;
+  }
+  .defense-roster-kind,.defense-roster-mastery{display:none}
+  .defense-roster-badge{
+    right:3px;top:3px;min-width:23px;height:20px;padding:0 3px;scale:1;
+    font-size:.52rem;line-height:1;
+  }
+  .defense-roster-copies{left:3px;bottom:3px;scale:.86;transform-origin:bottom left}
+
+  /* Captain wins through framing, not by consuming another row of screen. */
+  .defense-roster-pet.roster-active{
+    background:linear-gradient(180deg,color-mix(in srgb,var(--roster-color) 24%,#fff7df),#2a2430);
+    box-shadow:0 4px 0 #17151b,inset 0 0 0 2px color-mix(in srgb,var(--roster-color) 60%,#fff);
+  }
+  .defense-roster-pet.roster-active .defense-roster-rizo{scale:1.08;transform-origin:50% 70%}
+  .defense-roster-pet.roster-active .defense-roster-tag{background:var(--roster-color);color:#17151b}
+
+  /* Universal tools teach category first: combat / economy / support. */
+  .defense-roster-universal .defense-roster-info b{font-size:.61rem;line-height:.92;padding:0}
+  .defense-roster-universal .defense-roster-info small{color:#17151b;font-weight:950}
+  .defense-roster-structure.structure-factory .defense-roster-info small{color:#ffc36e}
+  .defense-roster-structure.structure-beacon .defense-roster-info small{color:#ffe681}
+  .defense-roster-structure.structure-factory{background:linear-gradient(180deg,#553526,#2b2428)}
+  .defense-roster-structure.structure-beacon{background:linear-gradient(180deg,#504527,#2b2724)}
+
+  /* Keep YOUR CALL compact, but never make the actual decision microscopic. */
+  .defense-decision-rail{padding:.3rem .36rem;gap:.28rem}
+  .defense-decision-rail b{font-size:.68rem;line-height:1.02}
+  .defense-decision-rail>div{gap:.22rem}
+  .defense-decision-rail button{
+    min-height:36px;min-width:54px;max-width:74px;padding:.24rem .3rem;font-size:.55rem;
+  }
+
+  /* Map mechanics communicate with the authored marker first; details stay in
+     placement confirmation / inspection instead of floating paragraphs on the road. */
+  .defense-map-mechanic>span{
+    min-width:0;max-width:138px;padding:.25rem .34rem;border-color:rgb(255 255 255/.24);
+    background:rgb(18 15 23/.93);box-shadow:0 3px 0 rgb(10 8 13/.42),0 0 0 1px rgb(0 0 0/.22);
+  }
+  .defense-map-mechanic>span strong{font-size:.58rem;line-height:1.05;letter-spacing:.045em}
+  .defense-map-mechanic>span em{display:none}
+
+  /* Economy feedback should be legible once, then leave. */
+  .defense-factory-payout{font-size:10px;padding:4px 6px;gap:3px;z-index:9}
+  .defense-factory-payout>i{width:11px;height:10px}
+
+  /* During the short boss entrance, secondary decision chrome knows to recede. */
+  .defense-shell.cinematic-boss .defense-field-feed,
+  .defense-shell.cinematic-boss .defense-deploy-dock{opacity:.62;filter:saturate(.72)}
+}
+
+/* The 320px/short-phone composition keeps names readable by giving up art size,
+   not the words that identify the tool. */
+@media (max-width:359px), (max-height:650px) and (orientation:portrait){
+  .defense-roster{grid-auto-columns:calc((100% - .6rem)/4);gap:.2rem}
+  .defense-roster-pet{height:66px;grid-template-rows:33px minmax(0,1fr);padding:.12rem .1rem .1rem}
+  .defense-roster-rizo,
+  .defense-roster-structure .defense-structure-thumb{width:34px;height:36px}
+  .defense-roster-rizo{height:40px}
+  .defense-roster-info b,.defense-roster-universal .defense-roster-info b{font-size:.58rem;line-height:.9}
+  .defense-roster-info small{font-size:.49rem}
+  .defense-roster-tag{font-size:.4rem;max-width:36px}
+  .defense-roster-pet.roster-active .defense-roster-tag{font-size:0;max-width:none}
+  .defense-roster-pet.roster-active .defense-roster-tag::after{content:"CAPT.";font-size:.4rem;letter-spacing:.02em}
+  .defense-roster-badge{min-width:21px;height:18px;font-size:.48rem}
+  .defense-decision-rail b{font-size:.64rem}
+  .defense-decision-rail button{min-height:34px;min-width:51px;max-width:69px;font-size:.51rem}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .defense-roster-pet.roster-active .defense-roster-rizo{scale:1}
+}
+
+/* Restraint: on phones the decision rail + selected card + range preview already
+   teach placement. The old coach repeated the same instruction and physically
+   competed with YOUR CALL at 320px. */
+@media (max-width:599px) and (orientation:portrait){
+  .defense-placement-coach{display:none}
+}
+@media (max-width:599px) and (orientation:portrait){
+  .defense-decision-rail em{display:none}
+}
+@media (max-width:599px) and (orientation:portrait){
+  .defense-field-feed{min-height:40px}
+  .defense-decision-rail button{min-height:40px}
+}
+@media (max-width:359px), (max-height:650px) and (orientation:portrait){
+  .defense-field-feed{min-height:38px}
+  .defense-decision-rail button{min-height:38px}
+}
+
+/* Upgrade/inspection wallet reads as two deliberate fields, not one jammed token. */
+@media (max-width:599px) and (orientation:portrait){
+  .v80-tower-shop .defense-panel-wallet{column-gap:.5rem;align-items:center}
+  .v80-tower-shop .defense-panel-wallet small{letter-spacing:.055em}
+}
+@media (max-width:599px) and (orientation:portrait){
+  .v80-tower-shop .defense-panel-wallet{grid-template-columns:auto auto;justify-content:center}
+}
