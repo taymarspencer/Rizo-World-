@@ -1,5 +1,6 @@
+import re
 from playwright.sync_api import sync_playwright
-from browser_harness import build_inline_app
+from browser_harness import build_inline_app, ROOT
 
 results=[]
 def record(name, passed, detail=''):
@@ -16,7 +17,9 @@ with sync_playwright() as p:
     page.wait_for_timeout(250)
     status=page.evaluate('RizoBoot.status()')
     shell=page.evaluate('''()=>{const n=document.getElementById('rizoBootShell');return {exists:!!n,hidden:n?.hidden,recovery:n?.classList.contains('is-recovery')}}''')
-    record('healthy runtime reports exact v87 visual build', status['ready'] and status['expected']=='v87-first-ten-visual-nuance', str(status))
+    # The build marker changes every release; the guarantee is that page and runtime agree.
+    page_build=re.search(r'<meta name="rizo-build" content="([^"]+)"', (ROOT/'index.html').read_text()).group(1)
+    record('healthy runtime reports the exact page build', status['ready'] and status['expected']==page_build, str(status))
     record('healthy boot keeps recovery shell dormant instead of deleting it', shell['exists'] and shell['hidden'] and not shell['recovery'], str(shell))
     record('healthy boot has no page errors', not errors, '; '.join(errors[:3]))
 

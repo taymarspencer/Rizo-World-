@@ -9,7 +9,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Rizo.game" name="apple-mobile-web-app-title"/>
-<meta name="rizo-build" content="v87-first-ten-visual-nuance"/>
+<meta name="rizo-build" content="v88-p1-contracts"/>
 <style id="rizo-boot-critical">
 /* This shell is intentionally inline and dependency-free. If every external
    stylesheet/script fails, the player still gets a dark, actionable surface. */
@@ -35,7 +35,7 @@ html,body{background:#07090d;color:#fff}
 <script id="rizo-boot-inline">
 (() => {
   "use strict";
-  const expected = "v87-first-ten-visual-nuance";
+  const expected = "v88-p1-contracts";
   const problems = [];
   let ready = false;
   let recoveryVisible = false;
@@ -513,6 +513,14 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 @keyframes v22CameraLand{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(3px) scale(.995)}70%{transform:translateY(-2px) scale(1.006)}}@keyframes v22CameraReward{0%,100%{transform:scale(1)}35%{transform:scale(1.018)}65%{transform:scale(1.008)}}
 @media(prefers-reduced-motion:reduce){.life-particle,.weather-fx.is-snowy:before,.wearable.material-cloth .wearable-front,.wearable.material-glass .wearable-front{animation:none!important}.habitat-scene{transform:none!important}}
 
+/* Save protection: shown when this tab must not save (another tab holds newer
+   progress, or the save belongs to a newer build). Sits under the boot shell. */
+.rizo-save-blocked{position:fixed;inset:0;z-index:2147482000;display:grid;place-items:center;padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));background:rgba(7,9,13,.94)}
+.rizo-save-blocked-card{width:min(100%,430px);border:2px solid #24212a;border-radius:18px;background:#17141c;padding:18px;box-shadow:0 7px 0 #09080b;color:#fff}
+.rizo-save-blocked-card small{font-weight:900;letter-spacing:.11em;color:#68cfff}
+.rizo-save-blocked-card h2{font-size:21px;line-height:1.08;margin:8px 0 9px}
+.rizo-save-blocked-card p{font-size:14px;line-height:1.45;color:#d8d1df;margin:0 0 15px}
+.rizo-save-blocked-card button{width:100%;min-height:48px;border:2px solid #17151b;border-radius:12px;background:#73e890;color:#17151b;font-weight:900;letter-spacing:.06em}
 </style>
 <title>RIZO LIFE — A RIZO APPAREL GAME</title>
 <link href="./assets/icon-192.png" rel="apple-touch-icon"/>
@@ -861,6 +869,9 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
   <script src="./rizo-config.js"></script>
   <script src="./install-manager.js"></script>
   <script src="./monetization.js"></script>
+  <script src="./core/rizo-save-core.js"></script>
+  <script src="./core/rizo-training.js"></script>
+  <script src="./core/rizo-modes.js"></script>
   <script src="./defense-core-v79.js"></script>
   <script src="./defense-canvas-v79.js"></script>
   <script src="./game-v79-defense.js"></script>

@@ -310,11 +310,12 @@ with sync_playwright() as p:
     # new mini.somethingUntil / somethingAt, this fails so they classify it as
     # either a credited run deadline or an explicit exemption.
     EXPECTED_DEADLINES = [
-        'breakerBoostUntil', 'breakerPierceUntil', 'breakerResetAt', 'forageRushUntil',
+        'breakerBoostUntil', 'breakerPierceUntil', 'breakerResetAt', 'forageFeedbackUntil',
+        'forageNextAt', 'forageRushUntil',
         'glideInvulnerableUntil', 'glideSpawnAt', 'glideThermalUntil', 'glideWindAt',
         'invulnerableUntil', 'mazeHuntUntil', 'mazeHunterWakeAt', 'mazeInvulnerableUntil',
         'powerCallAt', 'powerGuardAt', 'powerGuardUntil', 'powerTapLockUntil',
-        'sparkExpiresAt', 'sparkFeverUntil',
+        'rushLandingUntil', 'sparkExpiresAt', 'sparkFeverUntil',
     ]
     page.evaluate(SETUP_STATE)
     page.evaluate('RizoRuntimeQA.startMiniGame("breaker")')
@@ -322,7 +323,7 @@ with sync_playwright() as p:
     keys = page.evaluate('RizoRuntimeQA.arcadeDeadlineKeysForQA()')
     record('every absolute deadline is accounted for by the credit pass',
            keys == EXPECTED_DEADLINES,
-           f"new/unclassified: {sorted(set(keys) ^ set(EXPECTED_DEADLINES))}" if keys != EXPECTED_DEADLINES else '18 keys')
+           f"new/unclassified: {sorted(set(keys) ^ set(EXPECTED_DEADLINES))}" if keys != EXPECTED_DEADLINES else f'{len(EXPECTED_DEADLINES)} keys')
     page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
     page.wait_for_timeout(40)
 

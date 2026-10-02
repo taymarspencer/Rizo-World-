@@ -58,7 +58,8 @@ async function dispatch(url,{mode='same-origin'}={}){
     networkMode='offline';r=await dispatch(url,{mode:'navigate'});assert((await r.text()).includes('NETWORK_HTML'));
   });
   await test('worker has versioned release cache and optional best-effort install',async()=>{
-    assert(code.includes('rizo-game-v87-first-ten'));
+    const build=/<meta name="rizo-build" content="([^"]+)"/.exec(fs.readFileSync(path.join(ROOT,'index.html'),'utf8'))[1];
+    assert(code.includes(`const CACHE = "rizo-game-${build}"`),'service-worker cache must carry the page build marker');
     assert(code.includes('Promise.allSettled'));
     assert(code.includes('cache.addAll(REQUIRED_SHELL)'));
     assert(code.includes('./arcade-v84-depth.css'));

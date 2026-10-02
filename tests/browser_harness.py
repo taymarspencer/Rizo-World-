@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # stopped covering each new specialist layer, and a bare inline pattern here is a
 # magnet for merge damage when several branches add a stylesheet link at once.
 STYLESHEET_LINK_RE = r'<link href="\./([A-Za-z0-9_.-]+\.css)" rel="stylesheet"'
+SCRIPT_SRC_RE = r'<script src="\./([A-Za-z0-9_./-]+\.js)"></script>'
 
 def _embed_asset_refs(text):
     cache={}
@@ -42,7 +43,9 @@ def build_inline_app(qa=False, embed_assets=False):
     html=re.sub(r'<link href="\./manifest\.webmanifest" rel="manifest"\s*/?>','',html)
     storage='''<script>const __testStore={};const __testStorage={getItem:k=>Object.prototype.hasOwnProperty.call(__testStore,k)?__testStore[k]:null,setItem:(k,v)=>{__testStore[k]=String(v)},removeItem:k=>{delete __testStore[k]},clear:()=>{for(const k of Object.keys(__testStore))delete __testStore[k]},key:i=>Object.keys(__testStore)[i]||null,get length(){return Object.keys(__testStore).length}};</script>'''
     html=html.replace('</head>',storage+'</head>')
-    for name in ['rizo-config.js','install-manager.js','monetization.js','defense-core-v79.js','defense-canvas-v79.js','game-v79-defense.js']:
+    # Like stylesheets, scripts come from index.html itself so a new runtime file
+    # (core/, modes/, training/) is exercised by every browser suite automatically.
+    for name in re.findall(SCRIPT_SRC_RE, html):
         js=(ROOT/name).read_text().replace('localStorage','__testStorage')
         if embed_assets:
             js=_embed_asset_refs(js)

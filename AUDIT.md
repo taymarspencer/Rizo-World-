@@ -464,3 +464,25 @@ MATURE pet "MOSSY" with skills, a crown, 140 games, Defense best 23, and 2 Ember
 | Collection cards (M1) | Species catalogue art stays outside the one-renderer rule for now. Revisit if it causes visual drift. |
 | More Rizo variants | Wanted later. Out of scope for Phases 1–3. |
 
+
+---
+
+## 9. Resolution log
+
+| Finding | Status | Where |
+|---|---|---|
+| C1 unreadable save overwritten | **Fixed, Phase 1.** Saves move to `rizo-save-v2`. v1 keys are never written again, and any unreadable v2 copy is quarantined before an overwrite. | `loadState`, `quarantineSaveTexts` |
+| C2 missing primary ignores backup | **Fixed, Phase 1.** Every copy is tried newest-first: v2, v2 backup, v1, v1 backup, raw v1. | `loadState` |
+| C3 tabs overwrite each other | **Fixed, Phase 1.** `writeId` check before every write plus a `storage` listener. A stale tab stops saving and says why. | `saveState`, `blockSaving` |
+| C4 Defense runs expire | **Fixed, Phase 1.** The 7-day expiry is removed. Banking an abandoned run's waves belongs to the Defense slice (Phase 2). | `normalizeDefenseCheckpoint` |
+| H1 tamper reset | **Resolved per decision.** The reset stays; the original bytes survive (v1 untouched, v2 quarantined). | §8 |
+| H2 House swap decay | **Fixed, Phase 1.** The clock restarts when a resident comes back. | `swapFarmPet` |
+| H3–H5 reward normalisation | **Contract in place, Phase 1** (`RizoTraining.convert`). Games move onto it in Phase 3. | `core/rizo-training.js` |
+| H6 Defense inside the arcade | Phase 2. The contract it moves onto is in place. | `core/rizo-modes.js` |
+| H7 save depends on Defense | **Fixed for the save, Phase 1.** Envelope, signatures and hub limits live in `core/rizo-save-core.js`. The hub still loads Defense code until Phase 2. | `core/rizo-save-core.js` |
+| M2 legacy key never read | **Fixed, Phase 1.** It is a migration source. | `loadState` |
+| M3 import without backup | **Fixed, Phase 1.** The replaced timeline becomes the Keeper Recovery device backup. | `importSave` |
+| M4 silent save failures | **Fixed, Phase 1.** Toast once, plus a warning record. | `notifySaveFailure` |
+| M11 service-worker shell | **Fixed, Phase 1.** All 13 stylesheets and every script are required/network-first. `tests/release-integrity.test.js` enforces the marker and the shell. | `sw.js` |
+| M13 stale tests | **Fixed, Phase 1.** Deadline classifier updated. The arcade score cap is back to 1e9 via `CORE_LIMITS.MAX_ARCADE_SCORE`. Build-marker literals replaced by consistency checks. The harness derives scripts from `index.html`. The `/usr/bin/chromium` path is unchanged. | `tests/` |
+| *New:* Settings → Reset did nothing | **Fixed, Phase 1.** The unload handler wrote the old save back after the keys were removed (reproduced on v87). Reset now blocks saving first. | `resetSave` |

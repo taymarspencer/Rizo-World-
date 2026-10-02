@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v87-first-ten-visual-nuance";
+  const RIZO_RUNTIME_BUILD = "v88-p1-contracts";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -20,19 +20,30 @@
     without providing a migration. Players' pets live in localStorage.
   */
 
+  const SaveCore = globalThis.RizoSaveCore;
+  if (!SaveCore) throw new Error("RizoSaveCore failed to load before the game core.");
+  const CORE_LIMITS = SaveCore.LIMITS;
+  // Save keys. The v2 envelope lives under SAVE_V2_KEY. The v1 keys (SAVE_KEY,
+  // SAVE_BACKUP_KEY, LEGACY_KEY) are read as migration sources and are never
+  // written again, so every pre-v88 save survives untouched as a fallback and
+  // as the rollback point for an older build. SAVE_KEY is still the namespace
+  // for older side keys (checkpoints, warnings, pre-recovery).
   const SAVE_KEY = "rizo-life-overhaul-v2";
   const LEGACY_KEY = "rizo-life-save-v1";
+  const SAVE_BACKUP_KEY = `${SAVE_KEY}:verified-backup-v1`;
+  const SAVE_V2_KEY = "rizo-save-v2";
+  const SAVE_V2_BACKUP_KEY = "rizo-save-v2:backup";
+  const SAVE_QUARANTINE_PREFIX = "rizo-save-quarantine:";
+  const SAVE_QUARANTINE_LIMIT = 5;
   const DefenseCore = globalThis.RizoDefenseCore;
   if (!DefenseCore) throw new Error("RizoDefenseCore failed to load before the game core.");
   const { PHASES: DEFENSE_PHASES, BUDGETS: DEFENSE_BUDGETS, LIMITS: DEFENSE_LIMITS } = DefenseCore;
-  const SAVE_BACKUP_KEY = `${SAVE_KEY}:verified-backup-v1`;
   const SAVE_VALIDATION_WARNING_KEY = `${SAVE_KEY}:save-validation-warning`;
-  const SAVE_ENVELOPE_VERSION = DefenseCore.STATE_SAVE_VERSION;
+  const SAVE_ENVELOPE_VERSION = SaveCore.LATEST_SAVE_VERSION;
   const DEFENSE_CHECKPOINT_KEY = `${SAVE_KEY}:defense-checkpoint-v68`;
   const DEFENSE_LEGACY_CHECKPOINT_KEYS = [`${SAVE_KEY}:defense-checkpoint-v67`, `${SAVE_KEY}:defense-checkpoint-v66`, `${SAVE_KEY}:defense-checkpoint-v64`, `${SAVE_KEY}:defense-checkpoint-v42`];
   const DEFENSE_VALIDATION_WARNING_KEY = `${SAVE_KEY}:defense-validation-warning`;
   const DEFENSE_CHECKPOINT_VERSION = DefenseCore.VERSION;
-  const DEFENSE_CHECKPOINT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
   const BASE_DEFENSE_STARTING_CASH = DefenseCore.ECONOMY.baseStartingCash;
   const VERSION = 19;
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -595,6 +606,11 @@
   let refuseUntil = 0;
   let overloadCooldownUntil = 0;
   let saveTimer = null;
+  let modeSlices = {};
+  let saveWriteId = "";
+  let saveBlocked = null;
+  let saveFailureNotified = false;
+  let pendingRecoveryModes = {};
   let mini = { active: false, mode: null, score: 0, hits: 0, endAt: 0, timer: null, mover: null, currentGood: true, frame: null, intervals: [], entities: [] };
   let defenseResizeFrame = null;
   let runtimeViewportFrame = null;
@@ -973,7 +989,7 @@
     merged.inventory.accessories = Array.isArray(sourceInventory.accessories) ? [...new Set(["none", ...sourceInventory.accessories.filter(id => ACCESSORIES.some(item => item.id === id))])] : ["none"];
     merged.inventory.rooms = Array.isArray(sourceInventory.rooms) ? [...new Set(["rain", ...sourceInventory.rooms.filter(id => ROOMS.some(item => item.id === id))])] : ["rain"];
     for (const key of ["phoenix", "growth", "care"]) merged.inventory[key] = DefenseCore.clampInteger(merged.inventory[key], 0, DEFENSE_LIMITS.MAX_INVENTORY_STACK, 0);
-    for (const key of ["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze"]) merged.scores[key] = DefenseCore.clampNumber(merged.scores[key], 0, DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE, 0);
+    for (const key of ["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze"]) merged.scores[key] = SaveCore.clampNumber(merged.scores[key], 0, CORE_LIMITS.MAX_ARCADE_SCORE, 0);
     merged.scores.defense = DefenseCore.clampInteger(merged.scores.defense, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, 0);
     merged.scores.defenseMilestones = Array.isArray(merged.scores.defenseMilestones) ? [...new Set(merged.scores.defenseMilestones.map(Number).filter(value => [10,25,50,100].includes(value)))].sort((a,b)=>a-b) : [];
     merged.scores.defenseMaps = merged.scores.defenseMaps && typeof merged.scores.defenseMaps === "object" && !Array.isArray(merged.scores.defenseMaps)
@@ -1171,9 +1187,8 @@
   // this detached wrapper makes that contract explicit even if migrations grow.
   function normalizeStateDetached(raw){const current=state;try{return normalizeState(raw);}finally{state=current;}}
   function recordSaveValidationWarning(kind,details={}){try{localStorage.setItem(SAVE_VALIDATION_WARNING_KEY,JSON.stringify({at:now(),kind:String(kind||"sanitized").slice(0,60),details}));}catch(error){}}
-  function buildStateEnvelope(source=state,savedAt=now()){
-    const envelope={app:"RIZO LIFE",saveVersion:SAVE_ENVELOPE_VERSION,stateVersion:VERSION,savedAt,state:source};
-    envelope.signature=DefenseCore.createStateSignature(source,savedAt,SAVE_ENVELOPE_VERSION);return envelope;
+  function buildStateEnvelope(source=state,savedAt=now(),writeId=""){
+    return SaveCore.createEnvelope({state:source,modes:source===state?modeSlices:{},savedAt,writeId,stateVersion:VERSION});
   }
   function hardenUnverifiedState(source){
     const normalized=normalizeStateDetached(source),fresh=defaultState();
@@ -1196,38 +1211,126 @@
     for(const pet of actualPets){const id=VARIANTS.some(variant=>variant.id===(pet.variant||pet.hiddenVariant))?(pet.variant||pet.hiddenVariant):"classic";collection[id]=(collection[id]||0)+1;}
     normalized.collection=collection;
     normalized.meta.totalHatched=Math.max(0,actualPets.length-1);
-    normalized.meta.nextPetNumber=Math.max(2,...actualPets.map(pet=>DefenseCore.clampInteger(pet.number,1,DEFENSE_LIMITS.MAX_META_COUNTER,1)+1));
+    normalized.meta.nextPetNumber=Math.max(2,...actualPets.map(pet=>SaveCore.clampInteger(pet.number,1,CORE_LIMITS.MAX_META_COUNTER,1)+1));
     return normalized;
   }
   function decodeStatePayload(parsed,{allowLegacy=true}={}){
-    const payload=parsed&&typeof parsed==="object"?parsed:null;if(!payload)return{state:defaultState(),status:"invalid"};
+    const payload=parsed&&typeof parsed==="object"?parsed:null;if(!payload)return{state:defaultState(),modes:{},status:"invalid"};
     if(payload.saveVersion&&payload.state&&typeof payload.state==="object"){
-      const valid=DefenseCore.verifyStateSignature(payload);return{state:valid?normalizeStateDetached(payload.state):hardenUnverifiedState(payload.state),status:valid?"verified":"sanitized",signatureValid:valid};
+      const envelopeVersion=SaveCore.envelopeVersion(payload);
+      // A save written by a newer build is never loaded or rewritten by this one.
+      if(envelopeVersion>SaveCore.LATEST_SAVE_VERSION)return{state:null,modes:{},status:"future",saveVersion:envelopeVersion};
+      const valid=SaveCore.verifyEnvelope(payload);
+      return{state:valid?normalizeStateDetached(payload.state):hardenUnverifiedState(payload.state),modes:valid&&envelopeVersion>=2?SaveCore.normalizeModes(payload.modes):{},status:valid?"verified":"sanitized",signatureValid:valid,saveVersion:envelopeVersion,writeId:typeof payload.writeId==="string"?payload.writeId:""};
     }
     const source=payload.state&&typeof payload.state==="object"?payload.state:payload,sourceVersion=Number(source.version)||0;
-    if(allowLegacy&&sourceVersion<VERSION)return{state:normalizeStateDetached(source),status:"migrated",signatureValid:false};
-    return{state:hardenUnverifiedState(source),status:"sanitized",signatureValid:false};
+    if(allowLegacy&&sourceVersion<VERSION)return{state:normalizeStateDetached(source),modes:{},status:"migrated",signatureValid:false};
+    return{state:hardenUnverifiedState(source),modes:{},status:"sanitized",signatureValid:false};
   }
-  function decodeStateText(rawText,options={}){try{return decodeStatePayload(JSON.parse(rawText),options);}catch(error){return{state:defaultState(),status:"invalid",error};}}
+  function decodeStateText(rawText,options={}){try{return decodeStatePayload(JSON.parse(rawText),options);}catch(error){return{state:defaultState(),modes:{},status:"invalid",error};}}
+
+  // ===== SAVE SAFETY =====
+  // Three promises: a save this build cannot load is set aside before anything
+  // overwrites it; a missing or broken primary falls back to every other copy
+  // before a fresh egg is ever created; and a tab holding stale progress stops
+  // saving instead of overwriting newer progress from another tab.
+  function readSaveText(key){try{return localStorage.getItem(key);}catch(error){return null;}}
+  // Every v2 envelope starts with app/saveVersion/stateVersion/savedAt/writeId,
+  // so the write id is read from the head instead of parsing a large save.
+  function saveTextWriteId(text){if(typeof text!=="string")return null;const match=/"writeId":"([^"\\]{0,80})"/.exec(text.slice(0,400));return match?match[1]:null;}
+  function saveQuarantineKeys(){const keys=[];try{for(let index=0;index<localStorage.length;index+=1){const key=localStorage.key(index);if(key&&key.startsWith(SAVE_QUARANTINE_PREFIX))keys.push(key);}}catch(error){}return keys.sort();}
+  function quarantineSaveTexts(reason,entries){
+    try{
+      const at=now();
+      localStorage.setItem(`${SAVE_QUARANTINE_PREFIX}${at}`,JSON.stringify({at,reason,build:RIZO_RUNTIME_BUILD,entries:entries.map(entry=>({key:entry.key,status:entry.status||"unknown",text:String(entry.text)}))}));
+      const keys=saveQuarantineKeys();
+      while(keys.length>SAVE_QUARANTINE_LIMIT)localStorage.removeItem(keys.shift());
+      return true;
+    }catch(error){console.warn("Rizo could not set aside an unreadable save",error);recordSaveValidationWarning("quarantine-failed",{message:String(error?.message||error).slice(0,200)});return false;}
+  }
+  function readSaveQuarantine(){return saveQuarantineKeys().map(key=>{try{const record=JSON.parse(localStorage.getItem(key));return{key,at:Number(record?.at)||0,reason:String(record?.reason||""),entries:Array.isArray(record?.entries)?record.entries.length:0};}catch(error){return{key,at:0,reason:"unreadable",entries:0};}}).reverse();}
+  function downloadSaveQuarantine(key){
+    const text=readSaveText(key);if(!text){toast("NOTHING SET ASIDE");return;}
+    const blob=new Blob([text],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");
+    link.href=url;link.download=`rizo-set-aside-save-${key.slice(SAVE_QUARANTINE_PREFIX.length)}.json`;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+    toast("SET-ASIDE SAVE DOWNLOADED");
+  }
+
+  function showSaveBlockedNotice(reason){
+    if(reason==="reset")return;
+    let node=document.getElementById("rizoSaveBlocked");
+    if(!node){
+      node=document.createElement("div");node.id="rizoSaveBlocked";node.className="rizo-save-blocked";
+      node.setAttribute("role","alertdialog");node.setAttribute("aria-modal","true");node.setAttribute("aria-labelledby","rizoSaveBlockedTitle");
+      node.addEventListener("click",event=>{if(!event.target.closest("[data-save-blocked-reload]"))return;if(saveBlocked?.reason==="future")forceReleaseRefresh().then(done=>{if(!done)location.reload();});else location.reload();});
+      document.body.appendChild(node);
+    }
+    const copy=reason==="future"
+      ?{kicker:"NEWER SAVE FOUND",title:"THIS SAVE BELONGS TO A NEWER RIZO.GAME",body:"Your progress was saved by a newer version of the game. This copy is older, so it will not touch that save.",action:"UPDATE AND RELOAD"}
+      :{kicker:"SAVE PROTECTED",title:"RIZO IS OPEN SOMEWHERE ELSE",body:"Another tab or the installed app saved newer progress. This tab stopped saving so it can't overwrite it.",action:"LOAD NEWEST SAVE"};
+    node.innerHTML=`<div class="rizo-save-blocked-card"><small>${copy.kicker}</small><h2 id="rizoSaveBlockedTitle">${copy.title}</h2><p>${copy.body}</p><button type="button" data-save-blocked-reload>${copy.action}</button></div>`;
+    node.hidden=false;
+    node.querySelector("[data-save-blocked-reload]")?.focus({preventScroll:true});
+  }
+  function blockSaving(reason){
+    if(saveBlocked)return false;
+    saveBlocked={reason,at:now()};
+    clearTimeout(saveTimer);saveTimer=null;
+    if(reason!=="reset"){
+      try{if(mini?.active){if(mini.mode==="defense")pauseDefenseForInterruption();else arcadeFreeze("save-blocked");}}catch(error){}
+      try{stopMusic();}catch(error){}
+      recordSaveValidationWarning(`save-blocked-${reason}`,{});
+    }
+    showSaveBlockedNotice(reason);
+    return true;
+  }
+  function notifySaveFailure(error){
+    if(saveFailureNotified)return;saveFailureNotified=true;
+    recordSaveValidationWarning("save-write-failed",{message:String(error?.message||error).slice(0,200)});
+    try{toast("SAVE FAILED • THIS BROWSER'S STORAGE IS FULL OR BLOCKED");}catch(toastError){}
+  }
 
   function loadState() {
-    try {
-      const saved = localStorage.getItem(SAVE_KEY);
-      if (!saved) state = defaultState();
-      else {
-        const primary=decodeStateText(saved);
-        if(primary.status==="verified"||primary.status==="migrated")state=primary.state;
-        else{
-          const backupText=localStorage.getItem(SAVE_BACKUP_KEY),backup=backupText?decodeStateText(backupText,{allowLegacy:false}):null;
-          if(backup?.status==="verified"){state=backup.state;recordSaveValidationWarning("primary-signature-recovered",{primaryStatus:primary.status});}
-          else{state=primary.state;recordSaveValidationWarning("primary-save-sanitized",{primaryStatus:primary.status,backupStatus:backup?.status||"missing"});}
-        }
+    saveBlocked=null;
+    // Newest first. "current" keys are the ones saveState() overwrites.
+    const sources=[
+      {key:SAVE_V2_KEY,allowLegacy:false,current:true},
+      {key:SAVE_V2_BACKUP_KEY,allowLegacy:false,current:true},
+      {key:SAVE_KEY,allowLegacy:true},
+      {key:SAVE_BACKUP_KEY,allowLegacy:false},
+      {key:LEGACY_KEY,allowLegacy:true}
+    ].map(source=>({...source,text:readSaveText(source.key)})).filter(source=>typeof source.text==="string"&&source.text.length>0);
+    let chosen=null;const failed=[];
+    for(const source of sources){
+      let decoded;
+      try{decoded=decodeStateText(source.text,{allowLegacy:source.allowLegacy});}
+      catch(error){decoded={state:null,modes:{},status:"invalid",error};}
+      source.status=decoded.status;
+      if(decoded.status==="future"){
+        state=defaultState();modeSlices={};
+        blockSaving("future");
+        activeHouseRoom=0;
+        return;
       }
-    } catch (error) {
-      console.warn("Rizo save could not load", error);
-      recordSaveValidationWarning("save-load-failed",{message:String(error?.message||error)});
-      state = defaultState();
+      if(decoded.status==="verified"||decoded.status==="migrated"){chosen={source,decoded};break;}
+      failed.push({source,decoded});
     }
+    if(chosen){
+      state=chosen.decoded.state;modeSlices=chosen.decoded.modes||{};
+      const primaryMissing=!sources.some(source=>source.key===SAVE_V2_KEY);
+      if(chosen.source.key===SAVE_V2_BACKUP_KEY)recordSaveValidationWarning(primaryMissing?"primary-missing-recovered":"primary-signature-recovered",{primaryStatus:failed[0]?.source.status||"missing"});
+      else if(failed.length)recordSaveValidationWarning("save-recovered-from-older-copy",{source:chosen.source.key,failed:failed.map(item=>`${item.source.key}:${item.source.status}`)});
+    }else if(failed.length){
+      const best=failed.find(item=>item.decoded.status==="sanitized"&&item.decoded.state);
+      state=best?best.decoded.state:defaultState();modeSlices={};
+      recordSaveValidationWarning("primary-save-sanitized",{sources:failed.map(item=>`${item.source.key}:${item.source.status}`)});
+    }else{state=defaultState();modeSlices={};}
+    // A copy this build could not load, sitting in a key it is about to
+    // overwrite, is set aside first. The v1 keys are never written, so they
+    // keep their original bytes on their own.
+    const atRisk=failed.filter(item=>item.source.current);
+    if(atRisk.length)quarantineSaveTexts(chosen?"recovered-from-other-copy":"unreadable",atRisk.map(item=>({key:item.source.key,status:item.source.status,text:item.source.text})));
+    saveWriteId=saveTextWriteId(readSaveText(SAVE_V2_KEY))||"";
     activeHouseRoom = state.farm?.activeRoom || 0;
     updateSessionAndStreak();
     resetDailyIfNeeded();
@@ -1237,18 +1340,30 @@
   }
 
   function saveState(immediate = false) {
+    if (saveBlocked) return false;
     state.player.lastActive = now();
     const write = () => {
-      try {const serialized=JSON.stringify(buildStateEnvelope(state));localStorage.setItem(SAVE_KEY,serialized);localStorage.setItem(SAVE_BACKUP_KEY,serialized);}
-      catch (error) { console.warn("Rizo save could not write", error); }
       saveTimer = null;
+      if (saveBlocked) return false;
+      try {
+        // Another tab wrote since this one last loaded or saved: stop, never overwrite.
+        const storedWriteId=saveTextWriteId(readSaveText(SAVE_V2_KEY));
+        if(storedWriteId!==null&&storedWriteId!==saveWriteId){blockSaving("conflict");return false;}
+        const writeId=uid("W"),serialized=JSON.stringify(buildStateEnvelope(state,now(),writeId));
+        localStorage.setItem(SAVE_V2_KEY,serialized);saveWriteId=writeId;
+        localStorage.setItem(SAVE_V2_BACKUP_KEY,serialized);
+        saveFailureNotified=false;
+        return true;
+      }
+      catch (error) { console.warn("Rizo save could not write", error); notifySaveFailure(error); return false; }
     };
     if (immediate) {
       clearTimeout(saveTimer);
-      write();
+      return write();
     } else if (!saveTimer) {
       saveTimer = setTimeout(write, 250);
     }
+    return true;
   }
 
   function updateSessionAndStreak() {
@@ -1425,15 +1540,19 @@
     pet.lastCareReason = reason;
   }
 
-  function gainSkill(skillId, amount, { silent = false } = {}) {
-    const pet = state.pet;
-    if (!pet.skills || !pet.genes || !SKILLS.some(skill => skill.id === skillId)) return 0;
+  // Skill growth for any owned pet, capped by its genes. Returns what it actually gained.
+  function petGainSkill(pet, skillId, amount) {
+    if (!pet?.skills || !pet.genes || !SKILLS.some(skill => skill.id === skillId)) return 0;
     const before = pet.skills[skillId] || 0;
     const cap = pet.genes[skillId] || 100;
     pet.skills[skillId] = clamp(before + amount, 0, cap);
     if (skillId === "power") pet.strength = clamp(Math.max(pet.strength || 0, pet.skills.power));
     pet.lastTrainedSkill = skillId;
-    const gained = pet.skills[skillId] - before;
+    return pet.skills[skillId] - before;
+  }
+
+  function gainSkill(skillId, amount, { silent = false } = {}) {
+    const gained = petGainSkill(state.pet, skillId, amount);
     if (!silent && gained > .2) toast(`+${gained.toFixed(gained >= 1 ? 1 : 2)} ${skillId.toUpperCase()}`);
     return gained;
   }
@@ -2556,6 +2675,11 @@
     el.journalContent.innerHTML = `<div class="journal-panel"><div class="memory-list">${memories.map(item => `<article class="memory-card"><div class="memory-icon">${item.icon || "✦"}</div><div><h3>${escapeHTML(item.title)}</h3><p>${escapeHTML(item.text)}</p><time>${new Date(item.at).toLocaleString()}</time></div></article>`).join("")}</div><div class="sheet-section-title">FOREST ARCHIVE • ${state.loreUnlocked.length}/${LORE_FRAGMENTS.length}</div><div class="lore-archive">${LORE_FRAGMENTS.map((item,index)=>{const open=state.loreUnlocked.includes(item.id);return `<article class="lore-fragment ${open?"":"locked"}"><small>FRAGMENT ${String(index+1).padStart(2,"0")}</small><h3>${open?item.title:"LOCKED SIGNAL"}</h3><p>${open?item.text:"Find this fragment through capsules, growth, and expeditions."}</p></article>`}).join("")}</div></div>`;
   }
 
+  // Only appears when a save could not be loaded and was kept aside (see SAVE SAFETY).
+  function setAsideSavesMarkup(){
+    const parked=readSaveQuarantine();if(!parked.length)return "";
+    return `<section class="settings-board"><h3>SET-ASIDE SAVES</h3><div class="sheet-note">This device found a save it could not load and kept it untouched instead of overwriting it. If progress is missing, download it and send it to support.</div><div class="settings-actions">${parked.map(item=>`<button data-download-set-aside="${escapeHTML(item.key)}">${escapeHTML(item.at?new Date(item.at).toLocaleDateString():"UNKNOWN DATE")}</button>`).join("")}</div></section>`;
+  }
   function renderJournalSettings() {
     el.journalContent.innerHTML = `<div class="journal-panel">
       <section class="settings-board"><h3>GAME SETTINGS</h3>
@@ -2576,6 +2700,7 @@
       <section class="settings-board"><h3>RIZO APPAREL</h3><div class="sheet-note">Rizo Life is made by Rizo Apparel. The game is free; the clothes are extremely real.</div><a class="wide-button" style="display:block;text-align:center;text-decoration:none" href="${escapeHTML(storeUrl())}" target="_blank" rel="noopener">SHOP RIZO.STORE ↗</a></section>
       <section class="settings-board"><h3>INSTALL + UPDATES</h3><div class="sheet-note">${window.RizoInstall?.isStandalone?.() ? "Installed app mode is active." : "Install Rizo.game for fullscreen play and faster return visits."}<br><br><b>BUILD ${escapeHTML(RIZO_RUNTIME_BUILD)}</b> • ${releaseUpdateReady?"A newer build is waiting.":"Refresh Latest checks the network and replaces stale app caches."}${mini?.active&&mini.mode==="defense"?" Your active Defense run will checkpoint first.":""}</div><div class="settings-actions"><button data-show-install>INSTALL HELP</button><button class="update-refresh-button" data-refresh-latest>${releaseUpdateReady?"UPDATE NOW":"REFRESH LATEST"}</button><button data-ad-reward="care" ${CONFIG.ads.enabled ? "" : "disabled"}>${CONFIG.ads.enabled ? "REWARDED CARE" : "ADS NOT READY"}</button></div><div class="rizo-legal-links"><a href="./about.html">ABOUT</a><a href="./privacy.html">PRIVACY</a><a href="./terms.html">TERMS</a><a href="./support.html">SUPPORT</a></div></section>
       <section class="settings-board"><h3>SAVE TOOLS</h3><div class="settings-actions"><button data-export-save>EXPORT SAVE</button><button data-import-save>IMPORT SAVE</button><button data-replay-origin>REPLAY ORIGIN</button><button data-copy-summary>COPY STATS</button></div><button class="wide-button danger" data-reset-save>DELETE THE ENTIRE TIMELINE</button></section>
+      ${setAsideSavesMarkup()}
     </div>`;
   }
 
@@ -5687,7 +5812,7 @@
   function normalizeDefenseCheckpoint(raw){
     if(!raw||typeof raw!=="object")return null;
     const version=Number(raw.checkpointVersion)||1;if(![1,2,3,4,5,6,7,8,9,DEFENSE_CHECKPOINT_VERSION].includes(version))return null;
-    const savedAt=DefenseCore.clampNumber(raw.savedAt,0,Number.MAX_SAFE_INTEGER,0);if(!savedAt||now()-savedAt>DEFENSE_CHECKPOINT_MAX_AGE)return null;
+    const savedAt=DefenseCore.clampNumber(raw.savedAt,0,Number.MAX_SAFE_INTEGER,0);if(!savedAt)return null; // No expiry: an unfinished run keeps its earned waves until the player resumes or ends it.
     if(typeof raw.keeperId!=="string"||raw.keeperId!==state.player?.keeperId)return null;
     const mapId=typeof raw.mapId==="string"&&DEFENSE_MAPS[raw.mapId]?raw.mapId:null;if(!mapId)return null;const map=DEFENSE_MAPS[mapId];
     const signatureValid=version>=2&&DefenseCore.verifySaveSignature(raw),legacyUnsigned=version===1,trusted=signatureValid||legacyUnsigned;
@@ -5716,7 +5841,7 @@
       if(!rawText){for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS){rawText=localStorage.getItem(key);if(rawText){sourceKey=key;break;}}}
       if(!rawText)return null;
       const checkpoint=normalizeDefenseCheckpoint(JSON.parse(rawText));
-      if(!checkpoint){localStorage.removeItem(sourceKey);return null;}
+      if(!checkpoint){if(!saveBlocked)localStorage.removeItem(sourceKey);return null;}
       checkpoint.sourceKey=sourceKey;return checkpoint;
     }catch(error){defenseRecordValidationWarning("checkpoint-parse",{message:String(error?.message||error)});return null;}
   }
@@ -5725,8 +5850,9 @@
     const savedAt=now(),checkpoint={checkpointVersion:DEFENSE_CHECKPOINT_VERSION,savedAt,keeperId:state.player.keeperId,mapId:d.mapId,contract:d.contract?{...d.contract}:null,currentWave:d.currentWave,clearedWave:d.clearedWave,lives:d.lives,cash:d.cash,phase:d.phase,resumePhase:d.resumePhase||DEFENSE_PHASES.COMBAT,speed:d.speed,clock:d.clock,towers:d.towers.map(tower=>({id:tower.id,petId:tower.petId,source:tower.source,rosterIndex:tower.rosterIndex,copyNumber:tower.copyNumber,x:tower.x,y:tower.y,upgrade:tower.upgrade,cooldown:tower.cooldown,kills:tower.kills,damage:tower.damage,abilityReadyAt:tower.abilityReadyAt,overclockUntil:tower.overclockUntil,rangeDebuffUntil:tower.rangeDebuffUntil,targetMode:tower.targetMode,doctrine:tower.doctrine,shots:tower.shots,placedAt:tower.placedAt||0,openingPerkApplied:Boolean(tower.openingPerkApplied),superForm:tower.superForm||null})),enemies:d.enemies.filter(enemy=>!enemy.dead).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_ENEMIES).map(enemy=>({id:enemy.id,type:enemy.type,bossId:enemy.bossId,bossIntensity:enemy.bossIntensity,bossChild:enemy.bossChild,progress:enemy.progress,hpRatio:enemy.hp/Math.max(.01,enemy.maxHp),armor:enemy.armor,armorBroken:enemy.armorBroken,armorShredded:enemy.armorShredded,phaseOffset:enemy.phaseOffset,supportCycle:enemy.supportCycle,revealUntil:enemy.revealUntil,phaseSuppressedUntil:enemy.phaseSuppressedUntil,revealCredited:enemy.revealCredited,phaseLockCredited:enemy.phaseLockCredited,slow:enemy.slow,slowUntil:enemy.slowUntil,burn:enemy.burn,burnUntil:enemy.burnUntil,burnSourceId:enemy.burnSource?.id||null,poison:enemy.poison,poisonUntil:enemy.poisonUntil,poisonSourceId:enemy.poisonSource?.id||null,rootUntil:enemy.rootUntil,phaseTriggered:enemy.phaseTriggered,bossPhase:enemy.bossPhase||0,signalStaggerUntil:enemy.signalStaggerUntil||0,nextBossPulse:enemy.nextBossPulse,telegraphKind:enemy.telegraphKind||null,telegraphStartedAt:enemy.telegraphStartedAt||0,telegraphUntil:enemy.telegraphUntil||0,telegraphDisruption:enemy.telegraphDisruption||0,apexSurgeUntil:enemy.apexSurgeUntil||0,bossMechanicLocked:Boolean(enemy.bossMechanicLocked)})),projectiles:d.projectiles.filter(shot=>shot.target&&!shot.target.dead&&shot.target.hp>0).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_PROJECTILES).map(shot=>({towerId:shot.tower.id,targetId:shot.target.id,x:shot.x,y:shot.y,life:shot.life,speed:shot.speed,damage:shot.damage,doctrineStrike:shot.doctrineStrike||null,doubleStitch:Boolean(shot.doubleStitch)})),spawnQueue:d.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:(d.wavePackets||[]).map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter})),packetIndex:d.packetIndex||0,packetEnemyIndex:d.packetEnemyIndex||0,nextSpawnAt:d.nextSpawnAt||0,packetBreakUntil:d.packetBreakUntil||0,childSpawnQueue:(d.childSpawnQueue||[]).map(item=>({entry:typeof item.entry==="string"?item.entry:{...item.entry},progress:item.progress,releaseAt:item.releaseAt,options:{bossChild:Boolean(item.options?.bossChild),hpRatio:item.options?.hpRatio??1,rewardScale:item.options?.rewardScale??1}})),nextId:d.nextId,kills:d.kills,totalDamage:d.totalDamage,usedPetIds:[...(d.usedPetIds||[])],lastWaveBonus:d.lastWaveBonus,rallyUntil:d.rallyUntil,prismUntil:d.prismUntil,whiteoutUntil:d.whiteoutUntil,stormWeatherUntil:d.stormWeatherUntil,eclipseUntil:d.eclipseUntil,ashUntil:d.ashUntil,moonRevealUntil:d.moonRevealUntil,nextWeatherAt:d.nextWeatherAt,camoHintSeen:d.camoHintSeen,waveAnnouncement:d.waveAnnouncement?{...d.waveAnnouncement}:null,currentWavePlan:d.currentWavePlan.map(entry=>typeof entry==="string"?entry:{...entry}),bossesBeaten:[...(d.bossesBeaten||[])],bossesDefeated:d.bossesDefeated||0,perfectWaveCount:d.perfectWaveCount||0,waveHeartLossStart:d.waveHeartLossStart||0,waveTotal:d.waveTotal,waveResolved:d.waveResolved,enemyStats:JSON.parse(JSON.stringify(d.enemyStats||{})),worldPerkUsed:Boolean(d.worldPerkUsed),gateFlameReadyAt:d.gateFlameReadyAt||0,gateFlameUntil:d.gateFlameUntil||0,gateFlameProgress:d.gateFlameProgress||.86,gateFlameNextTick:d.gateFlameNextTick||0,gateFlameTicks:d.gateFlameTicks||0,reason};
     checkpoint.signature=DefenseCore.createSaveSignature(checkpoint);return checkpoint;
   }
-  function clearDefenseCheckpoint(){try{localStorage.removeItem(DEFENSE_CHECKPOINT_KEY);for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS)localStorage.removeItem(key);}catch(error){} }
+  function clearDefenseCheckpoint(){if(saveBlocked)return;try{localStorage.removeItem(DEFENSE_CHECKPOINT_KEY);for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS)localStorage.removeItem(key);}catch(error){} }
   function writeDefenseCheckpoint(force=false,reason="auto"){
+    if(saveBlocked)return false;
     const d=mini.active&&mini.mode==="defense"?mini.defense:null;if(!d||!d.towers.length){clearDefenseCheckpoint();return false;}
     if(!force&&now()-(d.lastCheckpointAt||0)<1000){d.checkpointDirty=true;return false;}
     try{const checkpoint=buildDefenseCheckpoint(d,reason);localStorage.setItem(DEFENSE_CHECKPOINT_KEY,JSON.stringify(checkpoint));for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS)localStorage.removeItem(key);d.lastCheckpointAt=checkpoint.savedAt;d.checkpointDirty=false;d.checkpointWrites=(d.checkpointWrites||0)+1;return true;}catch(error){defenseRecordValidationWarning("checkpoint-write",{message:String(error?.message||error)});return false;}
@@ -8423,12 +8549,13 @@
   }
 
   function keeperRecoveryCode(){const savedAt=now(),envelope=buildStateEnvelope(state,savedAt);return encodeGardenCode({...envelope,v:VERSION,exportedAt:savedAt});}
-  function readPreRecoveryBackup(){
-    try{const raw=localStorage.getItem(`${SAVE_KEY}:pre-recovery`);if(!raw)return null;const decoded=decodeStateText(raw);return decoded.status==="invalid"?null:decoded.state;}catch(error){return null;}
+  function readPreRecoveryDecoded(){
+    try{const raw=localStorage.getItem(`${SAVE_KEY}:pre-recovery`);if(!raw)return null;const decoded=decodeStateText(raw);return ["verified","migrated","sanitized"].includes(decoded.status)&&decoded.state?decoded:null;}catch(error){return null;}
   }
-  function showKeeperRecoveryPreview(recovered,source="KEEPER CODE",schema="?"){
+  function readPreRecoveryBackup(){return readPreRecoveryDecoded()?.state||null;}
+  function showKeeperRecoveryPreview(recovered,source="KEEPER CODE",schema="?",modes={}){
     const pet=recovered.pet,variant=VARIANTS.find(item=>item.id===(pet.variant||pet.hiddenVariant))||VARIANTS[0];
-    window.__pendingKeeperRecovery=recovered;
+    window.__pendingKeeperRecovery=recovered;pendingRecoveryModes=modes||{};
     showModal(`<div class="modal-card keeper-recovery-preview"><small>VALID ${escapeHTML(source)} • SCHEMA ${escapeHTML(String(schema||"?"))}</small><div class="keeper-recovery-pet">${petMarkup({pet,extraClass:"recovery-rizo",context:"thumbnail",label:pet.name})}</div><h2>${escapeHTML(pet.name||"MYSTERY EGG")}</h2><p>${escapeHTML(variant.name)} • ${escapeHTML(String(pet.stage||"egg").toUpperCase())} • GEN ${Math.max(1,Number(pet.generation)||1)}<br>R ${Math.floor(recovered.wallet?.embers||0)} • ${Math.floor(recovered.wallet?.sparks||0)} SPARKS</p><p class="big-line">REPLACE THIS DEVICE'S CURRENT TIMELINE?</p><div class="modal-buttons"><button data-close-modal>CANCEL</button><button class="primary" data-apply-recovery>RESTORE KEEPER</button></div></div>`);
   }
   function openKeeperRecovery(){
@@ -8439,10 +8566,10 @@
   async function pasteKeeperRecoveryCode(){const input=$("#keeperRecoveryInput");if(!input)return;try{const text=await navigator.clipboard.readText();if(!text.trim())throw new Error("empty");input.value=text.trim();input.focus();toast("KEEPER CODE PASTED");}catch(error){input.focus();toast("PRESS AND HOLD THE BOX, THEN TAP PASTE");}}
   async function copyKeeperRecoveryCode(){const code=keeperRecoveryCode();try{await navigator.clipboard.writeText(code);state.meta.lastBackupAt=now();saveState(true);toast("KEEPER RECOVERY CODE COPIED");}catch(error){const input=$("#keeperRecoveryInput");if(input){input.value=code;input.select();}toast("CODE READY TO COPY");}}
   function previewKeeperRecoveryCode(raw){
-    try{const data=decodeGardenCode(raw);if(data?.app!=="RIZO LIFE"||!data.state)throw new Error("bad recovery");const decoded=decodeStatePayload(data);if(decoded.status==="invalid")throw new Error("bad recovery");if(decoded.status==="sanitized")recordSaveValidationWarning("keeper-code-sanitized",{});showKeeperRecoveryPreview(decoded.state,decoded.status==="verified"?"VERIFIED KEEPER SAVE":"SANITIZED KEEPER SAVE",data.v||"?");}catch(error){window.__pendingKeeperRecovery=null;toast("THAT KEEPER CODE IS INVALID OR INCOMPLETE");sfx("no");}
+    try{const data=decodeGardenCode(raw);if(data?.app!=="RIZO LIFE"||!data.state)throw new Error("bad recovery");const decoded=decodeStatePayload(data);if(decoded.status==="future"){toast("THAT KEEPER CODE IS FROM A NEWER RIZO.GAME • UPDATE FIRST");return;}if(decoded.status==="invalid")throw new Error("bad recovery");if(decoded.status==="sanitized")recordSaveValidationWarning("keeper-code-sanitized",{});showKeeperRecoveryPreview(decoded.state,decoded.status==="verified"?"VERIFIED KEEPER SAVE":"SANITIZED KEEPER SAVE",data.v||"?",decoded.modes);}catch(error){window.__pendingKeeperRecovery=null;toast("THAT KEEPER CODE IS INVALID OR INCOMPLETE");sfx("no");}
   }
-  function previewPreRecoveryBackup(){const recovered=readPreRecoveryBackup();if(!recovered){toast("NO PREVIOUS TIMELINE IS STORED");sfx("no");return;}showKeeperRecoveryPreview(recovered,"DEVICE BACKUP",recovered.version||VERSION);}
-  function applyKeeperRecovery(){const recovered=window.__pendingKeeperRecovery;if(!recovered)return;try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}clearDefenseCheckpoint();state=recovered;window.__pendingKeeperRecovery=null;saveState(true);closeModal();changeView("home");renderAll();toast("KEEPER TIMELINE RESTORED");sfx("legendary");celebrate();}
+  function previewPreRecoveryBackup(){const decoded=readPreRecoveryDecoded();if(!decoded){toast("NO PREVIOUS TIMELINE IS STORED");sfx("no");return;}showKeeperRecoveryPreview(decoded.state,"DEVICE BACKUP",decoded.state.version||VERSION,decoded.modes);}
+  function applyKeeperRecovery(){const recovered=window.__pendingKeeperRecovery;if(!recovered)return;try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}clearDefenseCheckpoint();state=recovered;modeSlices=pendingRecoveryModes||{};pendingRecoveryModes={};window.__pendingKeeperRecovery=null;saveState(true);closeModal();changeView("home");renderAll();toast("KEEPER TIMELINE RESTORED");sfx("legendary");celebrate();}
 
   function exportSave() {
     const savedAt=now(),payload = JSON.stringify({...buildStateEnvelope(state,savedAt),version:VERSION,exportedAt:savedAt}, null, 2);
@@ -8468,8 +8595,12 @@
       if (!incoming.pet || !incoming.player) throw new Error("Not a Rizo save");
       const decoded=decodeStatePayload(parsed);
       if(decoded.status==="invalid")throw new Error("Invalid Rizo save");
+      if(decoded.status==="future"){toast("THAT SAVE IS FROM A NEWER RIZO.GAME • UPDATE FIRST");return;}
+      // The timeline being replaced stays restorable from Keeper Recovery.
+      try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}
       clearDefenseCheckpoint();
       state = decoded.state;
+      modeSlices = decoded.modes || {};
       if(decoded.status==="sanitized")recordSaveValidationWarning("import-sanitized",{});
       saveState(true);
       closeSheet();
@@ -8510,10 +8641,11 @@ Streak: ${state.player.streak}`;
   function resetSave() {
     if (!confirm("Delete every Rizo, unlock, memory, and ember?")) return;
     if (!confirm("Really? This is the dramatic second confirmation.")) return;
-    localStorage.removeItem(SAVE_KEY);
-    localStorage.removeItem(LEGACY_KEY);
-    localStorage.removeItem(DEFENSE_CHECKPOINT_KEY);
-    localStorage.removeItem(`${SAVE_KEY}:pre-recovery`);
+    // Block first: the unload handler saves, and used to write the old save back.
+    blockSaving("reset");
+    for (const key of [SAVE_V2_KEY, SAVE_V2_BACKUP_KEY, SAVE_KEY, SAVE_BACKUP_KEY, LEGACY_KEY, DEFENSE_CHECKPOINT_KEY, ...DEFENSE_LEGACY_CHECKPOINT_KEYS, `${SAVE_KEY}:pre-recovery`, ...saveQuarantineKeys()]) {
+      try { localStorage.removeItem(key); } catch (error) {}
+    }
     location.reload();
   }
 
@@ -8641,6 +8773,8 @@ Streak: ${state.player.streak}`;
     state.farm.roster.splice(rosterIndex, 1, outgoing);
     state.pet = target;
     delete state.pet.homeRoom;
+    // House residents live passively, so the clock starts when they come back.
+    state.pet.lastTick = now();
     processElapsedTime();
     if (state.pet.alive && state.pet.health <= 0) enterRecoveryState("neglect", true);
     updateStage(); checkAchievements();
@@ -8944,6 +9078,8 @@ Streak: ${state.player.streak}`;
     if (event.target.closest("[data-replay-origin]")) { replayOrigin(); return; }
     if (event.target.closest("[data-copy-summary]")) { copySummary(); return; }
     if (event.target.closest("[data-reset-save]")) { resetSave(); }
+    const setAside = event.target.closest("[data-download-set-aside]");
+    if (setAside) { downloadSaveQuarantine(setAside.dataset.downloadSetAside); return; }
   }
 
   // ===== INPUT ROUTING AND APPLICATION BOOT =====
@@ -9177,6 +9313,11 @@ Streak: ${state.player.streak}`;
     try{ matchMedia("(prefers-reduced-motion: reduce)")?.addEventListener?.("change",()=>{ document.body.classList.toggle("reduce-motion", reducedMotionActive()); }); }catch(error){}
     document.addEventListener("visibilitychange", () => document.hidden ? suspendRuntime("background") : resumeRuntime("visible"));
     window.addEventListener("pagehide", () => suspendRuntime("pagehide"), { capture: true });
+    window.addEventListener("storage", event => {
+      if (saveBlocked || (event.key !== null && event.key !== SAVE_V2_KEY)) return;
+      const writeId = saveTextWriteId(event.newValue);
+      if (event.key === null || event.newValue === null || (writeId !== null && writeId !== saveWriteId)) blockSaving("conflict");
+    });
     window.addEventListener("pageshow", () => resumeRuntime("pageshow"), { capture: true });
     document.addEventListener("freeze", () => suspendRuntime("freeze"));
     document.addEventListener("resume", () => resumeRuntime("resume"));
@@ -9192,10 +9333,122 @@ Streak: ${state.player.streak}`;
     window.addEventListener("beforeunload", () => { suspendRuntime("unload"); writeDefenseCheckpoint(true,"unload"); saveState(true); });
   }
 
+  // ===== GAME-MODE HOST ADAPTER =====
+  // The only bridge between the hub's save and a game mode (core/rizo-modes.js).
+  // Modes receive frozen pet snapshots and a narrow API; every write lands here
+  // and is applied under hub rules (caps, gene limits, stage growth, quests).
+  const MODE_RUN_PREFIX = "rizo-mode-run:";
+  // Pre-contract hub fields a mode used to own, offered once to its first
+  // slice migration. Filled in as modes move onto the contract.
+  const MODE_LEGACY_VIEWS = {};
+  let modeExitFocus = null;
+
+  function modePetSnapshot(pet, source = "active", rosterIndex = -1) {
+    if (!pet) return null;
+    return {
+      id: pet.id, number: pet.number, name: pet.name, source, rosterIndex,
+      stage: pet.stage, variant: pet.variant || pet.hiddenVariant || "classic", form: pet.form, alignment: Number(pet.alignment) || 0,
+      accessory: pet.accessory || "none", mutation: pet.mutation || "normal", personality: pet.personality, generation: pet.generation || 1,
+      level: pet.stage === "egg" ? 0 : levelForXP(pet.xp), xp: Number(pet.xp) || 0, bond: Number(pet.bond) || 0,
+      hunger: pet.hunger, mood: pet.mood, energy: pet.energy, hygiene: pet.hygiene, health: pet.health,
+      sleeping: Boolean(pet.sleeping), sick: Boolean(pet.sick), resting: Boolean(pet.resting), alive: pet.alive !== false,
+      skills: { ...(pet.skills || {}) }, genes: { ...(pet.genes || {}) }
+    };
+  }
+  function modeRosterSnapshots() {
+    const rows = [modePetSnapshot(state.pet, "active", -1)];
+    (state.farm?.roster || []).forEach((pet, index) => rows.push(modePetSnapshot(pet, "house", index)));
+    return rows.filter(row => row && row.alive && row.stage !== "egg");
+  }
+  function applyModeAward(modeId, award) {
+    const applied = { embers: 0, heat: 0, pets: {}, active: { ...award.active } };
+    mutate((activePet, whole) => {
+      const before = whole.wallet.embers;
+      whole.wallet.embers = SaveCore.clampInteger(before + award.embers, 0, CORE_LIMITS.MAX_WALLET_EMBERS, before);
+      applied.embers = whole.wallet.embers - before;
+      if (award.heat) { earnHeat(award.heat, false); applied.heat = award.heat; }
+      const owned = new Map([[whole.pet.id, whole.pet], ...(whole.farm?.roster || []).map(pet => [pet.id, pet])]);
+      for (const [petId, gains] of Object.entries(award.pets)) {
+        const pet = owned.get(petId);
+        if (!pet || pet.stage === "egg") continue;
+        const got = { xp: gains.xp, bond: 0, skills: {} };
+        for (const [skill, amount] of Object.entries(gains.skills)) got.skills[skill] = Math.round(petGainSkill(pet, skill, amount) * 100) / 100;
+        pet.xp = SaveCore.clampNumber((Number(pet.xp) || 0) + gains.xp, 0, CORE_LIMITS.MAX_PLAYER_XP, 0);
+        const bondBefore = Number(pet.bond) || 0;
+        pet.bond = clamp(bondBefore + gains.bond);
+        got.bond = Math.round((pet.bond - bondBefore) * 100) / 100;
+        if (gains.played) {
+          pet.careProfile ||= { kind: 0, wild: 0, balanced: 0, foods: {}, games: {} };
+          pet.careProfile.games ||= {};
+          pet.careProfile.games[modeId] = (pet.careProfile.games[modeId] || 0) + 1;
+        }
+        applied.pets[petId] = got;
+      }
+      activePet.energy = clamp(activePet.energy + award.active.energy);
+      activePet.hunger = clamp(activePet.hunger + award.active.hunger);
+      activePet.mood = clamp(activePet.mood + award.active.mood);
+      if (award.run) { whole.meta.totalGames += 1; progressQuest("play"); }
+    });
+    evaluateForm(true);
+    return Object.freeze(applied);
+  }
+  function modeRunStore(modeId) {
+    const key = `${MODE_RUN_PREFIX}${modeId}`;
+    return Object.freeze({
+      read() { try { const text = localStorage.getItem(key); return text ? JSON.parse(text) : null; } catch (error) { return null; } },
+      write(value) { if (saveBlocked) return false; try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (error) { notifySaveFailure(error); return false; } },
+      clear() { if (saveBlocked) return false; try { localStorage.removeItem(key); return true; } catch (error) { return false; } }
+    });
+  }
+  function mountMode(modeId) {
+    closeSheet(); clearToasts();
+    modeExitFocus = document.activeElement;
+    el.miniArena.innerHTML = "";
+    el.miniGameOverlay.dataset.mode = modeId;
+    el.miniGameOverlay.hidden = false;
+    syncUILock();
+    return el.miniArena;
+  }
+  function unmountMode(modeId) {
+    if (el.miniGameOverlay.dataset.mode !== modeId) return;
+    delete el.miniGameOverlay.dataset.mode;
+    el.miniGameOverlay.hidden = true;
+    el.miniArena.innerHTML = "";
+    syncUILock();
+    if (modeExitFocus?.isConnected) modeExitFocus.focus({ preventScroll: true });
+  }
+  function attachModeHost() {
+    const Modes = globalThis.RizoModes;
+    if (!Modes) return false;
+    Modes.attachHub({
+      readSlice: id => (modeSlices[id] ? SaveCore.plainJSON(modeSlices[id]) : null),
+      writeSlice: (id, slice) => { modeSlices[id] = SaveCore.plainJSON(slice); },
+      legacyView: id => (typeof MODE_LEGACY_VIEWS[id] === "function" ? MODE_LEGACY_VIEWS[id]() : null),
+      petSnapshot: () => modePetSnapshot(state.pet, "active", -1),
+      rosterSnapshots: modeRosterSnapshots,
+      petMarkup: (pet, options = {}) => petMarkup({ ...options, pet }),
+      applyAward: applyModeAward,
+      settings: () => ({ sound: state.settings.sound, soundVolume: state.settings.soundVolume, music: state.settings.music, musicVolume: state.settings.musicVolume, haptics: state.settings.haptics, reducedMotion: state.settings.reducedMotion }),
+      audio: Object.freeze({ sfx: (name, ...args) => sfx(name, ...args), haptic: pattern => haptic(pattern), music: scene => startMusicForScene(scene, true) }),
+      ui: Object.freeze({ toast: message => toast(message), modal: markup => showModal(markup), closeModal: () => closeModal() }),
+      runStore: modeRunStore,
+      mount: mountMode,
+      unmount: unmountMode,
+      save: () => saveState(),
+      onExit: () => { syncMusic(true); renderAll(); }
+    });
+    for (const mode of Modes.list()) {
+      try { Modes.ensureSlice(mode.id); }
+      catch (error) { console.warn(`Rizo could not prepare the ${mode.id} save`, error); recordSaveValidationWarning("mode-slice-migration-failed", { mode: mode.id, message: String(error?.message || error).slice(0, 200) }); }
+    }
+    return true;
+  }
+
   function boot() {
     document.addEventListener("rizo:ad-start", () => { arcadeFreeze("ad"); stopMusic(); });
     document.addEventListener("rizo:ad-end", () => { arcadeThaw("ad"); syncMusic(true); });
     loadState();
+    attachModeHost();
     buildRain();
     bindEvents();
     scheduleIdleLife();
@@ -9242,7 +9495,7 @@ Streak: ${state.player.streak}`;
   function createRizoRuntimeQA(){return Object.freeze({
     defaultState: () => JSON.parse(JSON.stringify(defaultState())),
     buildStateEnvelopeForQA: payload => buildStateEnvelope(payload||state,123456789),
-    verifyStateEnvelopeForQA: envelope => DefenseCore.verifyStateSignature(envelope),
+    verifyStateEnvelopeForQA: envelope => SaveCore.verifyEnvelope(envelope),
     decodeStatePayloadForQA: payload => {const decoded=decodeStatePayload(payload);return{status:decoded.status,state:decoded.state};},
     saveValidationWarningForQA: () => {try{return JSON.parse(localStorage.getItem(SAVE_VALIDATION_WARNING_KEY)||"null");}catch(error){return null;}},
     visualMatrixForQA: () => ({matrix:RIZO_FORMS,variants:VARIANTS,stages:STAGES,ages:AGE_VISUALS,calibration:VARIANT_VISUAL_CALIBRATION,wearables:WEARABLE_DEFS}),
