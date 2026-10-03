@@ -117,7 +117,7 @@
     let barks = [];                   // floating speech over NPCs
     let room = {};                    // per-room transient presentation state
     let lastMove = { x: 0, y: 0 };
-    let rainTickAt = 0;
+    let rainTickAt = 0, dripAt = 0, stepAt = 0, crackleAt = 0, thudAt = 0;
     let stillFor = 0;
     let pendingGift = null;
     let qaLog = [];
@@ -150,6 +150,13 @@
         else if (kind === "down") a.tone?.(220, 0.4, "sine", 0.03, 0, -110);
         else if (kind === "ui") a.tone?.(660, 0.03, "square", 0.018);
         else if (kind === "rain") a.noise?.(0.22, 0.004 + 0.006 * (geo().rain || 0));
+        // Under a roof the rain goes dull and a drip finds the gap.
+        else if (kind === "rain-muffled") a.noise?.(0.3, 0.0025);
+        else if (kind === "drip") a.tone?.(1250, 0.05, "sine", 0.008, 0, -500);
+        else if (kind === "step-wet") a.noise?.(0.035, 0.007);
+        else if (kind === "step") a.tone?.(95, 0.03, "triangle", 0.006, 0, -20);
+        else if (kind === "crackle") { a.noise?.(0.025, 0.012); if (Math.random() < 0.3) a.tone?.(1800, 0.012, "square", 0.004); }
+        else if (kind === "thud") { a.tone?.(52, 0.12, "sine", 0.03, 0, -12); a.haptic?.(8); }
         else if (kind === "car") { a.noise?.(0.6, 0.018); a.tone?.(70, 0.6, "sawtooth", 0.012, 0, -10); }
         else if (kind === "door") { a.tone?.(180, 0.08, "square", 0.02, 0, -40); a.noise?.(0.08, 0.02); }
         else if (kind === "chime") { a.tone?.(988, 0.14, "sine", 0.018); a.tone?.(784, 0.2, "sine", 0.016, 0.12); }
@@ -1021,7 +1028,17 @@
       const sheltered = (g.shelters || []).some(rect => p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h);
       const rain = g.world ? (sheltered ? 0.1 : (g.rain || 0)) : 0;
       room.inRain = rain > 0.3;
-      if (g.world && time - rainTickAt > 260 && !reducedMotion()) { rainTickAt = time; if (rain > 0.05 || room.blackRain) sound("rain"); }
+      if (g.world && time - rainTickAt > 260 && !reducedMotion()) {
+        rainTickAt = time;
+        if (sheltered && g.rain > 0.05) { sound("rain-muffled"); if (time - dripAt > 900 + (time % 700)) { dripAt = time; sound("drip"); } }
+        else if (rain > 0.05 || room.blackRain) sound("rain");
+      }
+      // Footfalls, quiet: wet slaps outside, a dry tick below.
+      if (p.moving && sim.phase === "play" && time - stepAt > 270) { stepAt = time; sound(g.world && !sheltered && g.theme !== "van" ? "step-wet" : "step"); }
+      // The hearth talks to itself; the Porter's weight lands when it moves.
+      if (g.hearth && sim.hearthLit && time - crackleAt > 260 + (Math.sin(time) + 1) * 400) { crackleAt = time; sound("crackle"); }
+      const porterEnemy = g.id === "porter" ? sim.enemies.find(enemy => enemy.kind === "porter") : null;
+      if (porterEnemy && (porterEnemy.state === "reposition" || porterEnemy.state === "charge") && time - thudAt > (porterEnemy.state === "charge" ? 140 : 380)) { thudAt = time; sound("thud"); }
       stillFor = p.moving ? 0 : stillFor + dt;
       if (sheltered && !room.wasSheltered && g.world && sim.roomId !== "drain") setPose("shake", 800);
       room.wasSheltered = sheltered;

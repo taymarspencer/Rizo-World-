@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v90-r2-threshold";
+  const RIZO_RUNTIME_BUILD = "v91-art-signature";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*

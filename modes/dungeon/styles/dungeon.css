@@ -237,3 +237,23 @@ html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-lock
 @keyframes dungeonFall{0%{translate:0 0;opacity:1}30%{translate:0 -6px}100%{translate:0 40px;transform:scaleX(var(--face)) rotate(30deg) scale(.6);opacity:0}}
 @keyframes dungeonLand{0%{translate:0 -24px;transform:scaleX(var(--face)) scale(.9,1.1)}60%{translate:0 0;transform:scaleX(var(--face)) scale(1.15,.82)}100%{transform:scaleX(var(--face))}}
 .minigame-overlay.dungeon-reduced-motion .dungeon-pose[class*="pose-"]{animation:none!important}
+
+/* ===== RIZO STAGING (art pass): weight, anticipation, contact. Presentation only. ===== */
+/* Moving: lean into the heading, a step that lands with a little squash. */
+.dungeon-pose.is-moving{--lean:5deg}
+@keyframes dungeonStep{0%,100%{translate:0 0;scale:1 1}30%{translate:0 -2.5px;scale:.97 1.03}55%{translate:0 0;scale:1.05 .95}}
+/* Standing still: breathing, slow. */
+.dungeon-pose.is-still:not([class*="pose-"]):not(.is-flare):not(.is-spark):not(.is-tuck):not(.is-hurt){animation:dungeonBreathe 2.8s ease-in-out infinite}
+@keyframes dungeonBreathe{50%{scale:1.02 .985}}
+/* Flare: gather (squash back), release (stretch forward), settle. */
+.dungeon-pose.is-flare:not([class*="pose-"]),.dungeon-pose.is-spark:not([class*="pose-"]){animation:dungeonFlare .32s ease-out}
+@keyframes dungeonFlare{0%{scale:.9 1.08;translate:-1.5px 0}35%{scale:1.14 .9;translate:2px 0}100%{scale:1 1;translate:0 0}}
+/* Tuck: a hard curl down, then a springy recovery when it lets go. */
+.dungeon-pose.is-tuck:not([class*="pose-"]){animation:dungeonTuck .16s ease-out both}
+@keyframes dungeonTuck{0%{scale:1 1}100%{scale:1.04 .94}}
+/* Hit: a jolt back and a blink, not a long flash. */
+@keyframes dungeonHurt{0%{translate:-3px 0}50%{opacity:.4;translate:-1px 0}100%{translate:0 0}}
+/* Wet outside: a little colder; warm by the fire: a little brighter. */
+.dungeon-pose.is-wet .mini-pet{filter:saturate(.8) brightness(.93) hue-rotate(-6deg)}
+.dungeon-pose.is-warm .mini-pet{filter:saturate(1.1) brightness(1.06)}
+.minigame-overlay.dungeon-reduced-motion .dungeon-pose{animation:none!important;scale:none!important}

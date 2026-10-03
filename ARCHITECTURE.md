@@ -21,7 +21,7 @@ is what the player brings into game modes.
 
 Neither side ever writes the save, the wallet or a pet directly. The hub is the only writer.
 
-> **Status (Dungeon Run 2):** both contracts exist, are tested, and carry every game. The ten training games
+> **Status (Dungeon art pass):** both contracts exist, are tested, and carry every game. The ten training games
 > live in `training/<id>.js` and play through the hub's training runner (§4); Rizo Defense runs on the
 > game-mode contract from `modes/defense/` (§8). Rizo Dungeon (§9) runs The Threshold, a complete short
 > proof episode, on the same contract plus the host additions it needs (confirmed commit, receipts, care policy).
@@ -39,7 +39,7 @@ Order matters. Each file may use only the files above it.
 | 3 | `core/rizo-training.js` | **pure** | The training contract: game definitions and score → stat conversion. |
 | 4 | `core/rizo-modes.js` | pure rules + browser host | The game-mode contract: registry, slice migration, award limits, host API. |
 | 5 | `core/rizo-catalog.js` | **pure** | Shared read-only game data every layer may use: the Rizo variants. |
-| 6 | `modes/<id>/…` | browser | One game mode each. Registers with `RizoModes.register`. Today: `modes/defense/defense-core.js` (pure rules), `defense-canvas.js` (canvas presenter), `defense-mode.js` (registration + runtime); `modes/dungeon/dungeon-content.js` (frozen rooms/lines), `dungeon-core.js` (pure rules), `dungeon-input.js` (action state), `dungeon-view.js` (handheld + canvas), `dungeon-mode.js` (registration + runtime). A mode whose scripts are missing simply does not register; the hub still boots. |
+| 6 | `modes/<id>/…` | browser | One game mode each. Registers with `RizoModes.register`. Today: `modes/defense/defense-core.js` (pure rules), `defense-canvas.js` (canvas presenter), `defense-mode.js` (registration + runtime); `modes/dungeon/dungeon-content.js` (frozen rooms/lines), `dungeon-core.js` (pure rules), `dungeon-input.js` (action state), `dungeon-art.js` (the visual constitution), `dungeon-scenery.js` (each place's art), `dungeon-view.js` (handheld + frame composition), `dungeon-mode.js` (registration + runtime). A mode whose scripts are missing simply does not register; the hub still boots. |
 | 7 | `training/kit.js`, `training/<id>.js` | browser | The ten training games, one file each, plus a tiny shared DOM kit. Each registers with `RizoTraining.register`. |
 | 8 | `game-v79-defense.js` | browser | **The hub**: save I/O, pet simulation, care, House, UI, `petMarkup()`, the training runner, and the host adapter both contracts talk to. (The file keeps its historical name; neither Defense nor any minigame lives in it any more.) |
 
@@ -442,7 +442,9 @@ below, inside the Rizo Field Unit. It is a complete small story, not the full ca
 | Rooms, exits, zones, props, encounters, speakers, portrait expressions, every line (frozen) | `dungeon-content.js` |
 | Rules: fixed 60 Hz step, movement/collision, the opening's leash, Flare/Tuck/Kindle (and warming), Draftling, Needle, the van's cooler, the Night Porter, exits/zones, flag-gated doors, pause holds, slice validation and migration | `dungeon-core.js` (pure, Node-tested) |
 | One action state from keyboard, mouse and touch (button and direction edges) | `dungeon-input.js` |
-| The handheld (open → locking → locked), room painters, NPC cutouts, portrait dialogue, choices, speech bubbles | `dungeon-view.js`, `styles/dungeon.css` |
+| **The visual constitution**: palette families, ink, value bands, shadow, the stepped light pass, seeded wobble, scale, materials (concrete, asphalt, tiles, planks, wall faces, metal), human-evidence details (tape, stitches, rivets, worn spots, hand-lettering), every character and enemy, fire, and the portraits | `dungeon-art.js` |
+| Each place's art around the collision geometry: a cached static layer per room, live details, its lights | `dungeon-scenery.js` |
+| The handheld (open → locking → locked), frame composition (room layer → live scenery → actors by depth → rain → the dark → telegraphs and fire above it), portrait dialogue, choices, speech bubbles, footfalls | `dungeon-view.js`, `styles/dungeon.css` |
 | Registration, binding, loop, scenes, story beats, lifecycle, persistence, page lock, QA hooks | `dungeon-mode.js` |
 
 **The story, in rooms.** `curb` (the late store: "Be good.", free movement with a soft leash, two things to
@@ -464,9 +466,16 @@ his) → `drain` (shelter; he shakes off the rain) → the ground gives way and 
 - **Story rule: commit, then present.** Rescue, seat choice, shortcut, the Porter's help and the reward are
   committed before their scene shows. `story.resumeScene` marks a committed beat whose lines were cut off; the
   next entry acknowledges it from `ACKS` and never applies it twice.
-- **Dialogue** is DOM with a speaker portrait (`SPEAKERS` / `PORTRAITS[speaker][expression]`, inline-SVG
-  placeholders today, `{ src }` later). Latch has procedural, startled, dry, soft and urgent. Narration has no
-  portrait. NPCs in play speak in bubbles over their heads.
+- **Dialogue** is DOM with a speaker portrait (`SPEAKERS` / `PORTRAITS[speaker][expression]`, authored inline SVG
+  from `dungeon-art.js`; any entry may become `{ src }` without touching story code). Latch has procedural,
+  startled, dry, soft and urgent. Narration has no portrait. NPCs in play speak in bubbles over their heads.
+- **How it looks** is decided once, in `dungeon-art.js` (read its header before drawing anything): one ink colour,
+  2–3 flat value bands, key light from above, flat contact shadows, darkness cut by stepped light pools (warm
+  light tints, cold light only reveals), seeded wobble that never boils, a fixed scale (Rizo 28u, Latch 38u,
+  people 66–98u), one to three signs of people per room, pale-bone telegraphs drawn above the dark. A new
+  room adds an entry to `dungeon-scenery.js`; a new character or enemy adds a function to `dungeon-art.js`
+  built from its palette and helpers. The player's Rizo is never painted: it stays the hub's `petMarkup()` in
+  the DOM, staged by CSS poses (lean, step, breathe, Flare gather/release, Tuck curl, hit jolt).
 - **The page lock.** While open, the Dungeon adds `dungeon-locked` to `<html>`/`<body>` (no overflow, fixed
   body, no selection or callout), cancels `touchmove`, `gesturestart`, `selectstart`, `wheel` and double-tap in
   the stage, and removes all of it on stop, restoring the scroll position. A `start()` that throws stops

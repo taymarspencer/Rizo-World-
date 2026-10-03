@@ -20,10 +20,13 @@
   Flags are the campaign's durable room flags and story facts.
 */
 (function initRizoDungeonContent(root, factory) {
-  const api = factory();
+  // Portraits are art: they live in dungeon-art.js (loaded first in the page).
+  let art = root?.RizoDungeonArt || null;
+  if (!art && typeof require === "function") { try { art = require("./dungeon-art.js"); } catch (error) { art = null; } }
+  const api = factory(art);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) Object.defineProperty(root, "RizoDungeonContent", { value: api, configurable: true });
-})(typeof globalThis !== "undefined" ? globalThis : this, function createRizoDungeonContent() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function createRizoDungeonContent(Art) {
   "use strict";
 
   function deepFreeze(value) {
@@ -292,26 +295,10 @@
   };
 
   // ===== SPEAKERS AND PORTRAITS =====
-  // A portrait is data: an inline SVG (placeholder cutouts) or later { src }.
-  // Expressions are chosen per line; the renderer never decides them.
-  const face = (body, eyes, mouth, extra = "") => `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${body}${eyes}${mouth}${extra}</svg>`;
-  const LATCH_BODY = '<path d="M14 64 L18 40 Q32 30 46 40 L50 64 Z" fill="#e9e1cc" stroke="#14110d" stroke-width="2.5"/><path d="M24 44 L31 64 M40 43 L35 64" stroke="#b9ab8c" stroke-width="1.6" fill="none"/><path d="M30 46 L34 46 L34 50 L30 50 Z" fill="#c9773c" stroke="#14110d" stroke-width="1.4"/><circle cx="32" cy="28" r="13" fill="#d8c9a6" stroke="#14110d" stroke-width="2.5"/><path d="M18 22 Q32 8 46 22 L46 24 L18 24 Z" fill="#5b4a36" stroke="#14110d" stroke-width="2.2"/><rect x="44" y="21" width="7" height="3" rx="1" fill="#5b4a36" stroke="#14110d" stroke-width="1.6"/>';
-  const HOOD_BODY = color => `<path d="M10 64 L14 36 Q32 14 50 36 L54 64 Z" fill="${color}" stroke="#0b0b0d" stroke-width="2.5"/><path d="M20 32 Q32 18 44 32 L44 42 Q32 48 20 42 Z" fill="#141418" stroke="#0b0b0d" stroke-width="2"/>`;
-  const PORTRAITS = {
-    you: {
-      neutral: face('<rect width="64" height="64" fill="#1d2430"/><path d="M8 34 Q32 6 56 34 Z" fill="#2e6fa3" stroke="#0b0d10" stroke-width="2.5"/><path d="M32 34 L32 54 Q32 58 28 58" fill="none" stroke="#0b0d10" stroke-width="3"/>', "", "")
-    },
-    latch: {
-      procedural: face(LATCH_BODY, '<path d="M24 27 h5 M35 27 h5" stroke="#14110d" stroke-width="2.6" stroke-linecap="round"/>', '<path d="M27 35 h10" stroke="#14110d" stroke-width="2.2" stroke-linecap="round"/>'),
-      startled: face(LATCH_BODY, '<circle cx="26" cy="27" r="3" fill="#fff" stroke="#14110d" stroke-width="1.8"/><circle cx="38" cy="27" r="3" fill="#fff" stroke="#14110d" stroke-width="1.8"/>', '<ellipse cx="32" cy="36" rx="2.6" ry="3" fill="#14110d"/>', '<path d="M22 20 l6 -2 M36 18 l6 2" stroke="#14110d" stroke-width="2" stroke-linecap="round"/>'),
-      dry: face(LATCH_BODY, '<path d="M23 28 h6 M35 27 q3 -2 6 0" stroke="#14110d" stroke-width="2.4" stroke-linecap="round" fill="none"/>', '<path d="M27 35 q6 2 10 -2" stroke="#14110d" stroke-width="2.2" stroke-linecap="round" fill="none"/>'),
-      soft: face(LATCH_BODY, '<path d="M23 28 q3 -3 6 0 M35 28 q3 -3 6 0" stroke="#14110d" stroke-width="2.4" stroke-linecap="round" fill="none"/>', '<path d="M28 34 q4 3 8 0" stroke="#14110d" stroke-width="2.2" stroke-linecap="round" fill="none"/>'),
-      urgent: face(LATCH_BODY, '<path d="M23 24 l6 3 M41 24 l-6 3" stroke="#14110d" stroke-width="2.4" stroke-linecap="round"/><circle cx="26" cy="29" r="1.8" fill="#14110d"/><circle cx="38" cy="29" r="1.8" fill="#14110d"/>', '<path d="M27 35 q5 5 10 0 Z" fill="#14110d"/>', '<path d="M52 14 l6 -4 M54 22 l7 -1" stroke="#ff9a3c" stroke-width="2.2" stroke-linecap="round"/>')
-    },
-    "hood-tall": { neutral: face(`<rect width="64" height="64" fill="#1c1a22"/>${HOOD_BODY("#3b3f4a")}`, '<rect x="24" y="33" width="5" height="2" fill="#e9e1cc"/><rect x="35" y="33" width="5" height="2" fill="#e9e1cc"/>', "") },
-    "hood-small": { neutral: face(`<rect width="64" height="64" fill="#221a1c"/>${HOOD_BODY("#6b2f36")}<rect x="16" y="14" width="32" height="8" rx="3" fill="#d9c27a" stroke="#0b0b0d" stroke-width="2"/>`, '<circle cx="27" cy="34" r="2" fill="#e9e1cc"/><circle cx="37" cy="34" r="2" fill="#e9e1cc"/>', "") },
-    driver: { neutral: face(`<rect width="64" height="64" fill="#15171c"/>${HOOD_BODY("#262a33")}`, '<rect x="23" y="33" width="18" height="3" rx="1.5" fill="#9aa3ad"/>', "") }
-  };
+  // PORTRAITS[portraitId][expression] is an inline SVG (authored in
+  // dungeon-art.js under its portrait rules) or later { src }. Lines choose
+  // the expression; the renderer never decides it.
+  const PORTRAITS = Art?.PORTRAITS || {};
   const SPEAKERS = {
     you: { name: "YOU", portrait: "you" },
     latch: { name: "LATCH", portrait: "latch" },
