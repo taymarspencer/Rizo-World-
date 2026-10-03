@@ -142,6 +142,54 @@ test("unknown end reasons fall back to timeup", () => {
   assert.strictEqual(Training.convert(Training.defineGame(base), { score: 10, reason: "exploded" }).reason, "timeup");
 });
 
+test("hype is part of the conversion, scaled by the game's care.hype", () => {
+  const showy = Training.defineGame({ ...base, id: "showy", care: { hype: 1, mood: 1 } });
+  assert.strictEqual(Training.convert(showy, { score: 40, inputs: 1 }).hype, 15);
+  assert.strictEqual(Training.convert(showy, { score: 0, inputs: 1 }).hype, 0);
+});
+test("a misspelled hook fails at load instead of silently never running", () => {
+  assert.throws(() => Training.defineGame({ ...base, id: "typo", frmae() {} }), /unknown hook "frmae"/);
+  assert.throws(() => Training.defineGame({ ...base, id: "badhook", frame: 3 }), /frame must be a function/);
+});
+
+// ---------- the ten training games (loaded exactly as the browser loads them) ----------
+// The game files only touch the DOM inside their hooks, so their definitions
+// load in Node: the kit and the registry are globals, as in the page.
+require(path.join(ROOT, "training/kit.js"));
+const GAME_IDS = ["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze"];
+for (const id of GAME_IDS) require(path.join(ROOT, `training/${id}.js`));
+test("all ten games register under their own file's name", () => {
+  assert.deepStrictEqual(Training.list().map(game => game.id).filter(id => GAME_IDS.includes(id)).sort(), [...GAME_IDS].sort());
+});
+test("every game declares what the shelf and results need", () => {
+  for (const id of GAME_IDS) {
+    const game = Training.get(id);
+    for (const field of ["name", "kicker", "hint", "art", "button"]) assert(String(game[field] || "").trim(), `${id}.${field}`);
+    for (const hook of ["start", "stop", "qualified", "result"]) assert.strictEqual(typeof game[hook], "function", `${id}.${hook}`);
+    assert(game.sounds?.win && game.sounds?.fail, `${id}.sounds`);
+    assert(game.music === false || (Array.isArray(game.music?.lead) && game.music.tempo > 0), `${id}.music`);
+  }
+});
+test("no single run of any game can pay more than its 1.5x-par ceiling (audit H3/H4)", () => {
+  for (const id of GAME_IDS) {
+    const game = Training.get(id), ceiling = Training.ceiling(game);
+    const absurd = Training.convert(game, { score: 1e9, reason: "timeup", inputs: 1 });
+    assert.deepStrictEqual(absurd, ceiling, `${id} absurd score`);
+    assert(ceiling.embers <= Math.round(game.energy * Training.RATES.embersPerEnergy * Training.MAX_PERFORMANCE), `${id} embers ${ceiling.embers}`);
+    assert(ceiling.bond <= Training.RATES.bondAtPar * Training.MAX_PERFORMANCE, `${id} bond ${ceiling.bond}`);
+  }
+  // The audit's probe took Spark Stash's Bond from 0 to 100 in one run.
+  assert(Training.ceiling(Training.get("spark")).bond <= 6);
+});
+test("only the declared quest, counter and finds reach the hub", () => {
+  assert.strictEqual(Training.get("power").quest, "train");
+  assert.strictEqual(Training.get("breaker").quest, "train");
+  assert.strictEqual(Training.get("walk").quest, "walk");
+  assert.strictEqual(Training.get("walk").counter, "totalWalks");
+  assert.deepStrictEqual(Training.get("walk").finds.variants, ["shadow", "moss"]);
+  for (const id of GAME_IDS.filter(id => id !== "walk")) assert(!Training.get(id).finds, `${id} declares no finds`);
+});
+
 // ---------- game-mode contract ----------
 const modeDef = { id: "probe", schema: 2, create: () => ({}), migrate: (data, from, legacy) => ({ runs: (data?.runs || legacy?.runs || 0) + (from === 1 ? 100 : 0), schemaSeen: from }) };
 test("mode definitions are validated at load", () => {

@@ -112,6 +112,8 @@
 .walk-world .walk-find.hazard::after,.walk-world .walk-find.obstacle::after{content:"HOP";position:absolute;top:-19px;color:#f5ebc6;font:900 12px monospace}
 .walk-world .walk-fork{inset:78px 12px 34px;overflow-y:auto;border:2px solid #b9c5a2;background:#101f22f5;border-radius:3px;padding:14px;gap:12px}
 .walk-world .walk-fork-btn{min-height:78px;border-radius:3px;border:2px solid #738e79;background:#253f3c;padding:12px}
+/* v88: forks are timed — Rizo chooses when the countdown runs out. */
+.walk-world .walk-decision-timer{display:block;font-style:normal;font-weight:800;font-size:12px;letter-spacing:.12em;color:#f3e7b5;text-align:center}
 .walk-world .walk-fork-btn b{font:900 14px/1.35 monospace;color:#eff0ca}
 .walk-world .walk-fork-btn span{font:600 12px/1.45 monospace;color:#d2dfcc}
 .walk-encounter-intro{display:grid;justify-items:center;gap:8px;text-align:center;color:#f3ebc4}

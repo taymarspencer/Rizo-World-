@@ -56,6 +56,16 @@ test("each game mode's files load after the core and before the hub", () => {
   assert(order("modes/defense/defense-core.js") < order("modes/defense/defense-mode.js"));
   assert(order("modes/defense/defense-canvas.js") < order("modes/defense/defense-mode.js"));
 });
+test("training games load after the contract and the kit, and before the hub", () => {
+  const order = name => loadedScripts.indexOf(name);
+  const games = loadedScripts.filter(file => file.startsWith("training/") && file !== "training/kit.js");
+  assert.strictEqual(games.length, 10, `expected ten training games, found ${games.length}`);
+  assert(order("training/kit.js") > order("core/rizo-training.js"), "the kit loads after the training contract");
+  for (const file of games) {
+    assert(order(file) > order("training/kit.js"), `${file} must load after the kit`);
+    assert(order(file) < order("game-v79-defense.js"), `${file} must load before the hub`);
+  }
+});
 test("no file a mode owns is left at its pre-v88 root path", () => {
   for (const old of ["defense-core-v79.js", "defense-canvas-v79.js", "worker-d-towers.css", "v81-art.css"]) {
     assert(!fs.existsSync(path.join(ROOT, old)), `${old} should live under modes/defense/`);

@@ -306,24 +306,22 @@ with sync_playwright() as p:
            and page.evaluate('RizoRuntimeQA.arcadeJobsForQA().count') == 0)
 
     # ---------- 10. Coverage guard ----------
-    # Deadline crediting is discovered by naming convention. If someone adds a
-    # new mini.somethingUntil / somethingAt, this fails so they classify it as
-    # either a credited run deadline or an explicit exemption.
-    EXPECTED_DEADLINES = [
-        'breakerBoostUntil', 'breakerPierceUntil', 'breakerResetAt', 'forageFeedbackUntil',
-        'forageNextAt', 'forageRushUntil',
-        'glideInvulnerableUntil', 'glideSpawnAt', 'glideThermalUntil', 'glideWindAt',
-        'invulnerableUntil', 'mazeHuntUntil', 'mazeHunterWakeAt', 'mazeInvulnerableUntil',
-        'powerCallAt', 'powerGuardAt', 'powerGuardUntil', 'powerTapLockUntil',
-        'rushLandingUntil', 'sparkExpiresAt', 'sparkFeverUntil',
-    ]
+    # Before v88 a freeze credited every mini.*Until / *At deadline by naming
+    # convention, and this guard listed them. Training games now read time only
+    # from the run clock (run.now()), which stands still while a run is held, so
+    # no deadline needs crediting. The guard is that no game reads a wall clock.
+    import pathlib, re as _re
+    training = pathlib.Path(__file__).resolve().parents[1] / 'training'
+    wall = {f.name: _re.findall(r'\b(?:Date\.now|performance\.now)\(', f.read_text()) for f in sorted(training.glob('*.js'))}
+    record('no training game reads a wall clock (every deadline is on the run clock)',
+           len(wall) >= 10 and not any(wall.values()), str({k: len(v) for k, v in wall.items() if v}))
     page.evaluate(SETUP_STATE)
     page.evaluate('RizoRuntimeQA.startMiniGame("breaker")')
     page.wait_for_timeout(150)
-    keys = page.evaluate('RizoRuntimeQA.arcadeDeadlineKeysForQA()')
-    record('every absolute deadline is accounted for by the credit pass',
-           keys == EXPECTED_DEADLINES,
-           f"new/unclassified: {sorted(set(keys) ^ set(EXPECTED_DEADLINES))}" if keys != EXPECTED_DEADLINES else f'{len(EXPECTED_DEADLINES)} keys')
+    page.evaluate('RizoRuntimeQA.arcadeGrantBuffsForQA()')
+    deadlines = page.evaluate('RizoRuntimeQA.arcadeDeadlinesForQA()')
+    record('run-clock deadlines are discoverable on the board',
+           'breakerBoostUntil' in deadlines and 'breakerPierceUntil' in deadlines, str(sorted(deadlines)))
     page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
     page.wait_for_timeout(40)
 

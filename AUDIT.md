@@ -477,7 +477,9 @@ MATURE pet "MOSSY" with skills, a crown, 140 games, Defense best 23, and 2 Ember
 | C4 Defense runs expire | **Fixed, Phase 1.** The 7-day expiry is removed. **Phase 2:** discarding a saved run now banks it (its cleared waves pay out) instead of deleting it. | `normalizeDefenseCheckpoint`, `bankOnArrival` |
 | H1 tamper reset | **Resolved per decision.** The reset stays; the original bytes survive (v1 untouched, v2 quarantined). | §8 |
 | H2 House swap decay | **Fixed, Phase 1.** The clock restarts when a resident comes back. | `swapFarmPet` |
-| H3–H5 reward normalisation | **Contract in place, Phase 1** (`RizoTraining.convert`). Games move onto it in Phase 3. | `core/rizo-training.js` |
+| H3 Spark Stash rewards uncapped | **Fixed, Phase 3.** Rewards come from `convert()` against a par of 220, capped at 1.5× par: Bond ≤ 6 per run (the probe took it 0 → 100). | `training/spark.js` |
+| H4 Lost Signal score quadratic | **Fixed, Phase 3.** 1 point per rune plus a clear bonus of 3 / 5 / 8 by rule depth; rewards are par-relative and capped. | `training/memory.js` |
+| H5 no common conversion | **Fixed, Phase 3.** All ten games are scored by `RizoTraining.convert()`; the ten bespoke reward branches are gone. | `applyTrainingResult` |
 | H6 Defense inside the arcade | **Fixed, Phase 2.** Defense is a game mode in `modes/defense/` with its own slice, loop, job queue, pause panel, input and QA hooks. The hub has no Defense branches left; it launches modes from `[data-mode]` cards. | `modes/defense/defense-mode.js` |
 | H7 save depends on Defense | **Fixed, Phases 1–2.** Envelope, signatures and hub limits live in `core/rizo-save-core.js`; the whole-save signature and hub limits are gone from `defense-core.js`. The hub boots and saves with no mode files at all (`tests/mode-contract.py`). | `core/rizo-save-core.js` |
 | M2 legacy key never read | **Fixed, Phase 1.** It is a migration source. | `loadState` |
@@ -492,3 +494,34 @@ MATURE pet "MOSSY" with skills, a crown, 140 games, Defense best 23, and 2 Ember
 | X2–X6, X9–X11 hub/Defense reach-ins | **Fixed, Phase 2.** Defense's records, settings, school, crew and intro flags left the hub state (state version 20, via `state.modeInbox`); `normalizeState` knows nothing about Defense; hub surfaces read `RizoModes.summary("defense")`. | `LEGACY_MODE_FIELDS`, `prepareModeSlices` |
 | M1 Defense renderers | **Open.** The CSS-drawn basic Rizo and the tower silhouette mask are still mode-internal renderers. | `defense-mode.js` |
 | M12 Defense cost on the pet screen | **Partly open.** Defense still loads eagerly (its files are in `index.html`), and `launch-v79-defense-alive.css` still mixes Defense and hub rules. Outside a run, Defense only registers itself and keeps idle input listeners. | `index.html` |
+| M5 "CLEARED" after a plain time-up | **Fixed, Phase 3.** The runner never infers "cleared"; a game reports it through `run.end("cleared")`. Courier, Forge and Lost Signal now say TIME UP. | runner |
+| M6 Spark auto-bank at the buzzer | **Fixed, Phase 3.** An unbanked stash is lost at time-up, with a "BANK BEFORE THE BUZZER" warning in the last 5 s; ending the run yourself still banks it at x1. | `training/spark.js` `settle` |
+| M7 Rain Walk had no length limit | **Fixed, Phase 3 (kept and reworked, per decision).** The forks and the ending no longer stop the clock: each card counts down 6.5 s and then Rizo chooses by personality (bold personalities take the riskier path). The walk is 48 s, always. Rizo's own choices don't qualify an idle run. | `training/walk.js` |
+| L1 Lost Signal callout ≠ payout | **Fixed, Phase 3.** The callout shows the clear bonus actually paid. | `training/memory.js` |
+| L2 Forge effect cleared early | **Fixed, Phase 3.** A pickup's cleanup only ends the effect if no later pickup extended it. | `training/breaker.js` |
+| L3 slow motion under 25 fps | **Fixed, Phase 3.** The runner steps games in ≤ 40 ms slices to cover real elapsed time (stalls over 250 ms are skipped). | `trainingFrame` |
+| L4 Skybound geometry on resize | **Fixed, Phase 3.** Rizo and every gate are rescaled when the arena changes size. | `training/glide.js` |
+| L7 Ember Beat TDZ guard | **Fixed, Phase 3.** The song list left the hub; the song bag is the game's own memory (state version 21). | `training/rhythm.js` |
+| L8 quest copy | **Fixed, Phase 3.** "FINISH 1 POWER TAPE OR EMBER FORGE RUN" (both strength games advance it, as before). | hub quests |
+| X7, X8 minigame reach-ins, shared `mini` | **Fixed, Phase 3.** Games live in `training/<id>.js`, reach the world only through `run`, and keep their own fields on a per-run board. `tests/training-boundaries.test.js` enforces it. | `training/` |
+| Timestamp-based timers rule (§5) | **Met, Phase 3.** The `setTimeout` job queue and naming-convention deadline crediting are gone: games read the run clock, which stands still while a run is held, and their jobs are deadlines polled each frame. | runner |
+| *New:* Ember Beat paid a full run for 3 notes | **Fixed, Phase 3.** v87 rewarded accuracy/combo quality alone, so three perfect notes and a quit paid like a whole song. The reward score is now quality × the share of the song played. | `training/rhythm.js` |
+
+## 10. Phase 3 cut list
+
+Nothing among the ten games needed cutting: all of them fit the contract once their scores were measured
+against a par. Rain Walk, the one candidate (§3), was reworked instead, per the decision in §8. What was
+removed rather than carried over:
+
+| Removed | Why |
+|---|---|
+| The ten bespoke reward branches in `finishMiniGame` | Replaced by `convert()`; every number now comes from one formula and the game's declared weights. |
+| Rizo Courier's extra Heat bonus | Every credited run earns the same +10 Heat; one game paying extra season progress broke the normalisation. |
+| Per-game Hype amounts (Courier, Skybound) | Replaced by a `care.hype` weight in the contract. |
+| The `setTimeout` job queue and deadline crediting by naming convention | Replaced by the run clock and polled run jobs. |
+| The "life games with full hearts cleared the board" rule | It produced M5. |
+| Rain Walk's clock-stopping forks and ending | They produced M7. |
+| Dead run fields (`forageContract`, `forageRestraint`, `walkForkShown`, `combo`, `currentGood`, `mover`) and `ARCADE_MODE_RULES` / `arcadeGame()` | Never read. |
+
+Left for later, not forced into Phase 3: Skybound has no reliable calibration bot (its par is estimated), and
+every par is a first estimate to tune with real play (`tests/calibrate-training-pars.py`).

@@ -10,9 +10,10 @@
   the game with a read-only pet snapshot, and when the game reports its result
   the hub calls convert() and applies the gains through its own pet rules.
 
-    game.start(pet, run)   pet: frozen snapshot   run: host services (arena, clock, sfx, end)
-    run.end(result)        result: { score, reason, qualified, stats }
-    convert(def, result)   → gains: skills, xp, bond, mood, hunger, embers, energy
+    game.start(pet, run)   pet: frozen snapshot   run: host services (arena, run clock,
+                           jobs, board, sound, end) — see ARCHITECTURE.md §4
+    game.result(board)     → { stats, voice, finds, rewardScore } for the results screen
+    convert(def, result)   → gains: skills, xp, bond, mood, hype, hunger, embers, energy
 
   Rewards are normalised. A run is measured against the game's `par` score (a
   solid, competent run), capped at MAX_PERFORMANCE × par, and the reward budget
@@ -37,9 +38,15 @@
     embersPerEnergy: 5,
     minEmbers: 4,         // a qualified run always pays something
     bondAtPar: 4,         // × the game's care.bond weight
-    moodAtPar: 10         // × the game's care.mood weight
+    moodAtPar: 10,        // × the game's care.mood weight
+    hypeAtPar: 15         // × the game's care.hype weight (showing off: Courier, Skybound)
   });
   const MAX_PERFORMANCE = 1.5;
+
+  // Optional game hooks the hub runner calls. A definition may only carry
+  // functions under these names (plus start/stop), so a typo fails at load.
+  const HOOKS = Object.freeze(["start", "stop", "frame", "input", "move", "release", "key", "header", "settle", "qualified", "result",
+    "pause", "resume", "canPause", "settingsChanged", "qa", "qaSnapshot", "qaAuthored", "qaMini", "qaBuffs", "qaQualify"]);
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, Number.isFinite(Number(value)) ? Number(value) : min));
   const round2 = value => Math.round(value * 100) / 100;
@@ -68,7 +75,8 @@
     if (!weightTotal) fail("must train at least one skill");
     for (const skill of Object.keys(trains)) trains[skill] = trains[skill] / weightTotal;
     const care = def.care && typeof def.care === "object" ? def.care : {};
-    for (const key of ["start", "stop"]) if (def[key] !== undefined && typeof def[key] !== "function") fail(`${key} must be a function`);
+    for (const key of HOOKS) if (def[key] !== undefined && typeof def[key] !== "function") fail(`${key} must be a function`);
+    for (const [key, value] of Object.entries(def)) if (typeof value === "function" && !HOOKS.includes(key)) fail(`unknown hook "${key}"`);
     return Object.freeze({
       ...def,
       id,
@@ -82,6 +90,7 @@
       care: Object.freeze({
         bond: clamp(care.bond, 0, 1),
         mood: clamp(care.mood, 0, 1),
+        hype: clamp(care.hype, 0, 1),
         // Hunger change for a par run: negative for exertion, positive for food games.
         hunger: clamp(care.hunger, -20, 30)
       }),
@@ -107,7 +116,7 @@
     const qualified = isQualified(result);
     const reason = END_REASONS.includes(result?.reason) ? result.reason : "timeup";
     if (!qualified) {
-      return Object.freeze({ game: def.id, qualified: false, reason, performance: 0, skills: Object.freeze({}), xp: 0, bond: 0, mood: 0, hunger: 0, embers: 0, energy: 0, alignment: 0 });
+      return Object.freeze({ game: def.id, qualified: false, reason, performance: 0, skills: Object.freeze({}), xp: 0, bond: 0, mood: 0, hype: 0, hunger: 0, embers: 0, energy: 0, alignment: 0 });
     }
     const perf = performance(def, result);
     const skillPoints = perf * def.energy * RATES.skillPerEnergy;
@@ -122,6 +131,7 @@
       xp: round2(perf * def.energy * RATES.xpPerEnergy),
       bond: round2(perf * def.care.bond * RATES.bondAtPar),
       mood: round2(perf * def.care.mood * RATES.moodAtPar),
+      hype: round2(perf * def.care.hype * RATES.hypeAtPar),
       // Exertion is paid in full; food games feed in proportion to the run.
       hunger: round2(def.care.hunger < 0 ? def.care.hunger : perf * def.care.hunger),
       embers: Math.max(RATES.minEmbers, Math.round(perf * def.energy * RATES.embersPerEnergy)),
@@ -148,6 +158,7 @@
     CONTRACT_VERSION,
     SKILLS,
     END_REASONS,
+    HOOKS,
     RATES,
     MAX_PERFORMANCE,
     defineGame,

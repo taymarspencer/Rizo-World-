@@ -100,16 +100,20 @@ with sync_playwright() as p:
         page.wait_for_timeout(260)
         notes=page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk.notes')
         check(f'Rain Walk remembers unique find {expected}', len(notes)==expected, str(notes))
-    page.evaluate('RizoRuntimeQA.arcadeAdvanceClockForQA(12000)')
+    # Since v88 the forks are timed (they no longer stop the clock), so the
+    # clock is advanced by fractions of the walk's own length.
+    walk_ms = page.evaluate('RizoRuntimeQA.arcadeGamesForQA().walk.duration') * 1000
+    page.evaluate(f'RizoRuntimeQA.arcadeAdvanceClockForQA({int(walk_ms * .30)})')
     page.wait_for_timeout(120)
-    check('Rain Walk first fork pauses reading time', page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk.paused'))
+    fork = page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
+    check('Rain Walk first fork stops the trail and counts down', fork['paused'] and 0 < fork['decisionIn'] <= 6500, str(fork))
     page.keyboard.press('2')  # deep
     page.wait_for_timeout(100)
-    page.evaluate('RizoRuntimeQA.arcadeAdvanceClockForQA(15000)')
+    page.evaluate(f'RizoRuntimeQA.arcadeAdvanceClockForQA({int(walk_ms * .375)})')
     page.wait_for_timeout(120)
     page.keyboard.press('2')  # ruins
     page.wait_for_timeout(100)
-    page.evaluate('RizoRuntimeQA.arcadeAdvanceClockForQA(6500)')
+    page.evaluate(f'RizoRuntimeQA.arcadeAdvanceClockForQA({int(walk_ms * .15)})')
     page.wait_for_timeout(120)
     walk=page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
     check('Rain Walk route reaches its authored ruins encounter', walk['encounter']=='ruins' and walk['paused'], str(walk))
@@ -122,6 +126,16 @@ with sync_playwright() as p:
     page.wait_for_timeout(100)
     ending=page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
     check('Rain Walk 3-find bold ending pays off the route', ending['ending']=='YOUR SHADOW SAYS THANK YOU' and not ending['paused'], str(ending))
+    discard(page)
+
+    # An unanswered fork resolves itself: the run never waits on the player.
+    start(page,'walk')
+    page.evaluate(f'RizoRuntimeQA.arcadeAdvanceClockForQA({int(walk_ms * .30)})')
+    page.wait_for_timeout(120)
+    waiting = page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
+    page.wait_for_timeout(6900)
+    decided = page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
+    check('Rain Walk lets Rizo choose when the player does not', waiting['paused'] and not decided['paused'] and len(decided['choices']) == 1 and decided['autoPicks'] == 1, str(decided))
     discard(page)
 
     # Desktop-sized smoke: reuse the same loaded app and resize the viewport.

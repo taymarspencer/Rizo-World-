@@ -21,9 +21,9 @@ is what the player brings into game modes.
 
 Neither side ever writes the save, the wallet or a pet directly. The hub is the only writer.
 
-> **Status (Phase 2):** both contracts exist and are tested. Rizo Defense runs on the game-mode contract from
-> `modes/defense/` (§8) and is the template for later modes. Phase 3 moves the ten minigames onto the training
-> contract; until then they still run through the legacy arcade runtime inside `game-v79-defense.js`.
+> **Status (Phase 3):** both contracts exist, are tested, and carry every game. The ten training games live in
+> `training/<id>.js` and play through the hub's training runner (§4); Rizo Defense runs on the game-mode
+> contract from `modes/defense/` (§8) and is the template for later modes.
 
 ---
 
@@ -39,8 +39,8 @@ Order matters. Each file may use only the files above it.
 | 4 | `core/rizo-modes.js` | pure rules + browser host | The game-mode contract: registry, slice migration, award limits, host API. |
 | 5 | `core/rizo-catalog.js` | **pure** | Shared read-only game data every layer may use: the Rizo variants. |
 | 6 | `modes/<id>/…` | browser | One game mode each. Registers with `RizoModes.register`. Today: `modes/defense/defense-core.js` (pure rules), `defense-canvas.js` (canvas presenter), `defense-mode.js` (registration + runtime). |
-| 7 | `training/<id>.js` *(Phase 3)* | browser | One training game each. Registers with `RizoTraining.register`. |
-| 8 | `game-v79-defense.js` | browser | **The hub**: save I/O, pet simulation, care, House, UI, the legacy arcade runtime, `petMarkup()`, and the host adapter both contracts talk to. (The file keeps its historical name; Defense no longer lives in it.) |
+| 7 | `training/kit.js`, `training/<id>.js` | browser | The ten training games, one file each, plus a tiny shared DOM kit. Each registers with `RizoTraining.register`. |
+| 8 | `game-v79-defense.js` | browser | **The hub**: save I/O, pet simulation, care, House, UI, `petMarkup()`, the training runner, and the host adapter both contracts talk to. (The file keeps its historical name; neither Defense nor any minigame lives in it any more.) |
 
 Stylesheets follow the same split: a mode's own styles live in `modes/<id>/styles/` and resolve `url()`
 paths from there (`../../../assets/…`). `launch-v79-defense-alive.css` is still shared: about 40% of it is
@@ -54,7 +54,7 @@ Defense rules mixed in with hub rules, and splitting it is left for a later pass
 |---|---|
 | One renderer, `petMarkup()`, for every pet surface | Modes get `host.petMarkup(snapshot)`; training games get `run.petMarkup()`. Neither ships its own Rizo art path. Known exceptions are listed in `AUDIT.md` M1. |
 | No frameworks, no build step | Plain `<script>` files. Pure modules use a small UMD wrapper so Node tests can `require()` them. |
-| Timestamp-based timers only | Run clocks, buffs and deadlines are absolute timestamps credited across pauses. The training runner (Phase 3) schedules with deadlines polled in the frame loop, not `setTimeout`. |
+| Timestamp-based timers only | Training games read time only from the run clock (`run.now()`), which stands still while a run is held, and schedule with `run.after` / `run.every`: deadlines polled each frame, never `setTimeout`. `tests/training-boundaries.test.js` fails if a game reads a wall clock or a raw timer. |
 | Defensive save migration; never lose player data | §3. `tests/save-safety.py` replays old saves on every change. |
 | Bump the service-worker cache on every delivery | §6. `tests/release-integrity.test.js` fails unless the build marker matches in all four places and every loaded file is in the shell. |
 
@@ -117,7 +117,7 @@ a trusted legacy migration) wins. Then:
 
 | Change | Do this |
 |---|---|
-| Add or rename a hub state field | Bump `VERSION` (state version), normalise it defensively in `normalizeState()`, add an old-save case to `tests/save-safety.py`. No signature change is needed. |
+| Add or rename a hub state field | Bump `VERSION` (state version), normalise it defensively in `normalizeState()`, add an old-save case to `tests/save-safety.py`. No signature change is needed. State version 21 is the latest example: `musicHistory` became `trainingMemory.rhythm`. |
 | Change the envelope layout | Add `saveVersion: 3` in `core/rizo-save-core.js`. Keep the v2 verifier and the v1 block exactly as they are. |
 | Change a mode's data | Bump the mode's `schema` and extend its `migrate()`. The hub never inspects slice contents. |
 | Move hub fields into a mode | List them in `LEGACY_MODE_FIELDS` (hub). `normalizeState()` moves them out of the hub state into `state.modeInbox[<id>]`; the mode's first `migrate(…, 0, legacy)` receives them; the hub clears that inbox entry only after the slice exists. Bump `VERSION`. Defense (state version 20) is the worked example. |
@@ -134,50 +134,86 @@ save, the wallet or the pet.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `id` | lowercase word | Stable id. It is the key for best scores and care history. |
-| `name`, `kicker`, `hint`, `art` | strings | Cabinet and run-header copy. |
-| `duration` | 10–120 s | Run length. The hub runs the clock. |
+| `id` | lowercase word | Stable id, and the file name (`training/<id>.js`). It keys best scores and care history. |
+| `name`, `kicker`, `hint`, `art`, `button` | strings | Cabinet, shelf button and run-header copy. |
+| `duration` | 10–120 s | Run length on the run clock. A game may extend its own deadline (Ember Beat's lead-in). |
 | `energy` | 1–40 | Energy a credited run costs. It also sets the reward budget. |
 | `lives` | integer ≥ 0 | Hearts, if the game uses them. |
-| `par` | number > 0 | **The score of a solid, competent run.** All reward scaling hangs on this. |
+| `par` | number > 0 | **The score of a solid, competent run.** All reward scaling hangs on this (table below). |
 | `trains` | `{skill: weight}` | Which of `speed · power · instinct · stamina · luck` the game builds. Normalised to sum to 1. |
-| `care` | `{bond, mood, hunger}` | `bond`/`mood` weights 0–1. `hunger` is the change for a par run: negative for exertion, positive for food games. |
+| `care` | `{bond, mood, hype, hunger}` | `bond`/`mood`/`hype` weights 0–1. `hunger` is the change for a par run: negative for exertion, positive for food games. |
 | `alignment` | −3…3 | Nudge toward kind (+) or wild (−) per credited run. |
-| `start(pet, run)` | function | Begin the run. `pet` is a frozen snapshot. |
-| `frame(dt)`, `input(event)` | optional | Per-frame update and player input. |
-| `stop()` | function | Remove everything the run created. |
+| `sounds` | `{win, fail}` | The game's sound family, played through `run.cue()`. |
+| `music` | track or `false` | A hub music track `{tempo, lead, bass, wave}`, or `false` when the game plays its own (Ember Beat). |
+| `quest`, `counter`, `signal`, `finds` | optional | Hub extras the game may ask for: a daily-quest type it advances, a meta counter (`totalWalks`), whether it feeds the Retro arcade signal, and which finds it may report (`{treasure, variants:[ids]}`). Anything not declared is ignored. |
+
+Hooks (functions; any other function on the definition is rejected at load, so a typo can't silently never run):
+
+| Hook | Called |
+|---|---|
+| `start(pet, run)` | Once. `pet` is a frozen snapshot. Draw into `run.arena`; add the game's own fields to `run.state`. |
+| `frame(dt)` | Every frame, in slices of at most 40 ms (a slow device plays at the right speed, not in slow motion). |
+| `input(event)`, `move(event)`, `release(event)`, `key(event)` | Pointer down / move / up in the arena, and keys. `key` returns `true` if it used the key. |
+| `header()` | Optional override for the header (`{timer, score}`), e.g. Ember Beat's READY. |
+| `pause()`, `resume()` | The run was held / released (the clock already stopped; Ember Beat stops and reschedules its audio). |
+| `settle(reason)` | The run is ending: last chance to settle state (Spark Stash banks on quit, spills at the buzzer). |
+| `qualified(board)` | Did real play happen? A run that doesn't qualify is a warm-up: it costs nothing and earns nothing. |
+| `result(board, reason)` | `{ stats:[{label,value}] ×≤4, voice:{headline,line,art}, subtitle, finds, rewardScore }`. `rewardScore` replaces the points for conversion when they differ (Ember Beat measures quality × song played). |
+| `stop()` | Once, after the result: release everything. The runner removes `board.entities` nodes and clears jobs. |
+| `qa*` | QA builds only: `qa()` (extra hooks), `qaSnapshot`, `qaAuthored`, `qaMini`, `qaBuffs`, `qaQualify`. |
 
 ### Lifecycle
 
 ```
-hub: energy check → snapshot pet → clear arena → game.start(pet, run)
-game: …play… → run.end({ score, reason, qualified, stats, inputs })
-hub: game.stop() → convert(def, result) → apply gains through pet rules → results screen
+hub:  energy check → frozen pet snapshot → stage → game.start(pet, run)
+game: plays on run.state with run.now(), run.after(); the clock runs out, or the game calls run.end()
+hub:  game.settle() → qualified? → game.result() → game.stop() → convert() → growth → results screen
 ```
 
-`run` (provided by the hub runner, Phase 3):
+`run` — the only way a game reaches anything outside itself:
 
 | Member | Purpose |
 |---|---|
 | `run.arena` | The element the game draws into. Emptied before and after. |
-| `run.pet`, `run.petMarkup(options)` | The snapshot, and the one pet renderer for it. |
-| `run.now()` | Run clock in ms. It stops while the run is paused or the app is backgrounded. |
-| `run.after(ms, fn)`, `run.every(ms, fn)` | Deadline-based scheduling, polled each frame and credited across pauses. |
-| `run.lives` | `{ max, left, lose() }` when `lives > 0`. |
-| `run.score(points)` | Add to the live score shown in the header. |
-| `run.sfx(name)`, `run.haptic(pattern)` | Hub audio and haptics, respecting the player's settings. |
-| `run.end(result)` | Finish. `reason` is `timeup`, `death`, `cleared` or `quit`. |
+| `run.pet`, `run.petMarkup(extraClass)` | The snapshot, and the one pet renderer for it. |
+| `run.state` | The run's board: `score, hits, playerInputs, lives, maxLives, endReason, endAt, entities`. The header, pause panel and results read it; the game adds its own fields. Never saved. |
+| `run.now()` | Run clock (epoch-like ms). It stands still while the run is paused, in an ad, backgrounded, or the save is blocked. |
+| `run.after(ms, fn)`, `run.every(ms, fn)`, `run.cancel(id)`, `run.clearJobs()` | Deadlines on the run clock, polled each frame. Held runs fire nothing. |
+| `run.end(reason)` | End now: `"death"` or `"cleared"` (a game reports cleared itself; the runner never infers it). |
+| `run.loseLife()`, `run.renderLives(id)` | Hearts. Losing the last sets `endReason = "death"`. |
+| `run.sfx(name)`, `run.cue("win"\|"fail")`, `run.haptic(p)`, `run.burst(...)`, `run.toast(text)` | Hub sound, haptics and flourish, respecting the player's settings. |
+| `run.settings()`, `run.audio` | Read-only settings; Web Audio context and helpers for a game that plays its own music. |
+| `run.best`, `run.memory()`, `run.remember(data)` | The game's best score, and a small persistent memory (≤ 4 KB, `state.trainingMemory[id]`). |
+
+What the hub adds on top of `convert()` for every credited run: the best score, games played and care history,
++10 Heat and the daily "play" quest, the game's declared `quest` / `counter`, the Retro signal for `signal`
+games, and only the `finds` the definition declares (an undeclared rare find is refused even at 100% odds).
+
+### Pars (first calibration, Phase 3)
+
+Set at about 45% of a full-run score by a bot that never misjudges and reacts in 330–650 ms
+(`tests/calibrate-training-pars.py`; Skybound is estimated from its scoring). They are first estimates: tune
+them with real play, and change the par, never a reward formula.
+
+| Game | Energy | Par | Game | Energy | Par |
+|---|---|---|---|---|---|
+| Power Tape | 15 | 100 | Ember Beat | 12 | 45 *(quality)* |
+| Spark Stash | 10 | 220 | Lost Signal | 7 | 50 |
+| Forest Lunch | 11 | 70 | Skybound | 10 | 40 |
+| Rizo Courier | 15 | 60 | Ember Forge | 11 | 35 |
+| Rain Walk | 8 | 60 | Rizo Runaway | 10 | 150 |
 
 ### Score → stat conversion (`RizoTraining.convert`)
 
 ```
-qualified    = score > 0 and the player made at least one input, unless the game says otherwise
+qualified    = the game's qualified(board), and score > 0 with at least one input
 performance  = min(score / par, 1.5)          0 when not qualified
 skill points = performance × energy × 0.5     split by `trains` weights, capped by the pet's genes
 XP           = performance × energy × 3.5
 Embers       = max(4, round(performance × energy × 5))
 Bond         = performance × care.bond × 4
 Mood         = performance × care.mood × 10
+Hype         = performance × care.hype × 15
 Hunger       = care.hunger                    (exertion, paid in full)
              = performance × care.hunger      (food games)
 Energy       = −energy                        (only for a qualified run)
@@ -292,10 +328,13 @@ Every delivery that changes a runtime file:
 
 | Suite | Run | Covers |
 |---|---|---|
-| `tests/core-contracts.test.js` | `node` | Save core (v1 frozen signature, v2), training conversion, mode rules. |
+| `tests/core-contracts.test.js` | `node` | Save core (v1 frozen signature, v2), training conversion, mode rules, and all ten real game definitions and their reward ceilings. |
 | `tests/release-integrity.test.js` | `node` | Build marker and service-worker shell. |
 | `tests/save-safety.py` | `python3` | Old-save migration and every save-loss path from the audit, in a real browser. |
 | `tests/mode-contract.py` | `python3` | A probe mode through the real hub: snapshots, stage, modal `onClose`, settings, summary, slices, awards, exit, reload. |
+| `tests/training-contract.py` | `python3` | A probe training game through the real runner: snapshot, board, clock and jobs under pause, warm-up costs nothing, growth equals `convert()`, finds whitelist, memory, a game that fails to start. |
+| `tests/training-boundaries.test.js` | `node` | No training game touches storage, hub state, a wall clock, a raw timer or a global listener. |
+| `tests/browser-v88-training-fixes.py` | `python3` | The Phase 3 game fixes in the real runner: Spark's buzzer, TIME UP vs CLEARED, Lost Signal's payout, Ember Beat's short runs, Skybound on rotation, par and ceiling budgets. |
 | `tests/defense-core.test.js`, `worker-*.test.js`, `service-worker-policy.test.js` | `node` | Defense rules and the service worker. |
 | `tests/browser-*.py`, `static-defense-audit.py`, `worker-j-integration-risk-audit.py` | `python3` | Inherited browser and static suites. |
 

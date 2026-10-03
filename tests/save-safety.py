@@ -37,6 +37,7 @@ function livedIn(){
   Object.assign(s.settings,{defenseAutoStart:true,defenseFx:'low',defenseUiScale:'large',defenseWaveIntel:'full',defenseSignatures:false});
   s.player.defenseSchool={dismissed:true,completed:['route','placement'],replay:false};
   s.meta.unlockScenes=[...(s.meta.unlockScenes||[]),'defense-origin-v37'];
+  s.musicHistory={emberBag:['frostline','iron-heart','puddle-bounce'],emberLast:'moss-after-dark'};
   s.collection={classic:1,ember:2};s.meta.totalGames=140;
   return s;
 }
@@ -71,7 +72,7 @@ READ = """()=>{
   let warning=null;try{warning=JSON.parse(localStorage.getItem('rizo-life-overhaul-v2:save-validation-warning'))?.kind||null}catch(e){}
   const slice=v2?.modes?.defense?.data||null;
   return {saveVersion:v2?.saveVersion||0,embers:s?.wallet?.embers,name:s?.pet?.name,stage:s?.pet?.stage,defense:slice?.records?.best,games:s?.meta?.totalGames,
-    slice,hubDefenseKeys:s?Object.keys(s.scores||{}).filter(k=>k.startsWith('defense')).concat(Object.keys(s.settings||{}).filter(k=>k.startsWith('defense')),Object.keys(s.player||{}).filter(k=>k.startsWith('defense')),Object.keys(s.modeInbox||{})):null,
+    slice,trainingMemory:s?.trainingMemory||null,musicHistory:s?.musicHistory??null,stateVersion:s?.version||0,hubDefenseKeys:s?Object.keys(s.scores||{}).filter(k=>k.startsWith('defense')).concat(Object.keys(s.settings||{}).filter(k=>k.startsWith('defense')),Object.keys(s.player||{}).filter(k=>k.startsWith('defense')),Object.keys(s.modeInbox||{})):null,
     v1:localStorage.getItem('rizo-life-overhaul-v2'),quarantine,warning,blocked:Boolean(document.querySelector('#rizoSaveBlocked:not([hidden])')),
     blockedText:document.querySelector('#rizoSaveBlocked h2')?.textContent||'',v2Raw:localStorage.getItem('rizo-save-v2')};
 }"""
@@ -161,6 +162,10 @@ with sync_playwright() as p:
     shelf = page.evaluate("()=>({best:document.querySelector('[data-mode-best=defense] b')?.textContent,badge:document.querySelector('[data-mode-card=defense] .mode-badge')?.textContent,summary:RizoModes.summary('defense')})")
     record("the arcade shelf shows the migrated best wave and milestone", shelf["best"] == "W23" and shelf["badge"] == "W10", str(shelf)[:200])
     record("Defense migration boot has no page errors", not errors, "; ".join(errors[:2]))
+    # Phase 3 (state version 21): Ember Beat's song bag moves to the game's own memory.
+    record("Ember Beat's song bag moves into training memory (state v21)",
+           r["stateVersion"] == 21 and r["musicHistory"] is None and r["trainingMemory"] == {"rhythm": {"emberBag": ["frostline", "iron-heart", "puddle-bounce"], "emberLast": "moss-after-dark"}},
+           str({k: r[k] for k in ("stateVersion", "musicHistory", "trainingMemory")}))
     # Second boot: the slice is the source of truth; nothing migrates twice.
     page.reload(); page.wait_for_timeout(1300); r2 = page.evaluate(READ)
     record("a second boot keeps the Defense slice exactly as migrated", r2["slice"] == r["slice"], "changed" if r2["slice"] != r["slice"] else "")

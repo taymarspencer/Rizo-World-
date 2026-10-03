@@ -2,14 +2,16 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v88-p2-defense-mode";
+  const RIZO_RUNTIME_BUILD = "v88-p3-training";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
     RIZO LIFE CORE GAME
     ===================
-    This file owns game state, save migration, pet simulation, rendering, arcade
-    loops, collection/capsule logic, expeditions, sound, and event binding.
+    This file is the hub: game state, save migration, pet simulation, rendering,
+    collection/capsule logic, expeditions, sound, event binding, and the runner
+    and host adapter the training games (training/) and game modes (modes/)
+    play through. See ARCHITECTURE.md.
 
     Launch/install/ads are intentionally outside this file:
       - rizo-config.js       owner-editable IDs and switches
@@ -42,7 +44,8 @@
   const LEGACY_DEFENSE_CHECKPOINT_KEYS = [`${SAVE_KEY}:defense-checkpoint-v68`, `${SAVE_KEY}:defense-checkpoint-v67`, `${SAVE_KEY}:defense-checkpoint-v66`, `${SAVE_KEY}:defense-checkpoint-v64`, `${SAVE_KEY}:defense-checkpoint-v42`];
   // State version 20: Rizo Defense's records, settings and school moved out of
   // the hub state into the Defense save slice (see modeInbox in normalizeState).
-  const VERSION = 20;
+  // State version 21: Ember Beat's song bag moved to state.trainingMemory.
+  const VERSION = 21;
   // Raw (unsigned) saves are trusted only if they predate save signing (v66,
   // state version 18). Bumping VERSION must never widen that trust.
   const RAW_SAVE_TRUST_BELOW = 19;
@@ -87,7 +90,7 @@
     root.style.setProperty("--rizo-vv-left", `${view.left}px`);
     root.style.setProperty("--rizo-vv-scale", String(view.scale));
     root.dataset.rizoOrientation = view.width > view.height ? "landscape" : "portrait";
-    if (mini?.active) mini.lastFrame = performance.now();
+    if (trainingRun) trainingRun.lastFrame = performance.now();
     return view;
   }
 
@@ -599,7 +602,7 @@
   let saveBlocked = null;
   let saveFailureNotified = false;
   let pendingRecoveryModes = {};
-  let mini = { active: false, mode: null, score: 0, hits: 0, endAt: 0, timer: null, mover: null, currentGood: true, frame: null, intervals: [], entities: [] };
+  let mini = idleRunBoard();
   let runtimeViewportFrame = null;
   let runtimeViewportTimer = null;
   let runtimeSuspendedAt = 0;
@@ -726,7 +729,7 @@
       { type: "feed", title: "SERVE 2 QUESTIONABLE MEALS", target: 2, reward: 35 },
       { type: "play", title: "FINISH 1 ARCADE RUN", target: 1, reward: 40 },
       { type: "clean", title: "CLEAN YOUR RIZO ONCE", target: 1, reward: 30 },
-      { type: "train", title: "FINISH 1 POWER TAP RUN", target: 1, reward: 45 },
+      { type: "train", title: "FINISH 1 POWER TAPE OR EMBER FORGE RUN", target: 1, reward: 45 },
       { type: "walk", title: "TAKE RIZO ON 1 RAIN WALK", target: 1, reward: 45 }
     ];
     const seed = [...key].reduce((sum, c) => sum + c.charCodeAt(0), 0);
@@ -816,7 +819,7 @@
       expedition: { active: false, ready: false, type: null, endAt: 0, result: null },
       loreUnlocked: ["keeper"],
       settings: { sound: true, soundVolume: .85, music: true, musicVolume: .85, haptics: true, reducedMotion: false, adPreview: false },
-      musicHistory: { emberBag: [], emberLast: null },
+      trainingMemory: {},
       meta: { totalHatched: 0, totalTaps: 0, totalCareActions: 0, totalGames: 0, totalWalks: 0, deaths: 0, recoveries: 0, rebirths: 0, bondEggs: 0, nextPetNumber: 1, capsules: 0, pity: 0, refusals: 0, overloads: 0, retroSignal: 0, shadowFinds: 0, unlockScenes: [], backupPrompts: [], lastBackupAt: 0 }
     };
     base.pet = createPet({ pity: 0, number: 1 });
@@ -842,7 +845,7 @@
       season: { ...fresh.season, ...(raw.season && typeof raw.season === "object" ? raw.season : {}) },
       expedition: normalizeExpeditionState(raw.expedition),
       settings: { ...fresh.settings, ...(raw.settings && typeof raw.settings === "object" ? raw.settings : {}) },
-      musicHistory: { ...fresh.musicHistory, ...(raw.musicHistory && typeof raw.musicHistory === "object" ? raw.musicHistory : {}) },
+      trainingMemory: normalizeTrainingMemory(raw),
       meta: { ...fresh.meta, ...(raw.meta && typeof raw.meta === "object" ? raw.meta : {}) },
       collection: raw.collection && typeof raw.collection === "object" && !Array.isArray(raw.collection) ? raw.collection : {},
       memories: Array.isArray(raw.memories) ? raw.memories.slice(0, 60) : [],
@@ -946,9 +949,7 @@
 
     merged.modeInbox = collectLegacyModeFields(raw, merged);
     merged.version = VERSION;
-    const validEmberTrackIds = new Set(typeof EMBER_BEAT_TRACKS === "undefined" ? [] : EMBER_BEAT_TRACKS.map(track => track.id));
-    merged.musicHistory.emberBag = Array.isArray(merged.musicHistory.emberBag) ? [...new Set(merged.musicHistory.emberBag.filter(id => validEmberTrackIds.has(id)))].slice(0, 6) : [];
-    merged.musicHistory.emberLast = validEmberTrackIds.has(merged.musicHistory.emberLast) ? merged.musicHistory.emberLast : null;
+    delete merged.musicHistory;
     merged.settings.sound = merged.settings.sound !== false;
     merged.settings.music = merged.settings.music !== false;
     merged.settings.haptics = merged.settings.haptics !== false;
@@ -1085,6 +1086,26 @@
     pet.sleeping = Boolean(pet.sleeping); pet.sick = Boolean(pet.sick);
     if (!merged.loreUnlocked.includes("keeper")) merged.loreUnlocked.unshift("keeper");
     return merged;
+  }
+
+  // ===== TRAINING MEMORY =====
+  // Each training game may keep a small memory (run.memory / run.remember),
+  // e.g. Ember Beat's song bag. State version 21 moved that bag here from
+  // state.musicHistory; the game validates its own entries when it reads them.
+  function normalizeTrainingMemory(raw) {
+    const source = raw?.trainingMemory && typeof raw.trainingMemory === "object" && !Array.isArray(raw.trainingMemory) ? raw.trainingMemory : {};
+    const out = {};
+    for (const [id, value] of Object.entries(source)) {
+      if (!/^[a-z][a-z0-9-]{1,31}$/.test(id) || !value || typeof value !== "object" || Array.isArray(value)) continue;
+      const plain = SaveCore.plainJSON(value);
+      if (JSON.stringify(plain).length <= 4096) out[id] = plain;
+    }
+    const legacy = raw?.musicHistory;
+    if (!out.rhythm && legacy && typeof legacy === "object") {
+      const bag = Array.isArray(legacy.emberBag) ? [...new Set(legacy.emberBag.filter(id => typeof id === "string").map(id => id.slice(0, 40)))].slice(0, 12) : [];
+      out.rhythm = { emberBag: bag, emberLast: typeof legacy.emberLast === "string" ? legacy.emberLast.slice(0, 40) : null };
+    }
+    return out;
   }
 
   // ===== LEGACY MODE FIELDS =====
@@ -2277,36 +2298,36 @@
   }
 
   function renderArcade() {
-    // Personal bests and their labels both come from ARCADE_GAMES, so the board
-    // can never show an engineering id where a product name belongs. Game modes
-    // fill their own cells from their summary (renderModeShelf).
+    // Personal bests and their labels both come from the training definitions,
+    // so the board can never show an engineering id where a product name
+    // belongs. Game modes fill their own cells from their summary.
     for(const mode of ARCADE_MODES){
       const cell=$(`[data-arcade-best="${mode}"]`);
       if(!cell)continue;
       const value=cell.querySelector("b"),label=cell.querySelector("span");
       if(value)value.textContent=arcadeBestValue(mode);
-      if(label)label.textContent=ARCADE_GAMES[mode].best==="wave"?`${ARCADE_GAMES[mode].name} • WAVE`:ARCADE_GAMES[mode].name;
-      cell.classList.toggle("score-cell-wave",ARCADE_GAMES[mode].best==="wave");
+      if(label)label.textContent=arcadeName(mode);
     }
     // The decision is made on the shelf, so put the decision information there:
     // what you have already done, what it costs, and how long it takes.
     for(const mode of ARCADE_MODES){
       const meta=$(`[data-arcade-meta="${mode}"]`);
       if(!meta)continue;
-      const game=ARCADE_GAMES[mode],affordable=(state.pet?.energy??0)>=game.energy;
+      const game=trainingGame(mode),affordable=(state.pet?.energy??0)>=game.energy;
       meta.innerHTML=`<span class="meta-best"><small>${arcadeBestLabel(mode)}</small><b>${arcadeBestValue(mode)}</b></span>`
         +`<span class="meta-energy${affordable?"":" short"}"><small>ENERGY</small><b>${game.energy}</b></span>`
         +`<span class="meta-length"><small>RUN</small><b>${arcadeRunLength(mode)}</b></span>`;
     }
     renderModeShelf();
     $$('[data-minigame]').forEach(button => {
-      const mode = button.dataset.minigame;
-      const need = miniEnergyNeeded(mode);
+      const mode = button.dataset.minigame, game = trainingGame(mode);
+      if (!game) { button.classList.add("game-blocked"); button.textContent = "UNAVAILABLE"; return; }
+      const need = game.energy;
       const blocked = state.pet.stage === "egg" || state.pet.resting || state.pet.sleeping || state.pet.energy < need;
-      const base = ({power:"PUNCH",spark:"CHASE",forage:"FORAGE",rush:"RUN",walk:"WALK",rhythm:"PLAY",memory:"REMEMBER",glide:"FLY",breaker:"BREAK",maze:"RUN"})[mode] || "PLAY";
+      const base = game.button || "PLAY";
       button.classList.toggle("game-blocked", blocked);
       button.textContent = state.pet.stage === "egg" ? "HATCH FIRST" : state.pet.resting ? "RECOVERING" : state.pet.sleeping ? "WAKE RIZO" : state.pet.energy < need ? `NEED ${need} ENERGY` : base;
-      button.title = blocked ? "Tap for the exact reason this run cannot start yet." : `Start ${mode}.`;
+      button.title = blocked ? "Tap for the exact reason this run cannot start yet." : `Start ${game.name}.`;
     });
   }
 
@@ -3658,1298 +3679,105 @@
     return petMarkup({ extraClass, id: "miniPet", context: extraClass === "walk-rizo" ? "walk" : "arcade" });
   }
 
-  const WALK_BIOMES = {
-    rain:{ id:"rain", name:"RAIN TRAIL", className:"biome-rain", sky:"#526c78", rareBias:0, objects:["leaf","ember","flower","puddle","friend","strange"] },
-    moss:{ id:"moss", name:"MOSS HOLLOW", className:"biome-moss", sky:"#426f59", rareBias:.08, objects:["leaf","flower","friend","mushroom","strange","seed"] },
-    moon:{ id:"moon", name:"MOON GROVE", className:"biome-moon", sky:"#30375f", rareBias:.12, objects:["moonleaf","ember","friend","strange","puddle","star"] },
-    storm:{ id:"storm", name:"STORM RIDGE", className:"biome-storm", sky:"#354258", rareBias:.18, objects:["ember","storm","puddle","strange","friend","thread"] }
-  };
-
-  const WALK_WEATHER = {
-    drizzle:{ id:"drizzle", label:"DRIZZLE", className:"weather-drizzle", findBias:"puddle" },
-    clear:{ id:"clear", label:"CLEAR AIR", className:"weather-clear", findBias:"flower" },
-    mist:{ id:"mist", label:"LOW MIST", className:"weather-mist", findBias:"strange" },
-    storm:{ id:"storm", label:"STORM", className:"weather-storm", findBias:"storm" }
-  };
-
-  function chooseWalkBiome() {
-    const hour = new Date().getHours();
-    const room = state.pet.room;
-    if (room === "forest" || state.pet.variant === "moss") return WALK_BIOMES.moss;
-    if (room === "void" || hour < 6 || hour > 20) return WALK_BIOMES.moon;
-    if (state.pet.mutation === "stormmarked" || Math.random() < .16) return WALK_BIOMES.storm;
-    return WALK_BIOMES.rain;
-  }
-
-  function chooseWalkWeather(biome) {
-    if (biome.id === "storm") return WALK_WEATHER.storm;
-    if (biome.id === "moon") return Math.random() < .55 ? WALK_WEATHER.mist : WALK_WEATHER.clear;
-    const roll = Math.random();
-    return roll < .48 ? WALK_WEATHER.drizzle : roll < .73 ? WALK_WEATHER.clear : WALK_WEATHER.mist;
-  }
-
-  const EMBER_BEAT_TRACKS = [
-    {id:"moss-after-dark",title:"MOSS AFTER DARK",bpm:96,difficulty:"CHILL",stars:1,travel:1.85,steps:16,wave:"sine",swing:.04,lead:[62,null,null,65,69,null,67,null,60,null,64,null,67,null,65,null],bass:[38,null,38,null,43,null,null,43,36,null,36,null,41,null,null,41],drums:[1,0,0,.35,1,0,.2,0,1,0,0,.4,1,0,.2,.55],laneShift:1,chart:[[0,0],[3,1],[4,2],[6,1],[8,3],[11,2],[12,1],[15,0]]},
-    {id:"puddle-bounce",title:"PUDDLE BOUNCE",bpm:118,difficulty:"EASY",stars:2,travel:1.72,steps:16,wave:"triangle",swing:.08,lead:[69,null,73,null,76,73,null,71,69,null,66,null,71,73,null,76],bass:[45,null,null,45,50,null,null,50,43,null,null,43,47,null,null,47],drums:[1,0,.25,.6,1,0,.25,.6,1,0,.25,.6,1,0,.4,.75],laneShift:2,chart:[[0,0],[3,1],[4,2],[7,3],[8,2],[11,1],[12,0],[14,2],[15,3]]},
-    {id:"frostline",title:"FROSTLINE",bpm:122,difficulty:"NORMAL",stars:2,travel:1.62,steps:16,wave:"sine",swing:.02,lead:[72,null,76,null,79,76,74,null,71,null,74,null,78,76,72,null],bass:[36,null,43,null,40,null,47,null,36,null,43,null,41,null,48,null],drums:[1,0,.35,0,1,.2,.55,0,1,0,.35,.2,1,0,.65,.2],laneShift:1,chart:[[0,0],[2,1],[4,2],[6,3],[7,2],[8,1],[10,0],[12,1],[14,2],[15,3]]},
-    {id:"spark-circuit",title:"SPARK CIRCUIT",bpm:152,difficulty:"NORMAL",stars:3,travel:1.5,steps:16,wave:"square",swing:0,lead:[76,null,79,83,81,null,79,86,83,null,81,79,76,79,83,null],bass:[40,null,40,null,45,null,47,null,40,null,43,null,47,null,45,null],drums:[1,0,.45,0,1,0,.65,0,1,0,.45,0,1,0,.7,0],laneShift:1,chart:[[0,0],[2,1],[4,2],[6,3],[7,2],[8,1],[10,0],[12,1],[14,2],[15,3]]},
-    {id:"iron-heart",title:"IRON HEART",bpm:126,difficulty:"NORMAL",stars:3,travel:1.54,steps:16,wave:"sawtooth",swing:0,lead:[64,null,64,67,71,null,69,67,62,null,62,66,69,null,67,66],bass:[28,null,35,null,28,null,38,null,31,null,38,null,31,null,40,null],drums:[1,0,.5,0,1,0,.8,0,1,0,.5,0,1,.25,.85,0],laneShift:3,chart:[[0,0],[2,0],[4,1],[6,2],[8,3],[10,3],[12,2],[13,1],[14,0]]},
-    {id:"bubblegum-alarm",title:"BUBBLEGUM ALARM",bpm:134,difficulty:"HARD",stars:4,travel:1.42,steps:16,wave:"triangle",swing:.02,lead:[81,83,86,null,83,81,79,null,88,86,83,null,81,83,79,null],bass:[45,null,52,null,47,null,54,null,45,null,52,null,50,null,57,null],drums:[1,.2,.35,.2,1,.2,.6,.2,1,.2,.35,.2,1,.2,.7,.35],laneShift:1,chart:[[0,0],[1,1],[3,2],[4,3],[5,2],[6,1],[8,0],[9,2],[10,3],[12,1],[13,0],[14,2],[15,3]]},
-    {id:"aurora-afterparty",title:"AURORA AFTERPARTY",bpm:138,difficulty:"HARD",stars:4,travel:1.38,steps:16,wave:"sine",swing:.06,lead:[79,83,null,86,88,null,86,83,81,84,null,88,91,null,88,84],bass:[43,null,50,null,47,null,54,null,45,null,52,null,48,null,55,null],drums:[1,.15,.45,.15,1,0,.65,.25,1,.15,.45,.2,1,.2,.75,.3],laneShift:2,chart:[[0,0],[1,1],[2,2],[4,3],[6,1],[7,0],[8,2],[9,3],[11,1],[12,0],[13,2],[14,3],[15,1]]},
-    {id:"golden-hour",title:"GOLDEN HOUR",bpm:144,difficulty:"HARD",stars:4,travel:1.36,steps:16,wave:"triangle",swing:0,lead:[76,79,83,null,86,83,79,null,88,86,83,79,81,null,84,88],bass:[40,null,47,null,45,null,52,null,43,null,50,null,47,null,54,null],drums:[1,.2,.5,.15,1,.15,.65,.2,1,.2,.55,.15,1,.25,.8,.3],laneShift:3,chart:[[0,0],[1,2],[2,1],[4,3],[5,2],[6,0],[8,1],[9,3],[10,2],[11,0],[12,3],[14,1],[15,2]]},
-    {id:"glitch-garden",title:"GLITCH GARDEN",bpm:142,difficulty:"EXPERT",stars:5,travel:1.26,steps:16,wave:"square",swing:.11,lead:[72,null,79,75,null,82,77,null,84,80,null,75,79,null,86,74],bass:[36,null,43,36,null,47,40,null,38,null,45,38,null,48,41,null],drums:[1,.15,0,.65,1,0,.35,.2,1,.15,0,.75,1,.2,.5,.25],laneShift:1,chart:[[0,0],[1,2],[2,1],[3,3],[4,0],[5,1],[7,2],[8,3],[9,1],[10,0],[11,2],[12,3],[13,0],[14,2],[15,1]]},
-    {id:"shadow-signal",title:"SHADOW SIGNAL",bpm:158,difficulty:"EXPERT",stars:5,travel:1.2,steps:16,wave:"sawtooth",swing:.04,lead:[67,70,74,77,74,70,79,75,68,72,75,80,77,73,82,79],bass:[31,null,38,null,34,null,41,null,29,null,36,null,33,null,40,null],drums:[1,.2,.55,.2,1,.25,.75,.2,1,.2,.55,.25,1,.3,.85,.35],laneShift:3,chart:[[0,0],[1,1],[2,3],[3,2],[4,0],[5,2],[6,1],[7,3],[8,2],[9,0],[10,3],[11,1],[12,0],[13,3],[14,2],[15,1]]}
-  ];
-  const EMBER_TRACK_BY_ID = Object.fromEntries(EMBER_BEAT_TRACKS.map(track=>[track.id,track]));
-
-  function shuffleIds(ids) {
-    const copy=[...ids];
-    for(let i=copy.length-1;i>0;i-=1){const j=Math.floor(Math.random()*(i+1));[copy[i],copy[j]]=[copy[j],copy[i]];}
-    return copy;
-  }
-
-  function chooseEmberBeatTrack() {
-    const history=state.musicHistory ||= {emberBag:[],emberLast:null};
-    const best=Math.max(0,Number(state.scores?.rhythm)||0);
-    // Difficulty opens naturally instead of randomly throwing a brand-new
-    // keeper into an Expert chart. A clean early run unlocks Hard; sustained
-    // mastery unlocks the two Expert songs.
-    const maxStars=best>=90?5:best>=35?4:3;
-    const eligible=EMBER_BEAT_TRACKS.filter(track=>(track.stars||1)<=maxStars);
-    let bag=Array.isArray(history.emberBag)?history.emberBag.filter(id=>eligible.some(track=>track.id===id)):[];
-    if(!bag.length){
-      bag=shuffleIds(eligible.map(track=>track.id));
-      if(bag.length>1 && bag[0]===history.emberLast){[bag[0],bag[1]]=[bag[1],bag[0]];}
-    }
-    let id=bag.shift();
-    if(id===history.emberLast && bag.length){bag.push(id);id=bag.shift();}
-    history.emberBag=bag;
-    history.emberLast=id;
-    saveState(true);
-    return EMBER_TRACK_BY_ID[id] || eligible[0] || EMBER_BEAT_TRACKS[0];
-  }
-
-  function rhythmStepSeconds(track){return 60/track.bpm/2;}
-  function rhythmStepTime(track,step){
-    const base=rhythmStepSeconds(track);
-    return step*base + ((step%2===1)?base*(track.swing||0):0);
-  }
-  function buildRhythmChart(track,durationSeconds=27){
-    const events=[]; const phrase=track.steps||16; let phraseIndex=0;
-    const notes=Array.isArray(track.chart)?track.chart:[];
-    while(true){
-      let added=false;
-      for(const raw of notes){
-        const step=Array.isArray(raw)?Number(raw[0]):Number(raw?.step ?? raw);
-        const baseLane=Array.isArray(raw)?Number(raw[1]??step%4):Number(raw?.lane ?? step%4);
-        if(!Number.isFinite(step))continue;
-        const absoluteStep=phraseIndex*phrase+step;
-        const time=rhythmStepTime(track,absoluteStep);
-        if(time>durationSeconds-1.05)return events;
-        const lane=((baseLane+phraseIndex*(track.laneShift||0))%4+4)%4;
-        events.push({id:`${track.id}-${absoluteStep}-${lane}`,step:absoluteStep,hitTime:time,lane,icon:["▲","■","●","◆"][lane]});added=true;
-      }
-      if(!added)return events; phraseIndex+=1;
-    }
-  }
-
-  // ===== SHARED ARCADE LAYER =====
-  // One authoritative record per arcade mode. The cabinet card, the minigame
-  // shell header, the personal-best grid, the results modal art and the run
-  // rules all read from here, so a mode can never be called EMBER FORGE on the
-  // shelf and "BREAKER" on the score board. Internal mode ids stay internal.
-  const ARCADE_GAMES = Object.freeze({
-    power:{name:"POWER TAPE", kicker:"COACH TAPE 03", art:"🥊", duration:24, energy:15, unit:"PTS", best:"points", family:"training",
-      hint:"The coach calls JAB, BODY, or HOOK. Hit the right strike on the moving window—and do nothing when the bag feints."},
-    spark:{name:"SPARK STASH", kicker:"DON'T GET GREEDY", art:"★", duration:24, energy:10, unit:"PTS", best:"points", family:"spark",
-      hint:"Catch clean signals to build an unbanked stash. BANK it before a miss or Shadow signal wipes the risky part."},
-    forage:{name:"FOREST LUNCH", kicker:"PICKY LITTLE MENACE", art:"🍓", duration:28, energy:11, unit:"PTS", best:"points", family:"forest",
-      hint:"Pick the requested food before its row reaches PACK HERE. Tap a lane or use ← →. Prisms pay +7 but do not pack the ticket."},
-    rush:{name:"RIZO COURIER", kicker:"ROOFTOP DELIVERY", art:"🔥", duration:30, energy:15, unit:"PTS", best:"points", family:"street",
-      hint:"Grab ◆, clear two rooftops, then LAND at the numbered door. Tap / Space to jump; tap again in the air for height and bonus stamps."},
-    walk:{name:"RAIN WALK", kicker:"LIVING FOREST", art:"☂", duration:40, energy:8, unit:"PTS", best:"points", family:"forest",
-      hint:"Tap finds to fill your pockets; tap hazards to hop them. Your route leads to its own encounter. Keyboard: Space inspects, 1 / 2 chooses."},
-    rhythm:{name:"EMBER BEAT", kicker:"FOUR-LANE RHYTHM", art:"♫", duration:27, energy:12, unit:"PTS", best:"points", family:"stage",
-      hint:"Tap the matching lane when its note reaches the bright hit line. Timing and lane both matter."},
-    memory:{name:"LOST SIGNAL", kicker:"CORRUPTED BROADCAST", art:"▦", duration:44, energy:7, unit:"PTS", best:"points", family:"signal",
-      hint:"Memorize the transmission, then obey the corruption rule. Later rounds stack reverse, opposite, and rotation logic."},
-    glide:{name:"SKYBOUND", kicker:"CENTER-LINE FLIGHT", art:"☁", duration:36, energy:10, unit:"PTS", best:"points", family:"air",
-      hint:"Tap or press Space to flap through shifting wind. Thread gate centers to charge a Thermal Burst that bends the physics in your favor."},
-    breaker:{name:"EMBER FORGE", kicker:"FORGE THE MARK", art:"✦", duration:46, energy:11, unit:"PTS", best:"points", family:"forge",
-      hint:"Drag Rizo under the ember orb — the paddle tracks your thumb. Read authored wall patterns and crack CORE blocks to collapse nearby bricks."},
-    maze:{name:"RIZO RUNAWAY", kicker:"MAZE-CHASE INSTINCT", art:"⌗", duration:54, energy:10, unit:"PTS", best:"points", family:"chase",
-      hint:"Swipe or use the arrows. Eat the Ember trail. Prism Seeds flip the hunt so Rizo can tag the Shadows."}
-  });
-  const ARCADE_MODES = Object.freeze(Object.keys(ARCADE_GAMES));
-  // Legacy alias. Existing call sites and QA hooks keep reading duration/energy
-  // from here; the values are now derived rather than duplicated.
-  const ARCADE_MODE_RULES = Object.freeze(Object.fromEntries(ARCADE_MODES.map(mode=>[mode,{duration:ARCADE_GAMES[mode].duration,energy:ARCADE_GAMES[mode].energy}])));
-  function arcadeGame(mode){ return ARCADE_GAMES[mode] || null; }
-  function arcadeName(mode){ return ARCADE_GAMES[mode]?.name || String(mode||"ARCADE").toUpperCase(); }
-  function arcadeArt(mode){ return ARCADE_GAMES[mode]?.art || "★"; }
+  // ===== TRAINING RUNNER =====
+  // Every training game (training/<id>.js) plays through this one runner, under
+  // the contract in core/rizo-training.js:
+  //   hub:  energy check → frozen pet snapshot → stage → game.start(pet, run)
+  //   game: plays on run.state with run.now() and run.after() until the clock
+  //         runs out or it calls run.end()
+  //   hub:  game.stop() → RizoTraining.convert(def, result) → growth → results
+  // A game never touches the save, the wallet or the pet. The run clock stops
+  // while the run is paused or the app is in the background, so every deadline
+  // a game stores against run.now() is frozen with it, with nothing to credit.
+  const Training = globalThis.RizoTraining;
+  const ARCADE_MODES = Object.freeze((Training?.list?.() || []).map(def => def.id));
+  function trainingGame(mode){ return Training?.get?.(mode) || null; }
+  function arcadeName(mode){ return trainingGame(mode)?.name || String(mode||"ARCADE").toUpperCase(); }
+  function arcadeArt(mode){ return trainingGame(mode)?.art || "★"; }
   function arcadeRunLength(mode){
-    const seconds=ARCADE_GAMES[mode]?.duration||0;
+    const seconds=trainingGame(mode)?.duration||0;
     return seconds>0?`${seconds}s`:"ENDLESS";
   }
-  function arcadeBestLabel(mode){ return ARCADE_GAMES[mode]?.best==="wave"?"BEST WAVE":"BEST"; }
-  function arcadeBestValue(mode){
-    const raw=Math.max(0,Math.floor(Number(state?.scores?.[mode])||0));
-    return ARCADE_GAMES[mode]?.best==="wave"?(raw?`W${raw}`:"—"):formatNumber(raw);
-  }
-  function miniDuration(mode) { return (ARCADE_MODE_RULES[mode]?.duration ?? 15) * 1000; }
-  function miniEnergyNeeded(mode) { return ARCADE_MODE_RULES[mode]?.energy ?? 12; }
+  function arcadeBestLabel(){ return "BEST"; }
+  function arcadeBestValue(mode){ return formatNumber(Math.max(0,Math.floor(Number(state?.scores?.[mode])||0))); }
+  function miniDuration(mode) { return (trainingGame(mode)?.duration ?? 15) * 1000; }
+  function miniEnergyNeeded(mode) { return trainingGame(mode)?.energy ?? 12; }
 
-  // ===== SHARED ARCADE FREEZE =====
-  // One credit-back clock for every interruption an arcade run can survive: an
-  // ad break, the app being backgrounded, and the player's own pause menu. Runs
-  // are timestamp-based (mini.endAt), so any frozen interval has to be handed
-  // back or a phone call silently ends the run. Sources stack: a notification
-  // during an ad must not thaw the run early.
-  function arcadeFrozen(){ return Boolean(mini?.pauseSources && Object.keys(mini.pauseSources).length); }
-
-  // Deadlines the arcade stores as absolute now() stamps: buffs, invulnerability
-  // windows, spawn/wind timers, coach calls. Frozen time has to be handed back to
-  // every one of them or a pause silently burns a Thermal Burst or an i-frame.
-  // Discovery is by naming convention so a future mini.somethingUntil is covered
-  // automatically; anything that is not a wall-clock run deadline is listed here.
-  const ARCADE_CLOCK_EXEMPT = Object.freeze(new Set([
-    "endAt",            // credited explicitly
-    "pauseAt",          // walk fork's own pause stamp, credited explicitly
-    "freezeAt",         // the freeze bookkeeping itself
-    "rhythmAudioStartAt" // AudioContext time, not now(); rescheduled on thaw
-  ]));
-  function arcadeDeadlineKeys(){
-    return Object.keys(mini || {}).filter(key => /(?:Until|At)$/.test(key) && !ARCADE_CLOCK_EXEMPT.has(key));
+  // `mini` is the live run's board. The runner keeps the score, hits, inputs,
+  // hearts, end reason, deadline and spawned entities on it; the game adds its
+  // own fields. The header, pause panel, results and QA read it. Never saved.
+  function idleRunBoard(){
+    return { active:false, mode:null, score:0, hits:0, playerInputs:0, lives:0, maxLives:0, endReason:"", endAt:0, entities:[] };
   }
-  function creditArcadeDeadlines(frozenFor, frozenAt){
-    if(!mini || !(frozenFor > 0)) return 0;
-    let credited = 0;
-    for(const key of arcadeDeadlineKeys()){
-      const value = mini[key];
-      if(typeof value !== "number" || !Number.isFinite(value) || value <= 0) continue;
-      // A deadline that had already expired when the freeze began stays expired;
-      // only one still pending gets the frozen interval back.
-      if(value <= frozenAt) continue;
-      mini[key] = value + frozenFor;
-      credited += 1;
-    }
-    return credited;
+  // Runner-private bookkeeping for the live run (clock, jobs, pause state).
+  let trainingRun = null;
+
+  // ===== RUN CLOCK =====
+  // Epoch-like milliseconds that stand still while any pause source holds the
+  // run (the pause menu, an ad, the app in the background, a blocked save).
+  // Sources stack: a notification during an ad must not thaw the run early.
+  function runClockNow(){
+    const run=trainingRun;
+    if(!run) return now();
+    const t=performance.now(), held=run.freezeAt?t-run.freezeAt:0;
+    return run.epoch+(t-run.startedAt)-run.frozenTotal-held;
+  }
+  function arcadeFrozen(){ return Boolean(trainingRun && Object.keys(trainingRun.pauseSources).length); }
+  function callGame(hook, ...args){
+    const fn=trainingRun?.def?.[hook];
+    if(typeof fn!=="function") return undefined;
+    try{ return fn(...args); }
+    catch(error){ console.warn(`Rizo training ${trainingRun?.def?.id}.${hook} failed`, error); return undefined; }
   }
   function arcadeFreeze(source="menu"){
-    if(!mini?.active) return false;
-    mini.pauseSources ||= {};
-    if(mini.pauseSources[source]) return false;
+    const run=trainingRun;
+    if(!run || !mini.active || run.pauseSources[source]) return false;
     const first=!arcadeFrozen();
-    mini.pauseSources[source]=true;
-    arcadeHoldJobs(source);
-    if(!first) return true;
-    mini.freezeAt=now();
-    mini.pausedByAd=true;
-    if(mini.mode==="rhythm"){ mini.rhythmPauseClock=rhythmClockNow(); stopRhythmVoices(); }
+    run.pauseSources[source]=true;
+    if(first){ run.freezeAt=performance.now(); callGame("pause", source); }
     return true;
   }
   function arcadeThaw(source="menu"){
-    if(!mini?.active) return false;
-    mini.pauseSources ||= {};
-    if(!mini.pauseSources[source]) return false;
-    delete mini.pauseSources[source];
-    arcadeReleaseJobs(source);
+    const run=trainingRun;
+    if(!run || !mini.active || !run.pauseSources[source]) return false;
+    delete run.pauseSources[source];
     if(arcadeFrozen()) return false;
-    const frozenAt=mini.freezeAt||now();
-    const frozenFor=Math.max(0, now()-frozenAt);
-    if(Number.isFinite(mini.endAt)) mini.endAt+=frozenFor;
-    creditArcadeDeadlines(frozenFor, frozenAt);
-    // The walk fork pauses on its own timestamp; keep it aligned so a fork left
-    // open across a background does not double-credit or lose the pause.
-    if(mini.pausedByFork && mini.pauseAt) mini.pauseAt+=frozenFor;
-    if(mini.mode==="rhythm"){
-      mini.rhythmStartClock+=Math.max(0, rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));
-      scheduleRhythmAudio(Math.max(0, rhythmClockNow()-mini.rhythmStartClock));
-    }
-    mini.pausedByAd=false;
-    mini.freezeAt=0;
-    mini.lastFrame=performance.now();
+    run.frozenTotal+=Math.max(0, performance.now()-run.freezeAt);
+    run.freezeAt=0;
+    run.lastFrame=performance.now();
+    callGame("resume", source);
     return true;
   }
 
-  function startMiniGame(mode, options = {}) {
-    if (!canCare()) return;
-    if (!ARCADE_MODES.includes(mode)) return;
-    const energyNeeded = miniEnergyNeeded(mode);
-    if (state.pet.energy < energyNeeded) { toast(`NEED ${energyNeeded} ENERGY • RIZO HAS ${Math.floor(state.pet.energy)}`); sfx("no"); return; }
-    clearToasts();
-    closeSheet();
-    mini = {
-      active: true, mode, score: 0, hits: 0, playerInputs: 0, endAt: now() + miniDuration(mode), timer: null,
-      mover: null, currentGood: true, frame: null, intervals: [], entities: [], pausedByAd: false,
-      pauseAt: 0, lastFrame: performance.now(), lane: 1, needle: .06, needleDir: 1,
-      // Shared arcade state: one lives model, one freeze model, one end reason.
-      lives: 3, maxLives: 3, endReason: "", pauseSources: {}, freezeAt: 0, paused: false,
-      jobs: new Map(), jobHolds: {},
-      needleSpeed: .72, jumpY: 0, jumpV: 0, invulnerableUntil: 0,
-      distanceCarry: 0, treasureRolls: 0, combo: 1,
-      pausedByFork: false, walkForkShown: false, walkPath: null, walkDecisionIndex: 0,
-      walkDistance: 0, walkRisk: 0, walkLuck: 0, walkChoices: [], walkNotes: [], walkEncounter: null, walkEnding: "", walkFindCount: 0,
-      rhythmStreak: 0, rhythmMaxStreak: 0, rhythmMisses: 0, rhythmBlankTaps: 0,
-      rhythmJudgements: { perfect:0, great:0, good:0, miss:0 }, rhythmTrack: null, rhythmChart: [], rhythmChartIndex: 0,
-      rhythmStartClock: 0, rhythmLeadIn: 3.7, rhythmReady: false, rhythmTravel: 1.6, rhythmVoices: [], rhythmGain: null,
-      memoryRound: 0, memorySequence: [], memoryInput: 0, memoryShowing: false, memoryMode: "forward", memoryBestRound: 0,
-      memoryShift: 0, memoryRuleDepth: 1,
-      powerStreak: 0, powerBestStreak: 0, powerZone: .5, powerZoneTarget: .5, powerHeat: 0, powerGuardAt: 0, powerGuardUntil: 0, powerGuardReads: 0, powerTapLockUntil: 0, powerEngaged: false,
-      powerCall: "jab", powerCallAt: 0, powerCallsRead: 0, powerWrongCalls: 0,
-      sparkStreak: 0, sparkBestStreak: 0, sparkType: "normal", sparkExpiresAt: 0, sparkAvoided: 0, sparkFeverUntil: 0, sparkFrenzies: 0,
-      sparkStash: 0, sparkBanked: 0, sparkBanks: 0, sparkLost: 0, sparkAutoBanked: false,
-      forageOrder: [], forageOrderIndex: 0, forageStreak: 0, forageBestStreak: 0,
-      forageRows: 0, forageNextAt: 0, forageFeedbackUntil: 0, forageMistakes: 0, forageContract: "picky", forageOrdersDone: 0, forageRestraint: 0, forageRushUntil: 0,
-      rushAirJumps: 0, rushStreak: 0, rushBestStreak: 0, rushClears: 0,
-      rushRoute: 0, rushRoad: 0, rushTips: 0, rushLandingUntil: 0, rushParcel: false, rushParcelClears: 0, rushDeliveries: 0, rushPackagesLost: 0,
-      glideY: .5, glideV: 0, glideSpawnAt: 0, glideStreak: 0, glideBestStreak: 0, glideClears: 0, glideInvulnerableUntil: 0, glideWind: 0, glideWindAt: 0, glideGateCount: 0,
-      glideDraft: 0, glideThermals: 0, glideThermalUntil: 0,
-      breakerX: .5, breakerGrab: null, breakerBricks: 0, breakerBall: null, breakerLevel: 1, breakerStreak: 0, breakerBestStreak: 0, breakerBoostUntil: 0, breakerPierceUntil: 0, breakerResetAt: 0, breakerBoardPending: false, breakerMoves: 0,
-      breakerCores: 0, breakerCoresBroken: 0, breakerPatternName: "",
-      mazeLevel: 1, mazeCombo: 0, mazeBestCombo: 0, mazePellets: 0, mazeHunts: 0, mazeHunterTags: 0, mazeGrid: [], mazePlayer: null, mazeHunters: [], mazeMoveCarry: 0, mazeHunterCarry: 0, mazeHuntUntil: 0, mazeInvulnerableUntil: 0, mazeHunterWakeAt: 0, mazeInputs: 0, mazePointerStart: null,
-      mazeTurnHistory: [], mazeFavoriteDir: ""
-    };
-    if (mode === "rhythm") {
-      mini.rhythmTrack = chooseEmberBeatTrack();
-      mini.rhythmTravel = mini.rhythmTrack.travel || 1.6;
-      mini.rhythmChart = buildRhythmChart(mini.rhythmTrack, miniDuration("rhythm") / 1000);
-      // The preparation countdown is free time, not part of the scored song.
-      mini.endAt += mini.rhythmLeadIn * 1000;
-    }
-    if (mode === "walk") {
-      mini.walkBiome = chooseWalkBiome();
-      mini.walkWeather = chooseWalkWeather(mini.walkBiome);
-    }
-    const details = ARCADE_GAMES[mode];
-    el.miniKicker.textContent = details.kicker;
-    el.miniTitle.textContent = details.name;
-    el.miniHint.textContent = details.hint;
-    el.miniTimer.textContent = (miniDuration(mode) / 1000).toFixed(1);
-    el.miniScore.textContent = `0 ${details.unit}`;
-    closeArcadePause(true);
-    if (el.miniPause) el.miniPause.hidden = false;
-    lastOverlayFocus = document.activeElement;
-    el.miniGameOverlay.hidden = false;
-    syncUILock();
-    renderMiniScene(mode);
-    mini.lastFrame = performance.now();
-    mini.frame = requestAnimationFrame(updateMiniFrame);
-    mini.timer = setInterval(updateMiniClock, 50);
-    startMusicForScene(`mini-${mode}`, true);
-    haptic(25);
-    requestAnimationFrame(() => el.miniArena.focus({ preventScroll: true }));
+  // ===== RUN JOBS =====
+  // run.after(ms, fn) / run.every(ms, fn): deadlines on the run clock, polled
+  // once per frame. A frozen run cannot fire them, and nothing rides setTimeout.
+  function trainingSchedule(ms, fn, period=0){
+    const run=trainingRun;
+    if(!run || !mini.active || typeof fn!=="function") return 0;
+    const id=++run.jobSeq;
+    run.jobs.set(id, { id, fn, period, due: runClockNow()+Math.max(0, Number(ms)||0) });
+    return id;
   }
-
-  function renderMiniScene(mode) {
-    if (mode === "power") {
-      el.miniArena.innerHTML = `<div class="mini-world power-world power-dx">
-        <div class="training-floor"></div>${miniPetMarkup("power-rizo")}
-        <div id="trainingBag" class="training-bag"><i></i><b class="face-mark-stage"><img src="./assets/rizo-full-mark.png" alt=""></b><span id="bagCracks" class="bag-cracks"></span></div>
-        <div class="power-hud" data-mini-readout><span>STREAK <b id="powerStreak">0</b></span><span>OVERDRIVE <b id="powerHeat">0%</b></span></div>
-        <div class="power-coach"><small>COACH CALL</small><b id="powerCall">JAB</b></div>
-        <div class="power-techniques" aria-label="Strike type"><button type="button" data-power-tech="jab">JAB</button><button type="button" data-power-tech="body">BODY</button><button type="button" data-power-tech="hook">HOOK</button></div>
-        <div class="timing-console"><div class="timing-track"><i id="timingPerfectZone" class="timing-perfect"></i><b id="timingNeedle"></b></div><strong id="timingCallout">READ THE CALL</strong></div>
-      </div>`;
-      updatePowerZoneVisual();
-    }
-    if (mode === "spark") {
-      el.miniArena.innerHTML = `<div class="mini-world spark-world spark-dx"><div class="spark-sky"></div>${miniPetMarkup("spark-rizo")}<button id="miniTarget" class="spark-orb" type="button" aria-label="Catch spark">★</button><div class="spark-trail" id="sparkTrail"></div><div class="spark-hud" data-mini-readout><span>STASH <b id="sparkStash">0</b></span><span class="spark-chain">CHAIN <b id="sparkStreak">0</b><em id="sparkRisk">x1</em></span><span>BANKED <b id="sparkBanked">0</b></span></div><button class="spark-bank" id="sparkBank" type="button" data-spark-bank><b>BANK STASH</b><small id="sparkPayout">NOTHING TO BANK</small></button><div id="sparkRule" class="spark-rule">CATCH • THEN DECIDE WHEN TO BANK</div></div>`;
-      el.miniTarget = $("#miniTarget");
-      moveSparkTarget();
-    }
-    if (mode === "forage") {
-      mini.forageOrder = buildForageOrder();
-      el.miniArena.innerHTML = `<div class="mini-world forage-world forage-dx"><div class="forage-lanes"><i></i><i></i></div><div id="forageDrops" class="forage-drops"></div>${miniPetMarkup("forage-rizo")}<div id="forageOrder" class="forage-order"></div><div id="forageTicketState" class="forage-ticket-state">PACK THE TICKET</div><div class="forage-chain">LUNCH CHAIN <b id="forageStreak">0</b></div><div class="forage-catch-line"><span>PACK HERE</span></div><div class="lane-labels"><span>← LEFT</span><span>MIDDLE</span><span>RIGHT →</span></div></div>`;
-      setForageLane(1); updateForageOrderHUD();
-      mini.intervals.push(queueMiniInterval(() => { if (mini.active) spawnForageItem(); }, 120));
-      spawnForageItem();
-    }
-    if (mode === "rush") {
-      el.miniArena.innerHTML = `<div class="mini-world rush-world rush-dx"><div class="rush-clouds"></div><div class="rush-hills"></div><div class="rush-ground"></div><div id="rushEntities"></div>${miniPetMarkup("rush-rizo")}<div id="rushHearts" class="rush-hearts" data-mini-readout>♥ ♥ ♥</div><div class="rush-streak" data-mini-readout>CLEAN <b id="rushStreak">0</b></div><div class="rush-delivery" id="rushDelivery" data-mini-readout>FIND ◆ • KEEP THE PACKAGE SAFE</div><div class="rush-callout" id="rushCallout">PICK UP ◆ • JUMP THE ROOFTOPS</div><div class="rush-route" id="rushRoute" data-mini-readout></div><span class="rush-parcel-tag" aria-hidden="true">◆</span><div class="rush-receipt" id="rushReceipt" data-mini-readout></div></div>`;
-      renderLives("rushHearts");
-      mini.intervals.push(queueMiniInterval(() => { if (mini.active) spawnRushEntity(); }, 180));
-      spawnRushEntity(true);
-    }
-    if (mode === "walk") {
-      const biome = mini.walkBiome || WALK_BIOMES.rain;
-      const weather = mini.walkWeather || WALK_WEATHER.drizzle;
-      el.miniArena.innerHTML = `<div class="mini-world walk-world ${biome.className} ${weather.className}" data-walk-biome="${biome.id}">
-        <div class="walk-sky"></div><div class="walk-weather"></div>
-        <div class="walk-layer walk-far" data-walk-speed=".18"></div>
-        <div class="walk-layer walk-mid" data-walk-speed=".43"></div>
-        <div class="walk-layer walk-near" data-walk-speed=".82"></div>
-        <div class="walk-path"></div><div id="walkFinds"></div>${miniPetMarkup("walk-rizo")}
-        <div class="walk-distance"><i id="walkDistanceBar"></i></div><div id="walkNotes" class="walk-notes" data-mini-readout><b>POCKET FINDS</b><span>◇ ◇ ◇</span><small>3 DIFFERENT FINDS → A STRANGER ENDING</small></div>
-        <div id="walkCaption" class="walk-caption"><b>${escapeHTML(biome.name)} • ${escapeHTML(weather.label)}</b><span>${escapeHTML(walkIntroLine())}</span></div>
-      </div>`;
-      // The walk fork is a deliberate design pause with its own clock credit, so
-      // it still suppresses spawns separately from the shared hold.
-      mini.intervals.push(queueMiniInterval(() => { if (mini.active && !mini.pausedByFork) spawnWalkFind(); }, 1450));
-      spawnWalkFind();
-      setWalkCaption(mini.walkBiome.name, "TAP A FIND TO INSPECT IT. TAP LOGS AND PUDDLES TO HOP OVER.");
-    }
-    if (mode === "rhythm") {
-      const track=mini.rhythmTrack || EMBER_BEAT_TRACKS[0];
-      const stars="★".repeat(track.stars||1)+"☆".repeat(Math.max(0,5-(track.stars||1)));
-      el.miniArena.innerHTML = `<div class="mini-world rhythm-world" data-track="${escapeHTML(track.id)}"><div class="rhythm-lights"></div><div class="rhythm-stage"><img class="rhythm-face-mark" src="./assets/rizo-full-mark.png" alt=""></div>${miniPetMarkup("rhythm-rizo")}<div class="rhythm-board" id="rhythmBoard"><div class="rhythm-lane-columns" aria-hidden="true">${[0,1,2,3].map(lane=>`<i class="rhythm-column lane-${lane}"></i>`).join("")}</div><div class="rhythm-hit-line" aria-hidden="true"></div><div id="rhythmNotes"></div></div><div class="rhythm-status"><span id="rhythmCombo">COMBO <b>0</b></span><span id="rhythmAccuracy">ACCURACY <b>100%</b></span></div><div class="rhythm-pads" aria-label="Ember Beat lanes">${[0,1,2,3].map(lane=>`<button type="button" class="rhythm-pad lane-${lane}" data-rhythm-lane="${lane}" aria-label="Lane ${lane+1}">${["▲","■","●","◆"][lane]}</button>`).join("")}</div><div class="rhythm-track-intro"><small>NOW PLAYING • ${escapeHTML(track.difficulty||"NORMAL")}</small><b>${escapeHTML(track.title)}</b><span>${track.bpm} BPM • ${stars}</span></div><div id="rhythmCallout" class="rhythm-callout">GET READY</div><div id="rhythmCountdown" class="rhythm-countdown"><b>3</b><span>FIND YOUR LANES</span></div></div>`;
-      startRhythmPerformance();
-    }
-    if (mode === "maze") {
-      el.miniArena.innerHTML = `<div class="mini-world maze-world"><div class="maze-hud" data-mini-readout><span id="mazeLives">♥ ♥ ♥</span><span>MAZE <b id="mazeLevel">1</b></span><span>CHAIN <b id="mazeCombo">0</b></span></div><div id="mazeBoard" class="maze-board"></div><div id="mazeCallout" class="maze-callout">EAT THE EMBER TRAIL</div><div class="maze-controls" aria-label="Runaway directions"><button type="button" data-maze-dir="up" aria-label="Move up">▲</button><button type="button" data-maze-dir="left" aria-label="Move left">◀</button><button type="button" data-maze-dir="down" aria-label="Move down">▼</button><button type="button" data-maze-dir="right" aria-label="Move right">▶</button></div></div>`;
-      buildMazeLevel(true); renderLives("mazeLives");
-    }
-    if (mode === "memory") {
-      el.miniArena.innerHTML = `<div class="mini-world memory-world memory-dx lost-signal"><div class="memory-stars"></div>${miniPetMarkup("memory-rizo")}<div class="memory-top" data-mini-readout><span id="memoryRule">CLEAN SIGNAL</span><span id="memoryHearts">♥ ♥ ♥</span></div><div class="memory-frequency">96.3 <i>RIZO PIRATE RADIO</i></div><div class="memory-board" id="memoryBoard">${[0,1,2,3].map(index=>`<button type="button" class="memory-rune rune-${index}" data-memory-rune="${index}" aria-label="Signal rune ${index+1}">${["☾","✦","◆","∞"][index]}</button>`).join("")}</div><div id="memoryCallout" class="memory-callout">LISTEN FOR THE CORRUPTION</div></div>`;
-      renderLives("memoryHearts"); queueMiniTimeout(startMemoryRound, 500);
-    }
-    if (mode === "glide") {
-      mini.glideY = Math.max(90, el.miniArena.clientHeight * .48);
-      mini.glideSpawnAt = now() + 900;
-      mini.glideWindAt = now() + 5200;
-      el.miniArena.innerHTML = `<div class="mini-world glide-world"><div class="glide-clouds"></div><div id="glideGates"></div>${miniPetMarkup("glide-rizo")}<div class="glide-hud" data-mini-readout><span id="glideHearts">♥ ♥ ♥</span><span>THREAD <b id="glideStreak">0</b></span><span>DRAFT <b id="glideDraft">0/3</b></span></div><div id="glideWind" class="glide-wind" data-mini-readout>CALM AIR</div><div id="glideThermal" class="glide-thermal" data-mini-readout>CENTER 3 GATES → THERMAL</div><div class="glide-floor"></div></div>`;
-      renderLives("glideHearts"); updateGlidePet();
-    }
-    if (mode === "breaker") {
-      el.miniArena.innerHTML = `<div class="mini-world breaker-world"><div id="breakerBlocks" class="breaker-blocks"></div><div id="breakerBall" class="breaker-ball">✦</div>${miniPetMarkup("breaker-rizo")}<div class="breaker-hud" data-mini-readout><span id="breakerHearts">♥ ♥ ♥</span><span>FORGE <b id="breakerLevel">1</b></span><span>RALLY <b id="breakerStreak">0</b></span><span>CORE <b id="breakerCoreCount">0</b></span></div><div id="breakerPattern" class="breaker-pattern">LOADING MARK…</div><div id="breakerCallout" class="breaker-callout">BREAK THE CORE • COLLAPSE THE WALL</div></div>`;
-      renderLives("breakerHearts"); setBreakerPaddle(.5); buildBreakerBoard(); resetBreakerBall(true);
+  function pollTrainingJobs(){
+    const run=trainingRun;
+    if(!run || arcadeFrozen()) return;
+    const t=runClockNow();
+    for(const job of [...run.jobs.values()]){
+      if(trainingRun!==run || !mini.active) return;
+      if(!run.jobs.has(job.id) || job.due>t) continue;
+      if(job.period){ job.due+=job.period; if(job.due<=t) job.due=t+job.period; }
+      else run.jobs.delete(job.id);
+      try{ job.fn(); }catch(error){ console.warn(`Rizo training ${run.def.id} job failed`, error); }
     }
   }
 
-  // Flavors the walk's opening line by the pet's rolled personality so the
-  // same activity reads differently across pets instead of one generic line.
-  const WALK_INTRO_LINES = {
-    "CHAOTIC GOOD": "IS ALREADY RUNNING AHEAD.",
-    "TINY CEO": "IS SUPERVISING THE TRAIL.",
-    "SOFT MENACE": "IS WALKING SUSPICIOUSLY CALMLY.",
-    "FOREST GREMLIN": "IS SNIFFING EVERYTHING.",
-    "DRAMA FLAME": "IS NARRATING THIS WALK OUT LOUD.",
-    "QUIET GENIUS": "IS QUIETLY MAPPING THE TRAIL.",
-    "SNACK SCHOLAR": "IS ALREADY LOOKING FOR SNACKS.",
-    "CERTIFIED HATER": "IS WALKING. RELUCTANTLY.",
-    "LOYAL WEIRDO": "KEEPS CHECKING YOU'RE STILL THERE.",
-    "MAIN CHARACTER": "IS WALKING LIKE THIS IS A MONTAGE."
-  };
-  function walkIntroLine() {
-    return `${state.pet.name} ${WALK_INTRO_LINES[state.pet.personality] || "IS SNIFFING EVERYTHING."}`;
-  }
-
-  // Mid-walk fork: pauses spawning + the clock (mirrors the ad-pause pattern
-  // below) and lets the player choose a safer or riskier back half of the
-  // walk. This is the "branching interaction" the walk was missing.
-  function setWalkCaption(title, text = "") {
-    const caption = $("#walkCaption");
-    if (!caption) return;
-    caption.innerHTML = `<b>${escapeHTML(title)}</b>${text ? `<span>${escapeHTML(text)}</span>` : ""}`;
-  }
-
-  function walkDecisionConfig(index) {
-    if (index === 0) return {
-      title:"THE TRAIL SPLITS",
-      choices:[
-        {id:"safe", title:"STAY NEAR THE LANTERNS", copy:"Steady finds • calmer weather", risk:0, luck:1, biome:null},
-        {id:"deep", title:"FOLLOW THE RUSTLING", copy:"Harder trail • rare encounters", risk:2, luck:0, biome:"moss"}
-      ]
-    };
-    if (mini.walkPath === "deep" || mini.walkRisk >= 2) return {
-      title:"SOMETHING MOVED AHEAD",
-      choices:[
-        {id:"stream", title:"CROSS THE BLACK STREAM", copy:"Stamina test • storm treasures", risk:2, luck:1, biome:"storm"},
-        {id:"ruins", title:"ENTER THE ROOT RUINS", copy:"Instinct test • Shadow chance", risk:3, luck:2, biome:"moon"}
-      ]
-    };
-    return {
-      title:"RIZO STOPS TO LISTEN",
-      choices:[
-        {id:"meadow", title:"TAKE THE FLOWER FIELD", copy:"Bond and common treasures", risk:0, luck:2, biome:"moss"},
-        {id:"lantern", title:"FOLLOW THE OLD LANTERN", copy:"Luck and strange signals", risk:1, luck:3, biome:"moon"}
-      ]
-    };
-  }
-
-  // Walk decisions pause the clock so reading never costs the player time.
-  // Two forks occur per walk and can change the biome, weather and discovery pool.
-  function maybeShowWalkFork() {
-    if (mini.mode !== "walk" || !mini.active || mini.pausedByFork) return;
-    if(mini.walkDecisionIndex>=2){maybeShowWalkEncounter();return;}
-    const elapsed = 1 - Math.max(0, mini.endAt - now()) / miniDuration("walk");
-    const threshold = mini.walkDecisionIndex === 0 ? .29 : .66;
-    if (elapsed < threshold) return;
-    const decision = walkDecisionConfig(mini.walkDecisionIndex);
-    mini.pausedByFork = true;
-    mini.pauseAt = now();
-    setWalkCaption(decision.title, "Choose the kind of story this walk becomes.");
-    const host = $("#walkFinds");
-    if (!host) return;
-    const fork = document.createElement("div");
-    fork.className = "walk-fork";
-    fork.innerHTML = decision.choices.map(choice => `<button type="button" class="walk-fork-btn" data-walk-fork="${choice.id}"><b>${escapeHTML(choice.title)}</b><span>${escapeHTML(choice.copy)}</span></button>`).join("");
-    host.appendChild(fork);
-    haptic(12);
-  }
-
-  function chooseWalkFork(path) {
-    if (!mini.active || mini.mode !== "walk" || !mini.pausedByFork) return;
-    const decision = walkDecisionConfig(mini.walkDecisionIndex);
-    const choice = decision.choices.find(item => item.id === path);
-    if (!choice) return;
-    mini.walkChoices.push(choice.id);
-    mini.walkPath = mini.walkDecisionIndex === 0 ? choice.id : `${mini.walkPath || "trail"}-${choice.id}`;
-    mini.walkRisk += choice.risk || 0;
-    mini.walkLuck += choice.luck || 0;
-    mini.pausedByFork = false;
-    mini.endAt += Math.max(0, now() - (mini.pauseAt || now()));
-    mini.walkDecisionIndex += 1;
-    $(".walk-fork")?.remove();
-    mini.entities.filter(item=>item.kind==="walk").forEach(item=>item.node.remove());
-    mini.entities=mini.entities.filter(item=>item.kind!=="walk");
-    if (choice.biome && WALK_BIOMES[choice.biome]) {
-      mini.walkBiome = WALK_BIOMES[choice.biome];
-      if (choice.biome === "storm") mini.walkWeather = WALK_WEATHER.storm;
-      else if (choice.biome === "moon") mini.walkWeather = WALK_WEATHER.mist;
-      applyWalkWorldTheme();
-    }
-    const response = {
-      safe:`${state.pet.name} KEEPS ONE EYE ON THE LANTERNS.`,
-      deep:`${state.pet.name} PUSHES INTO THE DEEP BRUSH.`,
-      stream:`${state.pet.name} SPLASHES ACROSS WITHOUT ASKING.`,
-      ruins:`${state.pet.name} HEARS SOMETHING INSIDE THE ROOTS.`,
-      meadow:`${state.pet.name} STOPS TO SMELL EVERY FLOWER.`,
-      lantern:`THE LANTERN FLICKERS WHEN ${state.pet.name} GETS CLOSE.`
-    }[choice.id] || `${state.pet.name} CHOOSES THE STRANGE WAY.`;
-    setWalkCaption(mini.walkBiome.name, response);
-    mini.score += choice.risk ? 2 : 1;
-    mini.treasureRolls += choice.luck || 0;
-    sfx(choice.risk >= 2 ? "event" : "spark");
-    haptic(choice.risk >= 2 ? [10,16,10] : 8);
-    spawnWalkFind();
-  }
-
-  const WALK_ENCOUNTERS={
-    meadow:{icon:"🌼",title:"THE FLOWERS ARE FOLLOWING YOU",copy:"Rizo stops. Every flower stops a second later.",safe:"LEAVE ONE A SNACK",bold:"INVITE THEM HOME",ending:"THE GARDEN WALKED YOU HOME",quiet:"ONE FLOWER WAVES GOODBYE"},
-    lantern:{icon:"☾",title:"THE LANTERN KNOWS YOUR NAME",copy:"It flashes once for every thing you put in your pocket.",safe:"SIT BESIDE THE LIGHT",bold:"ANSWER THE SIGNAL",ending:"SOMETHING ANSWERS BACK",quiet:"YOU KEEP ITS LITTLE SECRET"},
-    stream:{icon:"ϟ",title:"A STAR UNDER THE WATER",copy:"The storm goes quiet. Something bright is caught between the stones.",safe:"MARK THE SPOT",bold:"REACH INTO THE STREAM",ending:"YOU BROUGHT THE STORM HOME",quiet:"THE STAR CAN WAIT UNTIL TOMORROW"},
-    ruins:{icon:"◇",title:"YOUR SHADOW TAKES ONE MORE STEP",copy:"Rizo has stopped walking. The other set of footsteps has not.",safe:"BACK AWAY TOGETHER",bold:"SHOW IT YOUR POCKET FINDS",ending:"YOUR SHADOW SAYS THANK YOU",quiet:"TWO SETS OF FOOTSTEPS GO HOME"}
-  };
-  function maybeShowWalkEncounter(){
-    if(mini.walkEncounter||mini.walkEnding||mini.pausedByFork)return;
-    if(1-Math.max(0,mini.endAt-now())/miniDuration("walk")<.80)return;
-    const id=mini.walkChoices[1]||"meadow",story=WALK_ENCOUNTERS[id]||WALK_ENCOUNTERS.meadow;
-    mini.walkEncounter=id;mini.pausedByFork=true;mini.pauseAt=now();
-    const ready=mini.walkNotes.length>=3;
-    const card=document.createElement("div");card.className="walk-fork walk-encounter";
-    card.innerHTML=`<div class="walk-encounter-intro"><i>${story.icon}</i><b>${story.title}</b><p>${story.copy}</p></div><button type="button" class="walk-fork-btn" data-walk-ending="quiet"><b>${story.safe}</b><span>A quiet ending • +6</span></button><button type="button" class="walk-fork-btn" data-walk-ending="bold"><b>${story.bold}</b><span>${ready?"Your 3 different finds fit the story • +18":"Needs 3 different finds. You have "+mini.walkNotes.length+" • risk losing 3 points"}</span></button>`;
-    $("#walkFinds")?.appendChild(card);setWalkCaption("RIZO STOPS", "Take your time. The trail can wait.");sfx("event");haptic([8,16,8]);
-  }
-  function chooseWalkEnding(choice){
-    if(!mini.active||mini.mode!=="walk"||!mini.pausedByFork||!mini.walkEncounter||mini.walkEnding)return;
-    if(!["quiet","bold"].includes(choice))return;
-    const story=WALK_ENCOUNTERS[mini.walkEncounter]||WALK_ENCOUNTERS.meadow;
-    const success=choice==="bold"&&mini.walkNotes.length>=3;
-    const gain=choice==="quiet"?6:success?18:-3;
-    mini.walkEnding=success?story.ending:choice==="quiet"?story.quiet:"RIZO DECIDES YOU HAVE BEEN WEIRD ENOUGH";
-    mini.score=Math.max(0,mini.score+gain);mini.hits+=1;
-    if(success)mini.treasureRolls+=2;
-    mini.endAt+=Math.max(0,now()-mini.pauseAt);mini.pausedByFork=false;
-    $(".walk-encounter")?.remove();
-    mini.entities.filter(item=>item.kind==="walk").forEach(item=>item.node.remove());mini.entities=mini.entities.filter(item=>item.kind!=="walk");
-    $(".walk-world")?.classList.add("walk-homecoming");
-    const notes=$("#walkNotes");if(notes)notes.innerHTML=`<b>${success?"A STRANGE LITTLE SOUVENIR":"A STORY TO TAKE HOME"}</b><span>${story.icon}</span><small>${escapeHTML(mini.walkEnding)}</small>`;
-    setWalkCaption(mini.walkEnding,gain>0?`+${gain} • ${state.pet.name} WALKS A LITTLE CLOSER ON THE WAY BACK.`:"YOU LET IT GO. IT LETS YOU GO.");
-    walkReaction(success?"awe":"celebrate");sfx(success?"reward":gain<0?"no":"spark");haptic(success?[8,16,24]:8);
-  }
-  function rememberWalkFind(data){
-    if(["hazard","obstacle"].includes(data.type)||mini.walkNotes.some(note=>note.label===data.label)||mini.walkNotes.length>=3)return;
-    mini.walkNotes.push({label:data.label,icon:data.icon});
-    const host=$("#walkNotes");
-    if(host)host.innerHTML=`<b>POCKET FINDS ${mini.walkNotes.length}/3</b><span>${mini.walkNotes.map(note=>`<i title="${escapeHTML(note.label)}">${note.icon}</i>`).join("")}${"<i>◇</i>".repeat(3-mini.walkNotes.length)}</span><small>${mini.walkNotes.length===3?"SOMETHING ON THIS TRAIL WILL RECOGNIZE THESE":"KEEP AN EYE OUT FOR SOMETHING DIFFERENT"}</small>`;
-    if(mini.walkNotes.length===3){$(".walk-world")?.classList.add("notes-ready");sfx("perfect");}
-  }
-
-  function applyWalkWorldTheme() {
-    const world = $(".walk-world");
-    if (!world) return;
-    world.className = `mini-world walk-world ${mini.walkBiome.className} ${mini.walkWeather.className}`;
-    world.dataset.walkBiome = mini.walkBiome.id;
-  }
-
-  function updateMiniClock() {
-    if (!mini.active || mini.pausedByAd) return;
-    if (mini.mode === "rhythm" && !mini.rhythmReady) { el.miniTimer.textContent = "READY"; el.miniScore.textContent = "0 PTS"; return; }
-    if (mini.mode === "walk" && !mini.pausedByFork) maybeShowWalkFork();
-    if (mini.pausedByFork) return;
-    const remaining = Math.max(0, mini.endAt - now());
-    el.miniTimer.textContent = (remaining / 1000).toFixed(1);
-    el.miniScore.textContent = `${Math.max(0, Math.floor(mini.score))} PTS`;
-    if (remaining <= 0) finishMiniGame();
-  }
-
-  function updateMiniFrame(timestamp) {
-    if (!mini.active) return;
-    const rawFrame=Math.max(0,timestamp-mini.lastFrame),frameDiscontinuity=!Number.isFinite(rawFrame)||rawFrame>250,dt=frameDiscontinuity?0:Math.min(.04,rawFrame/1000);
-    mini.lastFrame = timestamp;
-    if (!mini.pausedByAd) {
-      if (mini.mode === "power") updatePowerGame(dt);
-      if (mini.mode === "spark") updateSparkGame(dt);
-      if (mini.mode === "forage") updateForageGame(dt);
-      if (mini.mode === "rush") updateRushGame(dt);
-      if (mini.mode === "walk" && !mini.pausedByFork) updateWalkGame(dt);
-      if (mini.mode === "rhythm") updateRhythmGame(dt);
-      if (mini.mode === "glide") updateGlideGame(dt);
-      if (mini.mode === "breaker") updateBreakerGame(dt);
-      if (mini.mode === "maze") updateMazeGame(dt);
-    }
-    mini.frame = requestAnimationFrame(updateMiniFrame);
-  }
-
-  function updatePowerZoneVisual() {
-    const zone = $("#timingPerfectZone");
-    if (zone) zone.style.left = `${mini.powerZone * 100}%`;
-  }
-
-  const POWER_CALLS=["jab","body","hook"];
-  function nextPowerCall(force=false){
-    const previous=mini.powerCall;let next=previous;
-    while(next===previous&&POWER_CALLS.length>1)next=POWER_CALLS[Math.floor(Math.random()*POWER_CALLS.length)];
-    mini.powerCall=next;mini.powerCallAt=now()+1900+Math.random()*900;
-    const call=$("#powerCall");if(call)call.textContent=next.toUpperCase();
-    $$("[data-power-tech]").forEach(btn=>btn.classList.toggle("called",btn.dataset.powerTech===next));
-    if(force){const label=$("#timingCallout");if(label)label.textContent=`COACH: ${next.toUpperCase()}`;}
-  }
-
-  function updatePowerGame(dt) {
-    const t=now(), bag=$("#trainingBag"), callout=$("#timingCallout");
-    if(!mini.powerCallAt)nextPowerCall(true);
-    if(t>=mini.powerCallAt&&!mini.powerGuardUntil)nextPowerCall();
-    if(!mini.powerGuardAt)mini.powerGuardAt=t+3400+Math.random()*1800;
-    if(!mini.powerGuardUntil && t>=mini.powerGuardAt){mini.powerGuardUntil=t+620;mini.powerGuardAt=t+3500+Math.random()*2200;bag?.classList.add("guard");if(callout){callout.textContent="BAG FEINT • HOLD";callout.dataset.grade="guard";}sfx("no");}
-    if(mini.powerGuardUntil && t>=mini.powerGuardUntil){mini.powerGuardUntil=0;bag?.classList.remove("guard");if(mini.powerEngaged){mini.powerGuardReads+=1;mini.powerHeat=clamp(mini.powerHeat+8,0,100);mini.score+=2;if(callout){callout.textContent="GOOD READ +2";callout.dataset.grade="read";}const heat=$("#powerHeat");if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;}else if(callout){callout.textContent="MAKE A READ • THEN FEINTS COUNT";callout.dataset.grade="idle";}}
-    mini.powerZone += (mini.powerZoneTarget - mini.powerZone) * Math.min(1, dt * 5.5);
-    mini.needle += mini.needleDir * mini.needleSpeed * dt;
-    if (mini.needle >= 1) { mini.needle = 1; mini.needleDir = -1; }
-    if (mini.needle <= 0) { mini.needle = 0; mini.needleDir = 1; }
-    const needle = $("#timingNeedle");
-    if (needle) needle.style.left = `${mini.needle * 100}%`;
-    updatePowerZoneVisual();
-  }
-
-  function powerTap(technique=mini.powerCall) {
-    const t=now();
-    if(t<(mini.powerTapLockUntil||0))return;
-    mini.powerTapLockUntil=t+175;
-    mini.powerEngaged=true;
-    if(mini.powerGuardUntil>t){
-      mini.powerGuardUntil=0;mini.powerStreak=0;mini.powerHeat=clamp(mini.powerHeat-22,0,100);mini.score=Math.max(0,mini.score-3);$("#trainingBag")?.classList.remove("guard");const callout=$("#timingCallout");if(callout){callout.textContent="COUNTERED -3";callout.dataset.grade="0";}const streak=$("#powerStreak"),heat=$("#powerHeat");if(streak)streak.textContent="0";if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;$("#miniPet")?.classList.add("forage-hit");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("forage-hit"),280);sfx("hit");haptic([18,24,18]);return;
-    }
-    if(technique!==mini.powerCall){
-      mini.powerWrongCalls+=1;mini.powerStreak=0;mini.powerHeat=clamp(mini.powerHeat-12,0,100);mini.score=Math.max(0,mini.score-2);
-      const callout=$("#timingCallout");if(callout){callout.textContent=`WRONG SHOT • COACH SAID ${mini.powerCall.toUpperCase()}`;callout.dataset.grade="wrong";}
-      const streak=$("#powerStreak"),heat=$("#powerHeat");if(streak)streak.textContent="0";if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;
-      arcadeSfx("fail");haptic([12,18,12]);nextPowerCall();return;
-    }
-    mini.powerCallsRead+=1;
-    const distance = Math.abs(mini.needle - mini.powerZone);
-    const base = distance <= .05 ? 5 : distance <= .12 ? 3 : distance <= .22 ? 1 : 0;
-    if (base >= 3) mini.powerStreak += 1; else if (!base) mini.powerStreak = 0; else mini.powerStreak = Math.max(0, mini.powerStreak - 1);
-    mini.powerBestStreak = Math.max(mini.powerBestStreak, mini.powerStreak);
-    const mult = Math.min(3, 1 + Math.floor(mini.powerStreak / 4));
-    const points = base * mult;
-    mini.score += points; if(base) mini.hits += 1;
-    mini.powerHeat = clamp(mini.powerHeat + (base === 5 ? 18 : base === 3 ? 9 : base ? 3 : -14), 0, 100);
-    mini.needleSpeed = Math.min(1.52, mini.needleSpeed + (base >= 3 ? .025 : .012));
-    if (base === 5 || (base && mini.hits % 4 === 0)) {
-      const edge = .18 + Math.random() * .64;
-      mini.powerZoneTarget = edge;
-    }
-    if(base>=3)nextPowerCall();
-    if (mini.powerHeat >= 100) {
-      mini.powerHeat = 35;
-      mini.score += 10;
-      mini.powerZoneTarget = .5;
-      sensoryBurst("OVERDRIVE +10", "#ffd54a", 18); sfx("reward"); haptic([14,18,26]);
-    }
-    const label = base === 5 ? `PERFECT x${mult} +${points}` : base === 3 ? `GREAT x${mult} +${points}` : base === 1 ? `GLANCE +${points}` : "WHIFF • STREAK LOST";
-    const pet = $("#miniPet"), bag = $("#trainingBag"), callout = $("#timingCallout");
-    pet?.classList.remove("mini-punch"); bag?.classList.remove("bag-hit"); void pet?.offsetWidth; pet?.classList.add("mini-punch");
-    if (base) bag?.classList.add("bag-hit");
-    if (callout) { callout.textContent = label; callout.dataset.grade = String(base); }
-    const streak = $("#powerStreak"), heat = $("#powerHeat"), cracks = $("#bagCracks");
-    if (streak) streak.textContent = String(mini.powerStreak);
-    if (heat) heat.textContent = `${Math.round(mini.powerHeat)}%`;
-    if (cracks) cracks.dataset.crack = String(Math.min(4, Math.floor(mini.hits / 6)));
-    if (base === 5) { sfx("perfect"); sensoryBurst(mini.powerStreak >= 4 ? `x${mult}` : "PERFECT", "#16c8ff", 10); haptic([12,20,22]); }
-    else if (base) sfx("hit", base * 3); else { arcadeSfx("fail"); haptic(18); }
-  }
-
-  function moveSparkTarget(forceType = null) {
-    const target = $("#miniTarget");
-    if (!target) return;
-    const rect = el.miniArena.getBoundingClientRect(), size = 64, t=now(), frenzy=t<mini.sparkFeverUntil;
-    const x = 14 + Math.random() * Math.max(1, rect.width - size - 28);
-    const y = 36 + Math.random() * Math.max(1, rect.height - size - 170);
-    const roll = Math.random();
-    mini.sparkType = forceType || (frenzy ? (roll>.68?"gold":"normal") : (mini.hits > 3 && roll < .16 ? "shadow" : roll > .88 ? "gold" : "normal"));
-    target.className = `spark-orb ${mini.sparkType}`;
-    target.textContent = mini.sparkType === "shadow" ? "✕" : mini.sparkType === "gold" ? "◆" : "★";
-    target.setAttribute("aria-label", mini.sparkType === "shadow" ? "Decoy spark - do not tap" : mini.sparkType === "gold" ? "Golden spark" : "Catch spark");
-    target.style.left = `${x}px`; target.style.top = `${y}px`;
-    mini.sparkX = x; mini.sparkY = y;
-    mini.sparkExpiresAt = t + (frenzy ? (mini.sparkType === "gold" ? 560 : 470) : mini.sparkType === "shadow" ? 720 : mini.sparkType === "gold" ? 900 : Math.max(620, 1040 - mini.hits * 9));
-    const rule=$("#sparkRule"); if(rule) rule.textContent=frenzy ? "SPARK RUSH • DON'T MISS" : mini.sparkType === "shadow" ? "DECOY • DON'T TAP" : mini.sparkType === "gold" ? "GOLD SIGNAL • GO" : "CATCH THE LIGHT";
-  }
-
-  function sparkRiskMultiplier(){ return Math.min(4, 1 + Math.floor(Math.max(0,mini.sparkStreak||0) / 5)); }
-  function sparkBankMultiplier(){ return Math.min(3, 1 + Math.floor(Math.max(0,mini.sparkStreak||0) / 4)); }
-  function updateSparkBankHUD(){
-    const stash=$("#sparkStash"),banked=$("#sparkBanked"),bank=$("#sparkBank"),streak=$("#sparkStreak"),risk=$("#sparkRisk"),payout=$("#sparkPayout");
-    const held=Math.max(0,Math.floor(mini.sparkStash||0)),chain=Math.max(0,mini.sparkStreak||0),bankMult=sparkBankMultiplier();
-    if(stash)stash.textContent=String(held);
-    if(banked)banked.textContent=String(Math.max(0,Math.floor(mini.sparkBanked||0)));
-    if(streak)streak.textContent=String(chain);
-    if(risk){
-      risk.textContent=`x${sparkRiskMultiplier()}`;
-      risk.classList.toggle("hot",chain>=10);
-      risk.classList.toggle("warm",chain>=5&&chain<10);
-    }
-    if(payout)payout.textContent=held?`BANK +${held*bankMult}`:"NOTHING TO BANK";
-    const hud=$(".spark-hud");
-    if(hud)hud.classList.toggle("at-risk",held>=6);
-    if(bank){
-      bank.disabled=held<=0;
-      bank.dataset.mult=String(bankMult);
-      const label=bank.querySelector("b");
-      if(label)label.textContent=bankMult>1?`BANK x${bankMult}`:"BANK STASH";
-    }
-    // Six clean reads in a row arms Spark Rush. Show the fuse, not just the fire.
-    const rule=$("#sparkRule");
-    if(rule&&now()>=(mini.sparkFeverUntil||0)){
-      const toRush=chain?6-(chain%6):6;
-      rule.textContent=chain>=1?`RUSH IN ${toRush===6?6:toRush} • RISK x${sparkRiskMultiplier()}`:"CATCH • THEN DECIDE WHEN TO BANK";
-    }
-  }
-
-  function bankSparkStash(auto=false){const held=Math.max(0,Math.floor(mini.sparkStash||0));if(!held)return false;const mult=auto?1:sparkBankMultiplier();const gain=held*mult;mini.score+=gain;mini.sparkBanked+=gain;mini.sparkStash=0;mini.sparkBanks+=1;if(auto)mini.sparkAutoBanked=true;const trail=$("#sparkTrail");if(trail){trail.textContent=`${auto?"AUTO ":""}BANK x${mult} • +${gain}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}updateSparkBankHUD();sfx("reward");haptic([8,12,8]);return true;}
-  function spillSparkStash(reason="SIGNAL LOST"){const lost=Math.max(0,Math.floor(mini.sparkStash||0));if(lost){mini.sparkLost+=lost;mini.sparkStash=0;}mini.sparkStreak=0;updateSparkBankHUD();const trail=$("#sparkTrail");if(trail){trail.textContent=`${reason}${lost?` • -${lost} STASH`:""}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}}
-
-  function startSparkFrenzy(){
-    mini.sparkFeverUntil=now()+2700;mini.sparkFrenzies+=1;$(".spark-world")?.classList.add("frenzy");
-    const trail=$("#sparkTrail");if(trail){trail.textContent="SPARK RUSH • x2";trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}
-    sensoryBurst("SPARK RUSH","#ffd54a",12);sfx("reward");haptic([8,8,12]);
-  }
-
-  function updateSparkGame() {
-    const t=now();
-    if(mini.sparkFeverUntil && t>=mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");const rule=$("#sparkRule");if(rule)rule.textContent="CATCH THE LIGHT";}
-    if (!mini.sparkExpiresAt || t < mini.sparkExpiresAt) return;
-    if (mini.sparkType === "shadow") {
-      mini.sparkAvoided += 1; mini.sparkStreak += 1; mini.sparkBestStreak = Math.max(mini.sparkBestStreak, mini.sparkStreak); mini.sparkStash += 1;updateSparkBankHUD();
-      const trail=$("#sparkTrail"); if(trail){trail.textContent="GOOD READ +1";trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}
-      sfx("perfect");
-    } else {
-      spillSparkStash("TOO SLOW");arcadeSfx("fail");if(mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");}
-    }
-    updateSparkBankHUD();
-    moveSparkTarget();
-  }
-
-  function catchSpark() {
-    const pet = $("#miniPet"), target = $("#miniTarget"), trail = $("#sparkTrail");
-    if (!target || !pet) return;
-    if (mini.sparkType === "shadow") {
-      mini.score = Math.max(0, mini.score - 2); spillSparkStash("SHADOW STOLE IT");
-      if (trail) { trail.textContent = mini.sparkLost ? "SHADOW STOLE THE STASH" : "DECOY -2"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-      pet.classList.add("forage-hit"); queueMiniTimeout(()=>pet.classList.remove("forage-hit"),300); arcadeSfx("fail"); haptic([16,20,16]);
-      updateSparkBankHUD(); moveSparkTarget(); return;
-    }
-    const wasFrenzy=now()<mini.sparkFeverUntil;mini.hits += 1; mini.sparkStreak += 1; mini.sparkBestStreak = Math.max(mini.sparkBestStreak, mini.sparkStreak);
-    const mult = sparkRiskMultiplier();
-    const gain = (mini.sparkType === "gold" ? 5 : 1) * (wasFrenzy?2:1); mini.sparkStash += gain;updateSparkBankHUD();
-    pet.style.left = `${mini.sparkX + 6}px`; pet.style.top = `${mini.sparkY + 28}px`; pet.classList.add("spark-dash"); queueMiniTimeout(()=>pet.classList.remove("spark-dash"),180);
-    if (trail) { trail.textContent = mini.sparkType === "gold" ? `GOLD${wasFrenzy?" RUSH":""} • STASH +${gain}` : wasFrenzy?`RUSH ${mini.sparkStreak} • STASH +${gain}`:mini.sparkStreak > 1 ? `CHAIN ${mini.sparkStreak} • RISK x${mult}` : "STASH +1"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-    updateSparkBankHUD();
-    if(!wasFrenzy && mini.sparkStreak>0 && mini.sparkStreak%6===0)startSparkFrenzy();
-    sfx(mini.sparkType === "gold" ? "reward" : "spark", mini.hits); haptic(mini.sparkType === "gold" ? [8,10,14] : 8); moveSparkTarget();
-  }
-
-  const FORAGE_FOODS = [
-    {id:"berry",icon:"🍓",name:"BERRY"},{id:"meat",icon:"🍗",name:"SNACK"},{id:"fruit",icon:"🍎",name:"FRUIT"}
-  ];
-  function buildForageOrder(){
-    const length=clamp(3+Math.floor((mini?.forageOrdersDone||0)/2),3,5),order=[];
-    while(order.length<length){const choices=FORAGE_FOODS.filter(food=>food.id!==order.at(-1));order.push((choices[Math.floor(Math.random()*choices.length)]||FORAGE_FOODS[0]).id);}
-    return order;
-  }
-  function updateForageOrderHUD(){
-    const host=$("#forageOrder"); if(!host)return;
-    host.innerHTML=`<small>RIZO WANTS</small>${mini.forageOrder.map((id,index)=>{const food=FORAGE_FOODS.find(item=>item.id===id);return `<span class="${index===mini.forageOrderIndex?"active":index<mini.forageOrderIndex?"done":""}">${food?.icon||"?"}</span>`;}).join("")}`;
-  }
-  function advanceForageOrder(){
-    mini.forageOrderIndex+=1;
-    if(mini.forageOrderIndex>=mini.forageOrder.length){
-      mini.forageOrdersDone+=1;mini.score+=10+Math.min(8,mini.forageOrdersDone*2);mini.treasureRolls+=1;
-      if(mini.forageOrdersDone%2===0){mini.forageRushUntil=now()+3600;sensoryBurst("PICNIC PANIC • PICK FAST","#ffd76a",16);arcadeSfx("win");}
-      else sensoryBurst(`LUNCH ${mini.forageOrdersDone} PACKED`,`#9eff75`,12);
-      mini.forageOrder=buildForageOrder();mini.forageOrderIndex=0;
-    }
-    updateForageOrderHUD();
-  }
-
-  function setForageLane(lane) {
-    mini.lane = clamp(Math.round(lane), 0, 2);
-    const pet = $("#miniPet");
-    if (pet) pet.style.left = `${[16.7,50,83.3][mini.lane]}%`;
-  }
-
-  // One readable decision row at a time. Food is chosen for the current ticket,
-  // never for a ticket that will be stale by the time the row reaches Rizo.
-  function createForageDrop(lane,{kind="wanted",wanted=null}={}) {
-    const host=$("#forageDrops"); if(!host)return;
-    const wantedId=wanted||mini.forageOrder[mini.forageOrderIndex];
-    const bad=kind==="bad",rare=kind==="rare";
-    const foods=FORAGE_FOODS.filter(food=>kind==="wrong"?food.id!==wantedId:food.id===wantedId);
-    const food=foods[Math.floor(Math.random()*foods.length)]||FORAGE_FOODS[0];
-    const node=document.createElement("div");
-    node.className=`forage-drop ${bad?"bad":"good"} ${rare?"rare":""}`;
-    node.textContent=bad?"🍄":rare?"💎":food.icon;
-    node.style.left=`${[16.7,50,83.3][lane]}%`;
-    node.setAttribute("aria-label",bad?"Mushroom: spoils the chain":rare?"Prism: bonus, no ticket progress":food.name);
-    host.appendChild(node);
-    const panic=now()<mini.forageRushUntil;
-    const travel=panic?1.05:Math.max(1.28,1.85-mini.forageOrdersDone*.09);
-    const y=112,catchY=Math.max(166,el.miniArena.clientHeight-115);
-    mini.entities.push({kind:"forage",node,lane,good:!bad,rare,foodId:bad||rare?null:food.id,y,speed:(catchY-y)/travel,caught:false});
-    node.style.transform=`translate(-50%,${y}px)`;
-  }
-
-  function spawnForageItem() {
-    if(now()<mini.forageNextAt||mini.entities.some(item=>item.kind==="forage"&&!item.caught))return;
-    const wanted=mini.forageOrder[mini.forageOrderIndex];
-    const lane=mini.forageRows===0?2:Math.floor(Math.random()*3);
-    mini.forageRows+=1;
-    createForageDrop(lane,{kind:"wanted",wanted});
-    createForageDrop((lane+1)%3,{kind:"wrong",wanted});
-    // A prism is a visible detour: points now, but the lunch still needs its food.
-    createForageDrop((lane+2)%3,{kind:mini.forageRows%4===0?"rare":"bad",wanted});
-  }
-
-  function forageFeedback(copy,good=true){
-    const ticket=$("#forageTicketState");
-    if(ticket){ticket.textContent=copy;ticket.dataset.result=good?"good":"bad";}
-    mini.forageFeedbackUntil=now()+700;
-  }
-
-  function updateForageGame(dt) {
-    const height=el.miniArena.clientHeight,panic=now()<mini.forageRushUntil,world=$(".forage-world");
-    world?.classList.toggle("picnic-panic",panic);
-    const ticket=$("#forageTicketState");
-    if(ticket&&now()>=mini.forageFeedbackUntil){
-      ticket.textContent=panic?"PICNIC PANIC • KEEP PACKING":`LUNCH ${mini.forageOrdersDone+1} • ${mini.forageOrderIndex}/${mini.forageOrder.length} PACKED`;
-      ticket.dataset.result="";
-    }
-    const row=mini.entities.filter(item=>item.kind==="forage"&&!item.caught);
-    const catchY=Math.max(166,height-115);
-    for(const item of row){item.y+=item.speed*dt;item.node.style.transform=`translate(-50%,${item.y}px)`;}
-    if(!row.length||row[0].y<catchY)return;
-    const picked=row.find(item=>item.lane===mini.lane);
-    if(picked){
-      const wanted=mini.forageOrder[mini.forageOrderIndex];
-      if(picked.rare){
-        mini.score+=7;mini.hits+=1;mini.treasureRolls+=1;
-        forageFeedback("PRISM +7 • STILL NEED THE FOOD");sfx("reward");
-      }else if(picked.good&&picked.foodId===wanted){
-        mini.hits+=1;mini.forageStreak+=1;mini.forageBestStreak=Math.max(mini.forageBestStreak,mini.forageStreak);
-        const gain=3*Math.min(3,1+Math.floor(mini.forageStreak/4));mini.score+=gain;
-        const completes=mini.forageOrderIndex===mini.forageOrder.length-1;
-        advanceForageOrder();
-        forageFeedback(completes?`LUNCH ${mini.forageOrdersDone} PACKED!`:`THAT'S THE ONE! +${gain}`);
-        sfx(completes?"reward":"eat");haptic(completes?[8,10,16]:8);
-      }else{
-        mini.score=Math.max(0,mini.score-(picked.good?1:4));mini.forageStreak=0;mini.forageMistakes+=1;
-        forageFeedback(picked.good?"WRONG FOOD • SAME REQUEST":"MUSHROOM?! RIZO SENT IT BACK",false);
-        arcadeSfx("fail");haptic([12,16,12]);
-      }
-      const pet=$("#miniPet"),good=picked.rare||picked.good&&picked.foodId===wanted;
-      pet?.classList.add(good?"forage-catch":"forage-hit");
-      queueMiniTimeout(()=>pet?.classList.remove("forage-catch","forage-hit"),280);
-      const streak=$("#forageStreak");if(streak)streak.textContent=String(mini.forageStreak);
-    }
-    for(const item of row){
-      item.caught=true;item.node.classList.add(item===picked?"caught":"passed");
-      queueMiniTimeout(()=>item.node.remove(),180);
-    }
-    mini.entities=mini.entities.filter(item=>!row.includes(item));
-    mini.forageNextAt=now()+(panic?170:320);
-  }
-
-  // A route is a guaranteed pickup, two authored clears, then a physical door.
-  // All objects share a speed so their jump spacing cannot collapse mid-route.
-  function spawnRushEntity(first=false) {
-    const host=$("#rushEntities");if(!host)return;
-    if(!first&&mini.entities.some(item=>item.kind==="rush"&&item.type==="depot"))return;
-    mini.rushRoute+=1;
-    const width=el.miniArena.clientWidth,route=mini.rushRoute;
-    const speed=210+Math.min(48,(route-1)*12),start=first?width*.80:width+45;
-    const pattern=route%3===1?["stump","stump"]:route%3===2?["stump","tall"]:["tall","stump"];
-    const add=(type,x,requiredJump=0)=>{
-      const node=document.createElement("div");node.className=`rush-entity ${type}`;
-      node.innerHTML=type==="prism"?"◆":type==="flame"?"✦":type==="depot"?`<small>DELIVER</small><b>${String(route).padStart(2,"0")}</b>`:type==="tall"?"<small>↑↑</small>":"<small>↑</small>";
-      node.style.transform=`translateX(${x}px)`;
-      if(type==="flame"||type==="prism")node.style.bottom=`${48+requiredJump+10}px`;
-      host.appendChild(node);
-      mini.entities.push({kind:"rush",node,type,x,speed,handled:false,requiredJump,nearMissScored:false,minClearance:Infinity});
-    };
-    add("prism",start,0);
-    add(pattern[0],start+240);
-    add("flame",start+240,pattern[0]==="tall"?164:126);
-    add(pattern[1],start+570);
-    add("flame",start+570,pattern[1]==="tall"?164:126);
-    add("depot",start+900);
-    const hud=$("#rushRoute");if(hud)hud.textContent=`ROUTE ${String(route).padStart(2,"0")} • ${["BACKSTREET","HIGH RISE","LAST BLOCK"][(route-1)%3]}`;
-    $(".rush-world")?.setAttribute("data-route",String((route-1)%3));
-    rushDeliveryHUD();
-  }
-
-  function rushDeliveryHUD(){
-    $(".rush-world")?.classList.toggle("has-parcel",mini.rushParcel);
-    const delivery=$("#rushDelivery");
-    if(delivery)delivery.textContent=mini.rushParcel?`◆ ON BOARD  •  ${"✓".repeat(mini.rushParcelClears)}${"○".repeat(Math.max(0,2-mini.rushParcelClears))}  →  DOOR` : "FIND ◆ • KEEP THE PACKAGE SAFE";
-  }
-  function rushCallout(copy){const node=$("#rushCallout");if(node)node.textContent=copy;}
-  function rushJump() {
-    if(mini.lives<=0)return;
-    if(mini.jumpY<=3){mini.jumpV=515;mini.rushAirJumps=0;sfx("jump");haptic(9);return;}
-    if(mini.rushAirJumps<1){mini.jumpV=Math.max(395,mini.jumpV+245);mini.rushAirJumps+=1;$("#miniPet")?.classList.add("rush-double");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("rush-double"),220);sfx("spark");haptic([6,8]);}
-  }
-
-  function updateRushGame(dt) {
-    if(mini.lives<=0)return;
-    const width=el.miniArena.clientWidth,wasAir=mini.jumpY>0;
-    mini.jumpV-=1125*dt;mini.jumpY=Math.max(0,mini.jumpY+mini.jumpV*dt);
-    const pet=$("#miniPet"),world=$(".rush-world");
-    if(mini.jumpY<=0){
-      mini.jumpY=0;mini.jumpV=0;mini.rushAirJumps=0;
-      if(wasAir){mini.rushLandingUntil=now()+130;pet?.classList.add("rush-land");queueMiniTimeout(()=>pet?.classList.remove("rush-land"),130);}
-    }
-    if(pet)pet.style.setProperty("--jump-y",`${mini.jumpY}px`);
-    const tag=$(".rush-parcel-tag");if(tag)tag.style.bottom=`${74+mini.jumpY}px`;
-    mini.rushRoad+=dt*(210+Math.min(48,(mini.rushRoute-1)*12));
-    world?.style.setProperty("--road",`${-mini.rushRoad}px`);
-    mini.distanceCarry+=dt*2;if(mini.distanceCarry>=1){const earned=Math.floor(mini.distanceCarry);mini.score+=earned;mini.distanceCarry-=earned;}
-    const petX=width*.22;
-    for(const entity of [...mini.entities]){
-      if(entity.kind!=="rush")continue;
-      const previous=entity.x;entity.x-=entity.speed*dt;entity.node.style.transform=`translateX(${entity.x}px)`;
-      const crosses=entity.x<petX+36&&previous>petX-36;
-      if(!entity.handled&&crosses){
-        if(entity.type==="prism"||entity.type==="flame"){
-          if(Math.abs(mini.jumpY-entity.requiredJump)<(entity.type==="prism"?44:36)){
-            entity.handled=true;entity.node.classList.add("collected");mini.hits+=1;
-            if(entity.type==="prism"){
-              mini.rushParcel=true;mini.rushParcelClears=0;mini.rushTips=0;rushDeliveryHUD();
-              rushCallout("PACKAGE ON BOARD • TWO CLEARS, THEN LAND AT THE DOOR");sfx("reward");haptic([6,10,6]);
-            }else{mini.rushTips+=3;mini.score+=3;rushCallout("AIR MAIL +3 • ONE MORE JUMP IF YOU NEED IT");sfx("spark");}
-          }
-        }else if(entity.type==="depot"){
-          if(mini.rushParcel&&mini.rushParcelClears>=2&&mini.jumpY<44){
-            entity.handled=true;mini.rushDeliveries+=1;mini.rushParcel=false;
-            const gain=14+mini.rushDeliveries*3+mini.rushTips;mini.score+=gain;
-            const receipt=$("#rushReceipt");if(receipt){receipt.textContent=`SIGNED. SEALED. +${gain}`;receipt.classList.add("show");queueMiniTimeout(()=>receipt.classList.remove("show"),1250);}
-            entity.node.classList.add("delivered");rushDeliveryHUD();rushCallout(`DELIVERY ${mini.rushDeliveries} • RIZO DOES NOT RING TWICE.`);arcadeSfx("win");haptic([8,14,22]);
-          }
-        }else{
-          const needed=entity.type==="tall"?94:56;
-          entity.minClearance=Math.min(entity.minClearance,mini.jumpY-needed);
-          if(mini.jumpY<needed){
-            // Contact is never a clean clear, even during the shared i-frames.
-            entity.handled=true;
-            if(now()>mini.invulnerableUntil){
-              loseArcadeLife();mini.rushStreak=0;
-              if(mini.rushParcel){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushPackagesLost+=1;}
-              mini.invulnerableUntil=now()+950;renderLives("rushHearts");rushDeliveryHUD();
-              const streak=$("#rushStreak");if(streak)streak.textContent="0";
-              rushCallout(mini.lives?"PACKAGE DOWN • NEXT PICKUP IS YOUR COMEBACK":"RIZO HAS CLOCKED OUT.");
-              pet?.classList.add("rush-hurt");queueMiniTimeout(()=>pet?.classList.remove("rush-hurt"),500);arcadeSfx("fail");haptic([18,25,18]);
-              if(mini.lives<=0)mini.endAt=Math.min(mini.endAt,now()+350);
-            }
-          }
-        }
-      }
-      if(!entity.handled&&["stump","tall"].includes(entity.type)&&entity.x<petX-36){
-        entity.handled=true;mini.rushClears+=1;mini.rushStreak+=1;mini.rushBestStreak=Math.max(mini.rushBestStreak,mini.rushStreak);
-        const close=entity.minClearance>=0&&entity.minClearance<22;mini.score+=close?5:3;
-        if(mini.rushParcel)mini.rushParcelClears=Math.min(2,mini.rushParcelClears+1);
-        const streak=$("#rushStreak");if(streak)streak.textContent=String(mini.rushStreak);rushDeliveryHUD();
-        rushCallout(close?"SHOE SCUFF +5 • BARELY MADE IT":mini.rushParcelClears>=2?"DOOR AHEAD • LAND TO DELIVER":"CLEAN • KEEP IT IN ONE PIECE");sfx("perfect");
-      }
-      if(entity.type==="depot"&&!entity.handled&&entity.x<petX-45){
-        entity.handled=true;if(mini.rushParcel){mini.rushPackagesLost+=1;mini.rushParcel=false;mini.rushParcelClears=0;rushDeliveryHUD();rushCallout("MISSED THE DOOR • LAND BEFORE THE NEXT ONE");sfx("no");}
-      }
-      if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}
-    }
-  }
-
-  const WALK_OBJECTS = {
-    leaf:{icon:"🍂",label:"CRUNCHY LEAF",points:1,type:"good",reaction:"inspect"},
-    ember:{icon:"✦",label:"LOST EMBER",points:3,type:"good",reaction:"celebrate"},
-    flower:{icon:"🌼",label:"MOON FLOWER",points:2,type:"good",reaction:"inspect"},
-    strange:{icon:"?",label:"STRANGE SIGNAL",points:6,type:"rare",reaction:"awe"},
-    puddle:{icon:"💧",label:"DEEP PUDDLE",points:-2,type:"hazard",reaction:"splash"},
-    friend:{icon:"🐛",label:"TINY FRIEND",points:3,type:"good",reaction:"inspect"},
-    mushroom:{icon:"🍄",label:"MOSS MUSHROOM",points:2,type:"good",reaction:"sniff"},
-    seed:{icon:"◇",label:"FOREST SEED",points:5,type:"rare",reaction:"awe"},
-    moonleaf:{icon:"☾",label:"MOON LEAF",points:4,type:"good",reaction:"awe"},
-    star:{icon:"★",label:"FALLEN STAR",points:7,type:"rare",reaction:"celebrate"},
-    storm:{icon:"ϟ",label:"STORM SHARD",points:7,type:"rare",reaction:"shock"},
-    thread:{icon:"⌁",label:"GOLD THREAD",points:8,type:"rare",reaction:"awe"},
-    log:{icon:"▰",label:"FALLEN LOG",points:2,type:"obstacle",reaction:"jump"}
-  };
-
-  function walkObjectPool() {
-    const biome = mini.walkBiome || WALK_BIOMES.rain;
-    const ids = [...biome.objects, "log"];
-    const rareChance = .08 + (biome.rareBias || 0) + mini.walkRisk * .035 + mini.walkLuck * .025;
-    let pool = ids.map(id => WALK_OBJECTS[id]).filter(Boolean);
-    if (Math.random() < rareChance) {
-      const rare = pool.filter(item => item.type === "rare");
-      if (rare.length) return rare;
-    }
-    pool = pool.filter(item => item.type !== "rare" || Math.random() < .12);
-    if (mini.walkWeather?.findBias && Math.random() < .22 && WALK_OBJECTS[mini.walkWeather.findBias]) return [WALK_OBJECTS[mini.walkWeather.findBias]];
-    return pool;
-  }
-
-  function spawnWalkFind() {
-    const host=$("#walkFinds"); if(!host||mini.walkEnding||mini.pausedByFork)return;
-    if(mini.entities.filter(item=>item.kind==="walk"&&!item.handled).length>=3)return;
-    const pool=walkObjectPool();
-    const opening=[WALK_OBJECTS.leaf,WALK_OBJECTS.friend,WALK_OBJECTS.ember];
-    const data=mini.walkFindCount<3?opening[mini.walkFindCount]:pool[Math.floor(Math.random()*pool.length)]||WALK_OBJECTS.leaf;
-    const first=mini.walkFindCount===0;mini.walkFindCount+=1;
-    const node=document.createElement("button");
-    node.type="button"; node.className=`walk-find ${data.type} reaction-${data.reaction}`; node.dataset.walkFind=data.label; node.textContent=data.icon; node.setAttribute("aria-label",`Interact with ${data.label}`);
-    host.appendChild(node);
-    const lane = Math.random() < .25 ? "high" : "ground";
-    node.dataset.lane = lane;
-    mini.entities.push({kind:"walk",node,data,x:first?el.miniArena.clientWidth*.62:el.miniArena.clientWidth+20,speed:70+Math.random()*12+mini.walkRisk*4,handled:false,lane});
-  }
-
-  function walkReaction(reaction, negative = false) {
-    const pet=$("#miniPet");
-    if (!pet) return;
-    const classes=["walk-inspect","walk-splash","walk-jump","walk-awe","walk-shock","walk-sniff","walk-celebrate"];
-    pet.classList.remove(...classes);
-    const map={inspect:"walk-inspect",splash:"walk-splash",jump:"walk-jump",awe:"walk-awe",shock:"walk-shock",sniff:"walk-sniff",celebrate:"walk-celebrate"};
-    void pet.offsetWidth;
-    pet.classList.add(map[reaction] || (negative ? "walk-splash" : "walk-inspect"));
-    queueMiniTimeout(()=>pet?.classList.remove(...classes),560);
-  }
-
-  function collectWalkObject(node) {
-    const entity=mini.entities.find(item=>item.kind==="walk"&&item.node===node);
-    if(!entity||entity.handled)return;
-    entity.handled=true;
-    const points = entity.data.type === "obstacle" ? 3 : entity.data.type === "hazard" ? 2 : entity.data.points;
-    rememberWalkFind(entity.data);
-    mini.score=Math.max(0,mini.score+points);
-    mini.hits += points > 0 ? 1 : 0;
-    if(entity.data.type==="rare") mini.treasureRolls+=2;
-    if(entity.data.type==="obstacle") mini.treasureRolls += .25;
-    const copy=entity.data.type==="hazard"?`${state.pet.name} HOPS THE PUDDLE. DRY SOCKS. +2`:entity.data.type==="obstacle"?`${state.pet.name} CLEARED THE LOG. +3`:`${entity.data.label} • ${points>0?"+":""}${points}`;
-    setWalkCaption(mini.walkBiome.name,copy);
-    walkReaction(entity.data.type==="hazard"?"jump":entity.data.reaction,points<0);
-    sfx(points<0?"sick":entity.data.type==="rare"?"reward":entity.data.type==="obstacle"?"jump":"spark");
-    haptic(points<0?[18,18,18]:entity.data.type==="rare"?[8,10,14]:8);
-    entity.node.classList.add("collected");
-    queueMiniTimeout(()=>entity.node.remove(),220);
-  }
-
-  function updateWalkGame(dt) {
-    mini.walkDistance += dt * (56 + mini.walkRisk * 3);
-    const world=$(".walk-world");
-    if(world) world.style.setProperty("--walk-distance",String(mini.walkDistance));
-    $$(".walk-layer",world || el.miniArena).forEach(layer=>{
-      const speed=Number(layer.dataset.walkSpeed)||.3;
-      layer.style.backgroundPositionX=`${-mini.walkDistance*speed}px`;
-    });
-    const progress=clamp(1-Math.max(0,mini.endAt-now())/miniDuration("walk"),0,1);
-    const bar=$("#walkDistanceBar"); if(bar)bar.style.width=`${progress*100}%`;
-    const petX=el.miniArena.clientWidth*.19;
-    for(const entity of [...mini.entities]){
-      if(entity.kind!=="walk")continue;
-      entity.x-=entity.speed*dt;
-      const y=entity.lane==="high"?"132px":"74px";
-      entity.node.style.left=`${entity.x}px`;
-      entity.node.style.bottom=y;
-      if(!entity.handled && entity.x < petX+20 && entity.x > petX-34 && ["hazard","obstacle"].includes(entity.data.type)){
-        entity.handled=true;
-        if(entity.data.type==="hazard"){
-          mini.score=Math.max(0,mini.score-2); walkReaction("splash",true); sfx("sick"); setWalkCaption(mini.walkBiome.name,`${state.pet.name} FOUND THE DEEPEST PART OF THE PUDDLE.`);
-        } else {
-          mini.score=Math.max(0,mini.score-1); walkReaction("shock",true); sfx("no"); setWalkCaption(mini.walkBiome.name,`${state.pet.name} BUMPED THE LOG. THE LOG WON.`);
-        }
-        entity.node.classList.add("collected"); queueMiniTimeout(()=>entity.node.remove(),220);
-      }
-      if(entity.x < -90 || entity.handled){
-        if(entity.x < -90) entity.node.remove();
-        mini.entities=mini.entities.filter(item=>item!==entity);
-      }
-    }
-  }
-
-  // ===== PAUSE-AWARE ARCADE SCHEDULER =====
-  // Every delayed gameplay callback in the arcade runs through here. Native
-  // setTimeout keeps counting while a run is frozen, which meant a Lost Signal
-  // sequence, a Rhythm countdown or a delayed round transition would advance
-  // behind the pause panel and land out of sync on resume. Jobs now bank their
-  // remaining delay when the run is held and re-arm with exactly that much left,
-  // so a stacked ad + background + menu hold costs the sequence nothing.
-  let arcadeJobSeq = 0;
-  function arcadeJobs(){ return (mini.jobs ||= new Map()); }
-  function arcadeJobsHeld(){ return Boolean(mini?.jobHolds && Object.keys(mini.jobHolds).length); }
-
-  function armArcadeJob(job){
-    job.armedAt = performance.now();
-    job.timer = setTimeout(() => {
-      job.timer = null;
-      if(!mini?.active){ mini?.jobs?.delete(job.id); return; }
-      // Re-arm a repeating job before running it, so a callback that schedules
-      // more work or ends the run behaves the same as it did under setInterval.
-      if(job.repeat){ job.remaining = job.period; armArcadeJob(job); }
-      else arcadeJobs().delete(job.id);
-      job.callback();
-    }, Math.max(0, job.remaining));
-  }
-
-  function queueMiniTimeout(callback, delay) {
-    const job = { id: ++arcadeJobSeq, callback, remaining: Math.max(0, Number(delay) || 0), period: 0, repeat: false, timer: null, armedAt: 0 };
-    arcadeJobs().set(job.id, job);
-    if(!arcadeJobsHeld()) armArcadeJob(job);
-    return job.id;
-  }
-
-  function queueMiniInterval(callback, period) {
-    const every = Math.max(16, Number(period) || 16);
-    const job = { id: ++arcadeJobSeq, callback, remaining: every, period: every, repeat: true, timer: null, armedAt: 0 };
-    arcadeJobs().set(job.id, job);
-    if(!arcadeJobsHeld()) armArcadeJob(job);
-    return job.id;
-  }
-
-  function clearArcadeJobs(){
-    for(const job of mini?.jobs?.values() || []) if(job.timer != null) clearTimeout(job.timer);
-    mini?.jobs?.clear?.();
-    if(mini) mini.jobHolds = {};
-  }
-
-  // Holds stack by reason exactly like the run clock does, so a notification
-  // arriving mid-ad cannot release the queue early.
-  function arcadeHoldJobs(reason="menu"){
-    if(!mini?.active) return false;
-    mini.jobHolds ||= {};
-    if(mini.jobHolds[reason]) return false;
-    const first = !arcadeJobsHeld();
-    mini.jobHolds[reason] = true;
-    if(!first) return true;
-    const at = performance.now();
-    for(const job of arcadeJobs().values()){
-      if(job.timer == null) continue;
-      clearTimeout(job.timer);
-      job.timer = null;
-      job.remaining = Math.max(0, job.remaining - (at - job.armedAt));
-    }
-    return true;
-  }
-
-  function arcadeReleaseJobs(reason="menu"){
-    if(!mini?.active) return false;
-    mini.jobHolds ||= {};
-    if(!mini.jobHolds[reason]) return false;
-    delete mini.jobHolds[reason];
-    if(arcadeJobsHeld()) return false;
-    for(const job of arcadeJobs().values()) if(job.timer == null) armArcadeJob(job);
-    return true;
-  }
-
-  function rhythmClockNow() {
-    // Gameplay must never depend on AudioContext.currentTime. Mobile Safari can
-    // leave an AudioContext suspended or resume it late, which previously froze
-    // or delayed notes even when Low Power Mode was off. performance.now() stays
-    // monotonic and drives visual timing; Web Audio is now sound-only.
-    return performance.now()/1000;
-  }
-
-  function stopRhythmVoices() {
-    for(const voice of mini.rhythmVoices||[]){try{voice.stop?.();}catch(error){} try{voice.disconnect?.();}catch(error){}}
-    mini.rhythmVoices=[];
-    try{mini.rhythmGain?.disconnect?.();}catch(error){}
-    mini.rhythmGain=null;
-  }
-
-  function scheduleRhythmTone(ctx,gainNode,note,when,duration,type,volume=.035){
-    if(!state.settings.music||note==null||when<ctx.currentTime-.03)return;
-    const osc=ctx.createOscillator(),gain=ctx.createGain();
-    osc.type=type;osc.frequency.setValueAtTime(midiFrequency(note),Math.max(ctx.currentTime,when));
-    gain.gain.setValueAtTime(.001,Math.max(ctx.currentTime,when));
-    gain.gain.linearRampToValueAtTime(volume,Math.max(ctx.currentTime,when)+.008);
-    gain.gain.exponentialRampToValueAtTime(.001,Math.max(ctx.currentTime,when)+duration);
-    osc.connect(gain).connect(gainNode);osc.start(Math.max(ctx.currentTime,when));osc.stop(Math.max(ctx.currentTime,when)+duration+.03);
-    mini.rhythmVoices.push(osc);
-  }
-
-  function scheduleRhythmNoise(ctx,gainNode,when,volume=.012){
-    if(!state.settings.music||when<ctx.currentTime-.03)return;
-    const size=Math.max(1,Math.floor(ctx.sampleRate*.045)),buffer=ctx.createBuffer(1,size,ctx.sampleRate),data=buffer.getChannelData(0);
-    for(let i=0;i<size;i+=1)data[i]=(Math.random()*2-1)*(1-i/size);
-    const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=buffer;
-    gain.gain.setValueAtTime(volume,Math.max(ctx.currentTime,when));gain.gain.exponentialRampToValueAtTime(.001,Math.max(ctx.currentTime,when)+.05);
-    source.connect(gain).connect(gainNode);source.start(Math.max(ctx.currentTime,when));mini.rhythmVoices.push(source);
-  }
-
-  function scheduleRhythmAudio(fromElapsed=0){
-    stopRhythmVoices();
-    if(!state.settings.music||!mini.active||mini.mode!=="rhythm")return;
-    const ctx=ensureAudio();if(!ctx)return;
-    const track=mini.rhythmTrack; const gain=ctx.createGain();gain.gain.value=currentRhythmGain();gain.connect(ctx.destination);mini.rhythmGain=gain;
-    const stepSeconds=rhythmStepSeconds(track), total=miniDuration("rhythm")/1000;
-    // Re-anchor sound to the audio clock whenever audio starts/resumes. The
-    // visual chart remains on performance.now(), so a suspended audio context
-    // can no longer freeze gameplay.
-    const startAt=ctx.currentTime-fromElapsed+.045;
-    mini.rhythmAudioStartAt=startAt;
-    const maxStep=Math.ceil(total/stepSeconds)+2;
-    for(let step=0;step<maxStep;step+=1){
-      const t=rhythmStepTime(track,step); if(t<fromElapsed-.08)continue;if(t>total)break;
-      const when=startAt+t, index=step%(track.steps||16);
-      scheduleRhythmTone(ctx,gain,track.lead[index%track.lead.length],when,Math.min(.2,stepSeconds*.72),track.wave,.028);
-      scheduleRhythmTone(ctx,gain,track.bass[index%track.bass.length],when,Math.min(.32,stepSeconds*1.2),"triangle",.022);
-      const drum=track.drums[index%track.drums.length]||0;
-      if(drum)scheduleRhythmNoise(ctx,gain,when,.008+.012*drum);
-    }
-  }
-
-  function startRhythmPerformance() {
-    ensureAudio();
-    mini.rhythmReady=false;
-    mini.rhythmStartClock=rhythmClockNow()+mini.rhythmLeadIn;
-    mini.rhythmAudioStartAt=(ensureAudio()?.currentTime ?? 0)+mini.rhythmLeadIn;
-    mini.rhythmChartIndex=0;mini.entities=[];
-    scheduleRhythmAudio(-mini.rhythmLeadIn);
-    const countdown=$("#rhythmCountdown"),number=countdown?.querySelector("b"),caption=countdown?.querySelector("span");
-    [[0,"3","FIND YOUR LANES"],[1000,"2","LEFT • MIDDLE • MIDDLE • RIGHT"],[2000,"1","WAIT FOR THE HIT LINE"],[3000,"GO","FIRST NOTE INCOMING"]].forEach(([delay,value,copy])=>queueMiniTimeout(()=>{if(number){number.textContent=value;number.classList.remove("pulse");void number.offsetWidth;number.classList.add("pulse");}if(caption)caption.textContent=copy;sfx(value==="GO"?"reward":"spark");},delay));
-    queueMiniTimeout(()=>{mini.rhythmReady=true;countdown?.classList.add("leave");const callout=$("#rhythmCallout");if(callout)callout.textContent="FIRST NOTE INCOMING";},3000);
-    queueMiniTimeout(()=>countdown?.remove(),3300);
-    queueMiniTimeout(()=>{$(".rhythm-track-intro")?.classList.add("leave");},2300);
-  }
-
-  function rhythmAccuracyPercent(){
-    const j=mini.rhythmJudgements||{perfect:0,great:0,good:0,miss:0};
-    const total=j.perfect+j.great+j.good+j.miss;
-    if(!total)return 100;
-    return Math.round(((j.perfect+j.great*.85+j.good*.65)/total)*100);
-  }
-
-  function updateRhythmHUD(){
-    const combo=$("#rhythmCombo b");if(combo)combo.textContent=String(mini.rhythmStreak||0);
-    const accuracy=$("#rhythmAccuracy b");if(accuracy)accuracy.textContent=`${rhythmAccuracyPercent()}%`;
-  }
-
-  function pulseRhythmPad(lane,className="pressed"){
-    const pad=$(`[data-rhythm-lane="${lane}"]`);if(!pad)return;
-    pad.classList.remove("pressed","perfect","wrong");void pad.offsetWidth;pad.classList.add(className);
-    queueMiniTimeout(()=>pad?.classList.remove(className),140);
-  }
-
-  function spawnRhythmEvent(event) {
-    const host=$("#rhythmNotes");if(!host||event.spawned)return;
-    const node=document.createElement("i");node.className=`rhythm-note lane-${event.lane}`;node.textContent=event.icon;node.setAttribute("aria-hidden","true");host.appendChild(node);
-    event.spawned=true;event.kind="rhythm";event.node=node;event.handled=false;mini.entities.push(event);
-  }
-
-  function updateRhythmGame() {
-    const elapsed=rhythmClockNow()-mini.rhythmStartClock;
-    // Notes may enter behind the countdown during the final travel window so
-    // the first beat reaches the line naturally after GO instead of spawning
-    // directly on the target with no reaction time.
-    while(mini.rhythmChartIndex<mini.rhythmChart.length && mini.rhythmChart[mini.rhythmChartIndex].hitTime-elapsed<=mini.rhythmTravel){
-      spawnRhythmEvent(mini.rhythmChart[mini.rhythmChartIndex]);mini.rhythmChartIndex+=1;
-    }
-    const board=$("#rhythmBoard");
-    const boardHeight=Math.max(160,board?.clientHeight||260),spawnY=-48,gateY=boardHeight-54;
-    for(const entity of [...mini.entities]){
-      if(entity.kind!=="rhythm"||entity.handled)continue;
-      const remaining=entity.hitTime-elapsed;
-      const progress=1-remaining/mini.rhythmTravel;
-      entity.y=spawnY+(gateY-spawnY)*progress;
-      entity.node.style.top=`${entity.y}px`;
-      if(elapsed-entity.hitTime>.205){
-        entity.handled=true;mini.rhythmStreak=0;mini.rhythmMisses+=1;mini.rhythmJudgements.miss+=1;
-        const callout=$("#rhythmCallout");if(callout)callout.textContent=`MISS • LANE ${entity.lane+1}`;
-        pulseRhythmPad(entity.lane,"wrong");updateRhythmHUD();sfx("no");entity.node.classList.add("missed");queueMiniTimeout(()=>entity.node?.remove(),180);
-      }
-    }
-    mini.entities=mini.entities.filter(entity=>!entity.handled||entity.node?.isConnected);
-  }
-
-  function rhythmTap(lane) {
-    lane=clamp(Number(lane)||0,0,3);
-    if(!mini.rhythmReady){const callout=$("#rhythmCallout");if(callout)callout.textContent="WAIT FOR GO";pulseRhythmPad(lane,"wrong");return;}
-    pulseRhythmPad(lane,"pressed");
-    const elapsed=rhythmClockNow()-mini.rhythmStartClock;
-    const open=mini.entities.filter(item=>item.kind==="rhythm"&&!item.handled);
-    const notes=open.filter(item=>item.lane===lane);
-    const target=notes.sort((a,b)=>Math.abs(a.hitTime-elapsed)-Math.abs(b.hitTime-elapsed))[0];
-    const nearestAny=[...open].sort((a,b)=>Math.abs(a.hitTime-elapsed)-Math.abs(b.hitTime-elapsed))[0];
-    if(!target||Math.abs(target.hitTime-elapsed)>.205){
-      mini.rhythmBlankTaps+=1;
-      if(mini.rhythmStreak>0)mini.rhythmStreak=0;
-      const callout=$("#rhythmCallout");
-      if(nearestAny&&Math.abs(nearestAny.hitTime-elapsed)<=.23){
-        if(callout)callout.textContent=`WRONG LANE • TRY ${nearestAny.lane+1}`;
-      }else if(callout){
-        const relation=nearestAny?(nearestAny.hitTime>elapsed?"TOO EARLY":"TOO LATE"):"NO NOTE THERE";
-        callout.textContent=relation;
-      }
-      pulseRhythmPad(lane,"wrong");updateRhythmHUD();sfx("no");return;
-    }
-    const signed=target.hitTime-elapsed,delta=Math.abs(signed);
-    const result=delta<=.055?{grade:"PERFECT",points:5,key:"perfect"}:delta<=.105?{grade:"GREAT",points:3,key:"great"}:{grade:"GOOD",points:1,key:"good"};
-    target.handled=true;target.node?.classList.add("hit",result.key);queueMiniTimeout(()=>target.node?.remove(),150);
-    mini.rhythmStreak+=1;mini.rhythmMaxStreak=Math.max(mini.rhythmMaxStreak,mini.rhythmStreak);mini.hits+=1;mini.rhythmJudgements[result.key]+=1;
-    mini.score+=result.points+Math.floor(mini.rhythmStreak/8);
-    const timing=delta<=.055?"":signed>0?" • EARLY":" • LATE";
-    const callout=$("#rhythmCallout");if(callout)callout.textContent=`${result.grade}${timing} • ${mini.rhythmStreak} COMBO`;
-    pulseRhythmPad(lane,result.key==="perfect"?"perfect":"pressed");updateRhythmHUD();
-    $("#miniPet")?.classList.add("rhythm-hit");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("rhythm-hit"),220);
-    sfx(result.key==="perfect"?"perfect":"dance",mini.rhythmStreak);haptic(result.key==="perfect"?[8,12,8]:6);
-  }
-
-  function lightMemoryRune(index,on=true) { const rune=$(`[data-memory-rune="${index}"]`); if(rune)rune.classList.toggle("lit",on); }
-  function memoryExpectedSequence(){let base=[...mini.memorySequence];if(mini.memoryMode.includes("reverse"))base.reverse();if(mini.memoryMode.includes("opposite"))base=base.map(value=>3-value);if(mini.memoryMode.includes("rotate")){const shift=mini.memoryShift||1;base=base.map(value=>(value+shift)%4);}return base;}
-  function memoryRuleLabel(){return {forward:"CLEAN SIGNAL",reverse:"PLAY BACKWARD",opposite:"PLAY OPPOSITES","reverse-opposite":"BACKWARD + OPPOSITE",rotate:`ROTATE +${mini.memoryShift||1}`,"reverse-rotate":`BACKWARD + ROTATE`}[mini.memoryMode]||String(mini.memoryMode||"SIGNAL").toUpperCase();}
-  function updateMemoryHUD(){const rule=$("#memoryRule");if(rule)rule.textContent=memoryRuleLabel();renderLives("memoryHearts");}
-
-  function startMemoryRound() {
-    if(!mini.active||mini.mode!=="memory")return;
-    mini.memoryRound+=1;mini.memoryBestRound=Math.max(mini.memoryBestRound,mini.memoryRound);mini.memoryInput=0;mini.memoryShowing=true;mini.memoryShift=1+(mini.memoryRound%3);mini.memoryRuleDepth=mini.memoryRound>=7?2:1;
-    if(mini.memoryRound>=9&&mini.memoryRound%3===0)mini.memoryMode="reverse-rotate";else if(mini.memoryRound>=7&&mini.memoryRound%2===1)mini.memoryMode="reverse-opposite";else if(mini.memoryRound>=5&&mini.memoryRound%5===0)mini.memoryMode="rotate";else if(mini.memoryRound>=4&&mini.memoryRound%4===0)mini.memoryMode="opposite";else if(mini.memoryRound>=3&&mini.memoryRound%3===0)mini.memoryMode="reverse";else mini.memoryMode="forward";
-    mini.memorySequence.push(Math.floor(Math.random()*4));updateMemoryHUD();
-    const callout=$("#memoryCallout"),speed=Math.max(250,520-mini.memoryRound*24);if(callout)callout.textContent=`ROUND ${mini.memoryRound} • LISTEN • ${memoryRuleLabel()}`;
-    mini.memorySequence.forEach((value,index)=>{queueMiniTimeout(()=>{lightMemoryRune(value,true);sfx("spark",index);},index*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),index*speed+Math.min(270,speed*.58));});
-    queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`YOUR TURN • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+140);
-  }
-
-  function memoryTap(index) {
-    if(!mini.active||mini.mode!=="memory"||mini.memoryShowing)return;
-    lightMemoryRune(index,true);queueMiniTimeout(()=>lightMemoryRune(index,false),180);const expectedSequence=memoryExpectedSequence(),expected=expectedSequence[mini.memoryInput];
-    if(index===expected){mini.memoryInput+=1;mini.score+=2+mini.memoryRound;sfx("spark",mini.memoryInput);haptic(6);$("#miniPet")?.classList.add("memory-nod");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-nod"),180);if(mini.memoryInput>=expectedSequence.length){mini.hits+=1;mini.score+=mini.memoryRound*(mini.memoryRuleDepth>1?6:mini.memoryMode==="forward"?2:4);mini.memoryShowing=true;const callout=$("#memoryCallout");if(callout)callout.textContent=`${memoryRuleLabel()} CLEAN • +${mini.memoryRound*(mini.memoryRuleDepth>1?6:4)}`;arcadeSfx("win");queueMiniTimeout(startMemoryRound,720);}}
-    else {mini.score=Math.max(0,mini.score-3);loseArcadeLife();mini.memoryShowing=true;updateMemoryHUD();const callout=$("#memoryCallout");if(callout)callout.textContent=mini.lives>0?"WRONG RUNE • STUDY IT AGAIN":"MEMORY OVERLOADED";$("#miniPet")?.classList.add("memory-confused");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-confused"),420);arcadeSfx("fail");haptic([15,20,15]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}queueMiniTimeout(()=>{mini.memoryInput=0;mini.memoryShowing=true;const speed=Math.max(250,430-mini.memoryRound*16);mini.memorySequence.forEach((value,i)=>{queueMiniTimeout(()=>lightMemoryRune(value,true),i*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),i*speed+220);});queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`TRY • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+100);},520);}
-  }
-
+  // ===== HEARTS =====
   function renderLives(id="miniLives"){
     const host=typeof id==="string"?$(`#${id}`):id;
     if(!host)return "";
     const max=Math.max(1,Math.floor(mini.maxLives||3)),lives=clamp(Math.floor(mini.lives||0),0,max);
-    const markup=Array(max).fill(0).map((_,i)=>i<lives?"\u2665":"\u2661").join(" ");
+    const markup=Array(max).fill(0).map((_,i)=>i<lives?"♥":"♡").join(" ");
     host.textContent=markup;
     host.classList.toggle("lives-critical",lives===1);
     host.classList.toggle("lives-empty",lives<=0);
@@ -4961,158 +3789,385 @@
     return mini.lives;
   }
 
-  function updateGlidePet(){const pet=$("#miniPet");if(!pet)return;pet.style.top=`${mini.glideY}px`;pet.style.setProperty("--glide-tilt",`${clamp(mini.glideV/18,-18,22)}deg`);}
-  function glideFlap(){if(!mini.active||mini.mode!=="glide")return;mini.glideV=now()<mini.glideThermalUntil?-270:-315;sfx("jump");haptic(6);$("#miniPet")?.classList.add("glide-flap");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-flap"),140);}
-  function spawnGlideGate(){const host=$("#glideGates");if(!host)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,progress=1-Math.max(0,mini.endAt-now())/miniDuration("glide"),rare=Math.random()<.12,gapH=Math.max(104,148-progress*36-(rare?12:0)),margin=84,gapY=margin+gapH/2+Math.random()*Math.max(1,height-margin*2-gapH);const node=document.createElement("div");node.className=`glide-gate ${rare?"prism":""}`;node.innerHTML=`<i class="top"></i><i class="bottom"></i><b>${rare?"◆":""}</b>`;host.appendChild(node);const entity={kind:"glide",node,x:width+38,width:58,gapY,gapH,speed:128+progress*46+(rare?9:0),scored:false,rare};mini.entities.push(entity);mini.glideGateCount+=1;}
-  function updateGlideGateNode(entity){const h=el.miniArena.clientHeight,topH=Math.max(0,entity.gapY-entity.gapH/2),bottomY=Math.min(h,entity.gapY+entity.gapH/2);entity.node.style.transform=`translateX(${entity.x}px)`;entity.node.style.setProperty("--gate-top",`${topH}px`);entity.node.style.setProperty("--gate-bottom",`${Math.max(0,h-bottomY)}px`);}
-  function glideCrash(){if(now()<mini.glideInvulnerableUntil)return;loseArcadeLife();mini.glideStreak=0;mini.glideDraft=0;const draft=$("#glideDraft");if(draft)draft.textContent="0/3";mini.glideInvulnerableUntil=now()+1250;renderLives("glideHearts");const streak=$("#glideStreak");if(streak)streak.textContent="0";$("#miniPet")?.classList.add("glide-hurt");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-hurt"),520);arcadeSfx("fail");haptic([18,26,18]);mini.glideY=el.miniArena.clientHeight*.46;mini.glideV=-80;for(const entity of mini.entities.filter(e=>e.kind==="glide")){entity.node.remove();}mini.entities=mini.entities.filter(e=>e.kind!=="glide");mini.glideSpawnAt=now()+1050;if(mini.lives<=0)mini.endAt=Math.min(mini.endAt,now()+450);}
-  function updateGlideGame(dt){const t=now(),height=el.miniArena.clientHeight,width=el.miniArena.clientWidth,thermal=t<mini.glideThermalUntil;if(mini.glideThermalUntil&&t>=mini.glideThermalUntil){mini.glideThermalUntil=0;$(".glide-world")?.classList.remove("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="CENTER 3 GATES → THERMAL";}if(t>=mini.glideWindAt){mini.glideWind=[-72,-38,0,42,76][Math.floor(Math.random()*5)];mini.glideWindAt=t+5200+Math.random()*2200;const wind=$("#glideWind");if(wind)wind.textContent=mini.glideWind<-20?"UPDRAFT ↑":mini.glideWind>20?"DOWNDRAFT ↓":"CALM AIR";}mini.glideV+=((thermal?525:760)+(thermal?mini.glideWind*.35:mini.glideWind))*dt;mini.glideY+=mini.glideV*dt;updateGlidePet();if(t>=mini.glideSpawnAt){spawnGlideGate();mini.glideSpawnAt=t+1450;}const petX=width*.24,petR=22;for(const entity of [...mini.entities]){if(entity.kind!=="glide")continue;entity.x-=entity.speed*dt;updateGlideGateNode(entity);const overlapX=entity.x<petX+petR&&entity.x+entity.width>petX-petR,top=entity.gapY-entity.gapH/2,bottom=entity.gapY+entity.gapH/2;if(overlapX&&(mini.glideY-petR<top||mini.glideY+petR>bottom))glideCrash();if(!entity.scored&&entity.x+entity.width<petX){entity.scored=true;mini.glideClears+=1;mini.glideStreak+=1;mini.glideBestStreak=Math.max(mini.glideBestStreak,mini.glideStreak);const centered=Math.abs(mini.glideY-entity.gapY)<20,gain=((entity.rare?6:3)+(centered?2:0))*(thermal?2:1);mini.score+=gain;const streak=$("#glideStreak");if(streak)streak.textContent=String(mini.glideStreak);if(centered){mini.glideDraft+=entity.rare?2:1;if(mini.glideDraft>=3){mini.glideDraft=0;mini.glideThermalUntil=t+4200;mini.glideThermals+=1;$(".glide-world")?.classList.add("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="THERMAL BURST • PHYSICS SOFTENED • x2";sensoryBurst("THERMAL BURST","#ffd45a",12);arcadeSfx("win");}else{sensoryBurst("CENTER THREAD","#9eff75",8);sfx("perfect");}const draft=$("#glideDraft");if(draft)draft.textContent=`${mini.glideDraft}/3`;}else sfx(entity.rare?"reward":"spark");}if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}}if((mini.glideY<28||mini.glideY>height-48)&&t>=mini.glideInvulnerableUntil)glideCrash();}
-
-  function setBreakerPaddle(ratio){mini.breakerX=clamp(Number(ratio)||.5,.08,.92);mini.breakerMoves=(mini.breakerMoves||0)+1;const pet=$("#miniPet");if(pet)pet.style.left=`${mini.breakerX*100}%`;}
-  const BREAKER_PATTERNS=[
-    {name:"BROKEN X",rows:["1.1.1.1",".11111.","..1C1..",".11111."]},
-    {name:"FIRE TEETH",rows:["E1.1.1E",".21112.","11C.C11",".11111."]},
-    {name:"BRIDGE MARK",rows:["..111..",".1P1P1.","11.C.11","1111111"]},
-    {name:"KEEPER EYE",rows:[".11111.","11...11","1..C..1","11...11",".11111."]}
-  ];
-  function buildBreakerBoard(){const host=$("#breakerBlocks");if(!host)return;host.innerHTML="";mini.entities=mini.entities.filter(e=>e.kind!=="breaker-block");const pattern=BREAKER_PATTERNS[(mini.breakerLevel-1)%BREAKER_PATTERNS.length],cols=7,rows=pattern.rows.length,pad=7,arenaW=Math.max(280,el.miniArena.clientWidth),blockW=(arenaW-28-pad*(cols-1))/cols,blockH=28;mini.breakerPatternName=pattern.name;mini.breakerCores=0;for(let row=0;row<rows;row+=1){for(let col=0;col<cols;col+=1){const token=pattern.rows[row]?.[col]||".";if(token===".")continue;const special=token==="P"?"prism":token==="E"?"ember":token==="C"?"core":null,hp=token==="2"?2:(mini.breakerLevel>=4&&token==="1"&&((row+col+mini.breakerLevel)%5===0)?2:1),node=document.createElement("i");node.className=`breaker-block ${hp>1?"armored":""} ${special||""}`;node.style.left=`${14+col*(blockW+pad)}px`;node.style.top=`${54+row*(blockH+7)}px`;node.style.width=`${blockW}px`;node.style.height=`${blockH}px`;node.textContent=special==="prism"?"◆":special==="ember"?"✦":special==="core"?"×":"";host.appendChild(node);if(special==="core")mini.breakerCores+=1;mini.entities.push({kind:"breaker-block",node,row,col,x:14+col*(blockW+pad),y:54+row*(blockH+7),w:blockW,h:blockH,hp,special});}}const level=$("#breakerLevel"),cores=$("#breakerCoreCount"),name=$("#breakerPattern");if(level)level.textContent=String(mini.breakerLevel);if(cores)cores.textContent=String(mini.breakerCores);if(name)name.textContent=pattern.name;}
-  function breakerCollapseCore(core){const neighbors=mini.entities.filter(item=>item.kind==="breaker-block"&&item.node?.isConnected&&item!==core&&item.special!=="core"&&Math.abs((item.row??0)-(core.row??0))+Math.abs((item.col??0)-(core.col??0))<=2).slice(0,5);for(const item of neighbors){item.node.classList.add("break","core-collapse");mini.score+=2;queueMiniTimeout(()=>item.node.remove(),150);mini.entities=mini.entities.filter(entry=>entry!==item);}mini.breakerCoresBroken+=1;mini.breakerCores=Math.max(0,mini.breakerCores-1);const cores=$("#breakerCoreCount");if(cores)cores.textContent=String(mini.breakerCores);sensoryBurst("CORE COLLAPSE","#ff5c6c",14);sfx("reward");haptic([10,14,20]);}
-  function resetBreakerBall(first=false){const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,angle=(Math.random()*.7-.35);mini.breakerBall={x:width*mini.breakerX,y:height-128,vx:190*Math.sin(angle),vy:-245*Math.cos(angle),r:9,live:false};mini.breakerResetAt=now()+(first?900:720);const ball=$("#breakerBall");if(ball){ball.style.left=`${mini.breakerBall.x}px`;ball.style.top=`${mini.breakerBall.y}px`;}}
-  function breakerLoseBall(){if(now()<mini.breakerResetAt)return;loseArcadeLife();mini.breakerStreak=0;renderLives("breakerHearts");const streak=$("#breakerStreak");if(streak)streak.textContent="0";arcadeSfx("fail");haptic([14,18,14]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}resetBreakerBall();}
-  function updateBreakerGame(dt){const b=mini.breakerBall;if(!b)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,t=now();if(!b.live){b.x=width*mini.breakerX;b.y=height-128;if(t>=mini.breakerResetAt)b.live=true;}else{const speedBoost=1+Math.min(.22,(mini.breakerLevel-1)*.035);b.x+=b.vx*dt*speedBoost;b.y+=b.vy*dt*speedBoost;if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x+b.r>width){b.x=width-b.r;b.vx=-Math.abs(b.vx);}if(b.y-b.r<38){b.y=38+b.r;b.vy=Math.abs(b.vy);}const paddleX=width*mini.breakerX,paddleY=height-108,paddleHalf=t<mini.breakerBoostUntil?66:48;if(b.vy>0&&b.y+b.r>=paddleY&&b.y-b.r<=paddleY+28&&Math.abs(b.x-paddleX)<=paddleHalf){const offset=clamp((b.x-paddleX)/paddleHalf,-1,1);b.y=paddleY-b.r;b.vy=-Math.max(235,Math.abs(b.vy));b.vx=clamp(b.vx+offset*125,-300,300);mini.breakerStreak+=1;mini.breakerBestStreak=Math.max(mini.breakerBestStreak,mini.breakerStreak);const streak=$("#breakerStreak");if(streak)streak.textContent=String(mini.breakerStreak);sfx("hit");haptic(5);}for(const block of [...mini.entities]){if(block.kind!=="breaker-block"||!block.node.isConnected)continue;if(b.x+b.r<block.x||b.x-b.r>block.x+block.w||b.y+b.r<block.y||b.y-b.r>block.y+block.h)continue;if(t-(block.lastHitAt||0)<70)continue;block.lastHitAt=t;block.hp-=1;if(t>=mini.breakerPierceUntil)b.vy*=-1;mini.score+=block.hp<=0?(block.special?8:2):1;if(block.hp<=0){mini.breakerBricks=(mini.breakerBricks||0)+1;block.node.classList.add("break");queueMiniTimeout(()=>block.node.remove(),130);mini.entities=mini.entities.filter(item=>item!==block);if(block.special==="prism"){mini.breakerBoostUntil=t+5200;$(".breaker-world")?.classList.add("boost");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("boost"),5200);sensoryBurst("PRISM PADDLE","#bdf7ff",10);sfx("reward");}else if(block.special==="ember"){mini.breakerPierceUntil=t+4200;$(".breaker-world")?.classList.add("fireball");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("fireball"),4200);sensoryBurst("EMBER BALL • PIERCE","#ff9b4e",10);sfx("reward");}else if(block.special==="core"){breakerCollapseCore(block);}else sfx("spark");}else{block.node.classList.remove("armored");block.node.classList.add("cracked");sfx("hit");}break;}if(b.y-b.r>height+20)breakerLoseBall();}const ball=$("#breakerBall");if(ball){ball.style.left=`${b.x}px`;ball.style.top=`${b.y}px`;}const blocks=mini.entities.filter(e=>e.kind==="breaker-block"&&e.node.isConnected);if(!blocks.length&&!mini.breakerBoardPending){mini.breakerBoardPending=true;mini.breakerLevel+=1;mini.score+=12+mini.breakerLevel*2;sensoryBurst(`WALL ${mini.breakerLevel}`,"#ffd54a",12);arcadeSfx("win");queueMiniTimeout(()=>{if(!mini.active||mini.mode!=="breaker")return;mini.breakerBoardPending=false;buildBreakerBoard();resetBreakerBall();},650);}}
-
-
-  const RUNAWAY_MAZE = [
-    "###############","#o.....#.....o#","#.###.#.#.###.#","#.....#.#.....#","###.#.....#.###","#...#.###.#...#","#.#...#.#...#.#","#.#.###.###.#.#","#.............#","#.#.###.###.#.#","#.#...#.#...#.#","#...#.###.#...#","###.#.....#.###","#.....#.#.....#","#.###.#.#.###.#","#o.....#.....o#","###############"
-  ];
-  const MAZE_DIRS={up:{dr:-1,dc:0},down:{dr:1,dc:0},left:{dr:0,dc:-1},right:{dr:0,dc:1}};
-  const MAZE_REVERSE={up:"down",down:"up",left:"right",right:"left"};
-  function mazeOpen(r,c){return Boolean(mini.mazeGrid?.[r]?.[c]&&mini.mazeGrid[r][c]!=="#");}
-  function mazeCellKey(r,c){return `${r}-${c}`;}
-  function mazeSetDirection(dir){if(!MAZE_DIRS[dir]||!mini.mazePlayer)return;mini.mazePlayer.nextDir=dir;mini.mazeInputs=(mini.mazeInputs||0)+1;mini.mazeTurnHistory.push(dir);if(mini.mazeTurnHistory.length>12)mini.mazeTurnHistory.shift();const counts={};for(const item of mini.mazeTurnHistory)counts[item]=(counts[item]||0)+1;mini.mazeFavoriteDir=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0]||"";}
-  function mazeStepPoint(actor,dir){const d=MAZE_DIRS[dir];return d?{r:actor.r+d.dr,c:actor.c+d.dc}:null;}
-  function mazeCanMove(actor,dir){const p=mazeStepPoint(actor,dir);return Boolean(p&&mazeOpen(p.r,p.c));}
-  function mazeActorStyle(node,r,c){if(!node)return;const rows=mini.mazeGrid.length,cols=mini.mazeGrid[0]?.length||15;node.style.left=`${((c+.5)/cols)*100}%`;node.style.top=`${((r+.5)/rows)*100}%`;}
-  function buildMazeLevel(first=false){
-    mini.mazeGrid=RUNAWAY_MAZE.map(row=>row.split(""));mini.mazeMoveCarry=0;mini.mazeHunterCarry=0;mini.mazeHuntUntil=0;mini.mazeCombo=0;
-    const board=$("#mazeBoard");if(!board)return;board.innerHTML="";board.style.setProperty("--maze-cols",String(mini.mazeGrid[0].length));board.style.setProperty("--maze-rows",String(mini.mazeGrid.length));
-    mini.mazePellets=0;
-    mini.mazeGrid.forEach((row,r)=>row.forEach((cell,c)=>{const tile=document.createElement("i");tile.className=cell==="#"?"maze-wall":"maze-floor";tile.dataset.mazeCell=mazeCellKey(r,c);if(cell!=="#"){if(cell==="o"){tile.classList.add("power");tile.innerHTML="<b>◆</b>";}else{tile.classList.add("pellet");tile.innerHTML="<b>•</b>";}mini.mazePellets+=1;}board.appendChild(tile);}));
-    const player=document.createElement("div");player.id="mazeRizo";player.className="maze-rizo";player.innerHTML=miniPetMarkup("maze-rizo-inner");board.appendChild(player);
-    mini.mazePlayer={r:8,c:7,dir:"down",nextDir:"down",node:player};mazeActorStyle(player,8,7);mini.mazeHunterWakeAt=now()+(first?1150:700);
-    const starts=[{r:8,c:1,kind:"chase"},{r:8,c:13,kind:"ambush"},{r:3,c:7,kind:"wander"}];
-    mini.mazeHunters=starts.map((spot,index)=>{const node=document.createElement("div");node.className=`maze-hunter hunter-${index}`;node.innerHTML="<i></i><b>×</b>";board.appendChild(node);const hunter={...spot,spawnR:spot.r,spawnC:spot.c,dir:index===0?"right":index===1?"left":"down",node,index};mazeActorStyle(node,spot.r,spot.c);return hunter;});
-    // Do not award the starting tile for free.
-    const startTile=board.querySelector(`[data-maze-cell="${mazeCellKey(8,7)}"]`);if(startTile?.classList.contains("pellet")){startTile.classList.remove("pellet");startTile.innerHTML="";mini.mazeGrid[8][7]=" ";mini.mazePellets-=1;}
-    const level=$("#mazeLevel"),combo=$("#mazeCombo"),lives=$("#mazeLives"),callout=$("#mazeCallout");if(level)level.textContent=String(mini.mazeLevel);if(combo)combo.textContent="0";renderLives(lives);if(callout)callout.textContent=first?"MOVE FIRST • SHADOWS ARE WAKING":"NEW MAZE • SHADOWS WAKE FASTER";
+  // ===== RUN SERVICES =====
+  // Everything a game may use. Anything not here is out of a game's reach.
+  const TRAINING_MEMORY_BYTES = 4096;
+  function deepFreezeCopy(value){
+    const copy=SaveCore.plainJSON(value);
+    (function freeze(node){ if(node&&typeof node==="object"&&!Object.isFrozen(node)){ Object.freeze(node); for(const key of Object.keys(node)) freeze(node[key]); } })(copy);
+    return copy;
   }
-  function mazeCollect(){
-    const p=mini.mazePlayer,cell=mini.mazeGrid[p.r][p.c];if(cell!=="."&&cell!=="o")return;
-    const tile=$("#mazeBoard")?.querySelector(`[data-maze-cell="${mazeCellKey(p.r,p.c)}"]`);mini.mazeGrid[p.r][p.c]=" ";mini.mazePellets=Math.max(0,mini.mazePellets-1);tile?.classList.remove("pellet","power");if(tile)tile.innerHTML="";
-    if(cell==="o"){mini.score+=6;mini.mazeHunts+=1;mini.mazeCombo=0;mini.mazeHuntUntil=now()+5400;$(".maze-world")?.classList.add("hunt");const callout=$("#mazeCallout");if(callout)callout.textContent="PRISM HUNT • CHASE THEM";sensoryBurst("HUNT MODE","#bdf7ff",12);sfx("reward");haptic([7,10,7]);}
-    else{mini.score+=1;sfx("spark",mini.mazePellets%8);}
-    if(mini.mazePellets<=0){mini.score+=25*mini.mazeLevel;mini.lives=Math.min(mini.maxLives||3,(mini.lives||0)+1);renderLives("mazeLives");mini.mazeLevel+=1;sensoryBurst(`MAZE ${mini.mazeLevel}`,"#ffd45a",14);arcadeSfx("win");queueMiniTimeout(()=>{if(mini.active&&mini.mode==="maze")buildMazeLevel(false);},520);}
-  }
-  function mazeHunterTarget(hunter){
-    const p=mini.mazePlayer;if(hunter.kind==="ambush"){const predicted=mini.mazeLevel>=2&&mini.mazeFavoriteDir?mini.mazeFavoriteDir:p.dir;const d=MAZE_DIRS[predicted]||MAZE_DIRS.left;return{r:p.r+d.dr*3,c:p.c+d.dc*3};}
-    if(hunter.kind==="wander"&&Math.random()<.48)return{r:1+Math.floor(Math.random()*15),c:1+Math.floor(Math.random()*13)};
-    return{r:p.r,c:p.c};
-  }
-  function mazeChooseHunterDir(hunter){
-    let dirs=Object.keys(MAZE_DIRS).filter(dir=>mazeCanMove(hunter,dir));if(dirs.length>1)dirs=dirs.filter(dir=>dir!==MAZE_REVERSE[hunter.dir]);if(!dirs.length)dirs=Object.keys(MAZE_DIRS).filter(dir=>mazeCanMove(hunter,dir));if(!dirs.length)return hunter.dir;
-    const target=mazeHunterTarget(hunter),hunting=now()<mini.mazeHuntUntil;
-    dirs.sort((a,b)=>{const pa=mazeStepPoint(hunter,a),pb=mazeStepPoint(hunter,b),da=Math.abs(pa.r-target.r)+Math.abs(pa.c-target.c),db=Math.abs(pb.r-target.r)+Math.abs(pb.c-target.c);return hunting?db-da:da-db;});
-    if(Math.random()<(.24-(mini.mazeLevel-1)*.02))return dirs[Math.floor(Math.random()*dirs.length)];return dirs[0];
-  }
-  function mazeResetAfterHit(){const p=mini.mazePlayer;p.r=8;p.c=7;p.dir="down";p.nextDir="down";mazeActorStyle(p.node,p.r,p.c);mini.mazeHunters.forEach(h=>{h.r=h.spawnR;h.c=h.spawnC;h.dir=h.index===0?"right":h.index===1?"left":"down";mazeActorStyle(h.node,h.r,h.c);});}
-  function mazeCollision(){
-    const p=mini.mazePlayer,t=now();for(const h of mini.mazeHunters){if(h.r!==p.r||h.c!==p.c)continue;if(t<mini.mazeHuntUntil){mini.mazeCombo+=1;mini.mazeBestCombo=Math.max(mini.mazeBestCombo,mini.mazeCombo);mini.mazeHunterTags+=1;const gain=10*Math.min(5,mini.mazeCombo);mini.score+=gain;h.r=h.spawnR;h.c=h.spawnC;mazeActorStyle(h.node,h.r,h.c);const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent=String(mini.mazeCombo);if(callout)callout.textContent=`SHADOW TAG x${mini.mazeCombo} • +${gain}`;sfx("perfect");haptic([8,10,12]);continue;}if(t<mini.mazeInvulnerableUntil)continue;loseArcadeLife();mini.mazeCombo=0;mini.mazeInvulnerableUntil=t+1500;const combo=$("#mazeCombo"),callout=$("#mazeCallout");renderLives("mazeLives");if(combo)combo.textContent="0";if(callout)callout.textContent=mini.lives>0?"CAUGHT • ROUTE RESET":"THE SHADOWS GOT RIZO";$("#mazeRizo")?.classList.add("hurt");queueMiniTimeout(()=>$("#mazeRizo")?.classList.remove("hurt"),520);arcadeSfx("fail");haptic([20,24,20]);if(mini.lives<=0){mini.endAt=Math.min(mini.endAt,t+450);return;}mazeResetAfterHit();}
-  }
-  function mazeMovePlayer(){const p=mini.mazePlayer;if(!p)return;if(mazeCanMove(p,p.nextDir))p.dir=p.nextDir;if(!mazeCanMove(p,p.dir))return;const next=mazeStepPoint(p,p.dir);p.r=next.r;p.c=next.c;mazeActorStyle(p.node,p.r,p.c);p.node.dataset.dir=p.dir;mazeCollect();mazeCollision();}
-  function mazeMoveHunters(){for(const h of mini.mazeHunters){h.dir=mazeChooseHunterDir(h);if(mazeCanMove(h,h.dir)){const next=mazeStepPoint(h,h.dir);h.r=next.r;h.c=next.c;mazeActorStyle(h.node,h.r,h.c);}mazeCollision();}}
-  function updateMazeGame(dt){if(!mini.mazePlayer)return;const t=now();if(mini.mazeHuntUntil&&t>=mini.mazeHuntUntil){mini.mazeHuntUntil=0;mini.mazeCombo=0;$(".maze-world")?.classList.remove("hunt");const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent="0";if(callout)callout.textContent="SHADOWS ARE HUNTING AGAIN";}
-    mini.mazeMoveCarry+=dt;const playerStep=Math.max(.092,.132-(mini.mazeLevel-1)*.004),hunterStep=Math.max(.105,.168-(mini.mazeLevel-1)*.008);
-    while(mini.mazeMoveCarry>=playerStep){mini.mazeMoveCarry-=playerStep;mazeMovePlayer();}
-    if(t>=mini.mazeHunterWakeAt){mini.mazeHunterCarry+=dt;while(mini.mazeHunterCarry>=hunterStep){mini.mazeHunterCarry-=hunterStep;mazeMoveHunters();}}
+  function createRunServices(def, pet){
+    const runRef=trainingRun;
+    const live=()=>trainingRun===runRef && mini.active;
+    return Object.freeze({
+      id: def.id,
+      arena: el.miniArena,
+      state: mini,
+      pet,
+      best: Math.max(0, Number(state.scores?.[def.id])||0),
+      petMarkup: (extraClass="") => miniPetMarkup(extraClass),
+      now: () => runClockNow(),
+      after: (ms, fn) => (live() ? trainingSchedule(ms, fn, 0) : 0),
+      every: (ms, fn) => { const period=Math.max(16, Number(ms)||16); return live() ? trainingSchedule(period, fn, period) : 0; },
+      cancel: id => { runRef.jobs.delete(id); },
+      clearJobs: () => { runRef.jobs.clear(); },
+      // Ends the run now ("death" or "cleared"), or just pulls the deadline in.
+      end: reason => { if(!live()) return false; if(["death","cleared"].includes(reason)) mini.endReason=reason; mini.endAt=Math.min(mini.endAt, runClockNow()); return true; },
+      loseLife: amount => loseArcadeLife(amount),
+      renderLives: id => renderLives(id),
+      sfx: (name, ...args) => sfx(name, ...args),
+      // The game's own win/fail sound family (def.sounds).
+      cue: (kind="fail", intensity=0) => sfx(def.sounds?.[kind] || (kind==="win"?"reward":"no"), intensity),
+      haptic: pattern => haptic(pattern),
+      burst: (...args) => sensoryBurst(...args),
+      toast: message => toast(message),
+      settings: () => Object.freeze({ music: Boolean(state.settings.music), sound: Boolean(state.settings.sound), haptics: Boolean(state.settings.haptics), reducedMotion: reducedMotionActive() }),
+      audio: Object.freeze({ context: () => ensureAudio(), midi: note => midiFrequency(note), musicGain: () => currentRhythmGain() }),
+      // A small persistent memory per game (≤ 4 KB), e.g. Ember Beat's song bag.
+      memory: () => SaveCore.plainJSON(state.trainingMemory?.[def.id] || {}),
+      remember: data => {
+        const plain=SaveCore.plainJSON(data && typeof data==="object" && !Array.isArray(data) ? data : {});
+        if(JSON.stringify(plain).length>TRAINING_MEMORY_BYTES) return false;
+        state.trainingMemory ||= {};
+        state.trainingMemory[def.id]=plain;
+        saveState();
+        return true;
+      }
+    });
   }
 
+  // ===== START =====
+  function startMiniGame(mode, options = {}) {
+    const def=trainingGame(mode);
+    if (!def || !canCare()) return false;
+    if (globalThis.RizoModes?.active?.()) return false;
+    if (trainingRun) finishMiniGame(true, null, { discard: true });
+    const energyNeeded = def.energy;
+    if (state.pet.energy < energyNeeded) { toast(`NEED ${energyNeeded} ENERGY • RIZO HAS ${Math.floor(state.pet.energy)}`); sfx("no"); return false; }
+    clearToasts();
+    closeSheet();
+    mini = { ...idleRunBoard(), active: true, mode, lives: def.lives, maxLives: def.lives };
+    trainingRun = { def, epoch: now(), startedAt: performance.now(), frozenTotal: 0, freezeAt: 0, pauseSources: {}, jobs: new Map(), jobSeq: 0,
+      frameId: 0, lastFrame: performance.now(), headerAt: 0, paused: false, quitConfirmed: false, restartConfirmed: false, options };
+    mini.endAt = runClockNow() + def.duration * 1000;
+    el.miniKicker.textContent = def.kicker || "";
+    el.miniTitle.textContent = def.name;
+    el.miniHint.textContent = def.hint || "";
+    el.miniTimer.textContent = def.duration.toFixed(1);
+    el.miniScore.textContent = "0 PTS";
+    closeArcadePause(true);
+    if (el.miniPause) el.miniPause.hidden = false;
+    lastOverlayFocus = document.activeElement;
+    el.miniArena.innerHTML = "";
+    el.miniGameOverlay.dataset.training = mode;
+    el.miniGameOverlay.hidden = false;
+    syncUILock();
+    const pet = deepFreezeCopy(modePetSnapshot(state.pet));
+    try { def.start(pet, createRunServices(def, pet)); }
+    catch (error) {
+      console.warn(`Rizo training ${mode} failed to start`, error);
+      finishMiniGame(true, null, { discard: true });
+      toast("THAT GAME COULD NOT START • NOTHING WAS SPENT");
+      return false;
+    }
+    trainingRun.frameId = requestAnimationFrame(trainingFrame);
+    if (def.music) modeMusicTracks.set(`mini-${mode}`, def.music);
+    startMusicForScene(`mini-${mode}`, true);
+    haptic(25);
+    requestAnimationFrame(() => el.miniArena.focus({ preventScroll: true }));
+    return true;
+  }
+
+  // ===== FRAME =====
+  // The game is stepped in slices of at most 40 ms, so a slow device plays at
+  // the right speed instead of in slow motion; a stall over 250 ms (a tab
+  // switch, a debugger) is skipped instead of being played back in one jump.
+  const TRAINING_STEP_MS = 40, TRAINING_STALL_MS = 250, TRAINING_HEADER_MS = 50;
+  function trainingFrame(timestamp){
+    const run=trainingRun;
+    if(!run || !mini.active) return;
+    const raw=timestamp-run.lastFrame;
+    run.lastFrame=timestamp;
+    if(!arcadeFrozen()){
+      let left=(!Number.isFinite(raw) || raw>TRAINING_STALL_MS) ? 0 : Math.max(0, raw);
+      if(left===0) callGame("frame", 0);
+      while(left>0 && trainingRun===run && mini.active){
+        const step=Math.min(TRAINING_STEP_MS, left);
+        left-=step;
+        callGame("frame", step/1000);
+      }
+      if(trainingRun===run && mini.active) pollTrainingJobs();
+      if(trainingRun===run && mini.active) updateTrainingClock(timestamp);
+    }
+    if(trainingRun===run && mini.active) run.frameId=requestAnimationFrame(trainingFrame);
+  }
+  function updateTrainingClock(timestamp=performance.now()){
+    const run=trainingRun;
+    if(!run || !mini.active || arcadeFrozen()) return;
+    const remaining=Math.max(0, mini.endAt-runClockNow());
+    if(remaining>0 && timestamp-run.headerAt<TRAINING_HEADER_MS) return;
+    run.headerAt=timestamp;
+    // A game may override what the header shows (Ember Beat: READY).
+    const header=callGame("header") || {};
+    el.miniTimer.textContent=header.timer ?? (remaining/1000).toFixed(1);
+    el.miniScore.textContent=header.score ?? `${Math.max(0, Math.floor(mini.score))} PTS`;
+    if(remaining<=0) finishMiniGame();
+  }
+
+  // ===== INPUT =====
+  // The arena routes pointer and keyboard input to the live game. Hearts and
+  // readouts are information, never the play surface.
   function handleMiniInput(event) {
-    if (!mini.active || mini.pausedByAd) return;
-    // Informational HUD is not the play surface. Reading your heart count or
-    // the wind readout must never flap, jump, or move the paddle.
+    if (!mini.active || arcadeFrozen()) return;
     if (event.target.closest?.("[data-mini-readout]")) return;
-    if (mini.mode === "walk") {
-      const ending=event.target.closest("[data-walk-ending]");
-      if(ending){chooseWalkEnding(ending.dataset.walkEnding);return;}
-      const forkBtn = event.target.closest(".walk-fork-btn");
-      if (forkBtn) { chooseWalkFork(forkBtn.dataset.walkFork); return; }
-    }
-    if (mini.pausedByFork) return;
     mini.playerInputs=(mini.playerInputs||0)+1;
-    if (mini.mode === "power") { const tech=event.target.closest("[data-power-tech]")?.dataset.powerTech;if(tech)powerTap(tech);return; }
-    if (mini.mode === "spark") {
-      if(event.target.closest("[data-spark-bank]")){bankSparkStash(false);return;}
-      if (event.target.closest(".spark-orb")) catchSpark();
-      return;
-    }
-    if (mini.mode === "forage") {
-      const rect=el.miniArena.getBoundingClientRect();
-      const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-      setForageLane(Math.min(2,Math.floor(ratio*3)));
-      return;
-    }
-    if (mini.mode === "rush") { rushJump(); return; }
-    if (mini.mode === "rhythm") {
-      const laneButton=event.target.closest("[data-rhythm-lane]");
-      if(laneButton){rhythmTap(Number(laneButton.dataset.rhythmLane));return;}
-      const board=$("#rhythmBoard");const rect=(board||el.miniArena).getBoundingClientRect();
-      const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,.9999);
-      rhythmTap(Math.floor(ratio*4));return;
-    }
-    if (mini.mode === "memory") {
-      const rune = event.target.closest("[data-memory-rune]");
-      if (rune) memoryTap(Number(rune.dataset.memoryRune));
-      return;
-    }
-    if (mini.mode === "maze") { const dir=event.target.closest("[data-maze-dir]")?.dataset.mazeDir;if(dir){mazeSetDirection(dir);return;}mini.mazePointerStart={x:event.clientX,y:event.clientY};return; }
-    if (mini.mode === "glide") { glideFlap(); return; }
-    if (mini.mode === "breaker") {
-      const rect=el.miniArena.getBoundingClientRect();
-      const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-      if(Math.abs(ratio-mini.breakerX)>.22)setBreakerPaddle(ratio);
-      mini.breakerGrab={x:event.clientX,base:mini.breakerX,width:Math.max(1,rect.width)};
-      return;
-    }
-    if (mini.mode === "walk") {
-      const find=event.target.closest(".walk-find");
-      if(find) collectWalkObject(find);
-    }
+    callGame("input", event);
   }
-
   function handleMiniMove(event) {
-    if (!mini.active || mini.pausedByAd) return;
-    if(mini.mode==="maze"){if(!mini.mazePointerStart)return;const dx=event.clientX-mini.mazePointerStart.x,dy=event.clientY-mini.mazePointerStart.y;if(Math.hypot(dx,dy)>=22){mazeSetDirection(Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up"));mini.mazePointerStart={x:event.clientX,y:event.clientY};}return;}
-    if (!["forage","breaker"].includes(mini.mode)) return;
-    if (event.buttons === 0 && event.pointerType === "mouse") return;
-    const rect=el.miniArena.getBoundingClientRect();
-    if(mini.mode==="breaker"){
-      const grab=mini.breakerGrab;
-      if(grab) setBreakerPaddle(grab.base + (event.clientX-grab.x)/(grab.width||Math.max(1,rect.width)));
-      else setBreakerPaddle(clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1));
-      return;
-    }
-    const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-    setForageLane(Math.min(2,Math.floor(ratio*3)));
+    if (!mini.active || arcadeFrozen()) return;
+    callGame("move", event);
+  }
+  function handleMiniRelease(event, cancelled=false) {
+    if (!mini.active) return;
+    callGame("release", event, cancelled);
+  }
+  function handleMiniKey(event) {
+    if (!mini.active || arcadeFrozen()) return false;
+    return Boolean(callGame("key", event));
   }
 
-  function cleanupMiniRuntime() {
-    el.miniQuit.textContent = "QUIT RUN";
-    clearInterval(mini.timer);
-    clearArcadeJobs();
-    if (mini.frame) cancelAnimationFrame(mini.frame);
-    stopRhythmVoices();
-    for (const entity of mini.entities || []) entity.node?.remove?.();
-    mini.intervals = []; mini.entities = [];
+  // ===== SHARED ARCADE PAUSE / QUIT =====
+  function arcadeCanPause(){ return Boolean(mini?.active && trainingRun && callGame("canPause") !== false); }
+  function openArcadePause(){
+    if(!arcadeCanPause() || trainingRun.paused) return false;
+    trainingRun.paused=true;
+    arcadeFreeze("menu");
+    renderArcadePausePanel();
+    if(el.miniPausePanel) el.miniPausePanel.hidden=false;
+    el.miniGameOverlay.classList.add("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","true"); el.miniPause.textContent="RESUME"; }
+    duckMusic(600,.05);
+    sfx("ui");
+    el.miniPausePanel?.querySelector("[data-arcade-resume]")?.focus({preventScroll:true});
+    return true;
+  }
+  function closeArcadePause(silent=false){
+    const wasPaused=Boolean(trainingRun?.paused);
+    if(trainingRun){ trainingRun.paused=false; trainingRun.quitConfirmed=false; trainingRun.restartConfirmed=false; }
+    if(el.miniPausePanel) el.miniPausePanel.hidden=true;
+    el.miniGameOverlay?.classList.remove("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","false"); el.miniPause.textContent="PAUSE"; }
+    if(!wasPaused) return false;
+    if(mini?.active) arcadeThaw("menu");
+    if(!silent) sfx("ui");
+    return true;
+  }
+  function toggleArcadePause(){ return trainingRun?.paused ? closeArcadePause() : openArcadePause(); }
+  function renderArcadePausePanel(){
+    const host=el.miniPausePanel;
+    if(!host || !mini?.active) return;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    const remaining=Math.max(0,(mini.endAt-runClockNow())/1000);
+    host.innerHTML=`<div class="arcade-pause-card">
+      <small>${escapeHTML(arcadeName(mini.mode))}</small>
+      <h3>RUN PAUSED</h3>
+      <div class="arcade-pause-stats"><span><small>THIS RUN</small><b>${formatNumber(score)}</b></span><span><small>TIME LEFT</small><b>${remaining.toFixed(1)}s</b></span></div>
+      <p>The clock is frozen. Nothing spawns, nothing drains.</p>
+      <div class="arcade-pause-actions">
+        <button type="button" class="primary" data-arcade-resume>RESUME</button>
+        <button type="button" data-arcade-restart>RESTART</button>
+        <button type="button" class="danger" data-arcade-quit>END RUN</button>
+      </div>
+    </div>`;
+  }
+  function arcadeRunQualified() {
+    if(!mini?.active && !trainingRun) return false;
+    return Boolean(callGame("qualified", mini));
+  }
+  function restartArcadeRun(){
+    if(!mini?.active || !trainingRun) return false;
+    const mode=mini.mode;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    // Restarting throws the run away, so a run worth keeping asks first.
+    if(score>0 && arcadeRunQualified() && !trainingRun.restartConfirmed){
+      trainingRun.restartConfirmed=true;
+      renderArcadePausePanel();
+      const actions=el.miniPausePanel?.querySelector(".arcade-pause-actions");
+      if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-restart>DISCARD ${formatNumber(score)} • RESTART</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
+      return false;
+    }
+    closeArcadePause(true);
+    finishMiniGame(true,null,{discard:true});
+    startMiniGame(mode);
+    return true;
+  }
+  // A run that would count confirms before it ends, and confirming banks it.
+  function requestArcadeQuit(){
+    if(!mini?.active || !trainingRun) return false;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    const meaningful=score>0 && arcadeRunQualified();
+    if(meaningful && !trainingRun.quitConfirmed){
+      if(!trainingRun.paused) openArcadePause();
+      trainingRun.quitConfirmed=true;
+      renderArcadePausePanel();
+      const card=el.miniPausePanel?.querySelector(".arcade-pause-card");
+      if(card){
+        const copy=card.querySelector("p");
+        if(copy) copy.textContent=`End the run here? ${formatNumber(score)} points bank exactly as they stand — the rest of the clock is forfeit.`;
+        const actions=card.querySelector(".arcade-pause-actions");
+        if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-quit>BANK ${formatNumber(score)} • END RUN</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
+      }
+      sfx("no");
+      return false;
+    }
+    closeArcadePause(true);
+    finishMiniGame(true);
+    return true;
+  }
+
+  // ===== RESULTS =====
+  // Why a run ended is first-class: death, the clock, a cleared board and
+  // walking away read as four different screens. A game reports "cleared"
+  // itself; the runner never infers it.
+  const ARCADE_END_REASONS = Object.freeze({
+    death:{label:"RUN ENDED", tone:"death"},
+    timeup:{label:"TIME UP", tone:"timeup"},
+    cleared:{label:"CLEARED", tone:"cleared"},
+    quit:{label:"RUN BANKED", tone:"quit"}
+  });
+  function arcadeResultVoice(mode, reason, score, gameVoice){
+    const name=arcadeName(mode);
+    if(reason==="death") return { headline:"RUN ENDED", line:score>=30?`${name} TOOK IT ALL THE WAY DOWN SWINGING.`:score>=10?"THAT LAST ONE GOT YOU.":"GONE ALREADY. BRUTAL.", art:"✖" };
+    if(reason==="quit") return { headline:"RUN BANKED", line:score>=30?"WALKED AWAY RICH. RESPECT.":"CASHED OUT EARLY. NOTHING LOST.", art:"⏻" };
+    if(gameVoice?.line) return { headline:String(gameVoice.headline||"TIME UP"), line:String(gameVoice.line), art:gameVoice.art||null };
+    if(reason==="cleared") return { headline:"CLEARED", line:"THE WHOLE BOARD. CLEAN.", art:"✓" };
+    return { headline:"TIME UP", line:score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.", art:null };
+  }
+  function arcadeResultGrid(stats){
+    const rows=(Array.isArray(stats)?stats:[]).filter(row=>row&&row.label!==undefined).slice(0,4);
+    if(!rows.length) return "";
+    return `<div class="arcade-result-grid stat-${rows.length}">${rows.map(stat=>`<span>${escapeHTML(String(stat.label))}<b>${escapeHTML(String(stat.value))}</b></span>`).join("")}</div>`;
+  }
+  function trainingGainsLine(gains){
+    const parts=Object.entries(gains.skills||{}).filter(([,amount])=>amount>=.05).map(([skill,amount])=>`+${amount.toFixed(1)} ${skill.toUpperCase()}`);
+    if(gains.xp>=1) parts.push(`+${Math.round(gains.xp)} XP`);
+    if(gains.embers>0) parts.push(`+${gains.embers} R`);
+    if(gains.bond>=.5) parts.push(`+${gains.bond.toFixed(1)} BOND`);
+    return parts.join(" • ");
+  }
+
+  // ===== FINISH =====
+  function finishMiniGame(quit = false, endReasonHint = null, options = {}) {
+    const run=trainingRun;
+    if (!mini.active || !run) return;
+    const def=run.def, mode=def.id, board=mini, discard=Boolean(options?.discard);
+    const endReason=quit?"quit":(["death","cleared"].includes(board.endReason)?board.endReason:"timeup");
+    // The game settles the run first (Spark Stash banks or spills its stash).
+    if(!discard) callGame("settle", endReason);
+    const score=Math.max(0,Math.floor(board.score||0));
+    const qualified=!discard && Boolean(callGame("qualified", board));
+    const report=(!discard && qualified) ? (callGame("result", board, endReason) || {}) : {};
+    board.active=false;
+    closeArcadePause(true);
+    callGame("stop");
+    cancelAnimationFrame(run.frameId);
+    run.jobs.clear();
+    for (const entity of board.entities || []) entity.node?.remove?.();
+    trainingRun=null;
+    el.miniQuit.textContent="QUIT RUN";
+    el.miniGameOverlay.hidden=true;
+    delete el.miniGameOverlay.dataset.training;
+    el.miniArena.innerHTML="";
+    syncUILock();
+    activeMusicOverride=null;
+    syncMusic(true);
+    if(lastOverlayFocus?.isConnected) lastOverlayFocus.focus({preventScroll:true});
+    if(discard) return;
+    // Walking away from a run that never got going is a non-event.
+    if(quit && !qualified) return;
+    if(!qualified){
+      showModal(`<div class="modal-card arcade-result minigame-result-${mode} arcade-no-credit"><div class="modal-art">${arcadeArt(mode)}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))}</small><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${mode}">TRY AGAIN</button></div></div>`);
+      return;
+    }
+    applyTrainingResult(def, board, score, endReason, report);
+  }
+
+  // ===== GROWTH =====
+  // The one place a training run changes the save. Every number comes from
+  // RizoTraining.convert(); the only per-game inputs are the definition's own
+  // declared fields (quest, counter, signal, finds).
+  const TRAINING_COUNTERS = Object.freeze(["totalWalks"]);
+  function applyTrainingResult(def, board, score, endReason, report) {
+    const mode=def.id;
+    const previousBest=Math.max(0,Number(state.scores?.[mode])||0);
+    const rewardScore=Number.isFinite(Number(report.rewardScore)) ? Number(report.rewardScore) : score;
+    const gains=Training.convert(def, { score: rewardScore, reason: endReason, inputs: Math.max(1, board.playerInputs||0) });
+    mutate((pet,whole)=>{
+      whole.meta.totalGames+=1;
+      pet.careProfile.games[mode]=(pet.careProfile.games[mode]||0)+1;
+      state.scores[mode]=Math.max(state.scores[mode]||0,score);
+      for(const [skill,amount] of Object.entries(gains.skills)){
+        const gained=gainSkill(skill,amount,{silent:true});
+        if(skill==="power") pet.strength=clamp((pet.strength||0)+gained);
+      }
+      pet.xp+=gains.xp;
+      pet.bond=clamp(pet.bond+gains.bond);
+      pet.mood=clamp(pet.mood+gains.mood);
+      pet.hunger=clamp(pet.hunger+gains.hunger);
+      pet.energy=clamp(pet.energy+gains.energy);
+      pet.hype=Math.max(0,(Number(pet.hype)||0)+gains.hype);
+      whole.wallet.embers=SaveCore.clampInteger(whole.wallet.embers+gains.embers,0,CORE_LIMITS.MAX_WALLET_EMBERS,whole.wallet.embers);
+      if(gains.alignment) shiftAlignment(gains.alignment,`${mode}-play`);
+      earnHeat(10,false);
+      progressQuest("play");
+      if(def.quest) progressQuest(def.quest);
+      if(TRAINING_COUNTERS.includes(def.counter)) whole.meta[def.counter]=(whole.meta[def.counter]||0)+1;
+      if(def.signal) whole.meta.retroSignal=(whole.meta.retroSignal||0)+Math.max(1,Math.round(gains.performance*6));
+    });
+    if (gains.performance >= .2) {
+      const memory = lifeMemory();
+      memory.arcadeAfterglowUntil = now() + 16000;
+      memory.lastArcadeMode = mode;
+      saveState();
+    }
+    evaluateForm(true);
+    const finds=applyTrainingFinds(def, report.finds, gains.performance);
+    const voice=arcadeResultVoice(mode,endReason,score,report.voice);
+    const art=voice.art||arcadeArt(mode);
+    const subtitle=report.subtitle?`<div class="result-track-title">${escapeHTML(report.subtitle)}</div>`:"";
+    const treasureCopy=finds.treasure?`<div class="event-reward">${finds.treasure.icon} FOUND: ${finds.treasure.name}</div>`:"";
+    const rare=finds.variant;
+    const rareCopy=rare?`<div class="rare-discovery-stage ${rare.id}">${petMarkup({extraClass:"rare-reaction-pet",id:"rareReactionPet"})}<div class="rare-found-pet"><img src="${rare.sprite}" alt="${rare.name}"></div><b>${rare.name} DISCOVERED</b></div>`:"";
+    if(rare){activeMusicOverride=rare.id==="shadow"?"shadow":rare.id==="retro"?"retro":"forest";startMusicForScene(activeMusicOverride,true);duckMusic(1400,.08);}
+    const newBest=score>previousBest?`<div class="arcade-best-banner"><i aria-hidden="true">★</i><div><small>NEW PERSONAL BEST</small><b>${formatNumber(score)}</b><em>PREVIOUS ${formatNumber(previousBest)}</em></div></div>`:"";
+    if(score>previousBest){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
+    const gainsLine=trainingGainsLine(gains);
+    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${mode} ${rare?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${subtitle}${newBest}<h2>${score} POINTS</h2><p class="big-line">${escapeHTML(voice.line)}</p>${arcadeResultGrid(report.stats)}${treasureCopy}${rareCopy}<p class="training-gains" data-training-gains>${escapeHTML(gainsLine)}</p><p>The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${mode}">RUN IT BACK</button></div></div>`);
+    advanceTutorial("play");
+    if(gains.performance>=1 && (endReason!=="death" || score>previousBest)) celebrate();
+  }
+
+  // Finds a game may report (def.finds whitelists them): a walk treasure, and a
+  // rare Rizo the game rolled for. Arcade-signal games can reveal Retro.
+  function applyTrainingFinds(def, finds, performance) {
+    const out={treasure:null, variant:null};
+    const allowed=def.finds||{};
+    if(allowed.treasure && finds?.treasure) out.treasure=unlockWalkTreasure(Boolean(finds.treasureForce));
+    if(def.signal && !state.collection.retro && (state.meta.retroSignal||0)>=100 && performance>=.5) out.variant=unlockVariantDiscovery("retro","AN ARCADE SIGNAL");
+    if(!out.variant && Array.isArray(finds?.variants)){
+      for(const find of finds.variants){
+        const id=String(find?.id||"");
+        if(!(allowed.variants||[]).includes(id) || state.collection[id]) continue;
+        const chance=clamp(Number(find.chance)||0,0,.5);
+        if(Math.random()>=chance) continue;
+        if(id==="shadow") state.meta.shadowFinds=(state.meta.shadowFinds||0)+1;
+        out.variant=unlockVariantDiscovery(id, String(find.source||"THE FOREST").slice(0,60));
+        if(out.variant) break;
+      }
+    }
+    if(out.treasure || out.variant) saveState();
+    return out;
   }
 
   function unlockWalkTreasure(force = false) {
@@ -5135,297 +4190,6 @@
     celebrate();
     return variant;
   }
-
-  function maybeUnlockSpecialRizo(mode, score, walkPath = null) {
-    if (["rush","rhythm","glide","breaker"].includes(mode) && !state.collection.retro && (state.meta.retroSignal || 0) >= 100 && score >= 20) return unlockVariantDiscovery("retro", "AN ARCADE SIGNAL");
-    // Choosing to follow the rustling (the risky fork) roughly doubles the
-    // odds of the two rarest walk-only discoveries — the payoff for risk.
-    const deepBonus = mini.walkRisk >= 4 || String(walkPath).includes("ruins") ? 3 : mini.walkRisk >= 2 || String(walkPath).startsWith("deep") ? 2 : 1;
-    if (mode === "walk" && !state.collection.shadow && score >= 15 && Math.random() < .035 * deepBonus) {
-      state.meta.shadowFinds = (state.meta.shadowFinds || 0) + 1;
-      return unlockVariantDiscovery("shadow", walkPath === "deep" ? "THE RUSTLING PATH" : "A PATH THAT WAS NOT THERE BEFORE");
-    }
-    if (mode === "walk" && !state.collection.moss && score >= 10 && Math.random() < .12 * deepBonus) return unlockVariantDiscovery("moss", "THE RAIN TRAIL");
-    return null;
-  }
-
-  // ===== SHARED ARCADE PAUSE / QUIT =====
-  // One pause experience for the whole arcade. Ember Beat keeps its specialised
-  // timing: Rhythm's audio clock is credited by arcadeThaw(). Game modes run
-  // their own pause.
-  function arcadeCanPause(){ return Boolean(mini?.active && !mini.pausedByFork); }
-  function arcadePauseLabel(){ return "RUN PAUSED"; }
-  function openArcadePause(){
-    if(!arcadeCanPause() || mini.paused) return false;
-    mini.paused=true;
-    arcadeFreeze("menu");
-    renderArcadePausePanel();
-    if(el.miniPausePanel) el.miniPausePanel.hidden=false;
-    el.miniGameOverlay.classList.add("arcade-paused");
-    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","true"); el.miniPause.textContent="RESUME"; }
-    duckMusic(600,.05);
-    sfx("ui");
-    el.miniPausePanel?.querySelector("[data-arcade-resume]")?.focus({preventScroll:true});
-    return true;
-  }
-  function closeArcadePause(silent=false){
-    const wasPaused=Boolean(mini?.paused);
-    if(mini) mini.paused=false;
-    if(el.miniPausePanel) el.miniPausePanel.hidden=true;
-    el.miniGameOverlay?.classList.remove("arcade-paused");
-    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","false"); el.miniPause.textContent="PAUSE"; }
-    if(!wasPaused) return false;
-    if(mini?.active) arcadeThaw("menu");
-    if(!silent) sfx("ui");
-    return true;
-  }
-  function toggleArcadePause(){ return mini?.paused ? closeArcadePause() : openArcadePause(); }
-  function renderArcadePausePanel(){
-    const host=el.miniPausePanel;
-    if(!host || !mini?.active) return;
-    const mode=mini.mode;
-    const score=Math.max(0,Math.floor(mini.score||0));
-    const remaining=Number.isFinite(mini.endAt)?Math.max(0,(mini.endAt-now())/1000):0;
-    const stat=`<span><small>THIS RUN</small><b>${formatNumber(score)}</b></span><span><small>TIME LEFT</small><b>${remaining.toFixed(1)}s</b></span>`;
-    host.innerHTML=`<div class="arcade-pause-card">
-      <small>${escapeHTML(arcadeName(mode))}</small>
-      <h3>${arcadePauseLabel()}</h3>
-      <div class="arcade-pause-stats">${stat}</div>
-      <p>The clock is frozen. Nothing spawns, nothing drains.</p>
-      <div class="arcade-pause-actions">
-        <button type="button" class="primary" data-arcade-resume>RESUME</button>
-        <button type="button" data-arcade-restart>RESTART</button>
-        <button type="button" class="danger" data-arcade-quit>END RUN</button>
-      </div>
-    </div>`;
-  }
-  function restartArcadeRun(){
-    if(!mini?.active) return false;
-    const mode=mini.mode;
-    const score=Math.max(0,Math.floor(mini.score||0));
-    // Restarting throws the run away, so a run worth keeping asks first.
-    if(score>0 && arcadeRunQualified(mode,score) && !mini.restartConfirmed){
-      mini.restartConfirmed=true;
-      renderArcadePausePanel();
-      const actions=el.miniPausePanel?.querySelector(".arcade-pause-actions");
-      if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-restart>DISCARD ${formatNumber(score)} • RESTART</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
-      return false;
-    }
-    closeArcadePause(true);
-    finishMiniGame(true,null,{discard:true});
-    startMiniGame(mode);
-    return true;
-  }
-  // A mis-tap used to destroy a personal best with zero friction. A run that
-  // would actually count now confirms, and confirming banks it instead of
-  // silently deleting it — the behaviour Defense already had.
-  function requestArcadeQuit(source="button"){
-    if(!mini?.active) return false;
-    const mode=mini.mode,score=Math.max(0,Math.floor(mini.score||0));
-    const meaningful=score>0 && arcadeRunQualified(mode,score);
-    if(meaningful && !mini.quitConfirmed){
-      mini.quitConfirmed=true;
-      if(!mini.paused) openArcadePause();
-      renderArcadePausePanel();
-      const card=el.miniPausePanel?.querySelector(".arcade-pause-card");
-      if(card){
-        const copy=card.querySelector("p");
-        if(copy) copy.textContent=`End the run here? ${formatNumber(score)} points bank exactly as they stand — the rest of the clock is forfeit.`;
-        const actions=card.querySelector(".arcade-pause-actions");
-        if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-quit>BANK ${formatNumber(score)} • END RUN</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
-      }
-      sfx("no");
-      return false;
-    }
-    closeArcadePause(true);
-    finishMiniGame(true);
-    return true;
-  }
-
-  function arcadeRunQualified(mode, score) {
-    if(mode==="power")return Boolean(mini.powerEngaged && mini.hits>=2 && score>=2);
-    if(mode==="spark")return Boolean(mini.hits>=2 && ((mini.sparkBanked||0)>0 || (mini.sparkStash||0)>=2));
-    if(mode==="forage")return Boolean((mini.playerInputs||0)>=1 && mini.hits>=2);
-    if(mode==="rush")return Boolean((mini.playerInputs||0)>=1 && ((mini.rushClears||0)>=2 || (mini.rushDeliveries||0)>=1));
-    if(mode==="walk")return Boolean((mini.walkChoices||[]).length || ((mini.playerInputs||0)>=1 && mini.hits>=1));
-    if(mode==="rhythm")return Boolean(mini.hits>=3);
-    if(mode==="memory")return Boolean(mini.hits>=1);
-    if(mode==="glide")return Boolean((mini.playerInputs||0)>=1 && (mini.glideClears||0)>=1);
-    if(mode==="breaker")return Boolean((mini.breakerMoves||0)>=1 && score>=3);
-    if(mode==="maze")return Boolean((mini.mazeInputs||0)>=1 && score>=5);
-    return score>0;
-  }
-
-  // ===== SHARED ARCADE RESULTS =====
-  // Every small game reports four stats drawn from play it already tracked.
-  // Nothing here is invented to fill a slot: if a mode genuinely has only
-  // three honest numbers, it ships three rather than padding.
-  function arcadeResultStats(mode, snap){
-    const lives=()=>({label:"HEARTS LEFT", value:`${snap.livesLeft}/${snap.maxLives}`});
-    const table={
-      power:[{label:"BEST STREAK",value:snap.powerBestStreak},{label:"COACH CALLS",value:snap.powerCallsRead},{label:"FEINTS READ",value:snap.powerGuardReads},{label:"WRONG SHOTS",value:snap.powerWrongCalls}],
-      spark:[{label:"BANKS",value:snap.sparkBanks},{label:"BEST CHAIN",value:snap.sparkBestStreak},{label:"STASH LOST",value:snap.sparkLost},{label:"SPARK RUSHES",value:snap.sparkFrenzies}],
-      forage:[{label:"LUNCH CHAIN",value:snap.forageBestStreak},{label:"TICKETS PACKED",value:snap.forageOrdersDone},{label:"PLATES TAKEN",value:snap.hits},{label:"PRISM ROLLS",value:snap.treasureRolls}],
-      rush:[{label:"DELIVERIES",value:snap.rushDeliveries},{label:"CLEAN STREAK",value:snap.rushBestStreak},{label:"OBSTACLES",value:snap.rushClears},{label:"PACKAGES LOST",value:snap.rushPackagesLost}],
-      walk:[{label:"DISTANCE",value:`${snap.walkDistance}m`},{label:"DISCOVERIES",value:snap.hits},{label:"TRAIL RISK",value:snap.walkRisk},{label:"LUCK READ",value:snap.walkLuck}],
-      memory:[{label:"ROUND REACHED",value:snap.memoryRound},{label:"SIGNALS CLEAN",value:snap.hits},lives(),{label:"FINAL RULE",value:snap.memoryRuleLabel||"CLEAN SIGNAL"}],
-      glide:[{label:"GATES CLEARED",value:snap.glideClears},{label:"THREAD STREAK",value:snap.glideBestStreak},{label:"THERMALS",value:snap.glideThermals},lives()],
-      breaker:[{label:"FORGE REACHED",value:snap.breakerLevel},{label:"BRICKS BROKEN",value:snap.breakerBricks},{label:"CORES BROKEN",value:snap.breakerCoresBroken},{label:"BEST RALLY",value:snap.breakerBestStreak}],
-      maze:[{label:"MAZE REACHED",value:snap.mazeLevel},{label:"BEST HUNT CHAIN",value:snap.mazeBestCombo},{label:"SHADOW TAGS",value:snap.mazeTags},{label:"PRISM HUNTS",value:snap.mazeHunts}]
-    };
-    return table[mode]||[];
-  }
-  function arcadeResultGrid(mode, snap){
-    const stats=arcadeResultStats(mode, snap);
-    if(!stats.length) return "";
-    return `<div class="arcade-result-grid stat-${stats.length}">${stats.map(stat=>`<span>${escapeHTML(String(stat.label))}<b>${escapeHTML(String(stat.value))}</b></span>`).join("")}</div>`;
-  }
-  // Death, the clock running out, and walking away deliberately are three
-  // different feelings and now read as three different screens.
-  function arcadeResultVoice(mode, reason, score){
-    const name=arcadeName(mode);
-    if(reason==="death") return {
-      headline:"RUN ENDED",
-      line:score>=30?`${name} TOOK IT ALL THE WAY DOWN SWINGING.`:score>=10?"THAT LAST ONE GOT YOU.":"GONE ALREADY. BRUTAL.",
-      art:"✖"
-    };
-    if(reason==="quit") return {
-      headline:"RUN BANKED",
-      line:score>=30?"WALKED AWAY RICH. RESPECT.":"CASHED OUT EARLY. NOTHING LOST.",
-      art:"⏻"
-    };
-    if(mode==="walk"&&mini.walkEnding)return {headline:"HOME AGAIN",line:mini.walkEnding,art:"☾"};
-    if(mode==="forage"&&mini.forageOrdersDone>0)return {headline:"LUNCH IS SERVED",line:`${mini.forageOrdersDone} LUNCHES PACKED. RIZO IS INSPECTING YOUR WORK.`,art:"🍓"};
-    if(mode==="rush"&&mini.rushDeliveries>0)return {headline:"SHIFT COMPLETE",line:`${mini.rushDeliveries} PACKAGES SIGNED FOR. ${mini.rushPackagesLost?"WE DO NOT TALK ABOUT THE OTHERS.":"NOT A SINGLE COMPLAINT. YET."}`,art:"◆"};
-    if(reason==="cleared") return { headline:"CLEARED", line:"THE WHOLE BOARD. CLEAN.", art:"✓" };
-    return {
-      headline:"TIME UP",
-      line:score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.",
-      art:null
-    };
-  }
-
-  // Why a run ended is now first-class. A player who died must not receive the
-  // same screen as a player who outlasted the clock.
-  const ARCADE_END_REASONS = Object.freeze({
-    death:{label:"RUN ENDED", tone:"death"},
-    timeup:{label:"TIME UP", tone:"timeup"},
-    cleared:{label:"CLEARED", tone:"cleared"},
-    quit:{label:"RUN BANKED", tone:"quit"}
-  });
-  const ARCADE_LIFE_MODES = Object.freeze(["rush","glide","breaker","maze","memory"]);
-  function arcadeEndReason(mode, quit){
-    if(quit) return "quit";
-    if(mini.endReason && ARCADE_END_REASONS[mini.endReason]) return mini.endReason;
-    if(ARCADE_LIFE_MODES.includes(mode) && (mini.lives||0) >= (mini.maxLives||3)) return "cleared";
-    if(mode==="walk" && (mini.walkChoices||[]).length>=2) return "cleared";
-    return "timeup";
-  }
-  function finishMiniGame(quit = false, endReasonHint = null, options = {}) {
-    if (!mini.active) return;
-    const discard=Boolean(options?.discard);
-    const completedMode=mini.mode;
-    const endReason=arcadeEndReason(completedMode, quit);
-    // Voluntarily ending a Spark run still banks the pile the player is holding.
-    if(completedMode==="spark"&&!discard&&mini.sparkStash>0)bankSparkStash(true);
-    const score=Math.max(0,Math.floor(mini.score));
-    const treasureRolls=mini.treasureRolls||0;
-    const rhythmSnapshot=completedMode==="rhythm"?{track:mini.rhythmTrack,maxStreak:mini.rhythmMaxStreak||0,accuracy:rhythmAccuracyPercent(),judgements:{...(mini.rhythmJudgements||{})},misses:mini.rhythmMisses||0,blankTaps:mini.rhythmBlankTaps||0}:null;
-    const rhythmQuality=rhythmSnapshot?Math.max(5,Math.min(80,Math.round(rhythmSnapshot.accuracy*.45+Math.min(35,rhythmSnapshot.maxStreak*.7)))):score;
-    const previousBest=Math.max(0,Number(state.scores?.[completedMode])||0);
-    const qualifiedRun=arcadeRunQualified(completedMode,score);
-    const livesLeft=Math.max(0,Math.floor(mini.lives||0));
-    const arcadeSnapshot={endReason,livesLeft,maxLives:Math.max(1,Math.floor(mini.maxLives||3)),hits:Math.max(0,Math.floor(mini.hits||0)),walkDistance:Math.round(mini.walkDistance||0),walkRisk:mini.walkRisk||0,walkLuck:mini.walkLuck||0,walkChoices:[...(mini.walkChoices||[])],walkBiome:mini.walkBiome?.name||"",forageOrdersDone:mini.forageOrdersDone||0,rushPackagesLost:mini.rushPackagesLost||0,breakerBricks:mini.breakerBricks||0,memoryRuleLabel:completedMode==="memory"?memoryRuleLabel():"",treasureRolls,powerBestStreak:mini.powerBestStreak||0,powerCallsRead:mini.powerCallsRead||0,powerWrongCalls:mini.powerWrongCalls||0,sparkBestStreak:mini.sparkBestStreak||0,sparkAvoided:mini.sparkAvoided||0,sparkFrenzies:mini.sparkFrenzies||0,sparkBanks:mini.sparkBanks||0,sparkLost:mini.sparkLost||0,forageBestStreak:mini.forageBestStreak||0,rushBestStreak:mini.rushBestStreak||0,rushClears:mini.rushClears||0,rushDeliveries:mini.rushDeliveries||0,memoryRound:mini.memoryBestRound||mini.memoryRound||0,memoryLives:mini.memoryLives||0,memoryMode:mini.memoryMode||"forward",glideBestStreak:mini.glideBestStreak||0,glideGates:mini.glideGateCount||0,glideClears:mini.glideClears||0,glideThermals:mini.glideThermals||0,breakerBestStreak:mini.breakerBestStreak||0,breakerLevel:mini.breakerLevel||1,breakerCoresBroken:mini.breakerCoresBroken||0,powerGuardReads:mini.powerGuardReads||0,mazeLevel:mini.mazeLevel||1,mazeBestCombo:mini.mazeBestCombo||0,mazeTags:mini.mazeHunterTags||0,mazeHunts:mini.mazeHunts||0};
-    mini.active=false;
-    mini.paused=false;
-    mini.pauseSources={};
-    closeArcadePause(true);
-    cleanupMiniRuntime();
-    el.miniGameOverlay.hidden=true;
-    el.miniArena.innerHTML="";
-    syncUILock();
-    activeMusicOverride=null;
-    syncMusic(true);
-    if(lastOverlayFocus?.isConnected) lastOverlayFocus.focus({preventScroll:true});
-    if(discard) return;
-    // Walking away from a run that never got going is a non-event. Only a run
-    // the arcade would actually have credited earns a screen.
-    if(quit && !qualifiedRun) return;
-    if(!qualifiedRun){
-      const art=arcadeArt(completedMode);
-      showModal(`<div class="modal-card arcade-result minigame-result-${completedMode} arcade-no-credit"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(completedMode))}</small><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${completedMode}">TRY AGAIN</button></div></div>`);
-      return;
-    }
-    state.scores[completedMode]=Math.max(state.scores[completedMode]||0,score);
-    let foundTreasure=null;
-    mutate((pet,whole)=>{
-      whole.meta.totalGames+=1;
-      pet.careProfile.games[completedMode]=(pet.careProfile.games[completedMode]||0)+1;
-      earnHeat(10,false);
-      progressQuest("play");
-      if(completedMode==="power"){
-        const gained=gainSkill("power",Math.max(.5,score*.18),{silent:true}); pet.strength=clamp(pet.strength+gained); pet.xp+=score*1.22; pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.hunger=clamp(pet.hunger-6); whole.wallet.embers+=Math.max(5,score); shiftAlignment(-.5,"power-training"); progressQuest("train");
-      }
-      if(completedMode==="spark"){
-        gainSkill("instinct",Math.max(.5,score*.16),{silent:true}); pet.bond=clamp(pet.bond+score*.5); pet.mood=clamp(pet.mood+score*.75); pet.xp+=score*.8; pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); whole.wallet.embers+=Math.max(4,score); shiftAlignment(1,"spark-play");
-      }
-      if(completedMode==="forage"){
-        gainSkill("instinct",Math.max(.35,score*.09),{silent:true}); gainSkill("luck",Math.max(.2,score*.05),{silent:true}); pet.hunger=clamp(pet.hunger+score*1.1); pet.mood=clamp(pet.mood+score*.45); pet.xp+=score*.72; pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); whole.wallet.embers+=Math.max(4,score*2);
-      }
-      if(completedMode==="rush"){
-        gainSkill("speed",Math.max(.6,score*.11),{silent:true}); pet.hype+=score; pet.mood=clamp(pet.mood+Math.min(25,score*.28)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.xp+=score*.62; whole.wallet.embers+=Math.max(8,Math.floor(score*1.25)); state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(score/5)); earnHeat(Math.max(8,Math.floor(score/2)),false);
-      }
-      if(completedMode==="walk"){
-        gainSkill("stamina",Math.max(.5,score*.13),{silent:true}); gainSkill("luck",Math.max(.15,score*.04),{silent:true}); pet.bond=clamp(pet.bond+Math.min(22,score*.7)); pet.mood=clamp(pet.mood+Math.min(24,score*.8)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.hunger=clamp(pet.hunger-4); pet.xp+=score*.75; whole.wallet.embers+=Math.max(5,score*2); whole.meta.totalWalks=(whole.meta.totalWalks||0)+1; shiftAlignment(1,"walk");
-        progressQuest("walk");
-        if(treasureRolls>0||score>=12) foundTreasure=unlockWalkTreasure(treasureRolls>1);
-      }
-      if(completedMode==="rhythm"){
-        // Four-lane charts contain far more notes than the old single-lane
-        // version. Permanent rewards use bounded accuracy/combo quality so an
-        // Expert song cannot inflate the economy simply by containing more notes.
-        gainSkill("speed",Math.max(.5,rhythmQuality*.1),{silent:true}); pet.bond=clamp(pet.bond+Math.min(18,rhythmQuality*.32)); pet.mood=clamp(pet.mood+Math.min(24,rhythmQuality*.45)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.xp+=rhythmQuality*.72; whole.wallet.embers+=Math.max(6,Math.floor(rhythmQuality*1.35)); state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(rhythmQuality/8)); shiftAlignment(1,"rhythm-play");
-      }
-      if(completedMode==="memory"){
-        gainSkill("instinct",Math.max(.5,score*.09),{silent:true}); gainSkill("luck",Math.max(.2,score*.035),{silent:true}); pet.bond=clamp(pet.bond+Math.min(20,score*.36)); pet.mood=clamp(pet.mood+Math.min(18,score*.3)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.xp+=score*.78; whole.wallet.embers+=Math.max(7,Math.floor(score*1.5)); shiftAlignment(2,"memory-play");
-      }
-      if(completedMode==="glide"){
-        gainSkill("stamina",Math.max(.5,score*.08),{silent:true}); gainSkill("speed",Math.max(.35,score*.055),{silent:true}); pet.hype+=Math.min(18,score*.18);pet.mood=clamp(pet.mood+Math.min(20,score*.28));pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode));pet.xp+=score*.7;whole.wallet.embers+=Math.max(7,Math.floor(score*1.25));state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(score/10));shiftAlignment(1,"skybound-play");
-      }
-      if(completedMode==="breaker"){
-        gainSkill("power",Math.max(.5,score*.065),{silent:true}); gainSkill("instinct",Math.max(.3,score*.04),{silent:true});pet.strength=clamp(pet.strength+Math.min(3,score*.02));pet.mood=clamp(pet.mood+Math.min(18,score*.2));pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode));pet.hunger=clamp(pet.hunger-4);pet.xp+=score*.66;whole.wallet.embers+=Math.max(8,Math.floor(score*1.18));shiftAlignment(-.25,"breaker-training");progressQuest("train");
-      }
-      if(completedMode==="maze"){
-        gainSkill("instinct",Math.max(.55,score*.055),{silent:true});gainSkill("speed",Math.max(.4,score*.04),{silent:true});pet.bond=clamp(pet.bond+Math.min(18,score*.16));pet.mood=clamp(pet.mood+Math.min(22,score*.2));pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode));pet.xp+=score*.58;whole.wallet.embers+=Math.max(8,Math.floor(score*.9));state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(score/16));shiftAlignment(-.5,"runaway-play");
-      }
-    });
-    if (score >= 8) {
-      const memory = lifeMemory();
-      memory.arcadeAfterglowUntil = now() + 16000;
-      memory.lastArcadeMode = completedMode;
-      saveState();
-    }
-    evaluateForm(true);
-    const rareDiscovery = maybeUnlockSpecialRizo(completedMode, score, mini.walkPath);
-    const trainedSkill = ({power:"power",spark:"instinct",forage:"instinct",rush:"speed",walk:"stamina",rhythm:"speed",memory:"instinct",glide:"stamina",breaker:"power",maze:"instinct"})[completedMode];
-    const voice=arcadeResultVoice(completedMode,endReason,score);
-    const art=voice.art||arcadeArt(completedMode);
-    const trackTitle=completedMode==="rhythm"?(rhythmSnapshot?.track?.title||"EMBER BEAT"):null;
-    const line=voice.line;
-    const treasureCopy=foundTreasure?`<div class="event-reward">${foundTreasure.icon} FOUND: ${foundTreasure.name}</div>`:"";
-    const rareCopy=rareDiscovery?`<div class="rare-discovery-stage ${rareDiscovery.id}">${petMarkup({extraClass:"rare-reaction-pet",id:"rareReactionPet"})}<div class="rare-found-pet"><img src="${rareDiscovery.sprite}" alt="${rareDiscovery.name}"></div><b>${rareDiscovery.name} DISCOVERED</b></div>`:"";
-    if(rareDiscovery){activeMusicOverride=rareDiscovery.id==="shadow"?"shadow":rareDiscovery.id==="retro"?"retro":"forest";startMusicForScene(activeMusicOverride,true);duckMusic(1400,.08);}
-    const skill=SKILLS.find(item=>item.id===trainedSkill);
-    const rhythmBreakdown=rhythmSnapshot?`<div class="arcade-result-grid stat-4"><span>ACCURACY<b>${rhythmSnapshot.accuracy}%</b></span><span>MAX COMBO<b>${rhythmSnapshot.maxStreak}</b></span><span>PERFECT<b>${rhythmSnapshot.judgements.perfect||0}</b></span><span>MISSES<b>${rhythmSnapshot.judgements.miss||0}</b></span></div>`:"";
-    const arcadeBreakdown=rhythmSnapshot?"":arcadeResultGrid(completedMode,arcadeSnapshot);
-    // A personal record deserves more than a bare div.
-    const newBest=score>previousBest?`<div class="arcade-best-banner"><i aria-hidden="true">★</i><div><small>NEW PERSONAL BEST</small><b>${formatNumber(score)}</b><em>PREVIOUS ${formatNumber(previousBest)}</em></div></div>`:"";
-    if(score>previousBest&&qualifiedRun){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
-    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${completedMode} ${rareDiscovery?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(completedMode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${trackTitle?`<div class="result-track-title">${trackTitle} • ${rhythmSnapshot?.track?.difficulty||"NORMAL"}</div>`:""}${newBest}<h2>${score} POINTS</h2><p class="big-line">${line}</p>${rhythmBreakdown}${arcadeBreakdown}${treasureCopy}${rareCopy}<p>${skill?.name || "Growth"} rose permanently. The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${completedMode}">RUN IT BACK</button></div></div>`);
-    advanceTutorial("play");
-    if(score>20 && (endReason!=="death" || score>previousBest)) celebrate();
-  }
-
 
   function keeperRank() {
     const level = state.season?.level || 1;
@@ -5873,22 +4637,6 @@
   // Per-mode audio identity without eleven bespoke sound banks: the family a
   // mode belongs to picks the signature, and anything unmapped keeps the old
   // generic tone rather than going silent.
-  const ARCADE_SFX = Object.freeze({
-    air:{win:"win-air", fail:"fail-air"},
-    street:{win:"win-drop", fail:"fail-drop"},
-    chase:{win:"win-chase", fail:"fail-chase"},
-    signal:{win:"win-signal", fail:"fail-signal"},
-    forge:{win:"win-forge", fail:"fail-forge"},
-    forest:{win:"win-lunch", fail:"fail-lunch"},
-    spark:{win:"reward", fail:"fail-spark"},
-    training:{win:"perfect", fail:"fail-power"},
-    stage:{win:"perfect", fail:"no"},
-  });
-  function arcadeSfx(kind="fail", mode=mini?.mode, intensity=0){
-    const family=ARCADE_GAMES[mode]?.family;
-    sfx(ARCADE_SFX[family]?.[kind] || (kind==="win"?"reward":"no"), intensity);
-  }
-
   function haptic(pattern = 15) {
     if (state.settings.haptics && navigator.vibrate) navigator.vibrate(pattern);
   }
@@ -5907,18 +4655,6 @@
     shadow:{tempo:520,lead:[55,null,58,54,null,61,57,null],bass:[31,null,null,38,null,null,30,null],wave:"sine"},
     retro:{tempo:145,lead:[64,67,71,76,79,76,71,67],bass:[40,40,47,47,45,45,52,52],wave:"square"},
     visitor:{tempo:300,lead:[67,71,74,79,76,74,71,69],bass:[43,null,50,null,45,null,52,null],wave:"triangle"},
-    "mini-power":{tempo:205,lead:[52,55,59,64,59,55,62,59],bass:[28,null,35,null,31,null,38,null],wave:"square"},
-    "mini-spark":{tempo:230,lead:[76,79,83,86,83,79,81,84],bass:[48,null,55,null,50,null,57,null],wave:"triangle"},
-    "mini-forage":{tempo:285,lead:[64,66,67,71,67,66,62,64],bass:[40,null,43,null,38,null,45,null],wave:"square"},
-    "mini-rush":{tempo:155,lead:[64,67,71,76,74,71,79,76],bass:[40,40,47,47,45,45,52,52],wave:"square"},
-    "mini-walk":{tempo:360,lead:[67,null,71,74,72,null,69,67],bass:[43,null,50,null,45,null,52,null],wave:"triangle"},
-    "mini-memory":{tempo:520,lead:[60,null,64,null,67,71,null,67],bass:[36,null,null,43,null,null,40,null],wave:"sine"},
-    // Skybound: open air, long lift, nothing underneath you.
-    "mini-glide":{tempo:335,lead:[72,null,76,79,83,null,79,76,74,null,78,81,86,null,81,78],bass:[48,null,null,55,52,null,null,59,50,null,null,57,54,null,null,61],wave:"sine"},
-    // Ember Forge: hammer rhythm, metal on metal, no melody wasted.
-    "mini-breaker":{tempo:186,lead:[52,52,59,null,55,55,62,null,53,53,60,null,57,64,60,55],bass:[28,28,null,35,31,31,null,38,29,29,null,36,33,33,40,null],wave:"square"},
-    // Rizo Runaway: the chase. Fast, minor, always one step behind you.
-    "mini-maze":{tempo:132,lead:[62,65,69,65,62,68,65,62,60,63,67,63,60,66,63,60],bass:[38,38,45,45,43,43,50,50,36,36,43,43,41,41,48,48],wave:"square"}
   };
 
   function midiFrequency(note){ return 440 * Math.pow(2,(note-69)/12); }
@@ -5980,7 +4716,8 @@
   // Adaptive tracks lent by game modes: { id, tempo, lead[], bass[], beat(step, play) }.
   const modeMusicTracks = new Map();
   function startMusicForScene(scene,force=false){
-    if(scene==="mini-rhythm"){clearInterval(musicTimer);musicTimer=null;musicScene="mini-rhythm";return;}
+    // A training game that plays its own music (Ember Beat) silences the hub's.
+    if(scene.startsWith("mini-")&&trainingGame(scene.slice(5))?.music===false){clearInterval(musicTimer);musicTimer=null;musicScene=scene;return;}
     if(!musicUnlocked || !state?.settings?.music || document.hidden){ if(!state?.settings?.music) stopMusic(); return; }
     const key=MUSIC_TRACKS[scene]||modeMusicTracks.has(scene)?scene:"home";
     if(!force&&musicScene===key&&musicTimer)return;
@@ -6583,10 +5320,8 @@ Streak: ${state.player.streak}`;
       state.settings[setting.dataset.setting] = setting.checked;
       saveState();
       if (setting.dataset.setting === "music") {
-        if (mini?.active && mini.mode === "rhythm") {
-          if (setting.checked) scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));
-          else stopRhythmVoices();
-        } else syncMusic(true);
+        if (mini?.active && trainingGame(mini.mode)?.music === false) callGame("settingsChanged", "music");
+        else syncMusic(true);
       }
       renderAll();
       return;
@@ -6622,7 +5357,7 @@ Streak: ${state.player.streak}`;
     if (state?.pet) lifeMemory().lastSeenAt = now();
     globalThis.RizoModes?.suspendActive?.(reason);
     saveState(true);
-    if (mini?.active) mini.lastFrame = performance.now();
+    if (trainingRun) trainingRun.lastFrame = performance.now();
     if (mini?.active) arcadeFreeze("background");
     stopMusic();
     try { if (audioContext?.state === "running") audioContext.suspend(); } catch (error) {}
@@ -6633,7 +5368,7 @@ Streak: ${state.player.streak}`;
     const wasSuspended = runtimeSuspendedAt;
     runtimeSuspendedAt = 0;
     runtimeSuspendReason = "";
-    if (mini?.active) mini.lastFrame = performance.now();
+    if (trainingRun) trainingRun.lastFrame = performance.now();
     scheduleRuntimeViewportSync("resume");
     if (!wasSuspended) return false;
     if(mini?.active) arcadeThaw("background");
@@ -6709,10 +5444,8 @@ Streak: ${state.player.streak}`;
       const label=document.querySelector(`[data-volume-value="${key}"]`);
       if(label)label.textContent=`${Math.round(value*100)}%`;
       if(key==="musicVolume"){
-        if(mini?.active&&mini.mode==="rhythm"&&mini.rhythmGain){
-          const ctx=ensureAudio();
-          if(ctx){mini.rhythmGain.gain.cancelScheduledValues(ctx.currentTime);mini.rhythmGain.gain.setTargetAtTime(currentRhythmGain(),ctx.currentTime,.025);}
-        } else if(musicGainNode)setMusicGain(currentMusicGain(),.06);
+        if(mini?.active&&trainingGame(mini.mode)?.music===false) callGame("settingsChanged","volume");
+        else if(musicGainNode)setMusicGain(currentMusicGain(),.06);
       } else if(key==="soundVolume"&&value>0){
         clearTimeout(control._rizoPreviewTimer);
         control._rizoPreviewTimer=setTimeout(()=>beep(540,.035,"square"),90);
@@ -6758,13 +5491,13 @@ Streak: ${state.player.streak}`;
     el.miniArena.addEventListener("pointermove", handleMiniMove, { passive: true });
     document.addEventListener("pointerdown", beginFoodDrag);
     document.addEventListener("pointermove", moveFoodDrag, { passive: true });
-    document.addEventListener("pointerup", event => { endFoodDrag(event); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; if(mini?.active&&mini.mode==="breaker")mini.breakerGrab=null; });
-    document.addEventListener("pointercancel", event => { if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; if(mini?.active&&mini.mode==="breaker")mini.breakerGrab=null; });
+    document.addEventListener("pointerup", event => { endFoodDrag(event); handleMiniRelease(event); });
+    document.addEventListener("pointercancel", event => handleMiniRelease(event, true));
     document.addEventListener("pointercancel", event => endFoodDrag(event, true));
     el.miniQuit.addEventListener("click", () => requestArcadeQuit("button"));
     el.miniPause?.addEventListener("click", () => toggleArcadePause());
     el.miniPausePanel?.addEventListener("click", event => {
-      if(event.target.closest("[data-arcade-resume]")){ mini.quitConfirmed=false; mini.restartConfirmed=false; closeArcadePause(); return; }
+      if(event.target.closest("[data-arcade-resume]")){ closeArcadePause(); return; }
       if(event.target.closest("[data-arcade-restart]")){ restartArcadeRun(); return; }
       if(event.target.closest("[data-arcade-quit]")){ requestArcadeQuit("panel"); return; }
     });
@@ -6785,52 +5518,17 @@ Streak: ${state.player.streak}`;
       }
       // The active game mode sees keys first and may claim them.
       if(globalThis.RizoModes?.keyActive?.(event))return;
-      if(mini?.active&&mini.mode==="maze"&&!mini.pausedByAd){const keyDir={arrowup:"up",w:"up",arrowdown:"down",s:"down",arrowleft:"left",a:"left",arrowright:"right",d:"right"}[String(event.key).toLowerCase()];if(keyDir){event.preventDefault();mazeSetDirection(keyDir);return;}}
-      if(mini?.active&&mini.mode==="walk"&&!mini.pausedByAd){
-        const key=String(event.key).toLowerCase();
-        if(mini.pausedByFork&&["1","2"].includes(key)){
-          event.preventDefault();mini.playerInputs+=1;
-          if(mini.walkEncounter)chooseWalkEnding(key==="1"?"quiet":"bold");
-          else chooseWalkFork(walkDecisionConfig(mini.walkDecisionIndex).choices[Number(key)-1].id);
-          return;
-        }
-        if(!mini.pausedByFork&&(key===" "||key==="enter")){
-          event.preventDefault();mini.playerInputs+=1;
-          const find=mini.entities.filter(item=>item.kind==="walk"&&!item.handled&&item.x>=0&&item.x<el.miniArena.clientWidth-20).sort((a,b)=>a.x-b.x)[0];
-          if(find)collectWalkObject(find.node);return;
-        }
-      }
-      if(mini?.active&&mini.mode==="rhythm"&&!mini.pausedByAd){
-        const keyLane={"1":0,"2":1,"3":2,"4":3,"d":0,"f":1,"j":2,"k":3}[String(event.key).toLowerCase()];
-        if(keyLane!==undefined){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;rhythmTap(keyLane);return;}
-      }
-      if(mini?.active&&mini.mode==="power"&&!mini.pausedByAd){const tech={"1":"jab","2":"body","3":"hook","j":"jab","k":"body","l":"hook"}[String(event.key).toLowerCase()];if(tech){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;powerTap(tech);return;}}
-      if(mini?.active&&mini.mode==="spark"&&!mini.pausedByAd&&String(event.key).toLowerCase()==="b"){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;bankSparkStash(false);return;}
       const typingTarget=Boolean(event.target?.closest?.("input, textarea, select, [contenteditable='true']"));
       if(mini?.active && !typingTarget && !event.metaKey && !event.ctrlKey && !event.altKey){
         const key=String(event.key);
         // P pauses any arcade run.
         if(key.toLowerCase()==="p" && el.modalOverlay && !el.modalOverlay.classList.contains("show")){ event.preventDefault(); toggleArcadePause(); return; }
-        if(!mini.pausedByAd && !mini.paused){
-          if(mini.mode==="glide" && (key===" " || key==="Spacebar" || key==="ArrowUp" || key==="w" || key==="W")){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; glideFlap(); return; }
-          if(mini.mode==="rush" && (key===" " || key==="Spacebar" || key==="ArrowUp" || key==="w" || key==="W")){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; rushJump(); return; }
-          if(mini.mode==="breaker" && (key==="ArrowLeft" || key==="ArrowRight" || key.toLowerCase()==="a" || key.toLowerCase()==="d")){
-            event.preventDefault(); mini.breakerGrab=null;
-            setBreakerPaddle(mini.breakerX + ((key==="ArrowLeft"||key.toLowerCase()==="a")?-.075:.075)); return;
-          }
-          if(mini.mode==="forage" && (key==="ArrowLeft" || key==="ArrowRight" || key.toLowerCase()==="a" || key.toLowerCase()==="d")){
-            event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1;
-            setForageLane((mini.lane||0) + ((key==="ArrowLeft"||key.toLowerCase()==="a")?-1:1)); return;
-          }
-          if(mini.mode==="memory"){
-            const rune={"1":0,"2":1,"3":2,"4":3,"d":0,"f":1,"j":2,"k":3}[key.toLowerCase()];
-            if(rune!==undefined){ event.preventDefault(); mini.playerInputs=(mini.playerInputs||0)+1; memoryTap(rune); return; }
-          }
-        }
+        // The live training game sees its keys next (lanes, strikes, flaps).
+        if(handleMiniKey(event)) return;
       }
       if (event.key !== "Escape") return;
       // Escape used to silently destroy a personal best with zero friction.
-      if (!el.miniGameOverlay.hidden) { if(mini?.paused) closeArcadePause(); else if(!openArcadePause()) requestArcadeQuit("escape"); }
+      if (!el.miniGameOverlay.hidden) { if(trainingRun?.paused) closeArcadePause(); else if(!openArcadePause()) requestArcadeQuit("escape"); }
       else if (el.modalOverlay.classList.contains("show")) closeModal();
       else if (el.bottomSheet.classList.contains("show")) closeSheet();
     });
@@ -6889,7 +5587,7 @@ Streak: ${state.player.streak}`;
     return {
       id: pet.id, number: pet.number, name: pet.name, source, rosterIndex,
       stage: pet.stage, variant: pet.variant || pet.hiddenVariant || "classic", form: pet.form, alignment: Number(pet.alignment) || 0,
-      accessory: pet.accessory || "none", mutation: pet.mutation || "normal", personality: pet.personality, generation: pet.generation || 1,
+      accessory: pet.accessory || "none", mutation: pet.mutation || "normal", personality: pet.personality, generation: pet.generation || 1, room: pet.room || null,
       level: pet.stage === "egg" ? 0 : levelForXP(pet.xp), xp: Number(pet.xp) || 0, bond: Number(pet.bond) || 0,
       hunger: pet.hunger, mood: pet.mood, energy: pet.energy, hygiene: pet.hygiene, health: pet.health,
       sleeping: Boolean(pet.sleeping), sick: Boolean(pet.sick), resting: Boolean(pet.resting), alive: pet.alive !== false,
@@ -7203,7 +5901,6 @@ Streak: ${state.player.streak}`;
     saveValidationWarningForQA: () => {try{return JSON.parse(localStorage.getItem(SAVE_VALIDATION_WARNING_KEY)||"null");}catch(error){return null;}},
     visualMatrixForQA: () => ({matrix:RIZO_FORMS,variants:VARIANTS,stages:STAGES,ages:AGE_VISUALS,calibration:VARIANT_VISUAL_CALIBRATION,wearables:WEARABLE_DEFS}),
     resolveRizoVisualForQA: options => resolveRizoVisual(options||{}),
-    beatTracksForQA: () => ({tracks:EMBER_BEAT_TRACKS,chart:EMBER_BEAT_TRACKS.map(track=>({id:track.id,events:buildRhythmChart(track)})),stepSeconds:EMBER_BEAT_TRACKS.map(track=>({id:track.id,value:rhythmStepSeconds(track)}))}),
     normalizeState: payload => normalizeStateDetached(payload),
     loadForQA(payload = {}) {
       if (globalThis.RizoModes?.active?.()) globalThis.RizoModes.quitActive("qa-load");
@@ -7227,23 +5924,16 @@ Streak: ${state.player.streak}`;
     modeSettingsMarkupForQA: () => modeSettingsMarkup(),
     startMiniGame,
     finishMiniGame,
-    chooseEmberBeatTrack,
-    rhythmTapForQA: lane => rhythmTap(Number(lane)),
-    rhythmTimingForQA: () => { const elapsed=mini.mode==="rhythm"?rhythmClockNow()-mini.rhythmStartClock:null; const open=mini.mode==="rhythm"?mini.rhythmChart.filter(note=>!note.handled).map(note=>({lane:note.lane,hitTime:note.hitTime,delta:note.hitTime-elapsed})).sort((a,b)=>Math.abs(a.delta)-Math.abs(b.delta)).slice(0,4):[]; return {ready:Boolean(mini.rhythmReady),elapsed,open}; },
-    rhythmSnapshot: () => ({track:mini.rhythmTrack?.id||null,difficulty:mini.rhythmTrack?.difficulty||null,chart:mini.rhythmChart.map(note=>({hitTime:note.hitTime,lane:note.lane,handled:note.handled||false})),streak:mini.rhythmStreak,maxStreak:mini.rhythmMaxStreak,judgements:{...(mini.rhythmJudgements||{})},accuracy:mini.mode==="rhythm"?rhythmAccuracyPercent():null}),
     renderAll,
     setBehaviorForQA(behavior = "") { activePetBehavior = behavior; if(currentView === "home") renderHome(); return el.petActor.className; },
     markupForQA(context = "cutscene", accessory = state.pet.accessory) { return petMarkup({context,overrides:{accessory}}); },
-    miniSnapshot: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,track:mini?.rhythmTrack?.id||null,voices:(mini?.rhythmVoices||[]).length,intervals:(mini?.intervals||[]).length,timeouts:(mini?.timeouts||[]).length,entities:(mini?.entities||[]).length}),
-    arcadeAuthoredForQA: () => ({
-      rush:{route:mini?.rushRoute||0,parcel:Boolean(mini?.rushParcel),tips:mini?.rushTips||0,deliveries:mini?.rushDeliveries||0,lost:mini?.rushPackagesLost||0,clears:mini?.rushParcelClears||0,lives:mini?.lives||0,objects:(mini?.entities||[]).filter(e=>e.kind==="rush").map(e=>({type:e.type,x:e.x,handled:e.handled}))},
-      forage:{rows:mini?.forageRows||0,mistakes:mini?.forageMistakes||0,nextIn:Math.max(0,(mini?.forageNextAt||0)-now()),drops:(mini?.entities||[]).filter(e=>e.kind==="forage").map(e=>({lane:e.lane,food:e.foodId,y:e.y,rare:e.rare,good:e.good}))},
-      walk:{notes:[...(mini?.walkNotes||[])],choices:[...(mini?.walkChoices||[])],ending:mini?.walkEnding||"",encounter:mini?.walkEncounter||null,paused:Boolean(mini?.pausedByFork)}
-    }),
-    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,power:{streak:mini?.powerStreak||0,best:mini?.powerBestStreak||0,heat:mini?.powerHeat||0,guard:Boolean((mini?.powerGuardUntil||0)>now()),reads:mini?.powerGuardReads||0,call:mini?.powerCall||null,callsRead:mini?.powerCallsRead||0,wrongCalls:mini?.powerWrongCalls||0},spark:{type:mini?.sparkType||null,streak:mini?.sparkStreak||0,best:mini?.sparkBestStreak||0,avoided:mini?.sparkAvoided||0,frenzy:Boolean((mini?.sparkFeverUntil||0)>now()),frenzies:mini?.sparkFrenzies||0,stash:mini?.sparkStash||0,banked:mini?.sparkBanked||0,banks:mini?.sparkBanks||0,lost:mini?.sparkLost||0},forage:{lane:mini?.lane||0,streak:mini?.forageStreak||0,best:mini?.forageBestStreak||0,order:[...(mini?.forageOrder||[])],orderIndex:mini?.forageOrderIndex||0,ordersDone:mini?.forageOrdersDone||0,panic:Boolean((mini?.forageRushUntil||0)>now())},rush:{jumpY:mini?.jumpY||0,airJumps:mini?.rushAirJumps||0,streak:mini?.rushStreak||0,clears:mini?.rushClears||0,parcel:Boolean(mini?.rushParcel),parcelClears:mini?.rushParcelClears||0,deliveries:mini?.rushDeliveries||0},memory:{round:mini?.memoryRound||0,mode:mini?.memoryMode||null,lives:mini?.mode==="memory"?(mini?.lives||0):0,sequence:[...(mini?.memorySequence||[])],expected:mini?.mode==="memory"?memoryExpectedSequence():[]},glide:{y:mini?.glideY||0,v:mini?.glideV||0,wind:mini?.glideWind||0,hearts:mini?.mode==="glide"?(mini?.lives||0):0,streak:mini?.glideStreak||0,gates:mini?.glideGateCount||0,clears:mini?.glideClears||0,draft:mini?.glideDraft||0,thermals:mini?.glideThermals||0,thermal:Boolean((mini?.glideThermalUntil||0)>now())},breaker:{level:mini?.breakerLevel||0,hearts:mini?.mode==="breaker"?(mini?.lives||0):0,streak:mini?.breakerStreak||0,moves:mini?.breakerMoves||0,piercing:Boolean((mini?.breakerPierceUntil||0)>now()),cores:mini?.breakerCores||0,coresBroken:mini?.breakerCoresBroken||0,pattern:mini?.breakerPatternName||""},maze:{level:mini?.mazeLevel||0,lives:mini?.mode==="maze"?(mini?.lives||0):0,inputs:mini?.mazeInputs||0,pellets:mini?.mazePellets||0,combo:mini?.mazeCombo||0,bestCombo:mini?.mazeBestCombo||0,hunts:mini?.mazeHunts||0,tags:mini?.mazeHunterTags||0,hunting:Boolean((mini?.mazeHuntUntil||0)>now()),player:mini?.mazePlayer?{r:mini.mazePlayer.r,c:mini.mazePlayer.c,dir:mini.mazePlayer.dir,nextDir:mini.mazePlayer.nextDir}:null,favoriteDir:mini?.mazeFavoriteDir||null,hunters:(mini?.mazeHunters||[]).map(h=>({r:h.r,c:h.c,kind:h.kind}))}}),
+    miniSnapshot: () => { const jobs=[...(trainingRun?.jobs?.values()||[])]; return {active:Boolean(mini?.active),mode:mini?.mode||null,track:null,voices:0,intervals:jobs.filter(job=>job.period).length,timeouts:jobs.filter(job=>!job.period).length,entities:(mini?.entities||[]).length,...(trainingGame(mini?.mode)?.qaMini?.(mini)||{})}; },
+    arcadeAuthoredForQA: () => Object.fromEntries((Training?.list?.()||[]).filter(def=>def.qaAuthored).map(def=>[def.id,def.qaAuthored(mini,runClockNow())])),
+    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,
+      ...Object.fromEntries((Training?.list?.()||[]).filter(def=>def.qaSnapshot).map(def=>[def.id,def.qaSnapshot(mini,runClockNow())]))}),
     // Shared arcade-layer QA surface: interruption safety, pause state, end
     // reason and the canonical name table are all player-visible contracts.
-    musicSceneForQA: () => ({scene:musicScene||null, requested:sceneMusicKey(), known:Boolean(MUSIC_TRACKS[sceneMusicKey()])}),
+    musicSceneForQA: () => ({scene:musicScene||null, requested:sceneMusicKey(), known:Boolean(MUSIC_TRACKS[sceneMusicKey()]||modeMusicTracks.has(sceneMusicKey()))}),
     arcadePauseForQA: () => openArcadePause(),
     arcadeResumeForQA: () => closeArcadePause(true),
     // A neutral probe job: proves remaining-delay banking without depending on
@@ -7251,97 +5941,65 @@ Streak: ${state.player.streak}`;
     arcadeProbeJobForQA: (delay=500) => {
       if(!mini?.active) return null;
       mini.qaProbe = {fired:false, count:0, id:null};
-      mini.qaProbe.id = queueMiniTimeout(() => { mini.qaProbe.fired = true; mini.qaProbe.count += 1; }, delay);
-      return mini.qaProbe.id;
+      const probe = mini.qaProbe;
+      probe.id = trainingSchedule(delay, () => { probe.fired = true; probe.count += 1; });
+      return probe.id;
     },
     arcadeProbeStateForQA: () => {
       const probe = mini?.qaProbe;
-      const job = probe ? mini?.jobs?.get(probe.id) : null;
+      const job = probe ? trainingRun?.jobs?.get(probe.id) : null;
       return {fired:Boolean(probe?.fired), count:Number(probe?.count)||0,
-              remaining: job ? Math.round(job.remaining) : -1, armed: Boolean(job?.timer)};
+              remaining: job ? Math.round(job.due - runClockNow()) : -1, armed: Boolean(job) && !arcadeFrozen()};
     },
-    arcadeClearBreakerBoardForQA: () => {
-      if(!mini?.active || mini.mode !== "breaker") return false;
-      for(const item of mini.entities.filter(e => e.kind === "breaker-block")) item.node?.remove?.();
-      mini.entities = mini.entities.filter(e => e.kind !== "breaker-block");
-      return true;
-    },
-    arcadeGrantBuffsForQA: () => {
-      if(!mini?.active) return false;
-      const t = now();
-      if(mini.mode === "breaker"){ mini.breakerBoostUntil = t + 5200; mini.breakerPierceUntil = t + 4200; }
-      if(mini.mode === "glide"){ mini.glideThermalUntil = t + 4200; mini.glideInvulnerableUntil = t + 1250; }
-      if(mini.mode === "maze"){ mini.mazeHuntUntil = t + 5000; mini.mazeInvulnerableUntil = t + 1500; }
-      if(mini.mode === "spark"){ mini.sparkFeverUntil = t + 2700; }
-      return true;
-    },
-    // A deadline that had already lapsed when the hold began must stay lapsed;
-    // crediting it blindly would hand the player back a buff they had lost.
+    arcadeGrantBuffsForQA: () => { if(!mini?.active) return false; trainingGame(mini.mode)?.qaBuffs?.(mini, runClockNow()); return true; },
+    // A deadline that had already lapsed when the hold began must stay lapsed.
     arcadeExpiredDeadlineSurvivesForQA: () => {
       if(!mini?.active) return false;
-      mini.glideInvulnerableUntil = now() - 400;
+      mini.glideInvulnerableUntil = runClockNow() - 400;
       const before = mini.glideInvulnerableUntil;
       arcadeFreeze("qa-expiry");
       arcadeThaw("qa-expiry");
-      return mini.glideInvulnerableUntil === before && mini.glideInvulnerableUntil < now();
+      return mini.glideInvulnerableUntil === before && mini.glideInvulnerableUntil < runClockNow();
     },
-    // Everything a held run could wrongly advance, in one comparable value.
-    arcadeFingerprintForQA: () => {
-      const round = value => typeof value === "number" && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : value;
-      return JSON.stringify({
-        score: round(mini?.score), hits: mini?.hits, lives: mini?.lives, endReason: mini?.endReason,
-        entities: (mini?.entities || []).length,
-        memory: {round: mini?.memoryRound, seq: (mini?.memorySequence || []).length, showing: mini?.memoryShowing, input: mini?.memoryInput},
-        breaker: {level: mini?.breakerLevel, cores: mini?.breakerCores, bricks: mini?.breakerBricks, ball: round(mini?.breakerBall?.x)},
-        glide: {y: round(mini?.glideY), v: round(mini?.glideV), gates: mini?.glideGateCount, clears: mini?.glideClears},
-        maze: {level: mini?.mazeLevel, pellets: mini?.mazePellets, r: mini?.mazePlayer?.r, c: mini?.mazePlayer?.c},
-        rush: {jumpY: round(mini?.jumpY), clears: mini?.rushClears},
-        forage: {orders: mini?.forageOrdersDone, index: mini?.forageOrderIndex, streak: mini?.forageStreak},
-        spark: {stash: mini?.sparkStash, banked: mini?.sparkBanked, streak: mini?.sparkStreak, type: mini?.sparkType},
-        power: {call: mini?.powerCall, streak: mini?.powerStreak, heat: round(mini?.powerHeat), reads: mini?.powerCallsRead},
-        walk: {distance: round(mini?.walkDistance), decision: mini?.walkDecisionIndex, finds: (mini?.walkChoices || []).length},
-        rhythm: {ready: mini?.rhythmReady, index: mini?.rhythmChartIndex, streak: mini?.rhythmStreak, misses: mini?.rhythmMisses}
-      });
-    },
-    arcadeJobsForQA: () => ({
-      count: mini?.jobs?.size || 0,
-      held: arcadeJobsHeld(),
-      holds: Object.keys(mini?.jobHolds || {}).sort(),
-      armed: [...(mini?.jobs?.values() || [])].filter(job => job.timer != null).length,
-      pending: [...(mini?.jobs?.values() || [])].map(job => ({id: job.id, remaining: Math.round(job.remaining), repeat: Boolean(job.repeat)}))
+    // Everything on the run board, in one comparable value. A held run must not change it.
+    arcadeFingerprintForQA: () => JSON.stringify(mini || {}, (key, value) => {
+      if (key === "node" || key === "qaProbe") return undefined;
+      if (typeof value === "number") return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : String(value);
+      if (value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype) return undefined;
+      return value;
     }),
+    arcadeJobsForQA: () => {
+      const jobs=[...(trainingRun?.jobs?.values()||[])], held=arcadeFrozen(), t=runClockNow();
+      return { count: jobs.length, held, holds: held ? Object.keys(trainingRun.pauseSources).sort() : [], armed: held ? 0 : jobs.length,
+        pending: jobs.map(job => ({id: job.id, remaining: Math.round(job.due - t), repeat: Boolean(job.period)})) };
+    },
+    // Deadlines on the run board (by the *Until / *At convention), measured on the run clock.
     arcadeDeadlinesForQA: () => {
-      const out = {};
-      for(const key of arcadeDeadlineKeys()){
-        const value = mini?.[key];
-        if(typeof value === "number" && Number.isFinite(value) && value > 0) out[key] = Math.round(value - now());
+      const out = {}, t = runClockNow();
+      for (const key of Object.keys(mini || {})) {
+        if (!/(?:Until|At)$/.test(key) || key === "endAt") continue;
+        const value = mini[key];
+        if (typeof value === "number" && Number.isFinite(value) && value > 0) out[key] = Math.round(value - t);
       }
       return out;
     },
-    arcadeDeadlineKeysForQA: () => arcadeDeadlineKeys().sort(),
     arcadeAdvanceClockForQA: ms => {if(!mini?.active||!Number.isFinite(mini.endAt))return false;mini.endAt-=Math.max(0,Number(ms)||0);return true;},
     arcadeClockForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,endless:!Number.isFinite(mini?.endAt),
-      remaining:Number.isFinite(mini?.endAt)?Math.max(0,mini.endAt-now()):Infinity,
-      frozen:arcadeFrozen(),paused:Boolean(mini?.paused),sources:Object.keys(mini?.pauseSources||{}).sort(),
-      jobsHeld:arcadeJobsHeld(),jobHolds:Object.keys(mini?.jobHolds||{}).sort()}),
+      remaining:Number.isFinite(mini?.endAt)?Math.max(0,mini.endAt-runClockNow()):Infinity,
+      frozen:arcadeFrozen(),paused:Boolean(trainingRun?.paused),sources:Object.keys(trainingRun?.pauseSources||{}).sort(),
+      jobsHeld:arcadeFrozen(),jobHolds:Object.keys(trainingRun?.pauseSources||{}).sort()}),
     arcadeStateForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Math.max(0,Math.floor(mini?.score||0)),
-      lives:mini?.lives??null,maxLives:mini?.maxLives??null,endReason:mini?.endReason||"",paused:Boolean(mini?.paused),
-      quitConfirmed:Boolean(mini?.quitConfirmed),rhythmReady:Boolean(mini?.rhythmReady)}),
+      lives:mini?.lives??null,maxLives:mini?.maxLives??null,endReason:mini?.endReason||"",paused:Boolean(trainingRun?.paused),
+      quitConfirmed:Boolean(trainingRun?.quitConfirmed),rhythmReady:Boolean(mini?.rhythmReady)}),
     arcadeSetScoreForQA: value => {if(!mini?.active)return false;mini.score=Math.max(0,Number(value)||0);return true;},
     arcadeKillForQA: () => {if(!mini?.active)return false;mini.lives=0;mini.endReason="death";return true;},
     arcadeFreezeForQA: (source="background") => arcadeFreeze(source),
     arcadeThawForQA: (source="background") => arcadeThaw(source),
     suspendRuntimeForQA: (reason="background") => suspendRuntime(reason),
     resumeRuntimeForQA: (reason="visible") => resumeRuntime(reason),
-    arcadeGamesForQA: () => JSON.parse(JSON.stringify(ARCADE_GAMES)),
-    arcadeQualifyForQA: (mode=mini?.mode) => {if(!mini.active||mini.mode!==mode)return false;if(mode==="power"){mini.powerEngaged=true;mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="spark"){mini.hits=Math.max(2,mini.hits||0);mini.sparkBanked=Math.max(2,mini.sparkBanked||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="forage"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="rush"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.rushClears=Math.max(2,mini.rushClears||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="walk"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="rhythm"){mini.hits=Math.max(3,mini.hits||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="memory"){mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="glide"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.glideClears=Math.max(1,mini.glideClears||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="breaker"){mini.breakerMoves=Math.max(1,mini.breakerMoves||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="maze"){mini.mazeInputs=Math.max(1,mini.mazeInputs||0);mini.score=Math.max(5,mini.score||0);}return arcadeRunQualified(mode,Math.max(0,Math.floor(mini.score||0)));},
-    arcadePowerStrikeForQA: (tech=mini?.powerCall||"jab",needle=null) => {if(!mini.active||mini.mode!=="power")return null;mini.needle=needle===null?mini.powerZone:(Number.isFinite(Number(needle))?clamp(Number(needle),0,1):mini.needle);powerTap(String(tech||"jab"));return RizoRuntimeQA.arcadeSnapshotForQA().power},
-    arcadeSparkCatchForQA: (type="normal",streak=null) => {if(!mini.active||mini.mode!=="spark")return null;if(streak!==null)mini.sparkStreak=Math.max(0,Math.floor(Number(streak)||0));moveSparkTarget(String(type||"normal"));catchSpark();return RizoRuntimeQA.arcadeSnapshotForQA().spark},
-    arcadeSparkBankForQA: () => {if(!mini.active||mini.mode!=="spark")return null;bankSparkStash(false);return RizoRuntimeQA.arcadeSnapshotForQA().spark},
-    arcadeForageCompleteOrderForQA: () => {if(!mini.active||mini.mode!=="forage")return null;mini.forageOrderIndex=Math.max(0,(mini.forageOrder||[]).length-1);advanceForageOrder();return RizoRuntimeQA.arcadeSnapshotForQA().forage},
-    arcadeBreakerCollapseCoreForQA: () => {if(!mini.active||mini.mode!=="breaker")return null;const core=mini.entities.find(item=>item.kind==="breaker-block"&&item.special==="core"&&item.node?.isConnected);if(core){core.node.remove();mini.entities=mini.entities.filter(item=>item!==core);breakerCollapseCore(core);}return RizoRuntimeQA.arcadeSnapshotForQA().breaker},
-    arcadeMemoryRoundForQA: round => {if(!mini.active||mini.mode!=="memory")return null;clearArcadeJobs();mini.memoryRound=Math.max(0,Math.floor(Number(round)||1)-1);mini.memorySequence=[];startMemoryRound();return RizoRuntimeQA.arcadeSnapshotForQA().memory;},
-    arcadeMazeDirectionForQA: dir => {if(!mini.active||mini.mode!=="maze")return null;mazeSetDirection(String(dir||""));return RizoRuntimeQA.arcadeSnapshotForQA().maze;},
+    arcadeGamesForQA: () => Object.fromEntries((Training?.list?.()||[]).map(def=>[def.id,{name:def.name,kicker:def.kicker,art:def.art,hint:def.hint,duration:def.duration,energy:def.energy,lives:def.lives,par:def.par,unit:"PTS",best:"points"}])),
+    trainingConvertForQA: (mode, score) => { const def=trainingGame(mode); return def ? Training.convert(def, {score, reason:"timeup", inputs:1}) : null; },
+    arcadeQualifyForQA: (mode=mini?.mode) => {if(!mini?.active||mini.mode!==mode)return false;trainingGame(mode)?.qaQualify?.(mini);return arcadeRunQualified();},
     runtimeViewportForQA: () => runtimeViewportSnapshot(),
     syncRuntimeViewportForQA: () => syncRuntimeViewport(),
     suspendRuntimeForQA: reason => ({changed:suspendRuntime(reason||"qa-suspend"),suspendedAt:runtimeSuspendedAt,reason:runtimeSuspendReason}),
@@ -7351,7 +6009,6 @@ Streak: ${state.player.streak}`;
     injectReleaseUpdateForQA: () => {const messages=[];const waiting={postMessage:message=>messages.push(JSON.parse(JSON.stringify(message)))};const registration={waiting};announceReleaseUpdate(registration);return{messages,activate:()=>activateReleaseUpdate(),status:()=>releaseStatus()};},
     keeperCodeForQA: () => keeperRecoveryCode(),
     preRecoveryForQA: () => {const recovered=readPreRecoveryBackup();return recovered?{name:recovered.pet?.name||null,embers:recovered.wallet?.embers||0,version:recovered.version}:null;},
-    rushSnapshotForQA: () => ({hits:mini.hits,jumpY:mini.jumpY,entities:mini.entities.filter(e=>e.kind==="rush").map(e=>({type:e.type,x:e.x,speed:e.speed,handled:e.handled}))}),
     setViewForQA(view = "home") { changeView(view); return currentView; },
     setHouseRoomForQA(roomId = 0) { selectHouseRoom(Number(roomId)); return activeHouseRoom; },
     houseSnapshot: () => ({featureUnlocked:houseIsUnlocked(),activeRoom:activeHouseRoom,unlocked:[...state.farm.unlockedRooms],capacity:houseCapacity(),residents:state.farm.roster.map(p=>({id:p.id,name:p.name,room:p.homeRoom}))}),
@@ -7364,7 +6021,7 @@ Streak: ${state.player.streak}`;
 
   // Each game mode may contribute QA hooks (QA builds only); they can wrap the
   // hub's own (startMiniGame, finishMiniGame, miniSnapshot) for their mode.
-  function createMergedRuntimeQA(){const hubQA=createRizoRuntimeQA(),merged={...hubQA};for(const mode of globalThis.RizoModes?.list?.()||[])if(typeof mode.qa==="function")Object.assign(merged,mode.qa(hubQA));return Object.freeze(merged);}
+  function createMergedRuntimeQA(){const hubQA=createRizoRuntimeQA(),merged={...hubQA};for(const game of Training?.list?.()||[])if(typeof game.qa==="function")Object.assign(merged,game.qa());for(const mode of globalThis.RizoModes?.list?.()||[])if(typeof mode.qa==="function")Object.assign(merged,mode.qa({...merged}));return Object.freeze(merged);}
   if(IS_QA_BUILD)window.RizoRuntimeQA=createMergedRuntimeQA();else{for(const key of["RizoRuntimeQA","RizoVisualQA","RizoBeatQA"]){try{delete window[key];}catch(error){}}}
 
   boot();
