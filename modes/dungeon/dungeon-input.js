@@ -66,7 +66,7 @@
     // Every source that can hold an action, by name: "key:<code>", "pointer:<id>", "mouse:<button>".
     const sources = new Map(); // source → { action } | { action:"move", x, y }
     const staleKeys = new Set(); // keys still down from before a clear
-    const edges = { primaryPressed: false, primaryReleased: false, secondaryPressed: false, secondaryReleased: false, systemPressed: false };
+    const edges = { primaryPressed: false, primaryReleased: false, secondaryPressed: false, secondaryReleased: false, systemPressed: false, dirX: 0, dirY: 0 };
     let held = { primary: false, secondary: false, system: false };
     let bound = false;
     const listeners = [];
@@ -93,7 +93,13 @@
       held = next;
       onChange?.();
     }
-    function press(source, value) { sources.set(source, value); sync(); }
+    // A direction tap is kept as an edge too, so a quick tap between frames still counts (menus, choices).
+    function press(source, value) {
+      const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+      const dir = value.action === "move" ? [value.x, value.y] : DIRS[value.action];
+      if (dir && (dir[0] || dir[1]) && !(sources.get(source)?.x === dir[0] && sources.get(source)?.y === dir[1])) { edges.dirX = dir[0]; edges.dirY = dir[1]; }
+      sources.set(source, value); sync();
+    }
     function release(source) { if (sources.delete(source)) sync(); }
 
     // ---- keyboard: keydown arrives through the host key hook
@@ -192,13 +198,13 @@
       for (const source of sources.keys()) if (source.startsWith("key:")) staleKeys.add(source.slice(4));
       sources.clear();
       held = { primary: false, secondary: false, system: false };
-      for (const name of Object.keys(edges)) edges[name] = false;
+      for (const name of Object.keys(edges)) edges[name] = typeof edges[name] === "number" ? 0 : false;
       onChange?.();
     }
     function consume() {
       const { moveX, moveY } = derive();
       const out = { moveX, moveY, primaryHeld: held.primary, secondaryHeld: held.secondary, ...edges };
-      for (const name of Object.keys(edges)) edges[name] = false;
+      for (const name of Object.keys(edges)) edges[name] = typeof edges[name] === "number" ? 0 : false;
       return out;
     }
     function view() {

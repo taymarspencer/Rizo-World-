@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v89-g1-dungeon";
+  const RIZO_RUNTIME_BUILD = "v90-r2-threshold";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -3598,6 +3598,8 @@
       if (now()-lastLifeInputAt > 26000 && currentView === "home" && !document.hidden) {
         const mood = livingMood();
         const choices = state.pet.hunger < 30 ? ["food-stare", mood.behavior, "look-left", "yawn"] : [mood.behavior,"yawn","look-left","look-right","sneeze"];
+        // A pet that shared a hearth below sometimes just settles, remembering it (rare, never sad).
+        if ((state.pet.storyMarks || []).some(mark => mark.id === "shared-hearth") && Math.random() < .12) { setLifeBehavior("recover", 1800); scheduleIdleLife(); return; }
         const behavior = choices[Math.floor(Math.random()*choices.length)];
         const lines = {yawn:"I WASN'T FALLING ASLEEP. I WAS THINKING SLOWLY.",sneeze:"THE AIR ATTACKED ME.",wave:"OH. YOU'RE STILL HERE.",annoyed:"PERSONAL SPACE IS A REAL INVENTION.","food-stare":"I CAN SEE THE FOOD AREA FROM HERE."};
         setLifeBehavior(behavior, behavior === "yawn" ? 2100 : 1500, Math.random()<.38 ? lines[behavior]||"" : "");
@@ -5964,6 +5966,8 @@ Streak: ${state.player.streak}`;
         if (destination === "home") changeView("home"); else renderAll();
         recordModeEvent(modeId, { kind: "returnedToHub", boundaryId: "hub", campaignId: "", tone: "protected", interruption: "none" });
         flushCarePresentations();
+        // A proof homecoming gets one small familiar gesture in the Den, nothing more.
+        if (destination === "home" && summary?.homecoming === true) setTimeout(() => setLifeBehavior("shake", 1800), 650);
       }
     });
     prepareModeSlices();

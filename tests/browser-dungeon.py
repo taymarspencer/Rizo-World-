@@ -9,9 +9,15 @@ the QA-only completion fixture (First Knot / story mark, duplicate and
 conflicting receipts, failed primary, failed backup); the force-update
 handoff; a signed newer-hub save; and the hub booting without Dungeon scripts.
 
+Run 2 adds: the page lock, the opening ("Be good." → van → roadside →
+drain → the fall into the handheld), the Threshold story path (Latch, SIT
+and GO, the cold bowl, the shortcut, the Porter's help, the First Knot gift,
+the homecoming), an interrupted committed beat, and a Gate 1 save carried
+forward.
+
 Chromium only. This is not Safari or physical-phone evidence.
 """
-import functools, http.server, json, socketserver, subprocess, sys, threading
+import functools, http.server, json, re, socketserver, subprocess, sys, threading
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -62,6 +68,16 @@ def launch(page):
     page.evaluate("document.querySelector('[data-mode=\"dungeon\"]').click()"); page.wait_for_timeout(700)
     return page.evaluate(ST)
 
+def skip(page):
+    return page.evaluate("RizoRuntimeQA.dungeonSkipSceneForQA()")
+def goto(page, room, anchor=None, flags=None):
+    page.evaluate("([r,a,f])=>RizoRuntimeQA.dungeonGotoForQA(r,a,f||{})", [room, anchor, flags]); page.wait_for_timeout(350); skip(page)
+def press_until_closed(page, limit=12):
+    for _ in range(limit):
+        if page.evaluate(ST)["dialogue"] is None: return True
+        page.keyboard.press("z"); page.wait_for_timeout(120)
+    return page.evaluate(ST)["dialogue"] is None
+
 def pointer(page, selector, kind, pid, dx=0, dy=0, ptype="touch", button=0):
     """Dispatch a pointer event at an element's centre (+dx, +dy)."""
     return page.evaluate("""([sel,kind,pid,dx,dy,ptype,button])=>{const el=document.querySelector(sel);const r=el.getBoundingClientRect();
@@ -74,12 +90,13 @@ with sync_playwright() as p:
     # ================= ENTRY AND IDENTITY =================
     ctx, page, errors = boot(browser, seed={})
     pet_id = page.evaluate(SETUP)
+    saved_with_knot_seed = page.evaluate("localStorage.getItem('rizo-save-v2')")
     page.evaluate("RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(150)
     meta = page.evaluate("document.querySelector('[data-mode-meta=\"dungeon\"]').innerText")
-    check("shelf card describes a free journey, not an ENDLESS energy run", "FREE" in meta and "REVIEW" in meta and "ENDLESS" not in meta and "ENERGY" not in meta, meta)
+    check("shelf card describes a free journey, not an ENDLESS energy run", "FREE" in meta and "MIN" in meta and "ENDLESS" not in meta and "ENERGY" not in meta, meta)
     before_hunger = page.evaluate("RizoRuntimeQA.snapshot().pet.hunger")
     st = launch(page)
-    check("the Dungeon opens from the shelf through RizoModes", page.evaluate("RizoModes.active()") == "dungeon" and st["ui"] == "play", str(st and st["ui"]))
+    check("the Dungeon opens from the shelf through RizoModes, outside the store, shell open", page.evaluate("RizoModes.active()") == "dungeon" and st["sim"]["roomId"] == "curb" and st["shell"] == "open", str(st and (st["ui"], st["sim"]["roomId"], st["shell"])))
     actor = page.evaluate("""(()=>{const a=document.querySelectorAll('.dungeon-actor .mini-pet');const m=a[0];return {count:a.length,variant:m?.dataset.rizoVariant,context:m?.dataset.rizoContext,alt:m?.querySelector('img')?.alt||'',wear:Boolean(m?.querySelector('.wearable-scarf'))}})()""")
     check("the actual named, dressed Rizo is the actor (canonical markup, one renderer)", actor["count"] == 1 and actor["variant"] == "classic" and actor["context"] == "dungeon" and "MOSSY" in actor["alt"] and actor["wear"], str(actor))
     s = page.evaluate(STORED)
@@ -90,6 +107,13 @@ with sync_playwright() as p:
     page.evaluate("RizoRuntimeQA.renderAll()"); page.wait_for_timeout(100)
     check("the Arcade shelf refresh never rewrites the open stage (data-mode collision)", page.evaluate("Boolean(document.querySelector('#miniArena .dungeon-screen'))") and page.evaluate("document.getElementById('miniGameOverlay').dataset.activeMode") == "dungeon")
     check("the inherited arcade timer and actions are hidden", page.evaluate("getComputedStyle(document.querySelector('.mini-actions')).display") == "none" and page.evaluate("document.getElementById('miniGameOverlay').classList.contains('dungeon-active')"))
+    lock = page.evaluate("""(()=>{const touch=new Event('touchmove',{bubbles:true,cancelable:true});document.querySelector('.dungeon-screen').dispatchEvent(touch);
+      const sel=new Event('selectstart',{bubbles:true,cancelable:true});document.querySelector('.dungeon-line').dispatchEvent(sel);
+      const bodySel=new Event('selectstart',{bubbles:true,cancelable:true});document.body.dispatchEvent(bodySel);
+      return {html:document.documentElement.classList.contains('dungeon-locked'),body:getComputedStyle(document.body).position,overflow:getComputedStyle(document.documentElement).overflow,
+        touch:touch.defaultPrevented,select:sel.defaultPrevented,bodySelect:bodySel.defaultPrevented,userSelect:getComputedStyle(document.querySelector('.dungeon-line')).userSelect||getComputedStyle(document.querySelector('.dungeon-line')).webkitUserSelect}})()""")
+    check("while open, the page cannot scroll, rubber-band or select text (Dungeon-scoped)", lock["html"] and lock["body"] == "fixed" and lock["overflow"] == "hidden" and lock["touch"] and lock["select"] and lock["bodySelect"] and lock["userSelect"] == "none", str(lock))
+    skip(page); goto(page, "clatter")
 
     # ================= INPUTS =================
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(170,330)")
@@ -186,9 +210,9 @@ with sync_playwright() as p:
     st = page.evaluate(ST)
     check("a held Flare reads the Draftling's draw-back and calms it", "lunge" in events and "calmed" in events and st["sim"]["enemies"][0]["state"] == "gone", str(events[:12]))
     check("no reward or story claim comes from ordinary play", page.evaluate(STORED)["accessories"] == ["none", "scarf"] and not st["data"]["proofComplete"])
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(176,236)")
-    # A fresh leg: rest at the hearth brings the Draftling back; then stand in its path.
-    hearth = page.evaluate("RizoDungeonContent.ROOMS.clatter.hearth")
+    # The hearth is its own room now: rest there, and the Draftling returns to Clatter.
+    goto(page, "hearth", None, {"latchFreed": True, "seatChosen": True})
+    hearth = page.evaluate("RizoDungeonContent.ROOMS.hearth.hearth")
     page.evaluate(f"RizoRuntimeQA.dungeonTeleportForQA({hearth['x'] + 20},{hearth['y']})"); page.wait_for_timeout(100)
     prompt = page.evaluate("[document.querySelector('.dungeon-prompt').hidden, document.querySelector('.dungeon-prompt').textContent, document.querySelector('.dungeon-key-primary b').textContent]")
     check("the hearth shows a highlighted KINDLE prompt and the key says so", prompt[0] is False and "KINDLE" in prompt[1] and prompt[2] == "KINDLE", str(prompt))
@@ -198,12 +222,14 @@ with sync_playwright() as p:
     page.keyboard.press("z"); page.wait_for_timeout(1500)
     s = page.evaluate(STORED); st = page.evaluate(ST)
     check("Kindle rests: hearth registered, Flame full, checkpoint committed", s["slice"]["checkpoint"]["hearthId"] == hearth["id"] and s["slice"]["continuation"]["resumeKind"] == "hearth" and st["sim"]["player"]["flame"] == 5, str(s["slice"]["checkpoint"]))
+    goto(page, "clatter")
+    st = page.evaluate(ST)
     check("rest brings the ordinary Draftling back for a new leg", st["sim"]["enemies"][0]["state"] != "gone" and st["sim"]["enemies"][0]["hp"] == 4)
     check("the rest is reported as a protected semantic event (dormant)", any(e["kind"] == "checkpointRest" and e["tone"] == "protected" and e["mode"] == "dungeon" for e in page.evaluate("RizoRuntimeQA.modeEventsForQA()")))
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(176,240)")
     events = page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(20000,{})")
     st = page.evaluate(ST); s = page.evaluate(STORED)
-    check("standing in the lunge line brings the Rizo down and back at the hearth", "down" in events and "respawn-ready" in events and st["sim"]["player"]["flame"] == 5 and abs(st["sim"]["player"]["x"] - 124) < 0.1, str((events.count("hurt"), st["sim"]["player"])))
+    check("standing in the lunge line brings the Rizo down and back at the hearth", "down" in events and "respawn-ready" in events and st["sim"]["roomId"] == "hearth" and st["sim"]["player"]["flame"] == 5 and abs(st["sim"]["player"]["x"] - 200) < 0.1, str((events.count("hurt"), st["sim"]["roomId"], st["sim"]["player"])))
     check("death keeps the pet, the hearth and the campaign; it is committed", s["petId"] == pet_id and s["slice"]["checkpoint"]["hearthId"] == hearth["id"] and s["slice"]["continuation"]["resumeKind"] == "respawn" and s["accessories"] == ["none", "scarf"])
 
     # ================= LIFECYCLE =================
@@ -248,7 +274,7 @@ with sync_playwright() as p:
     camp = page.evaluate(STORED)["slice"]["campaign"]["id"]
     page.reload(); page.wait_for_timeout(1300)
     st = launch(page)
-    check("reload resumes the same campaign at its safe anchor with full Flame", st["data"]["campaign"]["id"] == camp and st["petId"] == pet_id and abs(st["sim"]["player"]["x"] - 124) < 0.1 and st["sim"]["player"]["flame"] == 5, str(st["sim"]["player"]))
+    check("reload resumes the same campaign at its safe anchor with full Flame", st["data"]["campaign"]["id"] == camp and st["petId"] == pet_id and st["sim"]["roomId"] == "hearth" and abs(st["sim"]["player"]["x"] - 200) < 0.1 and st["sim"]["player"]["flame"] == 5 and st["shell"] == "locked", str((st["sim"]["roomId"], st["sim"]["player"])))
     for key in page.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('rizo-mode-run:'))"): page.evaluate(f"localStorage.removeItem('{key}')")
     page.evaluate("localStorage.removeItem('rizo-mode-run:dungeon')")
     page.reload(); page.wait_for_timeout(1300)
@@ -261,6 +287,8 @@ with sync_playwright() as p:
     view = page.evaluate("RizoRuntimeQA.currentViewForQA()")
     toasts = page.evaluate("document.getElementById('toastStack').textContent")
     check("GO HOME saves and returns to the real Den with JOURNEY SAVED", page.evaluate("RizoModes.active()") is None and view == "home" and "JOURNEY SAVED" in toasts, str((view, toasts[:80])))
+    unlocked = page.evaluate("({html:document.documentElement.classList.contains('dungeon-locked'),body:getComputedStyle(document.body).position,select:getComputedStyle(document.body).userSelect||getComputedStyle(document.body).webkitUserSelect})")
+    check("leaving restores normal Hub scrolling and selection", not unlocked["html"] and unlocked["body"] != "fixed" and unlocked["select"] != "none", str(unlocked))
     check("the hub records returnedToHub and releases the care hold", any(e["kind"] == "returnedToHub" for e in page.evaluate("RizoRuntimeQA.modeEventsForQA()")) and page.evaluate("RizoRuntimeQA.careHoldForQA()") is None)
     fed = page.evaluate("(()=>{const before=RizoRuntimeQA.snapshot().pet.hunger;RizoRuntimeQA.useFoodForQA('crumbs');return [before,RizoRuntimeQA.snapshot().pet.hunger]})()")
     check("feeding works in the Den afterwards; no modal interrupts the return", fed[1] > fed[0] and not page.evaluate("document.getElementById('modalOverlay').classList.contains('show')"), str(fed))
@@ -268,7 +296,7 @@ with sync_playwright() as p:
     pet3 = page.evaluate("RizoRuntimeQA.processElapsedForQA()")
     check("ordinary care resumes after exit", pet3["hunger"] < fed[1] - 2, str((fed[1], pet3["hunger"])))
     meta = page.evaluate("RizoRuntimeQA.setViewForQA('arcade'), document.querySelector('[data-mode-meta=\"dungeon\"]').innerText")
-    check("the shelf shows the journey's progress", "ROOM 1/6" in meta, meta)
+    check("the shelf shows the journey's progress", re.search(r"ROOM [1-6]/6", meta) is not None, meta)
 
     # Export → import keeps the journey.
     text = page.evaluate("localStorage.getItem('rizo-save-v2')")
@@ -298,6 +326,235 @@ with sync_playwright() as p:
     check("after release the journey is kept, explained, and never moves to another Rizo", st["ui"] == "blocked" and "isn't with you" in panel and page.evaluate(STORED)["slice"]["campaign"]["petId"] == pet_id)
     page.evaluate("document.querySelector('[data-dungeon-action=\"leave\"]').click()"); page.wait_for_timeout(800)
     check("entry and identity flows raise no page errors", not errors, "; ".join(errors[:3]))
+    ctx.close()
+
+    # ================= THE OPENING: "Be good." =================
+    ctx, page, errors = boot(browser, seed={})
+    pet_id = page.evaluate(SETUP)
+    st = launch(page)
+    page.wait_for_timeout(700)
+    st = page.evaluate(ST)
+    portrait = page.evaluate("[document.querySelector('.dungeon-speaker').textContent, Boolean(document.querySelector('.dungeon-portrait svg')), document.querySelector('.dungeon-dialogue').classList.contains('is-narration')]")
+    check("Beat 1: the keeper's line, with a portrait, while Rizo looks up", st["dialogue"] and st["dialogue"]["speaker"] == "you" and portrait == ["YOU", True, False] and any(n["id"] == "keeper" for n in st["npcs"]), str((st["dialogue"], portrait)))
+    check("no MOVE tutorial modal: nothing but the line is on screen", page.evaluate("document.querySelector('.dungeon-panel').hidden && document.querySelector('.dungeon-cue').hidden"))
+    press_until_closed(page)
+    page.wait_for_timeout(2400)
+    st = page.evaluate(ST)
+    check("the keeper goes into the store and control comes back", st["ui"] == "play" and st["scene"]["control"] and not any(n["id"] == "keeper" and n["visible"] for n in st["npcs"]), str((st["ui"], st["npcs"])))
+    page.keyboard.down("d"); page.wait_for_timeout(2200)
+    st = page.evaluate(ST); pose_class = page.evaluate("document.querySelector('.dungeon-pose').className")
+    page.keyboard.up("d"); page.wait_for_timeout(60)
+    check("he will not wander off: he slows and looks back near the edge", st["sim"]["player"]["leashed"] and "look-back" in pose_class and st["sim"]["player"]["x"] < 252, str((st["sim"]["player"], pose_class)))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(126,176)"); page.wait_for_timeout(100)
+    page.keyboard.press("z"); page.wait_for_timeout(150)
+    st = page.evaluate(ST)
+    check("Primary near a safe object inspects it (the store sign in the puddle)", st["dialogue"] and st["dialogue"]["lines"] == 2 and st["dialogue"]["speaker"] is None, str(st["dialogue"]))
+    press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(176,170)")
+    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(17000)"); page.wait_for_timeout(2600)
+    bark = page.evaluate("document.querySelector('.dungeon-barks').textContent")
+    st = page.evaluate(ST)
+    check("Beat 2: a vehicle and hooded figures arrive; they speak in bubbles, control stays", st["ui"] == "play" and sum(n["id"].startswith("hood") for n in st["npcs"]) == 3 and ("That him?" in bark or "Obviously." in bark), str((bark, st["ui"])))
+    page.keyboard.press("s"); page.keyboard.down("s"); page.wait_for_timeout(500); page.keyboard.up("s")
+    page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:1})")
+    a0 = page.evaluate(ST)["sim"]["player"]["attacks"]
+    page.keyboard.press("z"); page.wait_for_timeout(200)
+    check("Primary is a small frightened flame here, not a winnable fight", page.evaluate(ST)["sim"]["player"]["attacks"] > a0 and "is-spark" in page.evaluate("document.querySelector('.dungeon-pose').className") + " is-spark" and page.evaluate(ST)["sim"]["enemies"] == [])
+    for _ in range(40):
+        page.wait_for_timeout(300)
+        if page.evaluate(ST)["sim"]["roomId"] != "curb": break
+    page.wait_for_timeout(500)
+    s = page.evaluate(STORED)
+    check("one of them grabs him: the taken beat is committed and he is in the van", page.evaluate(ST)["sim"]["roomId"] == "van" and "opening:taken" in s["slice"]["story"]["committedSceneBeats"] and s["slice"]["continuation"]["roomId"] == "van")
+    page.wait_for_timeout(2200)
+    st = page.evaluate(ST)
+    check("Beat 3: front-seat silhouettes argue, with their own portraits", st["dialogue"] and st["dialogue"]["speaker"] in ("driver", "hood-tall"), str(st["dialogue"]))
+    press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(128,70)"); page.wait_for_timeout(100); page.keyboard.press("z"); page.wait_for_timeout(150)
+    check("the window can be inspected in the van", page.evaluate(ST)["dialogue"] is not None)
+    press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(80,98)")
+    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(1300)"); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    pulsing = page.evaluate("document.querySelector('.dungeon-key-secondary').classList.contains('is-pulsing')")
+    check("a bump sends a loose cooler down a shown line; the TUCK key wakes once", any(e["kind"] == "cargo" and e["state"] == "windup" for e in st["sim"]["enemies"]) and pulsing, str(([e["state"] for e in st["sim"]["enemies"]], pulsing)))
+    page.keyboard.down("s"); page.keyboard.press("x"); page.wait_for_timeout(250); page.keyboard.up("s")
+    page.wait_for_timeout(900)
+    check("Tuck curls him out of the way; a miss would only bump, never burn", page.evaluate(ST)["sim"]["player"]["flame"] == 5)
+    for _ in range(30):
+        skip(page); page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(1000)"); page.wait_for_timeout(150)
+        if page.evaluate(ST)["sim"]["roomId"] == "roadside": break
+    s = page.evaluate(STORED)
+    check("Beat 4: the door gives, he falls; the fell beat is committed", page.evaluate(ST)["sim"]["roomId"] == "roadside" and "opening:fell" in s["slice"]["story"]["committedSceneBeats"])
+    page.wait_for_timeout(2600); page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(3000)"); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    check("alone by the road he lies still until the player asks him to move", st["pose"] == "lying" and st["ui"] == "scene", str((st["pose"], st["ui"])))
+    page.keyboard.down("w"); page.wait_for_timeout(1700); page.keyboard.up("w"); page.wait_for_timeout(100)
+    y_after = page.evaluate(ST)["sim"]["player"]["y"]
+    check("Beat 5: one press and he gets up; the walk is his", page.evaluate(ST)["ui"] == "play" and y_after < 1330, str(y_after))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(140,1030)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(80)
+    check("a familiar-shaped bowl in the rain: he approaches and stops (no text forced)", page.evaluate(ST)["pose"] == "approach-stop" and page.evaluate(ST)["dialogue"] is None)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(100,70)"); page.keyboard.down("w"); page.wait_for_timeout(700); page.keyboard.up("w"); page.wait_for_timeout(500)
+    st = page.evaluate(ST)
+    check("Beat 6: shelter. The drain is quieter and he shakes off the rain", st["sim"]["roomId"] == "drain" and st["pose"] in ("shake", "settle"), str((st["sim"]["roomId"], st["pose"])))
+    page.wait_for_timeout(1500)
+    check("no objective marker tells him to go deeper", page.evaluate("document.querySelector('.dungeon-banner').hidden && document.querySelector('.dungeon-cue').hidden"))
+    page.keyboard.down("w"); page.wait_for_timeout(3600); page.keyboard.up("w"); page.wait_for_timeout(250)
+    shell_mid = page.evaluate(ST)["shell"]
+    page.wait_for_timeout(1600)
+    st = page.evaluate(ST); s = page.evaluate(STORED)
+    banner = page.evaluate("document.querySelector('.dungeon-banner').textContent")
+    check("Beat 7: the ground gives; the handheld locks around the world (~560 ms)", shell_mid == "locking" and st["shell"] == "locked" and page.evaluate("document.querySelector('.dungeon-device').dataset.shell") == "locked", str((shell_mid, st["shell"])))
+    check("he lands in The Slip: below is committed and HOME ↑ is the only objective", st["sim"]["roomId"] == "slip" and "opening:below" in s["slice"]["story"]["committedSceneBeats"] and s["slice"]["continuation"]["roomId"] == "slip" and "HOME" in banner, str((st["sim"]["roomId"], banner)))
+    check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"])
+    page.reload(); page.wait_for_timeout(1300)
+    st = launch(page)
+    check("a reload after the fall resumes below, in the locked handheld", st["sim"]["roomId"] == "slip" and st["shell"] == "locked")
+    check("the opening raises no page errors", not errors, "; ".join(errors[:3]))
+    ctx.close()
+
+    # ================= THE THRESHOLD: SIT path, through to the Den =================
+    ctx, page, errors = boot(browser, seed={})
+    pet_id = page.evaluate(SETUP)
+    launch(page); skip(page)
+    goto(page, "hem")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(160,300)"); page.keyboard.down("w"); page.wait_for_timeout(450); page.keyboard.up("w"); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    check("Latch, trapped behind a frozen latch: “NO OPEN FLAMES.” (startled)", st["dialogue"] and st["dialogue"]["speaker"] == "latch" and st["dialogue"]["expr"] == "startled" and page.evaluate("document.querySelector('.dungeon-portrait').dataset.expr") == "startled", str(st["dialogue"]))
+    press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(184,252)"); page.wait_for_timeout(120); page.keyboard.press("z"); page.wait_for_timeout(150)
+    check("optional: looking at Latch first (“Different problem.”) is remembered", page.evaluate(STORED)["slice"]["story"]["facts"].get("jamInspected") is True)
+    press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(150,232)"); page.wait_for_timeout(120)
+    prompt = page.evaluate("document.querySelector('.dungeon-prompt').textContent")
+    page.keyboard.press("z"); page.wait_for_timeout(1500)
+    st = page.evaluate(ST); s = page.evaluate(STORED)
+    check("Primary warms the jammed latch (a Kindle), committed before Latch reacts", "WARM" in prompt and s["slice"]["world"]["durableRoomFlags"].get("latchFreed") and "latch-rescue:freed" in s["slice"]["story"]["committedSceneBeats"] and s["slice"]["story"]["resumeScene"] == {"id": "latch-rescue", "beatId": "lines"}, str((prompt, s["slice"]["world"]["durableRoomFlags"])))
+    press_until_closed(page); page.wait_for_timeout(900)
+    check("the rescue happens exactly once and the route opens", page.evaluate(ST)["sim"]["flags"].get("latchFreed") and page.evaluate(STORED)["slice"]["npcs"]["latch"]["state"] == "waiting-hearth")
+    goto(page, "hearth"); page.wait_for_timeout(200)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(90,170)"); page.wait_for_timeout(300)
+    st = page.evaluate(ST); s = page.evaluate(STORED)
+    check("the hearth registers on safe arrival and restores Flame", s["slice"]["checkpoint"]["hearthId"] == "threshold-hearth" and st["sim"]["player"]["flame"] == 5)
+    press_until_closed(page); page.wait_for_timeout(150)
+    st = page.evaluate(ST)
+    check("Latch offers the seat; SIT / GO waits for the player, no timer", st["choice"] and st["choice"]["options"] == ["sit", "go"] and not page.evaluate("document.querySelector('.dungeon-choice').hidden"))
+    page.wait_for_timeout(1500)
+    check("the choice is still waiting after time passes", page.evaluate(ST)["choice"] is not None)
+    page.keyboard.press("z"); page.wait_for_timeout(250)
+    s = page.evaluate(STORED)
+    check("SIT is committed (sharedRest) before Latch's answer is shown", s["slice"]["story"]["choices"].get("hearth-seat") == "sit" and s["slice"]["story"]["facts"].get("sharedRest") and page.evaluate(ST)["dialogue"] is None)
+    page.wait_for_timeout(1400)
+    st = page.evaluate(ST)
+    check("SIT: Rizo settles on the bench beside Latch (a quiet proximity beat)", abs(st["sim"]["player"]["x"] - 156) < 2 and st["pose"] == "settle", str((st["sim"]["player"]["x"], st["pose"])))
+    for _ in range(8):
+        skip(page); page.wait_for_timeout(100)
+    check("Latch's warning before the Porter is said", page.evaluate(STORED)["slice"]["story"]["facts"].get("beforePorterSaid") is True)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(255,288)"); page.wait_for_timeout(120); page.keyboard.press("z"); page.wait_for_timeout(1700)
+    st = page.evaluate(ST)
+    check("the cold bowl: narration only (no Rizo speech), bowlSeen kept", st["dialogue"] and st["dialogue"]["speaker"] is None and page.evaluate(STORED)["slice"]["story"]["facts"].get("bowlSeen") and page.evaluate("document.querySelector('.dungeon-dialogue').classList.contains('is-narration')"), str(st["dialogue"]))
+    press_until_closed(page); skip(page)
+    goto(page, "queue")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(48,300)"); page.wait_for_timeout(120); page.keyboard.press("z"); page.wait_for_timeout(300)
+    s = page.evaluate(STORED)
+    check("the queue lever opens a real shortcut to the hearth (durable)", s["slice"]["world"]["durableRoomFlags"].get("shortcutOpen") and "hearth-queue" in s["slice"]["world"]["openedShortcuts"])
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(30,350)"); page.keyboard.down("a"); page.wait_for_timeout(500); page.keyboard.up("a"); page.wait_for_timeout(500)
+    check("…and walking through it arrives at the hearth", page.evaluate(ST)["sim"]["roomId"] == "hearth")
+    goto(page, "queue")
+    # One evaluate: a live frame between teleport and advance could see the lane first.
+    ev = page.evaluate("(RizoRuntimeQA.dungeonTeleportForQA(160,220), RizoRuntimeQA.dungeonAdvanceForQA(1400,{}))")
+    check("the Needle shows its lane, then pulses it", "lane" in ev and "pulse" in ev, str(ev))
+    goto(page, "porter")
+    s = page.evaluate(STORED)
+    check("the Porter's room records a pre-fight continuation", s["slice"]["continuation"]["roomId"] == "porter" and s["slice"]["continuation"]["resumeKind"] == "boss")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,124)"); page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:-1})")
+    page.evaluate('RizoRuntimeQA.dungeonEnemyForQA("night-porter",{hp:15,state:"open",x:180,y:96})')
+    ev = page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(400,{primaryPressed:true})")
+    s = page.evaluate(STORED)
+    check("at half health the help beat is committed first (alcove open, Latch helping)", "porter-half" in ev and s["slice"]["story"]["facts"].get("porterHelp") and s["slice"]["world"]["durableRoomFlags"].get("alcoveOpen") and s["slice"]["npcs"]["latch"]["state"] == "helping", str(ev))
+    page.wait_for_timeout(1400)
+    st = page.evaluate(ST)
+    check("Latch: “Here. I found a door that still does doors.” (urgent)", st["dialogue"] and st["dialogue"]["expr"] == "urgent", str(st["dialogue"]))
+    # Interrupt the help beat with a reload: the boss restarts, the help is never granted twice.
+    page.reload(); page.wait_for_timeout(1300)
+    st = launch(page); skip(page); page.wait_for_timeout(200)
+    s = page.evaluate(STORED)
+    check("reload mid-help: the alcove starts open, the Porter at full HP, the beat acknowledged not repeated", st["sim"]["roomId"] == "porter" and st["sim"]["flags"].get("alcoveOpen") and st["sim"]["enemies"][0]["hp"] == 28 and s["slice"]["story"]["resumeScene"] is None, str((st["sim"]["roomId"], st["sim"]["enemies"][:1])))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,124)"); page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:-1})")
+    page.evaluate('RizoRuntimeQA.dungeonEnemyForQA("night-porter",{hp:15,state:"open",x:180,y:96})')
+    ev = page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(400,{primaryPressed:true})")
+    check("…and dropping below half again asks for no second help", "porter-half" not in ev and "hit" in ev, str(ev))
+    page.evaluate('RizoRuntimeQA.dungeonEnemyForQA("night-porter",{hp:2,state:"open",x:180,y:96})')
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,124)"); page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:-1})")
+    ev = page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(400,{primaryPressed:true})")
+    s = page.evaluate(STORED)
+    check("the Porter settles; the First Knot and shared-hearth mark are committed with the proof", "porter-down" in ev and "first-knot" in s["accessories"] and any(m["id"] == "shared-hearth" for m in (s["marks"] or [])) and s["slice"]["proofComplete"] and not s["slice"]["storyComplete"] and s["slice"]["campaign"]["status"] == "homecoming-ready", str(ev))
+    check("the reward is never auto-equipped", s["accessory"] == "scarf")
+    page.wait_for_timeout(2500)
+    check("Latch's gift lines: “Keeps the draft off.”", (page.evaluate(ST)["dialogue"] or {}).get("speaker") == "latch")
+    press_until_closed(page, 30); page.wait_for_timeout(1300); press_until_closed(page, 30); page.wait_for_timeout(900); press_until_closed(page, 30)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,30)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(1600)
+    s = page.evaluate(STORED)
+    check("the protected homecoming: device retracts, the real Den, journey complete", page.evaluate("RizoModes.active()") is None and page.evaluate("RizoRuntimeQA.currentViewForQA()") == "home" and s["slice"]["campaign"]["status"] == "complete")
+    page.wait_for_timeout(500)
+    check("one familiar gesture in the Den, and no modal or store interrupts it", "behavior-shake" in page.evaluate("document.getElementById('petActor')?.className||''") and not page.evaluate("document.getElementById('modalOverlay').classList.contains('show')"), page.evaluate("document.getElementById('petActor')?.className||''")[:160])
+    fed = page.evaluate("(()=>{const before=RizoRuntimeQA.snapshot().pet.hunger;RizoRuntimeQA.useFoodForQA('crumbs');return [before,RizoRuntimeQA.snapshot().pet.hunger]})()")
+    check("ordinary feeding works after the homecoming", fed[1] > fed[0], str(fed))
+    check("the story path raises no page errors", not errors, "; ".join(errors[:3]))
+    ctx.close()
+
+    # ================= GO path: help still comes; no shared-hearth mark =================
+    ctx, page, errors = boot(browser, seed={})
+    pet_id = page.evaluate(SETUP)
+    launch(page); skip(page)
+    goto(page, "hearth", None, {"latchFreed": True})
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(90,170)"); page.wait_for_timeout(300)
+    press_until_closed(page); page.wait_for_timeout(150)
+    page.keyboard.press("d"); page.wait_for_timeout(120); page.keyboard.press("z"); page.wait_for_timeout(300)
+    s = page.evaluate(STORED)
+    check("GO is committed too; it keeps the checkpoint and records no sharedRest", s["slice"]["story"]["choices"].get("hearth-seat") == "go" and not s["slice"]["story"]["facts"].get("sharedRest") and s["slice"]["checkpoint"]["hearthId"] == "threshold-hearth")
+    press_until_closed(page, 20); skip(page)
+    goto(page, "porter")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,124)"); page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:-1})")
+    page.evaluate('RizoRuntimeQA.dungeonEnemyForQA("night-porter",{hp:15,state:"open",x:180,y:96})')
+    ev = page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(400,{primaryPressed:true})")
+    check("GO: Latch still helps at half health", "porter-half" in ev and page.evaluate(STORED)["slice"]["story"]["facts"].get("porterHelp"))
+    skip(page)
+    page.evaluate('RizoRuntimeQA.dungeonEnemyForQA("night-porter",{hp:2,state:"open",x:180,y:96})')
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,124)"); page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:-1})")
+    page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(400,{primaryPressed:true})")
+    s = page.evaluate(STORED)
+    receipt = s["receipts"]["dungeon"][f'{s["slice"]["campaign"]["id"]}:threshold-complete']
+    check("GO: the First Knot alone (no shared-hearth mark)", "first-knot" in s["accessories"] and receipt["entitlements"] == ["first-knot"] and not any(m["id"] == "shared-hearth" for m in (s["marks"] or [])), str(receipt))
+    check("the GO path raises no page errors", not errors, "; ".join(errors[:3]))
+    ctx.close()
+
+    # ================= INTERRUPTED RESCUE: committed, then the tab is gone =================
+    ctx, page, errors = boot(browser, seed={})
+    pet_id = page.evaluate(SETUP)
+    launch(page); skip(page)
+    goto(page, "hem")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(150,232)"); page.wait_for_timeout(200)
+    press_until_closed(page)
+    page.keyboard.press("z"); page.wait_for_timeout(1750)
+    check("(the rescue was committed before the reload)", page.evaluate(STORED)["slice"]["world"]["durableRoomFlags"].get("latchFreed") is True)
+    page.reload(); page.wait_for_timeout(1300)
+    st = launch(page); page.wait_for_timeout(300)
+    s = page.evaluate(STORED)
+    check("an interrupted rescue is not re-run: the gate is open, Latch has gone ahead", st["sim"]["roomId"] == "hem" and st["sim"]["flags"].get("latchFreed") and not any(n["id"] == "latch" for n in st["npcs"]) and s["slice"]["story"]["resumeScene"] is None, str((st["npcs"], s["slice"]["story"]["resumeScene"])))
+    ctx.close()
+
+    # ================= A GATE 1 REVIEW SAVE IS CARRIED FORWARD =================
+    gate1 = subprocess.run(["node", "-e", r"""
+const Save=require(process.argv[1]+'/core/rizo-save-core.js');
+const env=JSON.parse(process.argv[2]);const s=env.state;s.version=22;s.inventory.accessories=['none','scarf'];s.pet.accessory='scarf';s.modeReceipts={};s.pet.storyMarks=[];
+const slice={schema:1,data:{settings:{assist:true,textSpeed:'instant'},campaign:{id:'threshold-gate1abc',kind:'proof',contentRevision:'threshold-gate1',petId:s.pet.id,petName:s.pet.name,status:'active',chapterId:'threshold'},world:{visitedRooms:['clatter'],openedShortcuts:[],durableRoomFlags:{},defeatedEncounters:[]},checkpoint:{hearthId:'clatter-review-hearth',roomId:'clatter',spawnAnchorId:'clatter-hearth-side'},continuation:{roomId:'clatter',safeAnchorId:'clatter-hearth-side',roomEntryFlame:5,resumeKind:'hearth'},journal:{discoveredEntryIds:['ticket-stub']},pendingRewards:[],proofComplete:false,storyComplete:false}};
+console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},savedAt:Date.now()-60000,writeId:'W-G1',stateVersion:22})));""", str(ROOT), saved_with_knot_seed], capture_output=True, text=True, check=True).stdout.strip()
+    ctx, page, errors = boot(browser, seed={V2: gate1, V2_BACKUP: gate1})
+    st = launch(page)
+    s = page.evaluate(STORED)
+    check("a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening", s["slice"]["campaign"]["id"] == "threshold-gate1abc" and s["slice"]["campaign"]["contentRevision"] == "threshold-v1" and s["slice"]["settings"] == {"assist": True, "textSpeed": "instant"} and st["sim"]["roomId"] == "curb", str(s["slice"]["campaign"]))
+    check("the migration boots without page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
     # ================= DEFENSE REGRESSION: a live run under the Arcade view =================
@@ -361,6 +618,11 @@ with sync_playwright() as p:
     check("choosing it uses the existing wardrobe path and the Den renders it", worn[0] == "first-knot" and worn[1], str(worn))
     page.screenshot(path="/tmp/rizo-first-knot-den.png")
     st = launch(page)
+    check("an interrupted homecoming resumes at the open door, never re-awarding", st["sim"]["roomId"] == "porter" and st["sim"]["flags"].get("porterDown") and page.evaluate(STORED)["accessories"].count("first-knot") == 1, str((st["sim"]["roomId"], st["sim"]["flags"])))
+    skip(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,30)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(1200)
+    check("walking out the open door completes the journey and returns to the Den", page.evaluate("RizoModes.active()") is None and page.evaluate(STORED)["slice"]["campaign"]["status"] == "complete")
+    st = launch(page)
     check("a completed proof opens a small return panel, never replaying the reward", st["ui"] == "blocked" and "REACHED HOME" in page.evaluate("document.querySelector('.dungeon-panel').textContent") and page.evaluate(STORED)["accessories"].count("first-knot") == 1)
     page.evaluate("document.querySelector('[data-dungeon-action=\"leave\"]').click()"); page.wait_for_timeout(700)
     check("fixture flows raise no page errors", not errors, "; ".join(errors[:3]))
@@ -382,7 +644,7 @@ with sync_playwright() as p:
     check("a confirmed commit lets the update proceed and stops simulation", ok == {"ok": True, "status": "committed"} and "update" in page.evaluate(ST)["holds"], str(ok))
     page.reload(); page.wait_for_timeout(1300)
     st = launch(page)
-    check("after the (simulated) update the same campaign resumes", st["data"]["campaign"]["id"] == camp and st["ui"] == "play")
+    check("after the (simulated) update the same campaign resumes", st["data"]["campaign"]["id"] == camp and st["sim"]["roomId"] == "curb")
     ctx.close()
 
     # ================= SAVE-BLOCKED TAB =================
@@ -407,6 +669,21 @@ with sync_playwright() as p:
     check("without Dungeon scripts the hub boots, Defense still registers, the card says UNAVAILABLE", iso["modes"] == ["defense"] and iso["button"] == "UNAVAILABLE" and not [e for e in errors if "dungeon" not in e.lower()], str((iso, errors[:2])))
     check("First Knot stays a working hub wearable without the Dungeon", iso["acc"] == "first-knot" and iso["wear"], str(iso))
     check("the unregistered Dungeon slice survives a save untouched", kept["modes"]["dungeon"] == json.loads(saved_with_knot)["modes"]["dungeon"])
+    ctx.close()
+
+    # ================= A FAILED START NEVER LEAVES THE HUB LOCKED =================
+    ctx = browser.new_context(service_workers="block", viewport={"width": 390, "height": 844}, has_touch=True)
+    def broken_view(route):
+        body = route.fetch().text().replace("return Object.freeze({ create,", "return Object.freeze({ create: () => { throw new Error('qa: view failed'); }, unused: create,")
+        route.fulfill(body=body, content_type="application/javascript")
+    ctx.route("**/modes/dungeon/dungeon-view.js*", broken_view)
+    page = ctx.new_page(); errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(URL); page.wait_for_timeout(1200)
+    page.evaluate(SETUP); page.evaluate("RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(250)
+    page.evaluate("try{document.querySelector('[data-mode=\"dungeon\"]').click()}catch(e){}"); page.wait_for_timeout(700)
+    after = page.evaluate("({active:RizoModes.active(),locked:document.documentElement.classList.contains('dungeon-locked')||document.body.classList.contains('dungeon-locked'),body:getComputedStyle(document.body).position,select:getComputedStyle(document.body).userSelect||getComputedStyle(document.body).webkitUserSelect})")
+    check("a Dungeon start that throws releases the page lock (Hub scroll and selection intact)", after["active"] is None and not after["locked"] and after["body"] != "fixed" and after["select"] != "none", str((after, errors[:2])))
     ctx.close()
 
     # ================= SIGNED NEWER-HUB SAVE =================

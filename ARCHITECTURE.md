@@ -21,10 +21,10 @@ is what the player brings into game modes.
 
 Neither side ever writes the save, the wallet or a pet directly. The hub is the only writer.
 
-> **Status (Dungeon Gate 1):** both contracts exist, are tested, and carry every game. The ten training games
+> **Status (Dungeon Run 2):** both contracts exist, are tested, and carry every game. The ten training games
 > live in `training/<id>.js` and play through the hub's training runner (§4); Rizo Defense runs on the
-> game-mode contract from `modes/defense/` (§8). Rizo Dungeon (§9) is a one-room **review build** of The
-> Threshold on the same contract, plus the host additions it needs (confirmed commit, receipts, care policy).
+> game-mode contract from `modes/defense/` (§8). Rizo Dungeon (§9) runs The Threshold, a complete short
+> proof episode, on the same contract plus the host additions it needs (confirmed commit, receipts, care policy).
 
 ---
 
@@ -387,7 +387,7 @@ Every delivery that changes a runtime file:
 | `tests/defense-core.test.js`, `worker-*.test.js`, `service-worker-policy.test.js` | `node` | Defense rules and the service worker. |
 | `tests/mode-host.test.js` | `node` | The host additions: commit/reward validation and outcomes, late callbacks, events, exit destination, care-session hooks, force-update outcome. |
 | `tests/dungeon-core.test.js` | `node` | Dungeon rules: profile caps, movement/collision, Flare/Tuck/Kindle timing, buffering and priority, the Draftling, death/rest, pause holds, slice validation and repair. |
-| `tests/browser-dungeon.py` | `python3` | The Dungeon through the real hub over HTTP: real pet, keyboard/touch/mouse, combat/death/rest, lifecycle holds, care policy, reload/import, identity, the QA completion fixture (receipts, failed primary/backup), force update, save-blocked tab, isolation, newer-hub save, v21 migration, Defense under the shelf refresh. |
+| `tests/browser-dungeon.py` | `python3` | The Dungeon through the real hub over HTTP: the page lock, the opening beat by beat, the Threshold story (SIT and GO, help, gift, homecoming, an interrupted beat), real pet, keyboard/touch/mouse, combat/death/rest, lifecycle holds, care policy, reload/import, identity, the QA completion fixture (receipts, failed primary/backup), force update, save-blocked tab, isolation, newer-hub save, v21 and Gate 1 migrations, Defense under the shelf refresh. |
 | `tests/browser-*.py`, `static-defense-audit.py`, `worker-j-integration-risk-audit.py` | `python3` | Inherited browser and static suites. |
 
 The browser suites need Playwright for Python and Chromium at `/usr/bin/chromium`. Some write JSON into the
@@ -431,50 +431,75 @@ How it follows the contract:
 
 ---
 
-## 9. Rizo Dungeon (Gate 1 review build)
+## 9. Rizo Dungeon — The Threshold
 
-`modes/dungeon/` runs one room of **The Threshold** (Clatter Passage) on the game-mode contract. It is a
-foundation review, not the episode: there is no Latch, no boss and no player-facing reward yet.
+`modes/dungeon/` runs **The Threshold**, the proof episode: a short playable opening outside, then six rooms
+below, inside the Rizo Field Unit. It is a complete small story, not the full campaign: finishing it sets
+`proofComplete`, never `storyComplete`.
 
 | Piece | Where |
 |---|---|
-| Rooms, anchors, props, lines (frozen) | `dungeon-content.js` |
-| Rules: fixed 60 Hz step, movement/collision, Flare/Tuck/Kindle, Draftling, pause holds, slice validation | `dungeon-core.js` (pure, Node-tested) |
-| One action state from keyboard, mouse and touch | `dungeon-input.js` |
-| The handheld, canvas room/enemies, DOM actor plane | `dungeon-view.js`, `styles/dungeon.css` |
-| Registration, binding, loop, lifecycle, persistence, QA hooks | `dungeon-mode.js` |
+| Rooms, exits, zones, props, encounters, speakers, portrait expressions, every line (frozen) | `dungeon-content.js` |
+| Rules: fixed 60 Hz step, movement/collision, the opening's leash, Flare/Tuck/Kindle (and warming), Draftling, Needle, the van's cooler, the Night Porter, exits/zones, flag-gated doors, pause holds, slice validation and migration | `dungeon-core.js` (pure, Node-tested) |
+| One action state from keyboard, mouse and touch (button and direction edges) | `dungeon-input.js` |
+| The handheld (open → locking → locked), room painters, NPC cutouts, portrait dialogue, choices, speech bubbles | `dungeon-view.js`, `styles/dungeon.css` |
+| Registration, binding, loop, scenes, story beats, lifecycle, persistence, page lock, QA hooks | `dungeon-mode.js` |
 
-- **The real pet.** The campaign binds `host.pet().id` at first launch. A House swap or a released pet shows
-  why the journey cannot continue; it is never rebound or cleared. The Rizo on screen is
-  `host.petMarkup(snapshot, { context: "dungeon" })` inside a pose wrapper; snapshots refresh only at entry and
-  at the hearth.
-- **One clock.** Every deadline is on the simulation clock (`sim.t`), advanced in fixed steps with interpolated
-  rendering. Catch-up stops at eight steps; leftover debt during danger pauses with a `performance` hold.
-- **Holds.** A set: `manual`, `background`, `ad`, `save-blocked`, `update`, `performance`. Lifecycle aliases
-  normalize (hidden/pagehide/freeze/unload → background; visible/pageshow/resume release it). Any external
-  hold also adds `manual`, so a fresh Resume is needed; `save-blocked` is never released by a resume.
-- **Saving.** Everything goes through `host.commit`. Hearth registration, rest, death and GO HOME commit at
-  once; a dirty safe continuation commits at most every 5 s; nothing saves per frame. A reload resumes at the
-  last safe anchor with that anchor's Flame. A failed save is shown ("COULDN'T SAVE THIS MOMENT") with Retry
-  and an explained way home; a blocked tab uses the hub's own notice.
-- **Rewards.** Only the QA completion fixture (`dungeonCompleteFixtureForQA`, QA builds only) requests First
-  Knot and the shared-hearth mark, to prove the receipt transaction. Ordinary play awards nothing.
+**The story, in rooms.** `curb` (the late store: "Be good.", free movement with a soft leash, two things to
+look at; a van, three hooded figures, a grab) → `van` (an argument up front, a loose cooler that teaches Tuck,
+a door that gives) → `roadside` (alone; he gets up when the player asks; a lonely walk past a bowl that is not
+his) → `drain` (shelter; he shakes off the rain) → the ground gives way and the handheld locks around the world →
+`slip` (HOME ↑) → `clatter` (Draftling) → `hem` (Latch, trapped by a frozen latch; warm it) → `hearth`
+(checkpoint, SIT / GO, the cold bowl) → `queue` (Draftling + Needle; a lever opens the hearth shortcut) →
+`porter` (the Night Porter; Latch opens the alcove at half health; the First Knot) → home, to the real Den.
 
-Its slice (`schema: 1`, about 1.5 KB):
+- **Teaching by situation.** No tutorial screens: movement is taught by waiting outside, Primary by looking at
+  safe things, Flare by a frightened little flame (the hoods only flinch: it is not a fight), Tuck by the
+  cooler (it bumps, never burns; the TUCK key pulses once). Below, the first Draftling wakes the FLARE key and
+  a short key cue appears without stopping play.
+- **Scenes** are short step lists (say, wait, move an NPC, pose, fade, choice, bark) on a scene clock that
+  stands still under any hold. Without `control` the simulation is paused; with it the Rizo moves while the
+  scene goes on. Rizo never speaks; he reacts with authored poses (look up/back, hesitate, shiver, shake,
+  recoil, settle, approach-and-stop, lie, get up, fall, land) that are presentation only.
+- **Story rule: commit, then present.** Rescue, seat choice, shortcut, the Porter's help and the reward are
+  committed before their scene shows. `story.resumeScene` marks a committed beat whose lines were cut off; the
+  next entry acknowledges it from `ACKS` and never applies it twice.
+- **Dialogue** is DOM with a speaker portrait (`SPEAKERS` / `PORTRAITS[speaker][expression]`, inline-SVG
+  placeholders today, `{ src }` later). Latch has procedural, startled, dry, soft and urgent. Narration has no
+  portrait. NPCs in play speak in bubbles over their heads.
+- **The page lock.** While open, the Dungeon adds `dungeon-locked` to `<html>`/`<body>` (no overflow, fixed
+  body, no selection or callout), cancels `touchmove`, `gesturestart`, `selectstart`, `wheel` and double-tap in
+  the stage, and removes all of it on stop, restoring the scroll position. A `start()` that throws stops
+  itself first, so a failed launch never leaves the Hub locked. Nothing changes in the Hub otherwise.
+- **The real pet** (unchanged from Gate 1): the campaign binds `host.pet().id`; House swaps and released pets
+  are explained, never rebound. The Rizo on screen is `host.petMarkup(snapshot, { context: "dungeon" })`.
+- **Saving**: every room entry commits the safe continuation; story beats, hearths, deaths, the lever and the
+  reward commit at once; a dirty journey commits at most every 5 s. Opening rooms resume at their own start;
+  the Porter resumes at its pre-fight anchor (at full HP; help, once committed, keeps the alcove open).
+- **Homecoming**: walking out of the Porter's open door commits `status: "complete"` and exits with
+  `destination: "home", homecoming: true`; the Hub shows one small familiar gesture (shake) and nothing else.
+  A pet with the shared-hearth mark rarely settles quietly in the Den.
+
+Its slice (`schema: 1`, content revision `threshold-v1`, about 2 KB):
 
 ```json
 { "settings": { "assist": false, "textSpeed": "normal" },
-  "campaign": { "id": "threshold-…", "kind": "proof", "contentRevision": "threshold-gate1", "petId": "…", "petName": "MOSSY", "status": "active", "chapterId": "threshold" },
-  "world": { "visitedRooms": ["clatter"], "openedShortcuts": [], "durableRoomFlags": {}, "defeatedEncounters": [] },
-  "story": { "facts": {}, "choices": {}, "committedSceneBeats": [], "resumeScene": null },
-  "npcs": { "latch": { "state": "unmet", "locationAnchor": null, "evidence": [] } },
+  "campaign": { "id": "threshold-…", "kind": "proof", "contentRevision": "threshold-v1", "petId": "…", "petName": "MOSSY", "status": "active", "chapterId": "threshold" },
+  "world": { "visitedRooms": ["curb", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth"], "openedShortcuts": ["hearth-queue"], "durableRoomFlags": { "latchFreed": true, "shortcutOpen": true }, "defeatedEncounters": [] },
+  "story": { "facts": { "jamInspected": true, "hearthArrived": true, "seatChosen": true, "sharedRest": true, "beforePorterSaid": true, "bowlSeen": true }, "choices": { "hearth-seat": "sit" },
+             "committedSceneBeats": ["opening:taken", "opening:fell", "opening:below", "latch-rescue:freed", "hearth-arrival:registered", "hearth-seat:sit", "cold-bowl:seen", "queue-lever:pulled"], "resumeScene": null },
+  "npcs": { "latch": { "state": "waiting-hearth", "locationAnchor": "hearth-latch", "evidence": ["rescue"] } },
   "inventory": { "knownLocalItems": [] },
-  "checkpoint": { "hearthId": "clatter-review-hearth", "roomId": "clatter", "spawnAnchorId": "clatter-hearth-side" },
-  "continuation": { "roomId": "clatter", "safeAnchorId": "clatter-hearth-side", "roomEntryFlame": 5, "resumeKind": "hearth" },
+  "checkpoint": { "hearthId": "threshold-hearth", "roomId": "hearth", "spawnAnchorId": "hearth-side" },
+  "continuation": { "roomId": "queue", "safeAnchorId": "queue-entry", "roomEntryFlame": 5, "resumeKind": "room-entry" },
   "legProfile": { "edges": { "speed": 1.023, "power": 1.045, "instinct": 1.017, "stamina": 0.95 }, "bondBand": "familiar", "cues": { "favoriteFoodId": "crumbs", "favoriteGameId": "rush" } },
   "journal": { "discoveredEntryIds": [] }, "pendingRewards": [], "proofComplete": false, "storyComplete": false }
 ```
 
-A campaign with any other `contentRevision` (including the full episode's `threshold-v1`) is preserved
-untouched by this build. The next build must migrate `threshold-gate1` review campaigns explicitly.
+**Migration.** A Gate 1 review campaign (`threshold-gate1`) is carried forward explicitly: same campaign id,
+pet, settings and journal, starting at the opening (that story did not exist yet); its review-hearth
+checkpoint is dropped. Any other unknown revision is preserved untouched.
 
+**QA hooks** (QA builds only): `dungeonGotoForQA(room, anchor, flags)`, `dungeonSkipSceneForQA()`,
+`dungeonSceneTimeForQA(ms)`, `dungeonEnemyForQA(id, patch)`, `dungeonAdvanceForQA(ms, input)`,
+`dungeonCompleteFixtureForQA()` and the commit/receipt probes from Gate 1.

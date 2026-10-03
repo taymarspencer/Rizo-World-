@@ -17,7 +17,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const near = (actual, expected, tolerance, label) => assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: ${actual} not within ${tolerance} of ${expected}`);
 // An open floor spot far from the Draftling, for movement checks.
 function openSim(options = {}) {
-  const sim = D.createSim(options);
+  const sim = D.createSim({ roomId: "clatter", ...options });
   sim.enemies = [];
   sim.player.x = 170; sim.player.y = 330;
   return sim;
@@ -32,7 +32,7 @@ function run(sim, ms, input = {}) {
 }
 // A Draftling placed by hand, already noticing the player.
 function duel({ assist = false } = {}) {
-  const sim = D.createSim({ assist });
+  const sim = D.createSim({ roomId: "clatter", assist });
   const enemy = sim.enemies[0];
   sim.player.x = 176; sim.player.y = 250;
   enemy.x = 176; enemy.y = 190; enemy.homeX = 176; enemy.homeY = 190;
@@ -40,14 +40,26 @@ function duel({ assist = false } = {}) {
 }
 
 // ---------- content ----------
-test("content is frozen, uses the six stable room ids and builds only the review room", () => {
+test("content is frozen: the opening plus the six stable Threshold rooms, all reachable", () => {
   assert.ok(Object.isFrozen(Content.ROOMS.clatter.solids[0]));
   assert.deepStrictEqual(Content.ROOM_IDS, ["slip", "clatter", "hem", "hearth", "queue", "porter"]);
-  assert.deepStrictEqual(Content.BUILT_ROOMS, ["clatter"]);
-  assert.strictEqual(Content.CONTENT_REVISION, "threshold-gate1");
-  for (const anchor of Object.values(Content.ROOMS.clatter.anchors)) {
-    assert.ok(!Content.ROOMS.clatter.solids.some(rect => D.circleHitsRect(anchor.x, anchor.y, T.PLAYER_RADIUS, rect)), "anchors stand on open floor");
+  assert.deepStrictEqual(Content.OPENING_ROOMS, ["curb", "van", "roadside", "drain"]);
+  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v1");
+  for (const [id, room] of Object.entries(Content.ROOMS)) {
+    for (const [name, anchor] of Object.entries(room.anchors)) {
+      assert.ok(!room.solids.some(rect => !rect.openWhen && D.circleHitsRect(anchor.x, anchor.y, T.PLAYER_RADIUS, rect)), `${id}/${name} stands on open floor`);
+    }
+    for (const exit of room.exits) if (exit.to !== "home") assert.ok(Content.knownAnchor(exit.to, exit.anchor), `${id} exit ${exit.id} lands on a known anchor`);
   }
+});
+test("the six rooms connect as specified, with a real hearth–queue shortcut", () => {
+  const links = new Set();
+  for (const room of Object.values(Content.ROOMS)) for (const exit of room.exits) links.add(`${room.id}>${exit.to}`);
+  for (const [a, b] of [["slip", "clatter"], ["clatter", "hem"], ["hem", "hearth"], ["hem", "queue"], ["queue", "porter"], ["hearth", "queue"]]) {
+    assert.ok(links.has(`${a}>${b}`) && links.has(`${b}>${a}`), `${a} <-> ${b}`);
+  }
+  const shortcut = Content.ROOMS.hearth.exits.find(exit => exit.to === "queue");
+  assert.strictEqual(shortcut.openWhen, "shortcutOpen", "the shortcut starts locked");
 });
 
 // ---------- profile ----------
@@ -138,11 +150,11 @@ test("Flare misses behind, out of range, and through solid cover", () => {
   sim.player.fy = -1; sim.player.y = enemy.y + T.FLARE_RANGE + enemy.r + 3;
   assert.ok(!run(sim, 330, { primaryPressed: true }).some(event => event.type === "hit"), "out of range");
   // A crate between them.
-  const cover = D.createSim({});
+  const cover = D.createSim({ roomId: "clatter" });
   const foe = cover.enemies[0];
   foe.state = "recover"; foe.stateAt = cover.t; foe.x = 82; foe.y = 140; cover.player.x = 82; cover.player.y = 196; cover.player.fx = 0; cover.player.fy = -1;
   foe.recoverMs = 1e9;
-  assert.ok(!D.lineOfSight(D.room("clatter"), 82, 196, 82, 140));
+  assert.ok(!D.lineOfSight(D.geoOf(cover), 82, 196, 82, 140));
 });
 test("two clean Flares calm a Draftling; the power edge never makes it one", () => {
   const { sim, enemy } = duel();
@@ -235,7 +247,7 @@ test("Draftling: notices, draws back 850 ms, lunges about 48 units in 240 ms, re
   assert.ok(at("notice") !== undefined, "noticed");
   near(at("lunge") - at("notice"), 850, D.STEP_MS + 1e-6, "draw back");
   assert.ok(at("lock") - at("notice") < 850, "the line commits before the lunge");
-  const lungeEvents = run(D.createSim({}), 0);
+  const lungeEvents = run(D.createSim({ roomId: "clatter" }), 0);
   assert.deepStrictEqual(lungeEvents, []);
 });
 test("the lunge follows the committed line without tracking", () => {
@@ -290,9 +302,8 @@ test("a lethal Flare resolves before a same-step hit", () => {
 
 // ---------- Kindle, death, rest ----------
 test("Kindle takes about 1.2 s at the hearth and Secondary cancels it safely", () => {
-  const sim = D.createSim({});
-  sim.enemies = [];
-  const hearth = D.room("clatter").hearth;
+  const sim = D.createSim({ roomId: "hearth", flags: { latchFreed: true } });
+  const hearth = D.room("hearth").hearth;
   sim.player.x = hearth.x + 20; sim.player.y = hearth.y;
   assert.strictEqual(D.focusTarget(sim)?.id, hearth.id);
   const events = run(sim, 1250, { primaryPressed: true });
@@ -303,9 +314,9 @@ test("Kindle takes about 1.2 s at the hearth and Secondary cancels it safely", (
   assert.ok(cancel.some(event => event.type === "kindle-cancel") && !cancel.some(event => event.type === "tuck") && !cancel.some(event => event.type === "kindled"));
 });
 test("Primary means Flare while an encounter is live, interaction once it ends", () => {
-  const sim = D.createSim({});
-  const hearth = D.room("clatter").hearth;
-  sim.player.x = hearth.x + 20; sim.player.y = hearth.y;
+  const sim = D.createSim({ roomId: "clatter" });
+  sim.player.x = 284; sim.player.y = 382;
+  assert.strictEqual(D.focusTarget(sim)?.id, "ticket-stub");
   sim.enemies[0].aware = true;
   assert.strictEqual(D.focusTarget(sim), null);
   assert.ok(run(sim, D.STEP_MS, { primaryPressed: true }).some(event => event.type === "flare"));
@@ -317,7 +328,7 @@ test("Flame 0 brings the Rizo down; respawn returns full Flame and resets ordina
   const events = run(sim, 1300, {});
   assert.ok(events.some(event => event.type === "down") && events.some(event => event.type === "respawn-ready"));
   near(events.find(event => event.type === "respawn-ready").t - events.find(event => event.type === "down").t, T.DOWN_MS, D.STEP_MS + 1e-6, "down time");
-  const back = D.respawn(sim, { roomId: "clatter", anchorId: "clatter-hearth-side" });
+  const back = D.respawn(sim, { roomId: "clatter", anchorId: "clatter-entry" });
   assert.strictEqual(back.player.flame, T.FLAME_MAX);
   assert.strictEqual(back.enemies.length, 1);
   assert.strictEqual(back.enemies[0].hp, 4);
@@ -366,12 +377,12 @@ test("pause holds: the player's Resume clears manual, performance and a failed u
 
 // ---------- slice ----------
 const pet = { id: "PET-1", name: "MOSSY", skills: { speed: 20 }, careSummary: { favoriteFood: null, favoriteGameId: null, bondBand: "familiar" } };
-test("a new campaign binds the pet, starts at the room entry and stays small", () => {
+test("a new campaign binds the pet, starts outside the store and stays small", () => {
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
   assert.strictEqual(data.campaign.petId, "PET-1");
   assert.strictEqual(data.campaign.kind, "proof");
-  assert.strictEqual(data.campaign.contentRevision, "threshold-gate1");
-  assert.deepStrictEqual(data.continuation, { roomId: "clatter", safeAnchorId: "clatter-entry", roomEntryFlame: 5, resumeKind: "room-entry" });
+  assert.strictEqual(data.campaign.contentRevision, "threshold-v1");
+  assert.deepStrictEqual(data.continuation, { roomId: "curb", safeAnchorId: "start", roomEntryFlame: 5, resumeKind: "opening" });
   assert.strictEqual(data.proofComplete, false);
   assert.strictEqual(data.storyComplete, false);
   assert.ok(JSON.stringify(data).length < 50_000);
@@ -388,12 +399,12 @@ test("normalizeSlice: empty, ok, and a round trip keeps everything", () => {
 });
 test("an unknown location is repaired to a safe anchor without resetting the campaign", () => {
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
-  data.checkpoint = { hearthId: "clatter-review-hearth", roomId: "clatter", spawnAnchorId: "clatter-hearth-side" };
+  data.checkpoint = { hearthId: "threshold-hearth", roomId: "hearth", spawnAnchorId: "hearth-side" };
   data.continuation = { roomId: "nowhere", safeAnchorId: "void", roomEntryFlame: 3, resumeKind: "room-entry" };
   data.journal.discoveredEntryIds = ["ticket-stub"];
   const result = D.normalizeSlice(data);
   assert.strictEqual(result.status, "repaired");
-  assert.deepStrictEqual(result.data.continuation, { roomId: "clatter", safeAnchorId: "clatter-hearth-side", roomEntryFlame: 5, resumeKind: "hearth" });
+  assert.deepStrictEqual(result.data.continuation, { roomId: "hearth", safeAnchorId: "hearth-side", roomEntryFlame: 5, resumeKind: "hearth" });
   assert.strictEqual(result.data.campaign.id, "threshold-abc123");
   assert.deepStrictEqual(result.data.journal.discoveredEntryIds, ["ticket-stub"]);
 });
@@ -417,19 +428,178 @@ test("a newer or unknown content revision is preserved untouched", () => {
   assert.strictEqual(result.status, "unsupported");
   assert.deepStrictEqual(result.data, clone(data));
 });
-test("death returns to the registered hearth, or the room entry before one", () => {
+test("death returns to the registered hearth, or where he landed before one", () => {
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
-  assert.deepStrictEqual(D.safeReturn(data), { roomId: "clatter", anchorId: "clatter-entry", resumeKind: "room-entry" });
-  data.checkpoint = { hearthId: "clatter-review-hearth", roomId: "clatter", spawnAnchorId: "clatter-hearth-side" };
-  assert.deepStrictEqual(D.safeReturn(data), { roomId: "clatter", anchorId: "clatter-hearth-side", resumeKind: "hearth" });
+  assert.deepStrictEqual(D.safeReturn(data), { roomId: "curb", anchorId: "start", resumeKind: "opening" });
+  data.story.committedSceneBeats.push("opening:below");
+  assert.deepStrictEqual(D.safeReturn(data), { roomId: "slip", anchorId: "landing", resumeKind: "room-entry" });
+  data.checkpoint = { hearthId: "threshold-hearth", roomId: "hearth", spawnAnchorId: "hearth-side" };
+  assert.deepStrictEqual(D.safeReturn(data), { roomId: "hearth", anchorId: "hearth-side", resumeKind: "hearth" });
 });
 test("summary publishes only labels and a journey; never ENDLESS/energy", () => {
-  assert.deepStrictEqual(D.summary({}), { bestLabel: "NEW", unit: "journey", badge: null, entryLabel: "FREE", lengthLabel: "REVIEW", journey: null });
+  assert.deepStrictEqual(D.summary({}), { bestLabel: "NEW", unit: "journey", badge: null, entryLabel: "FREE", lengthLabel: "~10 MIN", journey: null });
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
   const summary = D.summary(data);
   assert.deepStrictEqual(Object.keys(summary).sort(), ["badge", "bestLabel", "entryLabel", "journey", "lengthLabel", "unit"]);
   assert.deepStrictEqual(summary.journey, { petId: "PET-1", petName: "MOSSY", status: "active", complete: false });
-  assert.strictEqual(summary.bestLabel, "ROOM 1/6");
+  assert.strictEqual(summary.bestLabel, "OUTSIDE");
+  data.world.visitedRooms.push("slip", "clatter");
+  assert.strictEqual(D.summary(data).bestLabel, "ROOM 2/6");
+  data.proofComplete = true;
+  assert.strictEqual(D.summary(data).bestLabel, "HOME");
+});
+
+
+// ---------- Run 2: the opening, rooms, the Threshold's enemies ----------
+test("outside the store the Rizo slows and looks back instead of hitting a wall", () => {
+  const sim = D.createSim({ roomId: "curb" });
+  const events = run(sim, 3000, { moveX: 1 });
+  const leash = D.room("curb").leash;
+  assert.ok(Math.hypot(sim.player.x - leash.x, sim.player.y - leash.y) <= leash.r + 0.5, "stays near the door");
+  assert.ok(events.some(event => event.type === "leash") && sim.player.leashed);
+  const back = run(sim, 500, { moveX: -1 });
+  assert.ok(!sim.player.leashed && sim.player.x < 240, "walking back home is free");
+  assert.ok(!back.some(event => event.type === "leash"));
+});
+test("exits fire once, only after stepping clear; zones report entry", () => {
+  const sim = D.createSim({ roomId: "slip", anchorId: "slip-north" });
+  const first = run(sim, 500, { moveY: -1 });
+  const exit = first.find(event => event.type === "exit");
+  assert.ok(exit && exit.to === "clatter" && exit.anchor === "clatter-entry");
+  assert.strictEqual(first.filter(event => event.type === "exit").length, 1);
+  const hem = D.createSim({ roomId: "hem" });
+  hem.player.x = 160; hem.player.y = 300;
+  const zones = run(hem, 300, { moveY: -1 });
+  assert.ok(zones.some(event => event.type === "zone" && event.id === "latch-approach"));
+});
+test("the jammed gate holds until Latch is freed; warming it is a Kindle", () => {
+  const sim = D.createSim({ roomId: "hem" });
+  sim.player.x = 160; sim.player.y = 240;
+  run(sim, 1500, { moveY: -1 });
+  assert.ok(sim.player.y > 212, "the gate stops him");
+  sim.player.x = 150; sim.player.y = 230;
+  assert.strictEqual(D.focusTarget(sim)?.id, "latch-jam");
+  const events = run(sim, 1300, { primaryPressed: true });
+  const done = events.find(event => event.type === "kindled");
+  assert.ok(done && done.targetKind === "warm" && done.targetId === "latch-jam");
+  const freed = D.createSim({ roomId: "hem", flags: { latchFreed: true } });
+  freed.player.x = 160; freed.player.y = 240;
+  run(freed, 1500, { moveY: -1 });
+  assert.ok(freed.player.y < 150, "the gate is open once latchFreed");
+  assert.strictEqual(D.interactables(freed).some(item => item.id === "latch-jam"), false);
+});
+test("Needle: a 10-wide lane shown for 1000 ms, a 120 ms pulse, a 1000 ms rest; cover stops it", () => {
+  const sim = D.createSim({ roomId: "queue" });
+  sim.enemies = sim.enemies.filter(enemy => enemy.kind === "needle");
+  sim.player.x = 160; sim.player.y = 220;
+  const events = run(sim, 1300, {});
+  const at = type => events.find(event => event.type === type)?.t;
+  near(at("pulse") - at("lane"), 1000, D.STEP_MS + 1e-6, "indicate");
+  assert.ok(events.some(event => event.type === "hurt"), "standing in the lane hurts");
+  const covered = D.createSim({ roomId: "queue" });
+  covered.enemies = covered.enemies.filter(enemy => enemy.kind === "needle");
+  const needle = covered.enemies[0];
+  needle.aware = true; needle.state = "indicate"; needle.stateAt = 0; needle.aimX = 0; needle.aimY = 1;
+  needle.laneLength = D.rayLength(D.geoOf(covered), 160, 93, 0, 1, 300);
+  covered.player.x = 108; covered.player.y = 330; // behind post-c, out of the lane
+  assert.ok(!run(covered, 300, {}).some(event => event.type === "hurt"));
+  const blocked = D.rayLength(D.geoOf(covered), 108, 100, 0, 1, 300);
+  assert.ok(blocked < 200, `a post stops the lane at ${blocked}`);
+});
+test("the van's cooler bumps but never burns, and Tuck slips it", () => {
+  const sim = D.createSim({ roomId: "van" });
+  D.spawnCargo(sim, { id: "c1", x: 26, y: sim.player.y, aimX: 1, aimY: 0 });
+  const events = run(sim, 1400, {});
+  assert.ok(events.some(event => event.type === "bump"));
+  assert.strictEqual(sim.player.flame, 5);
+  const done = events.find(event => event.type === "cargo-done");
+  assert.strictEqual(done.dodged, false);
+  const dodge = D.createSim({ roomId: "van" });
+  D.spawnCargo(dodge, { id: "c2", x: 26, y: dodge.player.y, aimX: 1, aimY: 0 });
+  run(dodge, 900, {});
+  const later = run(dodge, 600, { secondaryPressed: true, moveY: 1 });
+  assert.ok(later.find(event => event.type === "cargo-done").dodged);
+});
+function porterSim(flags = {}) {
+  const sim = D.createSim({ roomId: "porter", flags });
+  const porter = sim.enemies[0];
+  return { sim, porter };
+}
+test("Night Porter: wakes, then alternates a 950 ms sweep tell and an 850 ms charge tell", () => {
+  const { sim } = porterSim();
+  sim.player.x = 180; sim.player.y = 190;
+  const events = run(sim, 8000, {});
+  const at = type => events.find(event => event.type === type)?.t;
+  near(at("sweep") - at("sweep-tell"), 950, D.STEP_MS + 1e-6, "sweep tell");
+  near(at("charge") - at("charge-tell"), 850, D.STEP_MS + 1e-6, "charge tell");
+  assert.ok(at("sweep-tell") < at("charge-tell"));
+});
+test("Night Porter: the closed coat deflects Flare; the open hem takes damage", () => {
+  const { sim, porter } = porterSim();
+  porter.aware = true; porter.state = "reposition"; porter.stateAt = sim.t; porter.fromX = porter.x; porter.fromY = porter.y; porter.nextMove = "sweep";
+  sim.player.x = porter.x; sim.player.y = porter.y + 30; sim.player.fx = 0; sim.player.fy = -1;
+  const shut = run(sim, 330, { primaryPressed: true });
+  assert.ok(shut.some(event => event.type === "deflect") && porter.hp === 28);
+  porter.state = "open"; porter.stateAt = sim.t; porter.openFor = 5000;
+  const open = run(sim, 330, { primaryPressed: true });
+  assert.ok(open.some(event => event.type === "hit") && porter.hp === 26);
+});
+test("Night Porter: help is asked once at 14 HP, never again once committed; it settles at 0", () => {
+  const { sim, porter } = porterSim();
+  porter.aware = true; porter.state = "open"; porter.stateAt = sim.t; porter.openFor = 9000; porter.hp = 15;
+  sim.player.x = porter.x; sim.player.y = porter.y + 30; sim.player.fx = 0; sim.player.fy = -1;
+  const half = run(sim, 330, { primaryPressed: true });
+  assert.ok(half.some(event => event.type === "porter-half"));
+  assert.strictEqual(porter.state, "reposition", "its hazard ends for the beat");
+  const helped = porterSim({ porterHelp: true, alcoveOpen: true });
+  helped.porter.aware = true; helped.porter.state = "open"; helped.porter.stateAt = 0; helped.porter.openFor = 9000; helped.porter.hp = 15;
+  helped.sim.player.x = helped.porter.x; helped.sim.player.y = helped.porter.y + 30; helped.sim.player.fx = 0; helped.sim.player.fy = -1;
+  assert.ok(!run(helped.sim, 330, { primaryPressed: true }).some(event => event.type === "porter-half"));
+  helped.porter.hp = 2; helped.porter.state = "open"; helped.porter.stateAt = helped.sim.t;
+  const down = run(helped.sim, 330, { primaryPressed: true });
+  assert.ok(down.some(event => event.type === "porter-down") && helped.porter.state === "settled");
+  assert.ok(helped.sim.defeated.includes("night-porter"));
+  assert.ok(!run(helped.sim, 2000, {}).some(event => event.type === "hurt"), "no hidden hits after the last Flare");
+});
+test("the alcove shelters from the sweep once opened", () => {
+  const { sim, porter } = porterSim({ alcoveOpen: true });
+  porter.aware = true; porter.state = "sweep"; porter.stateAt = sim.t; porter.bandY = 142; porter.sweepDir = 1;
+  sim.player.x = 25; sim.player.y = 142;
+  assert.ok(D.inAlcove(sim));
+  assert.ok(!run(sim, 350, {}).some(event => event.type === "hurt"));
+});
+test("a durable defeat never respawns; ordinary enemies return on rest", () => {
+  const sim = D.createSim({ roomId: "porter", defeated: ["night-porter"] });
+  assert.strictEqual(sim.enemies.length, 0);
+  const queue = D.createSim({ roomId: "queue", cleared: ["queue-draftling"] });
+  assert.deepStrictEqual(queue.enemies.map(enemy => enemy.id), ["queue-needle"]);
+  D.rest(queue);
+  assert.strictEqual(queue.enemies.length, 2);
+});
+test("a Gate 1 review campaign is carried into The Threshold explicitly", () => {
+  const gate1 = { settings: { assist: true, textSpeed: "instant" }, campaign: { id: "threshold-old123", kind: "proof", contentRevision: "threshold-gate1", petId: "PET-1", petName: "MOSSY", status: "active", chapterId: "threshold" }, world: { visitedRooms: ["clatter"] }, checkpoint: { hearthId: "clatter-review-hearth", roomId: "clatter", spawnAnchorId: "clatter-hearth-side" }, continuation: { roomId: "clatter", safeAnchorId: "clatter-hearth-side", roomEntryFlame: 5, resumeKind: "hearth" }, journal: { discoveredEntryIds: ["ticket-stub"] } };
+  const result = D.normalizeSlice(gate1);
+  assert.strictEqual(result.status, "migrated");
+  assert.strictEqual(result.data.campaign.id, "threshold-old123");
+  assert.strictEqual(result.data.campaign.petId, "PET-1");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v1");
+  assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
+  assert.deepStrictEqual(result.data.journal.discoveredEntryIds, ["ticket-stub"]);
+  assert.strictEqual(result.data.continuation.roomId, "curb");
+  assert.strictEqual(result.data.checkpoint.hearthId, null);
+});
+test("story facts, choices and beats are validated against known ids", () => {
+  const data = D.newCampaign({ pet, id: "threshold-abc123" });
+  data.story.facts = { sharedRest: true, latchFreed: "yes", madeUp: true };
+  data.story.choices = { "hearth-seat": "sit", other: "x" };
+  data.world.durableRoomFlags = { shortcutOpen: true, teleport: true };
+  data.npcs.latch = { state: "gifted", locationAnchor: "porter-door", evidence: ["rescue", "Bad Id"] };
+  const out = D.normalizeSlice(data).data;
+  assert.deepStrictEqual(out.story.facts, { sharedRest: true });
+  assert.deepStrictEqual(out.story.choices, { "hearth-seat": "sit" });
+  assert.deepStrictEqual(out.world.durableRoomFlags, { shortcutOpen: true });
+  assert.deepStrictEqual(out.npcs.latch.evidence, ["rescue"]);
+  assert.deepStrictEqual(D.flagsOf(out), { shortcutOpen: true, sharedRest: true });
 });
 
 console.log(`\n${passed}/${total} dungeon core checks passed`);
