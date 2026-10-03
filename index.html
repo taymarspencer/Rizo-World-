@@ -9,7 +9,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Rizo.game" name="apple-mobile-web-app-title"/>
-<meta name="rizo-build" content="v88-p3-training"/>
+<meta name="rizo-build" content="v89-g1-dungeon"/>
 <style id="rizo-boot-critical">
 /* This shell is intentionally inline and dependency-free. If every external
    stylesheet/script fails, the player still gets a dark, actionable surface. */
@@ -35,7 +35,7 @@ html,body{background:#07090d;color:#fff}
 <script id="rizo-boot-inline">
 (() => {
   "use strict";
-  const expected = "v88-p3-training";
+  const expected = "v89-g1-dungeon";
   const problems = [];
   let ready = false;
   let recoveryVisible = false;
@@ -528,7 +528,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <link href="https://play.rizo.store/" rel="canonical"/>
 
 <link href="./manifest.webmanifest" rel="manifest"/><link href="./launch-v79-defense-alive.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-defense-integration.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-b-economy.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-e-abilities-depth.css" rel="stylesheet"/>
-<link href="./modes/defense/styles/v81-art.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-worker-i-feel.css" rel="stylesheet"/><link href="./arcade-v75.css" rel="stylesheet"/><link href="./arcade-v83.css" rel="stylesheet"/><link href="./arcade-v84-depth.css" rel="stylesheet"/><link href="./rizo-v85-handmade.css" rel="stylesheet"/><link href="./arcade-v87-system.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-d-towers.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-h-ui.css" rel="stylesheet"/><style id="rizo-egg-anchor-v363">
+<link href="./modes/defense/styles/v81-art.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-worker-i-feel.css" rel="stylesheet"/><link href="./arcade-v75.css" rel="stylesheet"/><link href="./arcade-v83.css" rel="stylesheet"/><link href="./arcade-v84-depth.css" rel="stylesheet"/><link href="./rizo-v85-handmade.css" rel="stylesheet"/><link href="./arcade-v87-system.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-d-towers.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-h-ui.css" rel="stylesheet"/><link href="./modes/dungeon/styles/dungeon.css" rel="stylesheet"/><style id="rizo-egg-anchor-v363">
 /* V36.3 live-iPhone fix: explicit flex centering with a non-positioned egg.
    This deliberately does not depend on inset sizing, CSS translate, or an
    external stylesheet cache. */
@@ -771,6 +771,11 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div><small>THE BIG MACHINE // ENDLESS</small><h2>RIZO DEFENSE</h2><p>Your raised Rizos become the roster. Place, upgrade, read the route, survive bosses, weather, and stranger balloon properties.</p><div class="game-meta" data-mode-meta="defense"></div></div>
 <button data-mode="defense" data-mode-label="DEFEND" type="button">DEFEND</button>
 </div>
+<div class="game-card dungeon-card" data-mode-card="dungeon">
+<div class="game-art dungeon-art"><img alt="" src="./assets/rizo-classic.png"/><span>◆</span></div>
+<div><small>FIELD UNIT // BELOW • REVIEW</small><h2>RIZO DUNGEON</h2><p>Take your own Rizo below. Warm a Flare, Tuck out of trouble, read the Draftling, rest at the hearth. One room in this review build.</p><div class="game-meta" data-mode-meta="dungeon"></div></div>
+<button data-mode="dungeon" data-mode-label="GO BELOW" type="button">GO BELOW</button>
+</div>
 <section class="expedition-card">
 <div class="expedition-head"><div><small>PASSIVE ADVENTURE</small><h2>FOREST EXPEDITIONS</h2></div><div class="expedition-status" id="expeditionStatus">SEND RIZO OUT FOR LOOT AND LORE.</div></div>
 <div class="expedition-options" id="expeditionOptions">
@@ -782,7 +787,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </section>
 <section class="high-score-card">
 <div><small>PERSONAL BESTS</small><h2>YOUR ARCADE LORE</h2></div>
-<div class="score-grid"><div data-arcade-best="rhythm"><b id="bestRhythm">0</b><span>EMBER BEAT</span></div><div data-arcade-best="maze"><b id="bestMaze">0</b><span>RIZO RUNAWAY</span></div><div data-arcade-best="walk"><b id="bestWalk">0</b><span>RAIN WALK</span></div><div data-arcade-best="power"><b id="bestPower">0</b><span>POWER TAPE</span></div><div data-arcade-best="spark"><b id="bestSpark">0</b><span>SPARK STASH</span></div><div data-arcade-best="forage"><b id="bestForage">0</b><span>FOREST LUNCH</span></div><div data-arcade-best="rush"><b id="bestRush">0</b><span>RIZO COURIER</span></div><div data-arcade-best="memory"><b id="bestMemory">0</b><span>LOST SIGNAL</span></div><div data-arcade-best="glide"><b id="bestGlide">0</b><span>SKYBOUND</span></div><div data-arcade-best="breaker"><b id="bestBreaker">0</b><span>EMBER FORGE</span></div><div data-mode-best="defense"><b>—</b><span>RIZO DEFENSE • WAVE</span></div></div>
+<div class="score-grid"><div data-arcade-best="rhythm"><b id="bestRhythm">0</b><span>EMBER BEAT</span></div><div data-arcade-best="maze"><b id="bestMaze">0</b><span>RIZO RUNAWAY</span></div><div data-arcade-best="walk"><b id="bestWalk">0</b><span>RAIN WALK</span></div><div data-arcade-best="power"><b id="bestPower">0</b><span>POWER TAPE</span></div><div data-arcade-best="spark"><b id="bestSpark">0</b><span>SPARK STASH</span></div><div data-arcade-best="forage"><b id="bestForage">0</b><span>FOREST LUNCH</span></div><div data-arcade-best="rush"><b id="bestRush">0</b><span>RIZO COURIER</span></div><div data-arcade-best="memory"><b id="bestMemory">0</b><span>LOST SIGNAL</span></div><div data-arcade-best="glide"><b id="bestGlide">0</b><span>SKYBOUND</span></div><div data-arcade-best="breaker"><b id="bestBreaker">0</b><span>EMBER FORGE</span></div><div data-mode-best="defense"><b>—</b><span>RIZO DEFENSE • WAVE</span></div><div data-mode-best="dungeon"><b>—</b><span>RIZO DUNGEON • JOURNEY</span></div></div>
 </section>
 <section aria-label="Sponsored content" class="ad-slot" data-ad-slot="arcade-between-games" hidden=""></section>
 </section>
@@ -887,6 +892,11 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
   <script src="./modes/defense/defense-core.js"></script>
   <script src="./modes/defense/defense-canvas.js"></script>
   <script src="./modes/defense/defense-mode.js"></script>
+  <script src="./modes/dungeon/dungeon-content.js"></script>
+  <script src="./modes/dungeon/dungeon-core.js"></script>
+  <script src="./modes/dungeon/dungeon-input.js"></script>
+  <script src="./modes/dungeon/dungeon-view.js"></script>
+  <script src="./modes/dungeon/dungeon-mode.js"></script>
   <script src="./game-v79-defense.js"></script>
 </body>
 </html>

@@ -512,6 +512,12 @@ body.reduce-motion .rhythm-track-intro{animation:none!important}
 .wearable-scarf .wearable-back{background-image:url("./assets/wearables/scarf-back.svg")}
 .wearable-scarf .wearable-body{background-image:url("./assets/wearables/scarf-body.svg")}
 .wearable-scarf .wearable-front{background-image:url("./assets/wearables/scarf-front.svg")}
+.wearable-first-knot .wearable-back{background-image:url("./assets/wearables/first-knot-back.svg")}
+.wearable-first-knot .wearable-body{background-image:url("./assets/wearables/first-knot-body.svg")}
+.wearable-first-knot .wearable-front{background-image:url("./assets/wearables/first-knot-front.svg")}
+.wearable-first-knot{--gear-scale-x:.96;--gear-scale-y:.92;--gear-shift-y:-1%}
+.stage-spark .wearable-first-knot{--gear-scale-x:.91;--gear-scale-y:.88;--gear-shift-y:-1.5%}
+.stage-kid .wearable-first-knot{--gear-scale-x:.93;--gear-scale-y:.89;--gear-shift-y:-1.25%}
 .wearable-shades .wearable-back{background-image:url("./assets/wearables/shades-back.svg")}
 .wearable-shades .wearable-front{background-image:url("./assets/wearables/shades-front.svg")}
 .wearable-starclip .wearable-back{background-image:url("./assets/wearables/starclip-back.svg")}

@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v88-p3-training";
+  const RIZO_RUNTIME_BUILD = "v89-g1-dungeon";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -45,7 +45,7 @@
   // State version 20: Rizo Defense's records, settings and school moved out of
   // the hub state into the Defense save slice (see modeInbox in normalizeState).
   // State version 21: Ember Beat's song bag moved to state.trainingMemory.
-  const VERSION = 21;
+  const VERSION = 22;
   // Raw (unsigned) saves are trusted only if they predate save signing (v66,
   // state version 18). Bumping VERSION must never widen that trust.
   const RAW_SAVE_TRUST_BELOW = 19;
@@ -276,7 +276,7 @@
     beanie:"head", flower:"right", horns:"head", halo:"head", crown:"head",
     cap:"head", bow:"head", antenna:"head", leafcrown:"head", starclip:"right", bucket:"head",
     shades:"face", eyepatch:"face", goggles:"face", visor:"face", mask:"face", earmuffs:"upper",
-    headphones:"upper", bandana:"lower", chain:"lower", scarf:"lower",
+    headphones:"upper", bandana:"lower", chain:"lower", scarf:"lower", "first-knot":"lower",
     wings:"back", cape:"back", backpack:"back"
   };
 
@@ -365,7 +365,10 @@
     { id: "starclip", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-starclip.png" alt="">', name: "STAR CLIP", description: "A small reward for being objectively adorable.", cost: 410, rarity: "legendary" },
     { id: "mask", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-mask.png" alt="">', name: "NIGHT MASK", description: "Secret identity: still Rizo.", cost: 445, rarity: "legendary" },
     { id: "earmuffs", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-earmuffs.png" alt="">', name: "FROST MUFFS", description: "Warm ears. Cold stare.", cost: 520, rarity: "legendary" },
-    { id: "bucket", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-bucket.png" alt="">', name: "RAIN BUCKET HAT", description: "Built for weather and accidental fame.", cost: 575, rarity: "legendary" }
+    { id: "bucket", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-bucket.png" alt="">', name: "RAIN BUCKET HAT", description: "Built for weather and accidental fame.", cost: 575, rarity: "legendary" },
+    // Earned, never sold: absent from the shop until owned, and from every
+    // capsule/ad pool. Granted only through a mode receipt (MODE_ENTITLEMENTS).
+    { id: "first-knot", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-first-knot.svg" alt="">', name: "FIRST KNOT", description: "Latch tied it once. You kept it.", cost: 0, rarity: "epic", earned: true }
   ];
 
   const ROOMS = [
@@ -607,6 +610,10 @@
   let runtimeViewportTimer = null;
   let runtimeSuspendedAt = 0;
   let runtimeSuspendReason = "";
+  // { modeId, away, deferred:Set } while a foreground-hold mode is open.
+  let modeCareHold = null;
+  // Dormant semantic events from modes (diagnostic ring; no consumer yet).
+  const modeEventLog = [];
   let stageViewportScroll = null;
   let releaseUpdateReady = false;
   let releaseRegistration = null;
@@ -692,6 +699,7 @@
       genes: createGenes(),
       alignment: 0,
       careProfile: { kind: 0, wild: 0, balanced: 0, foods: {}, games: {} },
+      storyMarks: [],
       form: "balanced",
       formHistory: [],
       generation: 1,
@@ -810,6 +818,9 @@
       // Fields from before a game mode had its own save slice, waiting to be
       // handed to that mode once (see prepareModeSlices).
       modeInbox: {},
+      // Rewards a game mode has been granted, by mode and receipt id. A receipt
+      // is never pruned, so the same milestone can never pay twice.
+      modeReceipts: {},
       treasures: {},
       worldEvents: { lastAt: now(), count: 0, seen: [], lastBadLuckAt: 0, badLuckCount: 0 },
       garden: { toyUses: {}, favoriteToy: null, lastToyAt: 0, nextEggVariant: null, bondSeed: null, lastPairKeeper: null },
@@ -900,6 +911,7 @@
               const rawHouseSkill = housePet.skills[skill.id], parsedHouseSkill = rawHouseSkill === null || rawHouseSkill === "" ? NaN : Number(rawHouseSkill);
               housePet.skills[skill.id] = clamp(Number.isFinite(parsedHouseSkill) ? parsedHouseSkill : (skill.id === "power" ? Math.max(houseStageSeed, housePet.strength || 0) : houseStageSeed), 0, housePet.genes[skill.id]);
             }
+            housePet.storyMarks = normalizeStoryMarks(housePet.storyMarks);
             housePet.alive = housePet.alive !== false;
             housePet.sleeping = Boolean(housePet.sleeping);
             housePet.sick = Boolean(housePet.sick);
@@ -948,6 +960,7 @@
     };
 
     merged.modeInbox = collectLegacyModeFields(raw, merged);
+    merged.modeReceipts = normalizeModeReceipts(raw.modeReceipts);
     merged.version = VERSION;
     delete merged.musicHistory;
     merged.settings.sound = merged.settings.sound !== false;
@@ -1071,6 +1084,7 @@
     pet.lifeMemory.lastFoodId = FOODS.some(item => item.id === pet.lifeMemory.lastFoodId) ? pet.lifeMemory.lastFoodId : "";
     pet.lifeMemory.lastArcadeMode = /^[a-z][a-z0-9-]{1,31}$/.test(String(pet.lifeMemory.lastArcadeMode || "")) ? pet.lifeMemory.lastArcadeMode : "";
     pet.lifeMemory.lastGreetingDate = /^\d{4}-\d{2}-\d{2}$/.test(String(pet.lifeMemory.lastGreetingDate || "")) ? String(pet.lifeMemory.lastGreetingDate) : "";
+    pet.storyMarks = normalizeStoryMarks(pet.storyMarks);
     pet.form = EVOLUTION_FORMS[pet.form] ? pet.form : determineEvolutionForm(pet, merged);
     pet.formHistory = Array.isArray(pet.formHistory) ? pet.formHistory.slice(-10) : [];
     pet.generation = Math.max(1, Math.floor(Number(pet.generation) || 1));
@@ -1086,6 +1100,43 @@
     pet.sleeping = Boolean(pet.sleeping); pet.sick = Boolean(pet.sick);
     if (!merged.loreUnlocked.includes("keeper")) merged.loreUnlocked.unshift("keeper");
     return merged;
+  }
+
+  // ===== MODE RECEIPTS AND STORY MARKS (state version 22) =====
+  // A receipt records what a mode milestone granted, so a repeat is recognized
+  // and a conflicting repeat is refused. Story marks are small, positive facts
+  // a mode may leave on one pet (e.g. the Dungeon's shared hearth).
+  const MODE_RECEIPT_LIMIT = 200;
+  const STORY_MARK_LIMIT = 16;
+  const MODE_TOKEN = /^[a-z][a-z0-9-]{1,31}$/;
+  const RECEIPT_TOKEN = /^[a-z0-9][a-z0-9:._-]{0,119}$/;
+  function normalizeModeReceipts(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [modeId, receipts] of Object.entries(raw)) {
+      if (!MODE_TOKEN.test(modeId) || !receipts || typeof receipts !== "object" || Array.isArray(receipts)) continue;
+      const kept = {};
+      for (const [receiptId, receipt] of Object.entries(receipts).slice(0, MODE_RECEIPT_LIMIT)) {
+        if (!RECEIPT_TOKEN.test(receiptId) || !receipt || typeof receipt !== "object") continue;
+        const entitlements = Array.isArray(receipt.entitlements) ? [...new Set(receipt.entitlements.filter(id => typeof id === "string" && MODE_TOKEN.test(id)))].sort().slice(0, 4) : [];
+        kept[receiptId] = { petId: String(receipt.petId || "").slice(0, 80), entitlements, at: Math.max(0, Number(receipt.at) || 0) };
+      }
+      if (Object.keys(kept).length) out[modeId] = kept;
+    }
+    return out;
+  }
+  function normalizeStoryMarks(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set(), out = [];
+    for (const mark of raw) {
+      if (!mark || typeof mark !== "object" || !MODE_TOKEN.test(String(mark.id || "")) || !MODE_TOKEN.test(String(mark.mode || ""))) continue;
+      const key = `${mark.mode}:${mark.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ id: mark.id, mode: mark.mode, at: Math.max(0, Number(mark.at) || 0) });
+      if (out.length >= STORY_MARK_LIMIT) break;
+    }
+    return out;
   }
 
   // ===== TRAINING MEMORY =====
@@ -1154,6 +1205,7 @@
     // is attempted before this fallback is ever used.
     normalized.wallet={...fresh.wallet};
     normalized.scores={...fresh.scores};
+    normalized.modeReceipts={};
     normalized.modeInbox=Object.fromEntries(Object.entries(normalized.modeInbox||{}).map(([modeId,fields])=>[modeId,{scores:{},settings:fields?.settings||{},player:fields?.player||{},introSeen:Boolean(fields?.introSeen)}]));
     normalized.achievements=[];
     normalized.daily=createDaily();
@@ -1177,6 +1229,10 @@
       // A save written by a newer build is never loaded or rewritten by this one.
       if(envelopeVersion>SaveCore.LATEST_SAVE_VERSION)return{state:null,modes:{},status:"future",saveVersion:envelopeVersion};
       const valid=SaveCore.verifyEnvelope(payload);
+      // A verified save from a newer hub (same envelope, higher state version)
+      // is protected the same way: normalizing it here would drop what this
+      // build does not know (a newer wearable, a newer field) on the next write.
+      if(valid&&Math.max(Number(payload.stateVersion)||0,Number(payload.state.version)||0)>VERSION)return{state:null,modes:{},status:"future",saveVersion:envelopeVersion};
       return{state:valid?normalizeStateDetached(payload.state):hardenUnverifiedState(payload.state),modes:valid&&envelopeVersion>=2?SaveCore.normalizeModes(payload.modes):{},status:valid?"verified":"sanitized",signatureValid:valid,saveVersion:envelopeVersion,writeId:typeof payload.writeId==="string"?payload.writeId:""};
     }
     const source=payload.state&&typeof payload.state==="object"?payload.state:payload,sourceVersion=Number(source.version)||0;
@@ -1300,18 +1356,8 @@
     state.player.lastActive = now();
     const write = () => {
       saveTimer = null;
-      if (saveBlocked) return false;
-      try {
-        // Another tab wrote since this one last loaded or saved: stop, never overwrite.
-        const storedWriteId=saveTextWriteId(readSaveText(SAVE_V2_KEY));
-        if(storedWriteId!==null&&storedWriteId!==saveWriteId){blockSaving("conflict");return false;}
-        const writeId=uid("W"),serialized=JSON.stringify(buildStateEnvelope(state,now(),writeId));
-        localStorage.setItem(SAVE_V2_KEY,serialized);saveWriteId=writeId;
-        localStorage.setItem(SAVE_V2_BACKUP_KEY,serialized);
-        saveFailureNotified=false;
-        return true;
-      }
-      catch (error) { console.warn("Rizo save could not write", error); notifySaveFailure(error); return false; }
+      const result = persistStateNow();
+      return result.status === "committed" && result.backupSynced;
     };
     if (immediate) {
       clearTimeout(saveTimer);
@@ -1320,6 +1366,29 @@
       saveTimer = setTimeout(write, 250);
     }
     return true;
+  }
+
+  // The one place the whole envelope is written. "committed" means the primary
+  // copy holds this exact state; a failed mirror only clears backupSynced.
+  function stateConflictsWithStorage() {
+    const storedWriteId = saveTextWriteId(readSaveText(SAVE_V2_KEY));
+    return storedWriteId !== null && storedWriteId !== saveWriteId;
+  }
+  function persistStateNow() {
+    if (saveBlocked) return { status: "blocked", backupSynced: false };
+    // Another tab wrote since this one last loaded or saved: stop, never overwrite.
+    if (stateConflictsWithStorage()) { blockSaving("conflict"); return { status: "blocked", backupSynced: false }; }
+    let serialized, writeId;
+    try {
+      writeId = uid("W");
+      serialized = JSON.stringify(buildStateEnvelope(state, now(), writeId));
+      localStorage.setItem(SAVE_V2_KEY, serialized);
+    } catch (error) { console.warn("Rizo save could not write", error); notifySaveFailure(error); return { status: "failed", backupSynced: false }; }
+    saveWriteId = writeId;
+    try { localStorage.setItem(SAVE_V2_BACKUP_KEY, serialized); }
+    catch (error) { console.warn("Rizo backup save could not write", error); notifySaveFailure(error); return { status: "committed", backupSynced: false }; }
+    saveFailureNotified = false;
+    return { status: "committed", backupSynced: true };
   }
 
   function updateSessionAndStreak() {
@@ -1347,6 +1416,10 @@
   function processElapsedTime(boot = false) {
     const pet = state.pet;
     const current = now();
+    // A visible foreground-hold mode (the Dungeon) is time spent with the pet:
+    // it neither decays needs nor grows skills. Hidden time is settled as
+    // ordinary time away (see suspendRuntime/resumeRuntime).
+    if (modeCareHold && !modeCareHold.away) { pet.lastTick = current; return null; }
     const elapsedMs = Math.max(0, current - (pet.lastTick || current));
     const minutes = Math.min(elapsedMs / 60000, 72 * 60);
     pet.lastTick = current;
@@ -1719,7 +1792,7 @@
   function accessoryClassName(visual) {
     const rarity = accessoryRarity(visual.accessory);
     const anchor = accessoryAnchorGroup(visual.accessory);
-    const clothIds = new Set(["bandana","scarf","bow","cape","beanie","cap"]);
+    const clothIds = new Set(["bandana","scarf","bow","cape","beanie","cap","first-knot"]);
     const metalIds = new Set(["chain","crown","halo","horns","belt"]);
     const glassIds = new Set(["shades","goggles","visor"]);
     const leatherIds = new Set(["backpack","belt","eyepatch"]);
@@ -2355,7 +2428,7 @@
   function renderShopList() {
     if (!el.shopList) return;
     if (shopTab === "wear") {
-      el.shopList.innerHTML = ACCESSORIES.map(item => {
+      el.shopList.innerHTML = ACCESSORIES.filter(item => !item.earned || state.inventory.accessories.includes(item.id)).map(item => {
         const owned = state.inventory.accessories.includes(item.id);
         const equipped = state.pet.accessory === item.id;
         const shortOnEmbers = !owned && state.wallet.embers < item.cost;
@@ -3138,6 +3211,7 @@
     if (!item) return;
     const owned = state.inventory.accessories.includes(id);
     const isNewUnlock = !owned;
+    if (!owned && item.earned) { toast("THAT ONE IS EARNED, NOT SOLD"); return; }
     if (!owned) {
       if (state.wallet.embers < item.cost) { toast("YOUR WALLET SAID NO"); return; }
       state.wallet.embers -= item.cost;
@@ -4356,6 +4430,7 @@
     state.meta.recoveries = (state.meta.recoveries || 0) + 1;
     addMemory("TOO MUCH", `${pet.name} became overwhelmed and hid under the blanket. Nothing permanent was lost.`, "☁");
     saveState(true);
+    if (modeCareHold) { modeCareHold.deferred.add("recovery"); return; }
     if (!silent || document.visibilityState === "visible") showRecoveryModal();
   }
 
@@ -4388,6 +4463,7 @@
     pet.lifespanDays += 9999;
     addMemory("ELDER FLAME", `${pet.name} reached the end of one life cycle and can now create a Legacy Egg.`, "↻");
     saveState(true);
+    if (modeCareHold) { modeCareHold.deferred.add("elder"); return; }
     if (!silent || document.visibilityState === "visible") showRebirthInfo();
   }
 
@@ -4406,7 +4482,7 @@
     const inheritance = seed
       ? `<div class="bond-seed-mini"><b>♡ BOND EGG READY</b><span>${escapeHTML(pet.name)} + ${escapeHTML(seed.name)}</span><small>Both lineages will blend their genetic caps. One parent does not overwrite the other.</small></div>`
       : `<div class="sheet-note">Optional: invite another Keeper's mature Rizo and save a Friendship Spark in House. A normal Legacy Egg still works without one.</div>`;
-    showModal(`<div class="modal-card legacy-modal"><div class="modal-art">↻</div><h2>${seed ? "BOND LEGACY EGG" : "LEGACY EGG"}</h2><p class="big-line">REBIRTH IS THE LONG GAME.</p><p>${ready ? `${escapeHTML(pet.name)} becomes an ancestor. The new egg inherits higher, randomized caps${seed ? ` blended with ${escapeHTML(seed.name)}` : " from this lineage"}. Collection, rooms, cosmetics and currency remain.` : `Requirements: ${stageOk ? "✓ Mature" : "Reach Mature"} • ${bondNeed <= 0 ? "✓ 80 Bond" : `${Math.ceil(bondNeed)} more Bond`} • ${statNeed <= 0 ? "✓ 300 Training" : `${Math.ceil(statNeed)} more Training`}.`}</p><div class="gene-preview">${SKILLS.map(skill=>`<span>${skill.icon} ${skill.name}<b>${Math.floor(pet.skills?.[skill.id]||0)}/${Math.floor(pet.genes?.[skill.id]||100)}</b></span>`).join("")}</div>${inheritance}<div class="modal-buttons">${ready ? `<button class="primary" data-confirm-rebirth>${seed ? "CREATE BOND EGG" : "CREATE LEGACY EGG"}</button>` : ""}<button data-close-modal>NOT YET</button></div></div>`);
+    showModal(`<div class="modal-card legacy-modal"><div class="modal-art">↻</div><h2>${seed ? "BOND LEGACY EGG" : "LEGACY EGG"}</h2><p class="big-line">REBIRTH IS THE LONG GAME.</p><p>${ready ? `${escapeHTML(pet.name)} becomes an ancestor. The new egg inherits higher, randomized caps${seed ? ` blended with ${escapeHTML(seed.name)}` : " from this lineage"}. Collection, rooms, cosmetics and currency remain.` : `Requirements: ${stageOk ? "✓ Mature" : "Reach Mature"} • ${bondNeed <= 0 ? "✓ 80 Bond" : `${Math.ceil(bondNeed)} more Bond`} • ${statNeed <= 0 ? "✓ 300 Training" : `${Math.ceil(statNeed)} more Training`}.`}</p><div class="gene-preview">${SKILLS.map(skill=>`<span>${skill.icon} ${skill.name}<b>${Math.floor(pet.skills?.[skill.id]||0)}/${Math.floor(pet.genes?.[skill.id]||100)}</b></span>`).join("")}</div>${inheritance}${ready ? modeJourneyNote(pet.id) : ""}<div class="modal-buttons">${ready ? `<button class="primary" data-confirm-rebirth>${seed ? "CREATE BOND EGG" : "CREATE LEGACY EGG"}</button>` : ""}<button data-close-modal>NOT YET</button></div></div>`);
   }
 
   function combinedDominantSkill(parent, partner) {
@@ -5082,7 +5158,7 @@ Streak: ${state.player.streak}`;
     const pet = state.farm.roster[rosterIndex];
     if (!pet) return;
     const variant = VARIANTS.find(item => item.id === pet.variant) || VARIANTS[0];
-    showModal(`<div class="modal-card release-scene"><small>THE FRONT DOOR</small><h2>LET ${escapeHTML(pet.name)} GO?</h2><div class="capsule-stage" style="--reveal-color:${variant.color}"><div class="rarity-reveal"><img src="${variant.sprite}" alt="${escapeHTML(variant.name)}"></div></div><p class="release-line">${escapeHTML(pet.name)} stands by the door without making it dramatic.</p><p class="release-line">You make it dramatic enough for both of you.</p><p class="release-line">This isn't a delete. It's a life outside this house.</p><div class="modal-buttons"><button data-close-modal>KEEP THEM HOME</button><button class="primary" data-confirm-release="${rosterIndex}">SET THEM FREE</button></div></div>`);
+    showModal(`<div class="modal-card release-scene"><small>THE FRONT DOOR</small><h2>LET ${escapeHTML(pet.name)} GO?</h2><div class="capsule-stage" style="--reveal-color:${variant.color}"><div class="rarity-reveal"><img src="${variant.sprite}" alt="${escapeHTML(variant.name)}"></div></div><p class="release-line">${escapeHTML(pet.name)} stands by the door without making it dramatic.</p><p class="release-line">You make it dramatic enough for both of you.</p><p class="release-line">This isn't a delete. It's a life outside this house.</p>${modeJourneyNote(pet.id)}<div class="modal-buttons"><button data-close-modal>KEEP THEM HOME</button><button class="primary" data-confirm-release="${rosterIndex}">SET THEM FREE</button></div></div>`);
     sfx("talk");
   }
 
@@ -5197,7 +5273,7 @@ Streak: ${state.player.streak}`;
 
     const game = event.target.closest("[data-minigame]")?.dataset.minigame;
     if (game) { startMiniGame(game); return; }
-    const modeId = event.target.closest("[data-mode]")?.dataset.mode;
+    const modeId = event.target.closest("button[data-mode]")?.dataset.mode;
     if (modeId) { launchModeFromHub(modeId); return; }
 
     const shop = event.target.closest("[data-shop-tab]")?.dataset.shopTab;
@@ -5356,6 +5432,8 @@ Streak: ${state.player.streak}`;
     runtimeSuspendReason = reason;
     if (state?.pet) lifeMemory().lastSeenAt = now();
     globalThis.RizoModes?.suspendActive?.(reason);
+    // Settle the visible held interval, then let hidden time count as time away.
+    if (modeCareHold && !modeCareHold.away) { processElapsedTime(); modeCareHold.away = true; }
     saveState(true);
     if (trainingRun) trainingRun.lastFrame = performance.now();
     if (mini?.active) arcadeFreeze("background");
@@ -5372,6 +5450,13 @@ Streak: ${state.player.streak}`;
     scheduleRuntimeViewportSync("resume");
     if (!wasSuspended) return false;
     if(mini?.active) arcadeThaw("background");
+    // Time away is accounted before a held mode becomes active again; if it
+    // sent the pet into recovery, the mode saves and returns to the Den first.
+    if (modeCareHold?.away) {
+      processElapsedTime();
+      if (modeCareHold) modeCareHold.away = false;
+      if (state.pet.resting && globalThis.RizoModes?.active?.()) globalThis.RizoModes.quitActive("recovery");
+    }
     globalThis.RizoModes?.resumeActive?.(reason);
     processElapsedTime(); renderAll(); syncMusic(true); window.RizoBoot?.heartbeat?.(`runtime-${reason}`);
     schedulePetBehavior(4000); scheduleIdleLife(); scheduleLifeWow(9000); greetForSession();
@@ -5391,6 +5476,16 @@ Streak: ${state.player.streak}`;
     toast("RIZO.GAME UPDATE READY • UPDATE NOW WHEN READY");
   }
 
+  // A mode that reports a save outcome (the Dungeon) must confirm it before
+  // this build is replaced; older modes return nothing and keep their behavior.
+  function modeUpdateHandoff(){
+    const outcome=globalThis.RizoModes?.suspendActive?.("force-update");
+    if(outcome&&typeof outcome==="object"&&(outcome.status==="blocked"||outcome.status==="failed")){
+      recordSaveValidationWarning("update-held-by-mode",{status:outcome.status});
+      return{ok:false,status:outcome.status};
+    }
+    return{ok:true,status:outcome&&typeof outcome==="object"?String(outcome.status||""):""};
+  }
   let releaseRefreshInFlight=false;
   async function forceReleaseRefresh(){
     if(releaseRefreshInFlight)return false;releaseRefreshInFlight=true;
@@ -5401,7 +5496,12 @@ Streak: ${state.player.streak}`;
       const probe=new URL("./index.html",location.href);probe.searchParams.set("rizoNetworkProbe",String(Date.now()));
       const response=await fetch(probe.href,{cache:"no-store",headers:{"x-rizo-update-probe":"1"}});
       if(!response?.ok)throw new Error("latest build is not reachable");
-      globalThis.RizoModes?.suspendActive?.("force-update");
+      const handoff=modeUpdateHandoff();
+      if(!handoff.ok){
+        releaseRefreshInFlight=false;bar?.classList.remove("updating");if(button)button.textContent="UPDATE NOW";
+        toast(handoff.status==="blocked"?"UPDATE PAUSED • THIS TAB IS NOT SAVING":"UPDATE PAUSED • COULDN'T SAVE YOUR JOURNEY YET");
+        return false;
+      }
       saveState(true);
       try{releaseRegistration?.waiting?.postMessage?.({type:"SKIP_WAITING"});}catch(error){}
       if("serviceWorker" in navigator){const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.map(reg=>reg.unregister().catch(()=>false)));}
@@ -5591,7 +5691,23 @@ Streak: ${state.player.streak}`;
       level: pet.stage === "egg" ? 0 : levelForXP(pet.xp), xp: Number(pet.xp) || 0, bond: Number(pet.bond) || 0,
       hunger: pet.hunger, mood: pet.mood, energy: pet.energy, hygiene: pet.hygiene, health: pet.health,
       sleeping: Boolean(pet.sleeping), sick: Boolean(pet.sick), resting: Boolean(pet.resting), alive: pet.alive !== false,
-      skills: { ...(pet.skills || {}) }, genes: { ...(pet.genes || {}) }
+      skills: { ...(pet.skills || {}) }, genes: { ...(pet.genes || {}) },
+      careSummary: modeCareSummary(pet)
+    };
+  }
+  // Recognition cues only, derived from care history with stable tie-breaks.
+  // Modes never receive careProfile, lifeMemory or the histories themselves.
+  function modeCareSummary(pet) {
+    const top = (counts, known) => Object.entries(counts && typeof counts === "object" ? counts : {})
+      .filter(([id, count]) => known(id) && Number(count) > 0)
+      .sort((a, b) => (Number(b[1]) - Number(a[1])) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))[0]?.[0] || null;
+    const foodId = top(pet.careProfile?.foods, id => FOODS.some(food => food.id === id));
+    const food = foodId ? FOODS.find(item => item.id === foodId) : null;
+    const bond = Number(pet.bond) || 0;
+    return {
+      favoriteFood: food ? { id: food.id, name: food.name } : null,
+      favoriteGameId: top(pet.careProfile?.games, id => /^[a-z][a-z0-9-]{1,31}$/.test(id)),
+      bondBand: bond >= 60 ? "attached" : bond >= 25 ? "familiar" : "new"
     };
   }
   function modeRosterSnapshots() {
@@ -5636,6 +5752,110 @@ Streak: ${state.player.streak}`;
     evaluateForm(true);
     return Object.freeze(applied);
   }
+  // What a mode receipt may grant, per mode. Nothing else can be granted
+  // through host.commit(): no currency, XP or arbitrary pet patches.
+  const MODE_ENTITLEMENTS = Object.freeze({
+    dungeon: Object.freeze({
+      "first-knot": Object.freeze({ kind: "wearable", id: "first-knot" }),
+      "shared-hearth": Object.freeze({ kind: "storyMark", id: "shared-hearth" })
+    })
+  });
+  function ownedPetById(petId) {
+    if (state.pet?.id === petId && state.pet.stage !== "egg") return state.pet;
+    return (state.farm?.roster || []).find(pet => pet.id === petId && pet.stage !== "egg") || null;
+  }
+  function commitModeSlice(modeId, { schema, data, reward = null }) {
+    const outcome = (status, extra = {}) => ({ status, rewardApplied: false, duplicateReward: false, backupSynced: false, ...extra });
+    // The old scheduled save would otherwise write later on its own.
+    clearTimeout(saveTimer); saveTimer = null;
+    if (saveBlocked) return outcome("blocked", { reason: `save-${saveBlocked.reason}` });
+    if (stateConflictsWithStorage()) { blockSaving("conflict"); return outcome("blocked", { reason: "save-conflict" }); }
+    let grant = null, duplicate = false;
+    if (reward) {
+      const allowed = MODE_ENTITLEMENTS[modeId] || {};
+      if (reward.entitlements.some(id => !allowed[id])) return outcome("failed", { reason: "unknown-entitlement" });
+      const prior = state.modeReceipts?.[modeId]?.[reward.receiptId];
+      if (prior) {
+        if (prior.petId !== reward.petId || prior.entitlements.join("|") !== reward.entitlements.join("|")) return outcome("failed", { reason: "conflicting-receipt" });
+        duplicate = true;
+      } else {
+        const pet = ownedPetById(reward.petId);
+        if (!pet) return outcome("failed", { reason: "unowned-pet" });
+        if (Object.keys(state.modeReceipts?.[modeId] || {}).length >= MODE_RECEIPT_LIMIT) return outcome("failed", { reason: "receipt-limit" });
+        grant = { pet, entries: reward.entitlements.map(id => allowed[id]) };
+      }
+    }
+    // Everything this commit can touch, for an exact rollback if the primary write fails.
+    const previous = {
+      slice: Object.prototype.hasOwnProperty.call(modeSlices, modeId) ? modeSlices[modeId] : undefined,
+      accessories: [...state.inventory.accessories],
+      marks: grant ? SaveCore.plainJSON(grant.pet.storyMarks || []) : null,
+      receipts: state.modeReceipts?.[modeId] ? { ...state.modeReceipts[modeId] } : undefined,
+      lastActive: state.player.lastActive
+    };
+    modeSlices[modeId] = SaveCore.plainJSON({ schema, data });
+    if (grant) {
+      for (const entry of grant.entries) {
+        if (entry.kind === "wearable" && !state.inventory.accessories.includes(entry.id)) state.inventory.accessories.push(entry.id);
+        if (entry.kind === "storyMark") {
+          grant.pet.storyMarks = normalizeStoryMarks(grant.pet.storyMarks);
+          if (!grant.pet.storyMarks.some(mark => mark.mode === modeId && mark.id === entry.id) && grant.pet.storyMarks.length < STORY_MARK_LIMIT) grant.pet.storyMarks.push({ id: entry.id, mode: modeId, at: now() });
+        }
+      }
+      state.modeReceipts ||= {};
+      state.modeReceipts[modeId] = { ...(state.modeReceipts[modeId] || {}), [reward.receiptId]: { petId: reward.petId, entitlements: [...reward.entitlements], at: now() } };
+    }
+    state.player.lastActive = now();
+    const written = persistStateNow();
+    if (written.status !== "committed") {
+      if (previous.slice === undefined) delete modeSlices[modeId]; else modeSlices[modeId] = previous.slice;
+      state.inventory.accessories = previous.accessories;
+      if (grant) {
+        grant.pet.storyMarks = previous.marks;
+        if (previous.receipts === undefined) delete state.modeReceipts[modeId]; else state.modeReceipts[modeId] = previous.receipts;
+      }
+      state.player.lastActive = previous.lastActive;
+      return outcome(written.status, { reason: written.status === "blocked" ? "save-blocked" : "write-failed" });
+    }
+    return outcome("committed", { rewardApplied: Boolean(grant), duplicateReward: duplicate, backupSynced: written.backupSynced });
+  }
+  // Foreground care policy: settle ordinary time before a held mode opens and
+  // when it closes; presentations it would have shown wait for the Den.
+  function beginModeSession(modeId, { carePolicy } = {}) {
+    if (carePolicy !== "foreground-hold") return;
+    processElapsedTime();
+    modeCareHold = { modeId, away: Boolean(runtimeSuspendedAt), deferred: new Set() };
+  }
+  function endModeSession(modeId) {
+    if (modeCareHold?.modeId !== modeId) return;
+    processElapsedTime();
+    const deferred = modeCareHold.deferred;
+    modeCareHold = null;
+    pendingCarePresentations = deferred;
+  }
+  let pendingCarePresentations = null;
+  function flushCarePresentations() {
+    const deferred = pendingCarePresentations;
+    pendingCarePresentations = null;
+    if (!deferred?.size || document.hidden) return;
+    if (state.pet.resting) showRecoveryModal();
+    else if (deferred.has("elder")) showRebirthInfo();
+  }
+  function recordModeEvent(modeId, event) {
+    modeEventLog.push({ mode: modeId, ...event, at: now() });
+    while (modeEventLog.length > 24) modeEventLog.shift();
+  }
+  // A journey a mode is holding for one pet, from its public summary only.
+  function modeJourneyNote(petId) {
+    const Modes = globalThis.RizoModes;
+    const notes = [];
+    for (const def of Modes?.list?.() || []) {
+      const journey = Modes.summary(def.id)?.journey;
+      if (journey && journey.petId === petId && !journey.complete) notes.push(`${def.name}: ${journey.petName || "this Rizo"}'s journey is saved and waits for this Rizo. It will not move to another pet.`);
+    }
+    return notes.length ? `<p class="mode-journey-note">${notes.map(escapeHTML).join("<br>")}</p>` : "";
+  }
+
   function modeRunStore(modeId) {
     const key = `${MODE_RUN_PREFIX}${modeId}`;
     return Object.freeze({
@@ -5662,7 +5882,9 @@ Streak: ${state.player.streak}`;
     modeExitFocus = document.activeElement;
     el.miniArena.innerHTML = "";
     el.miniGameOverlay.className = STAGE_ROOT_CLASS;
-    el.miniGameOverlay.dataset.mode = modeId;
+    // Not data-mode: that attribute marks the shelf's launch buttons, and the
+    // shelf refresh (every 5 s on the Arcade view) rewrites their text.
+    el.miniGameOverlay.dataset.activeMode = modeId;
     if (el.miniPausePanel) { el.miniPausePanel.hidden = true; el.miniPausePanel.innerHTML = ""; }
     setStageHeader(options);
     el.miniGameOverlay.hidden = false;
@@ -5678,8 +5900,8 @@ Streak: ${state.player.streak}`;
     });
   }
   function closeModeStage(modeId) {
-    if (el.miniGameOverlay.dataset.mode !== modeId) return false;
-    delete el.miniGameOverlay.dataset.mode;
+    if (el.miniGameOverlay.dataset.activeMode !== modeId) return false;
+    delete el.miniGameOverlay.dataset.activeMode;
     el.miniGameOverlay.hidden = true;
     el.miniGameOverlay.className = STAGE_ROOT_CLASS;
     el.miniArena.className = "mini-arena";
@@ -5733,7 +5955,16 @@ Streak: ${state.player.streak}`;
       mount: mountMode,
       unmount: unmountMode,
       save: () => saveState(),
-      onExit: () => { activeMusicOverride = null; syncMusic(true); renderAll(); }
+      commitSlice: commitModeSlice,
+      modeEvent: recordModeEvent,
+      sessionStart: beginModeSession,
+      sessionEnd: endModeSession,
+      onExit: (modeId, summary, { destination } = {}) => {
+        activeMusicOverride = null; syncMusic(true);
+        if (destination === "home") changeView("home"); else renderAll();
+        recordModeEvent(modeId, { kind: "returnedToHub", boundaryId: "hub", campaignId: "", tone: "protected", interruption: "none" });
+        flushCarePresentations();
+      }
     });
     prepareModeSlices();
     return true;
@@ -5782,6 +6013,7 @@ Streak: ${state.player.streak}`;
     const Modes = globalThis.RizoModes, def = Modes?.get?.(modeId);
     if (!def) { toast("THAT GAME IS NOT AVAILABLE ON THIS BUILD"); return false; }
     if (!canCare()) return false;
+    if (def.carePolicy === "foreground-hold") processElapsedTime();
     const blocked = modeEntryBlocker(def);
     if (blocked) { toast(`${blocked} • ${def.name}`); sfx("no"); return false; }
     try { return Modes.launch(modeId, {}); }
@@ -5791,7 +6023,7 @@ Streak: ${state.player.streak}`;
   function renderModeShelf() {
     const Modes = globalThis.RizoModes;
     if (!Modes) return;
-    for (const button of $$("[data-mode]")) {
+    for (const button of $$("button[data-mode]")) {
       const def = Modes.get(button.dataset.mode);
       if (!def) { button.classList.add("game-blocked"); button.textContent = "UNAVAILABLE"; continue; }
       const blocked = modeEntryBlocker(def);
@@ -5802,7 +6034,7 @@ Streak: ${state.player.streak}`;
       const def = Modes.get(cell.dataset.modeBest), summary = Modes.summary(cell.dataset.modeBest);
       const value = cell.querySelector("b"), label = cell.querySelector("span");
       if (value) value.textContent = summary?.bestLabel || "—";
-      if (label && def) label.textContent = summary?.unit === "wave" ? `${def.name} • WAVE` : def.name;
+      if (label && def) label.textContent = summary?.unit === "wave" ? `${def.name} • WAVE` : summary?.unit === "journey" ? `${def.name} • JOURNEY` : def.name;
       cell.classList.toggle("score-cell-wave", summary?.unit === "wave");
     }
     // A mode's summary may carry a small badge ({ text, title }) for its card.
@@ -5819,7 +6051,10 @@ Streak: ${state.player.streak}`;
       const def = Modes.get(meta.dataset.modeMeta), summary = Modes.summary(meta.dataset.modeMeta);
       if (!def) continue;
       const affordable = (state.pet?.energy ?? 0) >= (def.entry?.energy || 0);
-      meta.innerHTML = `<span class="meta-best"><small>${summary?.unit === "wave" ? "BEST WAVE" : "BEST"}</small><b>${escapeHTML(summary?.bestLabel || "—")}</b></span><span class="meta-energy${affordable ? "" : " short"}"><small>ENERGY</small><b>${def.entry?.energy || 0}</b></span><span class="meta-length"><small>RUN</small><b>ENDLESS</b></span>`;
+      const bestTitle = summary?.unit === "wave" ? "BEST WAVE" : summary?.unit === "journey" ? "JOURNEY" : "BEST";
+      const entryCell = summary?.entryLabel ? `<span class="meta-energy"><small>ENTRY</small><b>${escapeHTML(summary.entryLabel)}</b></span>` : `<span class="meta-energy${affordable ? "" : " short"}"><small>ENERGY</small><b>${def.entry?.energy || 0}</b></span>`;
+      const lengthCell = `<span class="meta-length"><small>${summary?.lengthLabel ? "LENGTH" : "RUN"}</small><b>${escapeHTML(summary?.lengthLabel || "ENDLESS")}</b></span>`;
+      meta.innerHTML = `<span class="meta-best"><small>${bestTitle}</small><b>${escapeHTML(summary?.bestLabel || "—")}</b></span>${entryCell}${lengthCell}`;
     }
   }
   // Journal → Settings rows declared by each mode (def.settings), stored in its slice.
@@ -6005,6 +6240,16 @@ Streak: ${state.player.streak}`;
     suspendRuntimeForQA: reason => ({changed:suspendRuntime(reason||"qa-suspend"),suspendedAt:runtimeSuspendedAt,reason:runtimeSuspendReason}),
     resumeRuntimeForQA: reason => ({changed:resumeRuntime(reason||"qa-resume"),suspendedAt:runtimeSuspendedAt,reason:runtimeSuspendReason}),
     releaseStatusForQA: () => releaseStatus(),
+    modeUpdateHandoffForQA: () => modeUpdateHandoff(),
+    modeEventsForQA: () => SaveCore.plainJSON(modeEventLog),
+    modeReceiptsForQA: () => SaveCore.plainJSON(state.modeReceipts || {}),
+    careHoldForQA: () => (modeCareHold ? { modeId: modeCareHold.modeId, away: modeCareHold.away, deferred: [...modeCareHold.deferred] } : null),
+    agePetClockForQA: ms => { state.pet.lastTick = Math.max(1, (Number(state.pet.lastTick) || now()) - Math.max(0, Number(ms) || 0)); return state.pet.lastTick; },
+    processElapsedForQA: () => { processElapsedTime(); return { hunger: state.pet.hunger, mood: state.pet.mood, energy: state.pet.energy, xp: state.pet.xp, bond: state.pet.bond, lastTick: state.pet.lastTick }; },
+    persistNowForQA: () => persistStateNow(),
+    currentViewForQA: () => currentView,
+    releaseFarmPetForQA: index => { releaseFarmPet(Number(index) || 0); return el.modalOverlay.querySelector(".modal-card")?.textContent || ""; },
+    rebirthInfoForQA: () => { showRebirthInfo(); return el.modalOverlay.querySelector(".modal-card")?.textContent || ""; },
     activateReleaseUpdateForQA: () => activateReleaseUpdate(),
     injectReleaseUpdateForQA: () => {const messages=[];const waiting={postMessage:message=>messages.push(JSON.parse(JSON.stringify(message)))};const registration={waiting};announceReleaseUpdate(registration);return{messages,activate:()=>activateReleaseUpdate(),status:()=>releaseStatus()};},
     keeperCodeForQA: () => keeperRecoveryCode(),

@@ -1,0 +1,145 @@
+/* RIZO DUNGEON — the Rizo Field Unit / BELOW handheld.
+   Every rule is scoped to .dungeon-active (the shared stage while the Dungeon
+   owns it) or to the device's own classes. Nothing here restyles the hub. */
+
+.minigame-overlay.dungeon-active{padding:0!important;overflow:hidden;background:#060607;overscroll-behavior:none}
+.minigame-overlay.dungeon-active .minigame-shell{width:100%;height:100%;max-width:none;margin:0;padding:0;display:block;overflow:hidden;background:none;border:0;box-shadow:none}
+/* The inherited arcade header stays for assistive tech only; timer/actions go. */
+.minigame-overlay.dungeon-active .minigame-shell>header{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.minigame-overlay.dungeon-active .minigame-shell>p,
+.minigame-overlay.dungeon-active .mini-actions,
+.minigame-overlay.dungeon-active #miniPausePanel{display:none!important}
+.minigame-overlay.dungeon-active .mini-stage{height:100%;min-height:0;margin:0}
+.minigame-overlay.dungeon-active .mini-arena{width:100%;height:100%;min-height:0;padding:0;border:0;border-radius:0;overflow:hidden;background:none;box-shadow:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+.dungeon-device{--deck-h:clamp(168px,25vh,212px);--shell:#121214;--shell-hi:#232326;--mark:#e9dfc7;--warm:#ff9a3c;
+  position:absolute;inset:0;display:grid;place-items:center;box-sizing:border-box;
+  padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+  color:var(--mark);font-family:Inter,ui-rounded,system-ui,-apple-system,"Segoe UI",sans-serif;touch-action:none}
+.dungeon-shell{position:relative;box-sizing:border-box;width:min(100%,560px);height:100%;max-height:980px;display:grid;
+  grid-template-rows:minmax(0,1fr) var(--deck-h);gap:8px;padding:12px 12px 10px;border-radius:30px 30px 44px 30px;
+  background:linear-gradient(165deg,var(--shell-hi),var(--shell) 38%,#0b0b0c);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.07),inset 0 -6px 0 rgba(0,0,0,.45),0 18px 50px rgba(0,0,0,.6)}
+/* One worn edge and a strip of repair tape: functional asymmetry, not decoration. */
+.dungeon-shell::before{content:"";position:absolute;right:-1px;top:22%;width:5px;height:18%;border-radius:0 6px 6px 0;background:linear-gradient(#3a3631,#5a5248 40%,#2c2925);opacity:.85}
+.dungeon-shell::after{content:"";position:absolute;left:18px;bottom:16px;width:46px;height:10px;transform:rotate(-8deg);background:repeating-linear-gradient(90deg,rgba(233,223,199,.55) 0 3px,rgba(233,223,199,.38) 3px 6px);border-radius:2px;opacity:.55;pointer-events:none}
+.dungeon-bezel{min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:6px;padding:10px 10px 6px;border-radius:16px 16px 22px 16px;background:#050506;box-shadow:inset 0 0 0 2px #1d1d20}
+.dungeon-slot{min-height:0;min-width:0;display:grid;place-items:center}
+.dungeon-screen{position:relative;overflow:hidden;border-radius:6px;background:#000;box-shadow:0 0 0 2px #000,0 0 0 3px #2a2a2e;isolation:isolate}
+.dungeon-canvas{position:absolute;left:0;top:0;display:block;image-rendering:auto}
+.dungeon-brand{display:flex;align-items:center;gap:7px;padding:0 4px;font:900 10px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.2em;color:rgba(233,223,199,.72)}
+.dungeon-brand em{font-style:normal;color:rgba(233,223,199,.42)}
+.dungeon-led{width:7px;height:7px;border-radius:50%;background:var(--warm);box-shadow:0 0 8px rgba(255,154,60,.7)}
+.dungeon-device.panel-open .dungeon-led{background:#6b4a2b;box-shadow:none}
+
+/* ---- actor plane: the hub's canonical Rizo, moved by a pose wrapper */
+.dungeon-actors{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.dungeon-actor{position:absolute;left:0;top:0;will-change:transform}
+.dungeon-pose{position:absolute;inset:0;transform-origin:50% 84%;--face:1;--lean:0deg;--sx:1;--sy:1;
+  transform:scaleX(var(--face)) rotate(var(--lean)) scale(var(--sx),var(--sy));transition:transform 90ms ease-out}
+.dungeon-pose .mini-pet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;left:0!important;top:0!important;transform:none!important}
+.dungeon-pose.facing-left{--face:-1}
+.dungeon-pose.is-moving{animation:dungeonStep .34s ease-in-out infinite}
+.dungeon-pose.is-flare{--lean:7deg;--sx:1.06;--sy:.96}
+.dungeon-pose.is-tuck{--sx:1.18;--sy:.7;transition:none}
+.dungeon-pose.is-kindle{--sy:.9;--sx:1.04}
+.dungeon-pose.is-hurt{animation:dungeonHurt .12s steps(2,end) infinite}
+.dungeon-pose.is-down{opacity:.45;--sy:.82;transition:opacity .5s,transform .5s}
+.dungeon-pose.is-held,.dungeon-pose.is-held *{animation-play-state:paused!important}
+@keyframes dungeonStep{50%{translate:0 -2px}}
+@keyframes dungeonHurt{50%{opacity:.35}}
+
+/* ---- text on the screen: unscaled DOM, 14px and up */
+.dungeon-hud{position:absolute;left:8px;right:8px;top:7px;z-index:4;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.dungeon-flame{display:flex;gap:4px}
+.dungeon-flame i{width:12px;height:16px;clip-path:polygon(50% 0,80% 38%,100% 70%,82% 100%,18% 100%,0 70%,20% 38%);background:var(--warm)}
+.dungeon-flame i.spent{background:transparent;box-shadow:inset 0 0 0 2px rgba(233,223,199,.55);clip-path:polygon(50% 0,80% 38%,100% 70%,82% 100%,18% 100%,0 70%,20% 38%)}
+.dungeon-room-name{font:900 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.16em;color:rgba(233,223,199,.75)}
+.dungeon-prompt{position:absolute;left:0;top:0;z-index:5;padding:4px 8px;border-radius:3px;background:var(--mark);color:#0c0e12;font:900 14px/1.1 Inter,system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap;pointer-events:none;box-shadow:2px 2px 0 #000}
+.dungeon-cue{position:absolute;left:8px;bottom:8px;z-index:4;display:flex;gap:10px;flex-wrap:wrap;pointer-events:none;font:800 14px/1 Inter,system-ui,sans-serif;color:var(--mark)}
+.dungeon-cue span{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:4px;background:rgba(5,5,6,.78)}
+.dungeon-cue span.done{opacity:.4;text-decoration:line-through}
+.dungeon-cue kbd{font:800 12px/1 "JetBrains Mono",monospace;padding:2px 4px;border:1px solid rgba(233,223,199,.6);border-radius:3px}
+.dungeon-cue i{width:12px;height:12px;display:inline-block;background:var(--mark)}
+.dungeon-cue .cue-primary{background:var(--warm);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.dungeon-cue .cue-secondary{background:transparent;box-shadow:inset 0 0 0 2px var(--mark);border-radius:50%}
+.dungeon-cue .cue-dpad{clip-path:polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)}
+.dungeon-banner{position:absolute;left:50%;top:30px;z-index:5;transform:translateX(-50%);padding:6px 10px;background:rgba(5,5,6,.82);border:1px solid rgba(233,223,199,.4);font:900 14px/1.15 Inter,system-ui,sans-serif;letter-spacing:.08em;text-align:center;white-space:normal;width:max-content;max-width:calc(100% - 24px);box-sizing:border-box;pointer-events:none}
+.dungeon-banner[hidden],.dungeon-prompt[hidden],.dungeon-cue[hidden],.dungeon-dialogue[hidden],.dungeon-panel[hidden]{display:none!important}
+.dungeon-dialogue{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;min-height:64px;box-sizing:border-box;padding:12px 30px 12px 14px;background:#0c0b0a;border:2px solid var(--mark);border-radius:4px;box-shadow:3px 3px 0 #000}
+.dungeon-line{margin:0;font:600 16px/1.4 Inter,system-ui,sans-serif;color:#f4ecd8}
+.dungeon-more{position:absolute;right:10px;bottom:8px;font-size:14px;color:var(--warm);animation:dungeonMore .8s ease-in-out infinite alternate}
+@keyframes dungeonMore{to{transform:translateY(2px)}}
+.dungeon-fade{position:absolute;inset:0;z-index:3;background:#000;opacity:0;pointer-events:none}
+.dungeon-panel{position:absolute;inset:0;z-index:8;display:grid;place-items:center;padding:12px;background:rgba(5,5,6,.84)}
+.dungeon-card{width:min(100%,320px);box-sizing:border-box;display:grid;gap:10px;padding:16px 14px;text-align:center;background:#0f0e0c;border:2px solid var(--mark);box-shadow:4px 4px 0 #000}
+.dungeon-card small{font:900 11px/1 "JetBrains Mono",monospace;letter-spacing:.18em;color:var(--warm)}
+.dungeon-card h3{margin:0;font:900 22px/1.05 Anton,Impact,"Arial Black",sans-serif;letter-spacing:.03em;color:#f4ecd8}
+.dungeon-card p{margin:0;font:500 14px/1.45 Inter,system-ui,sans-serif;color:#d9d0bb}
+.dungeon-card .dungeon-fine{font-size:12px;color:#9a917e}
+.dungeon-card-actions{display:grid;gap:8px}
+.dungeon-card-actions button{min-height:46px;border:2px solid #000;border-radius:0;background:#2a2723;color:#f4ecd8;font:900 15px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;box-shadow:2px 2px 0 #000;cursor:pointer}
+.dungeon-card-actions button.primary{background:var(--mark);color:#0c0e12}
+.dungeon-card-actions button:disabled{opacity:.45;cursor:default}
+
+/* ---- the control deck: every key is drawn from the one action state */
+.dungeon-deck{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:4px 10px 6px;min-height:0}
+.dungeon-dpad{--size:clamp(120px,34vw,140px);position:relative;width:var(--size);height:var(--size);touch-action:none;cursor:pointer}
+.dungeon-dpad .arm,.dungeon-dpad .hub{position:absolute;background:#2a2a2e;box-shadow:inset 0 2px 0 rgba(255,255,255,.08),0 4px 0 #000}
+.dungeon-dpad .arm-up,.dungeon-dpad .arm-down{left:34%;width:32%;height:36%}
+.dungeon-dpad .arm-left,.dungeon-dpad .arm-right{top:34%;height:32%;width:36%}
+.dungeon-dpad .arm-up{top:0;border-radius:6px 6px 0 0}.dungeon-dpad .arm-down{bottom:0;border-radius:0 0 6px 6px}
+.dungeon-dpad .arm-left{left:0;border-radius:6px 0 0 6px}.dungeon-dpad .arm-right{right:0;border-radius:0 6px 6px 0}
+.dungeon-dpad .hub{left:33%;top:33%;width:34%;height:34%;box-shadow:none;background:#2a2a2e}
+.dungeon-dpad .hub::after{content:"";position:absolute;inset:32%;border-radius:50%;background:#1a1a1d}
+.dungeon-dpad .arm::after{content:"";position:absolute;left:50%;top:50%;width:0;height:0;border:6px solid transparent;transform:translate(-50%,-50%);opacity:.55}
+.dungeon-dpad .arm-up::after{border-bottom-color:var(--mark);margin-top:-3px}.dungeon-dpad .arm-down::after{border-top-color:var(--mark);margin-top:3px}
+.dungeon-dpad .arm-left::after{border-right-color:var(--mark);margin-left:-3px}.dungeon-dpad .arm-right::after{border-left-color:var(--mark);margin-left:3px}
+.dungeon-dpad[data-dir*="up"] .arm-up,.dungeon-dpad[data-dir*="down"] .arm-down,.dungeon-dpad[data-dir*="left"] .arm-left,.dungeon-dpad[data-dir*="right"] .arm-right{background:#1c1c1f;box-shadow:inset 0 2px 4px rgba(0,0,0,.6);transform:translateY(3px)}
+.dungeon-actions{justify-self:end;position:relative;width:150px;height:128px}
+.dungeon-key{position:absolute;display:grid;place-items:center;align-content:center;gap:2px;padding:0;border:0;border-radius:50%;color:var(--mark);cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(circle at 40% 30%,#3a3a40,#222226 70%);box-shadow:inset 0 2px 0 rgba(255,255,255,.12),0 5px 0 #000,0 7px 10px rgba(0,0,0,.45);transition:transform 50ms,box-shadow 50ms}
+.dungeon-key b{font:900 10px/1 Inter,system-ui,sans-serif;letter-spacing:.12em}
+.dungeon-key small{font:800 9px/1 "JetBrains Mono",monospace;opacity:.6}
+.dungeon-key-primary{right:0;top:6px;width:64px;height:64px;background:radial-gradient(circle at 40% 30%,#ffb066,var(--warm) 55%,#b8581c);color:#1a0d04}
+.dungeon-key-primary i{width:16px;height:20px;background:#1a0d04;clip-path:polygon(50% 0,80% 38%,100% 70%,82% 100%,18% 100%,0 70%,20% 38%);opacity:.8}
+.dungeon-key-secondary{left:6px;bottom:4px;width:54px;height:54px}
+.dungeon-key-secondary i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--mark)}
+.dungeon-key.is-down,.dungeon-key:active{transform:translateY(4px);box-shadow:inset 0 2px 6px rgba(0,0,0,.55),0 1px 0 #000}
+.dungeon-key-system{position:absolute;left:50%;top:2px;transform:translateX(-50%);width:58px;height:44px;border-radius:14px;background:#1d1d20}
+.dungeon-key-system i{width:16px;height:10px;background:linear-gradient(var(--mark) 0 2px,transparent 2px 4px,var(--mark) 4px 6px,transparent 6px 8px,var(--mark) 8px 10px);opacity:.75}
+.dungeon-key-system.is-down,.dungeon-key-system:active{transform:translateX(-50%) translateY(3px)}
+.dungeon-key:focus-visible{outline:3px solid var(--warm);outline-offset:3px}
+
+/* ---- enter / exit: the field rails click into a device (450–650 ms) */
+.dungeon-device[data-phase="enter"] .dungeon-shell{animation:dungeonEnter 560ms cubic-bezier(.2,.9,.25,1) both}
+.dungeon-device[data-phase="exit"] .dungeon-shell{animation:dungeonExit 520ms cubic-bezier(.55,0,.8,.2) both}
+.dungeon-device[data-phase="fade-in"]{animation:dungeonFadeIn 160ms ease-out both}
+.dungeon-device[data-phase="fade-out"]{animation:dungeonFadeIn 160ms ease-in reverse both}
+@keyframes dungeonEnter{0%{transform:translateY(36%) scale(.9) rotate(-2deg);opacity:0}60%{transform:translateY(-2%) scale(1.01) rotate(.4deg);opacity:1}100%{transform:none;opacity:1}}
+@keyframes dungeonExit{0%{transform:none;opacity:1}100%{transform:translateY(40%) scale(.9) rotate(2deg);opacity:0}}
+@keyframes dungeonFadeIn{from{opacity:0}to{opacity:1}}
+.minigame-overlay.dungeon-reduced-motion .dungeon-pose,.minigame-overlay.dungeon-reduced-motion .dungeon-pose *{animation:none!important;transition:none!important}
+
+/* ---- landscape phones: control wings beside a larger screen */
+@media (orientation:landscape) and (max-height:560px){
+  .dungeon-device{--deck-h:0px}
+  .dungeon-shell{width:100%;max-width:none;grid-template-columns:150px minmax(0,1fr) 160px;grid-template-rows:minmax(0,1fr);gap:8px;padding:8px 10px;border-radius:30px}
+  .dungeon-deck{display:contents}
+  .dungeon-dpad{grid-column:1;grid-row:1;align-self:center;justify-self:center;--size:clamp(120px,30vh,140px)}
+  .dungeon-bezel{grid-column:2;grid-row:1}
+  .dungeon-actions{grid-column:3;grid-row:1;align-self:end;margin-bottom:14px;justify-self:center}
+  .dungeon-key-system{position:relative;left:auto;top:auto;transform:none;grid-column:3;grid-row:1;align-self:start;justify-self:center;margin-top:10px}
+  .dungeon-key-system.is-down,.dungeon-key-system:active{transform:translateY(3px)}
+}
+/* ---- desktop: a substantially larger screen in the same device */
+@media (min-width:900px) and (min-height:620px){
+  .dungeon-device{--deck-h:190px}
+  .dungeon-shell{width:min(92vw,840px)}
+}
+@media (max-width:340px){
+  .dungeon-device{--deck-h:164px;padding:4px}
+  .dungeon-shell{padding:8px 8px 6px;gap:6px}
+  .dungeon-bezel{padding:6px 6px 4px}
+  .dungeon-actions{width:136px}
+}

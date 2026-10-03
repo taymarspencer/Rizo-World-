@@ -163,8 +163,9 @@ with sync_playwright() as p:
     record("the arcade shelf shows the migrated best wave and milestone", shelf["best"] == "W23" and shelf["badge"] == "W10", str(shelf)[:200])
     record("Defense migration boot has no page errors", not errors, "; ".join(errors[:2]))
     # Phase 3 (state version 21): Ember Beat's song bag moves to the game's own memory.
-    record("Ember Beat's song bag moves into training memory (state v21)",
-           r["stateVersion"] == 21 and r["musicHistory"] is None and r["trainingMemory"] == {"rhythm": {"emberBag": ["frostline", "iron-heart", "puddle-bounce"], "emberLast": "moss-after-dark"}},
+    # The save then continues through later versions (22: mode receipts/story marks).
+    record("Ember Beat's song bag moves into training memory (state v21, saved at the current v22)",
+           r["stateVersion"] == 22 and r["musicHistory"] is None and r["trainingMemory"] == {"rhythm": {"emberBag": ["frostline", "iron-heart", "puddle-bounce"], "emberLast": "moss-after-dark"}},
            str({k: r[k] for k in ("stateVersion", "musicHistory", "trainingMemory")}))
     # Second boot: the slice is the source of truth; nothing migrates twice.
     page.reload(); page.wait_for_timeout(1300); r2 = page.evaluate(READ)

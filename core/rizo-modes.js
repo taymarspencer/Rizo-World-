@@ -11,6 +11,14 @@
     RizoModes.launch(id, options)      the hub opens a mode
     definition.create(host)            → instance { start, stop, suspend?, resume?, key?, resize?, quit? }
     host.exit(summary)                 the mode returns the player to the hub
+                                       (summary.destination "home" also opens the Den)
+    host.commit({ data, reward? })     confirmed save of the slice, with an optional
+                                       allowlisted reward under a receipt (see below)
+    host.event(kind, detail)           a semantic boundary (checkpointRest, …); dormant
+
+  A definition may declare carePolicy "foreground-hold": while the mode is
+  visible the hub pauses ordinary needs decay and passive growth for the pet
+  (time spent hidden still counts as normal time away).
 
   The pure parts (definition checks, slice migration, award validation) run in
   Node tests. The hub supplies an adapter (attachHub) that performs the actual
@@ -27,6 +35,17 @@
   const MODE_ID = /^[a-z][a-z0-9-]{1,31}$/;
   const SKILLS = Object.freeze(["speed", "power", "instinct", "stamina", "luck"]);
   const MAX_SLICE_BYTES = 400_000;
+  const CARE_POLICIES = Object.freeze(["normal", "foreground-hold"]);
+  const DESTINATIONS = Object.freeze(["home"]);
+  // Semantic boundaries a mode may report. The hub owns "returnedToHub".
+  const EVENT_KINDS = Object.freeze(["checkpointRest", "chapterComplete", "sceneCommitted", "encounterResolved", "sessionEnded"]);
+  const EVENT_TONES = Object.freeze(["quiet", "protected"]);
+  const EVENT_INTERRUPTIONS = Object.freeze(["none", "candidate"]);
+  const COMMIT_STATUSES = Object.freeze(["committed", "blocked", "failed"]);
+  const RECEIPT_ID = /^[a-z0-9][a-z0-9:._-]{0,119}$/;
+  const ENTITLEMENT_ID = /^[a-z][a-z0-9-]{1,31}$/;
+  const BOUNDARY_ID = /^[a-z0-9][a-z0-9:._-]{0,79}$/;
+  const MAX_REWARD_ENTITLEMENTS = 4;
   // The most a single award() call can grant. Modes award once per run, so
   // these are generous ceilings that only stop runaway or corrupted values.
   const AWARD_LIMITS = Object.freeze({
@@ -72,9 +91,11 @@
       return Object.freeze({ key, kind, title: String(setting.title || key), copy: String(setting.copy || ""), choices: Object.freeze(choices), default: kind === "toggle" ? Boolean(setting.default) : String(setting.default) });
     });
     const entry = def.entry && typeof def.entry === "object" ? def.entry : {};
+    const carePolicy = def.carePolicy === undefined ? "normal" : String(def.carePolicy);
+    if (!CARE_POLICIES.includes(carePolicy)) fail(`carePolicy must be one of ${CARE_POLICIES.join(", ")}`);
     return Object.freeze({
       ...def, id, schema, contract: CONTRACT_VERSION, name: String(def.name || id.toUpperCase()),
-      settings: Object.freeze(settings),
+      settings: Object.freeze(settings), carePolicy,
       // What the hub checks before opening the mode from the shelf.
       entry: Object.freeze({ energy: Math.max(0, Math.floor(Number(entry.energy) || 0)) })
     });
@@ -154,6 +175,51 @@
     });
   }
 
+  // A reward asks the hub for allowlisted entitlements under a receipt that can
+  // only ever pay once. Shape is checked here; the hub decides what is known
+  // and owned. Entitlements are sorted so a repeat compares equal.
+  function normalizeReward(raw) {
+    if (raw === undefined || raw === null) return null;
+    if (!isPlainObject(raw)) throw new TypeError("reward must be an object");
+    const receiptId = typeof raw.receiptId === "string" ? raw.receiptId : "";
+    if (!RECEIPT_ID.test(receiptId)) throw new TypeError("reward.receiptId must be a short lowercase id");
+    const petId = typeof raw.petId === "string" ? raw.petId : "";
+    if (!petId || petId.length > 80) throw new TypeError("reward.petId must name one pet");
+    if (!Array.isArray(raw.entitlements) || !raw.entitlements.length || raw.entitlements.length > MAX_REWARD_ENTITLEMENTS) throw new TypeError(`reward.entitlements must list 1-${MAX_REWARD_ENTITLEMENTS} ids`);
+    const entitlements = [...new Set(raw.entitlements.map(value => (typeof value === "string" ? value : "")))].sort();
+    if (entitlements.some(value => !ENTITLEMENT_ID.test(value))) throw new TypeError("reward.entitlements must be short lowercase ids");
+    return deepFreeze({ receiptId, petId, entitlements });
+  }
+
+  // What host.commit() reports. Anything the hub did not clearly confirm is a failure.
+  function commitOutcome(raw) {
+    const outcome = isPlainObject(raw) ? raw : {};
+    const status = COMMIT_STATUSES.includes(outcome.status) ? outcome.status : "failed";
+    const committed = status === "committed";
+    return deepFreeze({
+      status,
+      rewardApplied: committed && outcome.rewardApplied === true,
+      duplicateReward: committed && outcome.duplicateReward === true,
+      backupSynced: committed && outcome.backupSynced === true,
+      reason: String(outcome.reason || (committed ? "" : status)).slice(0, 40)
+    });
+  }
+
+  function normalizeEvent(kind, raw) {
+    const name = String(kind || "");
+    if (!EVENT_KINDS.includes(name)) throw new TypeError(`unknown mode event "${name}"`);
+    const detail = isPlainObject(raw) ? raw : {};
+    const boundaryId = String(detail.boundaryId || "");
+    const campaignId = String(detail.campaignId || "");
+    if (!BOUNDARY_ID.test(boundaryId)) throw new TypeError("event boundaryId must be a short lowercase id");
+    if (campaignId && !BOUNDARY_ID.test(campaignId)) throw new TypeError("event campaignId must be a short lowercase id");
+    return deepFreeze({
+      kind: name, boundaryId, campaignId,
+      tone: EVENT_TONES.includes(detail.tone) ? detail.tone : "protected",
+      interruption: EVENT_INTERRUPTIONS.includes(detail.interruption) ? detail.interruption : "none"
+    });
+  }
+
   // ===== REGISTRY AND HOST (browser) =====
   const registry = new Map();
   let hub = null;
@@ -171,7 +237,10 @@
   //   petSnapshot() / rosterSnapshots() / petMarkup(snapshot, opts)
   //   applyAward(id, award) → applied   settings() / audio / ui
   //   runStore(id) → {read, write, clear}   mount(id, options) → stage   unmount(id)
-  //   keeperId()   report(id, kind, details)   save()   onExit(id, summary)
+  //   keeperId()   report(id, kind, details)   save()   onExit(id, summary, { destination })
+  // Optional (newer hubs; a mode that needs one fails clearly without it):
+  //   commitSlice(id, { schema, data, reward }) → { status, rewardApplied, duplicateReward, backupSynced }
+  //   modeEvent(id, event)   sessionStart(id, { carePolicy })   sessionEnd(id, { carePolicy })
   function attachHub(adapter) {
     const required = ["readSlice", "writeSlice", "legacyView", "petSnapshot", "rosterSnapshots", "petMarkup", "applyAward", "settings", "runStore", "mount", "unmount", "keeperId", "report", "save", "onExit"];
     for (const name of required) if (typeof adapter?.[name] !== "function") throw new TypeError(`hub adapter is missing ${name}()`);
@@ -192,6 +261,8 @@
   function createHost(def, instanceRef) {
     const id = def.id;
     let exited = false;
+    // Late callbacks (after exit, or from a superseded instance) are refused.
+    const current = () => !exited && active?.host === host;
     const host = {
       id,
       contract: CONTRACT_VERSION,
@@ -216,16 +287,36 @@
       },
       run: hub.runStore(id),
       award: raw => hub.applyAward(id, normalizeAward(raw)),
+      // A confirmed, synchronous save of the slice (and an optional reward) in
+      // one hub envelope. Never infer durability from slice.write().
+      commit: (request = {}) => {
+        if (!isPlainObject(request)) throw new TypeError(`game mode "${id}": commit() takes { data, reward? }`);
+        const data = checkSliceData(id, request.data);
+        const reward = normalizeReward(request.reward);
+        if (!current()) return commitOutcome({ status: "failed", reason: "inactive" });
+        if (typeof hub.commitSlice !== "function") throw new Error(`game mode "${id}": this hub cannot confirm saves (commitSlice missing)`);
+        return commitOutcome(hub.commitSlice(id, { schema: def.schema, data, reward }));
+      },
+      event: (kind, detail = {}) => {
+        const event = normalizeEvent(kind, detail);
+        if (!current()) return false;
+        try { hub.modeEvent?.(id, event); } catch (error) { return false; }
+        return true;
+      },
       // The shared full-screen stage: { root, arena, panel, header(fields), close() }.
       // The mode may add classes to root and fill arena; the hub resets both on exit.
       mount: (options = {}) => hub.mount(id, options),
       exit: (summary = {}) => {
         if (exited) return false;
         exited = true;
+        const safeSummary = summary && typeof summary === "object" ? summary : {};
+        const destination = DESTINATIONS.includes(safeSummary.destination) ? safeSummary.destination : null;
         try { instanceRef.current?.stop?.(); } finally {
           if (active?.id === id) active = null;
           hub.unmount(id);
-          hub.onExit(id, summary && typeof summary === "object" ? summary : {});
+          try { hub.sessionEnd?.(id, { carePolicy: def.carePolicy }); } finally {
+            hub.onExit(id, safeSummary, { destination });
+          }
         }
         return true;
       }
@@ -243,12 +334,16 @@
     const ref = { current: null };
     const host = createHost(def, ref);
     active = { id, host };
+    let sessionOpen = false;
     try {
+      hub.sessionStart?.(id, { carePolicy: def.carePolicy });
+      sessionOpen = true;
       ref.current = def.create(host);
       active.instance = ref.current;
       ref.current?.start?.(options);
     } catch (error) {
       active = null;
+      if (sessionOpen) { try { hub.sessionEnd?.(id, { carePolicy: def.carePolicy }); } catch (endError) {} }
       hub.unmount(id);
       throw error;
     }
@@ -259,9 +354,14 @@
     CONTRACT_VERSION,
     AWARD_LIMITS,
     MAX_SLICE_BYTES,
+    CARE_POLICIES,
+    EVENT_KINDS,
     defineMode,
     migrateSlice,
     normalizeAward,
+    normalizeReward,
+    normalizeEvent,
+    commitOutcome,
     register,
     attachHub,
     ensureSlice,
@@ -272,6 +372,8 @@
     readSettings,
     writeSetting,
     // Hub → active mode notifications. Each is optional on the instance.
+    // suspend("force-update") may return a host.commit() outcome; the hub
+    // keeps the current build when it is "blocked" or "failed".
     suspendActive: reason => active?.instance?.suspend?.(reason),
     resumeActive: reason => active?.instance?.resume?.(reason),
     keyActive: event => Boolean(active?.instance?.key?.(event)),

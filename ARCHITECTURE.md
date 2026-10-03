@@ -21,9 +21,10 @@ is what the player brings into game modes.
 
 Neither side ever writes the save, the wallet or a pet directly. The hub is the only writer.
 
-> **Status (Phase 3):** both contracts exist, are tested, and carry every game. The ten training games live in
-> `training/<id>.js` and play through the hub's training runner (§4); Rizo Defense runs on the game-mode
-> contract from `modes/defense/` (§8) and is the template for later modes.
+> **Status (Dungeon Gate 1):** both contracts exist, are tested, and carry every game. The ten training games
+> live in `training/<id>.js` and play through the hub's training runner (§4); Rizo Defense runs on the
+> game-mode contract from `modes/defense/` (§8). Rizo Dungeon (§9) is a one-room **review build** of The
+> Threshold on the same contract, plus the host additions it needs (confirmed commit, receipts, care policy).
 
 ---
 
@@ -38,7 +39,7 @@ Order matters. Each file may use only the files above it.
 | 3 | `core/rizo-training.js` | **pure** | The training contract: game definitions and score → stat conversion. |
 | 4 | `core/rizo-modes.js` | pure rules + browser host | The game-mode contract: registry, slice migration, award limits, host API. |
 | 5 | `core/rizo-catalog.js` | **pure** | Shared read-only game data every layer may use: the Rizo variants. |
-| 6 | `modes/<id>/…` | browser | One game mode each. Registers with `RizoModes.register`. Today: `modes/defense/defense-core.js` (pure rules), `defense-canvas.js` (canvas presenter), `defense-mode.js` (registration + runtime). |
+| 6 | `modes/<id>/…` | browser | One game mode each. Registers with `RizoModes.register`. Today: `modes/defense/defense-core.js` (pure rules), `defense-canvas.js` (canvas presenter), `defense-mode.js` (registration + runtime); `modes/dungeon/dungeon-content.js` (frozen rooms/lines), `dungeon-core.js` (pure rules), `dungeon-input.js` (action state), `dungeon-view.js` (handheld + canvas), `dungeon-mode.js` (registration + runtime). A mode whose scripts are missing simply does not register; the hub still boots. |
 | 7 | `training/kit.js`, `training/<id>.js` | browser | The ten training games, one file each, plus a tiny shared DOM kit. Each registers with `RizoTraining.register`. |
 | 8 | `game-v79-defense.js` | browser | **The hub**: save I/O, pet simulation, care, House, UI, `petMarkup()`, the training runner, and the host adapter both contracts talk to. (The file keeps its historical name; neither Defense nor any minigame lives in it any more.) |
 
@@ -102,8 +103,13 @@ a trusted legacy migration) wins. Then:
 - v1 keys are never written, so a broken or tampered v1 save keeps its original bytes on its own.
 - A copy that fails its signature keeps the pet and cosmetics, but rewards reset (wallet, records, counters).
   The original bytes stay recoverable as above.
-- A save written by a **newer** build (`saveVersion` above this build's) is never loaded or rewritten. The tab
-  shows "THIS SAVE BELONGS TO A NEWER RIZO.GAME" and offers an update.
+- A save written by a **newer** build is never loaded or rewritten: either a newer envelope (`saveVersion` above
+  this build's) or a verified v2 envelope from a newer hub (`stateVersion` or `state.version` above `VERSION`).
+  The second check runs before normalization, so a newer field or an unknown wearable is not silently dropped.
+  The tab shows "THIS SAVE BELONGS TO A NEWER RIZO.GAME" and offers an update. Limitation: builds before
+  state version 22 do not have this check, so rolling the whole site back past v89 lets an old hub normalize a
+  v22 save (it keeps the pet and cosmetics it knows, and drops `modeReceipts`/`storyMarks`). Removing only the
+  Dungeon scripts is safe: First Knot is a hub wearable and the unregistered slice is kept untouched.
 
 ### Writing
 
@@ -111,13 +117,16 @@ a trusted legacy migration) wins. Then:
   or saved, this tab stops saving and shows "RIZO IS OPEN SOMEWHERE ELSE" with a reload button. The `storage`
   event triggers the same thing immediately.
 - A failed write (storage full or blocked) toasts once instead of failing silently.
+- One function, `persistStateNow()`, writes the envelope for both `saveState()` and a mode's `host.commit()`.
+  It reports `committed` only when the primary copy holds this exact state; a failed mirror write is still
+  `committed` with `backupSynced: false` (the primary is the record).
 - Reset blocks every later write (including the unload save) before deleting keys.
 
 ### Changing the schema
 
 | Change | Do this |
 |---|---|
-| Add or rename a hub state field | Bump `VERSION` (state version), normalise it defensively in `normalizeState()`, add an old-save case to `tests/save-safety.py`. No signature change is needed. State version 21 is the latest example: `musicHistory` became `trainingMemory.rhythm`. |
+| Add or rename a hub state field | Bump `VERSION` (state version), normalise it defensively in `normalizeState()`, add an old-save case to `tests/save-safety.py`. No signature change is needed. State version 22 is the latest example: `modeReceipts` (per-mode reward receipts, never pruned) and `pet.storyMarks` (≤ 16 small positive marks a mode left on a pet), both absent → empty. |
 | Change the envelope layout | Add `saveVersion: 3` in `core/rizo-save-core.js`. Keep the v2 verifier and the v1 block exactly as they are. |
 | Change a mode's data | Bump the mode's `schema` and extend its `migrate()`. The hub never inspects slice contents. |
 | Move hub fields into a mode | List them in `LEGACY_MODE_FIELDS` (hub). `normalizeState()` moves them out of the hub state into `state.modeInbox[<id>]`; the mode's first `migrate(…, 0, legacy)` receives them; the hub clears that inbox entry only after the slice exists. Bump `VERSION`. Defense (state version 20) is the worked example. |
@@ -256,7 +265,8 @@ A mode may depend on `core/*`. It may not depend on another mode, or on the hub'
 | `create(host)` | Returns the instance (below). Called on every launch; the instance lives until `host.exit()`. |
 | `entry` | Optional `{ energy }`: what the shelf checks before launching (the mode charges it itself through `award`). |
 | `settings` | Optional player settings: `[{ key, kind: "toggle" \| "choice", title, copy, default, choices: [[value, label]] }]`. The hub draws them in Journal → Settings and stores them in the slice under `data.settings`. |
-| `summary(data)` | Optional. Small public facts for hub surfaces: `{ best, bestLabel, unit, milestones, badge: { text, title } }`. The hub reads nothing else from a slice. |
+| `summary(data)` | Optional. Small public facts for hub surfaces: `{ best, bestLabel, unit, milestones, badge: { text, title } }`, and optionally `entryLabel` / `lengthLabel` (replace the shelf's ENERGY / ENDLESS cells) and `journey: { petId, petName, status, complete }` (drives the release/rebirth warning). The hub reads nothing else from a slice. |
+| `carePolicy` | Optional, `"normal"` (default) or `"foreground-hold"`. See *Care policy* below. |
 | `qa(hubQA)` | Optional, QA builds only. Returns hooks merged into `window.RizoRuntimeQA`; may wrap the hub's own. |
 
 Instance hooks (all optional except `start` and `stop`): `start(options)`, `stop()`, `suspend(reason)` /
@@ -283,10 +293,49 @@ slice written by a newer build (higher `schema`) is preserved untouched, and tha
 | `host.audio` | `sfx(name)`, `tone(…)`, `noise(…)`, `haptic(pattern)`, `duck(ms, level)`, `music(track)`: a built-in scene name, an adaptive track `{ id, tempo, lead, bass, beat(step, play) }`, or `null` to hand music back. |
 | `host.ui` | `toast(text)`, `modal(markup, { onClose })`, `closeModal({ silent })`, `modalOpen()`, `cutscene(options)`, `celebrate()`. `onClose` runs only when the **player** closes the modal, never on a silent close or a replacement. |
 | `host.mount(header)` | Shows the shared stage and returns a frozen `stage`: `root` (add classes), `arena` (draw here), `panel` (pause panel), `header({ kicker, title, timer, score, hint, quit })`, and `close()` (hide the stage but stay open, e.g. for a results modal). Everything is reset on exit. |
-| `host.exit(summary)` | Stops the mode and returns to the hub. Idempotent. |
+| `host.exit(summary)` | Stops the mode and returns to the hub. Idempotent. `summary.destination: "home"` also opens the Den (only the hub calls `changeView`); without it the old behavior is unchanged. |
+| `host.commit({ data, reward? })` | A **confirmed**, synchronous save of the slice in one hub envelope, optionally with a reward (below). Returns `{ status: "committed" \| "blocked" \| "failed", rewardApplied, duplicateReward, backupSynced, reason }`. Never infer durability from `slice.write()`. |
+| `host.event(kind, detail)` | A semantic boundary: `checkpointRest`, `chapterComplete`, `sceneCommitted`, `encounterResolved`, `sessionEnded`, with `{ boundaryId, campaignId, tone: "quiet" \| "protected", interruption: "none" \| "candidate" }`. Dormant: the hub keeps a small diagnostic ring and never calls ads or install/store surfaces from it. The hub itself records `returnedToHub`. |
 
-The hub draws a mode's shelf from markup alone: `[data-mode="<id>"]` launches it (after the `entry` check),
-`[data-mode-best]`, `[data-mode-meta]` and `[data-mode-card]` show its `summary()`.
+`commit` and `event` work only for the active instance: after `exit()` (or from a superseded instance) they
+are refused without reaching the hub. A hub without the optional adapter capability makes `commit` throw
+rather than pretend to save.
+
+The hub draws a mode's shelf from markup alone: `button[data-mode="<id>"]` launches it (after the `entry`
+check), `[data-mode-best]`, `[data-mode-meta]` and `[data-mode-card]` show its `summary()`. While a mode is
+open the shared stage carries `data-active-mode="<id>"`, never `data-mode` (the shelf refresh rewrites
+`data-mode` buttons, and before v89 it rewrote the open stage too).
+
+### Rewards through receipts (`host.commit({ reward })`)
+
+```js
+host.commit({ data, reward: { receiptId: "threshold-x1y2:threshold-complete", petId, entitlements: ["first-knot", "shared-hearth"] } })
+```
+
+The hub keeps a static allowlist per mode (`MODE_ENTITLEMENTS` in the hub): `dungeon/first-knot` adds the
+wardrobe item `first-knot`; `dungeon/shared-hearth` adds one story mark to that owned pet. Nothing else
+(no currency, XP or pet patch) can be granted this way. Before anything changes, the hub refuses an unknown
+entitlement, an unowned pet, or a different payload under an existing receipt. An identical repeat commits
+the data and grants nothing (`duplicateReward`). Receipts live in `state.modeReceipts[mode][receiptId]` and
+are never pruned. The slice, the grant and the receipt go into one envelope, written once under the
+`writeId` policy; if the primary write fails, the in-memory slice, wardrobe, marks and receipts are restored
+exactly. This is one-envelope atomicity in one tab, not a cross-tab lock.
+
+### Care policy
+
+`carePolicy: "foreground-hold"` (the Dungeon) means visible time in the mode is time spent with the pet: no
+needs decay and no passive XP/skill/bond growth. The hub settles ordinary time before entry, settles the held
+interval when the app is hidden and lets the hidden time count as ordinary time away, accounts that time
+**before** the mode resumes, and settles again on exit. Calendar age still runs; elder/recovery modals that
+would have appeared are deferred until the Den. If time away sends the pet into recovery, the hub asks the
+mode to save and quit (`quit("recovery")`) and the Den's recovery flow takes over. Core calls the optional
+adapter hooks `sessionStart` / `sessionEnd` around the mode's life.
+
+### Updates
+
+`forceReleaseRefresh()` calls `suspendActive("force-update")` first. A mode may return its `host.commit`
+outcome; if it is `blocked` or `failed` the hub keeps the current build and save and says why. Modes that
+return nothing keep the old behavior.
 
 ### Awards
 
@@ -336,6 +385,9 @@ Every delivery that changes a runtime file:
 | `tests/training-boundaries.test.js` | `node` | No training game touches storage, hub state, a wall clock, a raw timer or a global listener. |
 | `tests/browser-v88-training-fixes.py` | `python3` | The Phase 3 game fixes in the real runner: Spark's buzzer, TIME UP vs CLEARED, Lost Signal's payout, Ember Beat's short runs, Skybound on rotation, par and ceiling budgets. |
 | `tests/defense-core.test.js`, `worker-*.test.js`, `service-worker-policy.test.js` | `node` | Defense rules and the service worker. |
+| `tests/mode-host.test.js` | `node` | The host additions: commit/reward validation and outcomes, late callbacks, events, exit destination, care-session hooks, force-update outcome. |
+| `tests/dungeon-core.test.js` | `node` | Dungeon rules: profile caps, movement/collision, Flare/Tuck/Kindle timing, buffering and priority, the Draftling, death/rest, pause holds, slice validation and repair. |
+| `tests/browser-dungeon.py` | `python3` | The Dungeon through the real hub over HTTP: real pet, keyboard/touch/mouse, combat/death/rest, lifecycle holds, care policy, reload/import, identity, the QA completion fixture (receipts, failed primary/backup), force update, save-blocked tab, isolation, newer-hub save, v21 migration, Defense under the shelf refresh. |
 | `tests/browser-*.py`, `static-defense-audit.py`, `worker-j-integration-risk-audit.py` | `python3` | Inherited browser and static suites. |
 
 The browser suites need Playwright for Python and Chromium at `/usr/bin/chromium`. Some write JSON into the
@@ -376,3 +428,53 @@ How it follows the contract:
   and held while paused or backgrounded.
 - **Migrated from v87** without loss: records, settings, school and crew (from `state.modeInbox`), map-intro
   flags (loose keys) and the in-progress checkpoint (old keys). `tests/save-safety.py` replays a v87 save.
+
+---
+
+## 9. Rizo Dungeon (Gate 1 review build)
+
+`modes/dungeon/` runs one room of **The Threshold** (Clatter Passage) on the game-mode contract. It is a
+foundation review, not the episode: there is no Latch, no boss and no player-facing reward yet.
+
+| Piece | Where |
+|---|---|
+| Rooms, anchors, props, lines (frozen) | `dungeon-content.js` |
+| Rules: fixed 60 Hz step, movement/collision, Flare/Tuck/Kindle, Draftling, pause holds, slice validation | `dungeon-core.js` (pure, Node-tested) |
+| One action state from keyboard, mouse and touch | `dungeon-input.js` |
+| The handheld, canvas room/enemies, DOM actor plane | `dungeon-view.js`, `styles/dungeon.css` |
+| Registration, binding, loop, lifecycle, persistence, QA hooks | `dungeon-mode.js` |
+
+- **The real pet.** The campaign binds `host.pet().id` at first launch. A House swap or a released pet shows
+  why the journey cannot continue; it is never rebound or cleared. The Rizo on screen is
+  `host.petMarkup(snapshot, { context: "dungeon" })` inside a pose wrapper; snapshots refresh only at entry and
+  at the hearth.
+- **One clock.** Every deadline is on the simulation clock (`sim.t`), advanced in fixed steps with interpolated
+  rendering. Catch-up stops at eight steps; leftover debt during danger pauses with a `performance` hold.
+- **Holds.** A set: `manual`, `background`, `ad`, `save-blocked`, `update`, `performance`. Lifecycle aliases
+  normalize (hidden/pagehide/freeze/unload → background; visible/pageshow/resume release it). Any external
+  hold also adds `manual`, so a fresh Resume is needed; `save-blocked` is never released by a resume.
+- **Saving.** Everything goes through `host.commit`. Hearth registration, rest, death and GO HOME commit at
+  once; a dirty safe continuation commits at most every 5 s; nothing saves per frame. A reload resumes at the
+  last safe anchor with that anchor's Flame. A failed save is shown ("COULDN'T SAVE THIS MOMENT") with Retry
+  and an explained way home; a blocked tab uses the hub's own notice.
+- **Rewards.** Only the QA completion fixture (`dungeonCompleteFixtureForQA`, QA builds only) requests First
+  Knot and the shared-hearth mark, to prove the receipt transaction. Ordinary play awards nothing.
+
+Its slice (`schema: 1`, about 1.5 KB):
+
+```json
+{ "settings": { "assist": false, "textSpeed": "normal" },
+  "campaign": { "id": "threshold-…", "kind": "proof", "contentRevision": "threshold-gate1", "petId": "…", "petName": "MOSSY", "status": "active", "chapterId": "threshold" },
+  "world": { "visitedRooms": ["clatter"], "openedShortcuts": [], "durableRoomFlags": {}, "defeatedEncounters": [] },
+  "story": { "facts": {}, "choices": {}, "committedSceneBeats": [], "resumeScene": null },
+  "npcs": { "latch": { "state": "unmet", "locationAnchor": null, "evidence": [] } },
+  "inventory": { "knownLocalItems": [] },
+  "checkpoint": { "hearthId": "clatter-review-hearth", "roomId": "clatter", "spawnAnchorId": "clatter-hearth-side" },
+  "continuation": { "roomId": "clatter", "safeAnchorId": "clatter-hearth-side", "roomEntryFlame": 5, "resumeKind": "hearth" },
+  "legProfile": { "edges": { "speed": 1.023, "power": 1.045, "instinct": 1.017, "stamina": 0.95 }, "bondBand": "familiar", "cues": { "favoriteFoodId": "crumbs", "favoriteGameId": "rush" } },
+  "journal": { "discoveredEntryIds": [] }, "pendingRewards": [], "proofComplete": false, "storyComplete": false }
+```
+
+A campaign with any other `contentRevision` (including the full episode's `threshold-v1`) is preserved
+untouched by this build. The next build must migrate `threshold-gate1` review campaigns explicitly.
+
