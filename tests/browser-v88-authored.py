@@ -121,7 +121,11 @@ with sync_playwright() as p:
     frozen=page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
     page.wait_for_timeout(700)
     after_freeze=page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
-    check('Rain Walk encounter survives background freeze', frozen==after_freeze, str({'before':frozen,'after':after_freeze}))
+    # Subtracting epoch-sized doubles can vary by a fractional-millisecond ULP.
+    # Keep every encounter field exact and reject even 1 ms of timer movement.
+    clock_held = abs(frozen['decisionIn'] - after_freeze['decisionIn']) < 1
+    encounter_held = {k:v for k,v in frozen.items() if k != 'decisionIn'} == {k:v for k,v in after_freeze.items() if k != 'decisionIn'}
+    check('Rain Walk encounter survives background freeze', encounter_held and clock_held, str({'before':frozen,'after':after_freeze}))
     page.evaluate('RizoRuntimeQA.arcadeThawForQA("background")')
     page.keyboard.press('2')
     page.wait_for_timeout(100)
