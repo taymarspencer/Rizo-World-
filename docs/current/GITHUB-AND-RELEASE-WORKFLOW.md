@@ -4,8 +4,8 @@ Repository: `taymarspencer/Rizo-World-`. Start normal work from **`develop`**.
 
 | Branch | What it means |
 | --- | --- |
-| `main` | The version intentionally approved for production. It still holds the older v86 candidate; this pass does not release anything. |
-| `develop` | The complete integrated next version. Created directly from verified `a5b10db4ae19426e09967025baf543237bebe7c1`, preserving every ancestor. |
+| `main` | Release approval branch, currently the older v86 candidate. It is **not the current live deployment**: legacy `play.rizo.store` is v87. |
+| `develop` | The complete integrated next version, now RC2: World `/`, game `/play`. It preserves all RC1/public-foundation ancestry. |
 | `feature/...` or `fix/...` | One isolated change started from the latest `develop`, reviewed back into `develop`. |
 | Old model/phase branches | Preserved history. Some contain separate work. Do not use them as the default starting point or merge them blindly. |
 
@@ -23,14 +23,14 @@ Its feature branch and PR should target **`develop`**. Review the actual change,
 
 Stop treating a model's name as the permanent development branch. `claude/rizo-codebase-audit-yuqlns` remains at the public-foundation checkpoint for traceability; future integration belongs on `develop`.
 
-The `Rizo World release candidate` GitHub Actions workflow runs the current contracts, build and ten browser suites on pushes to `develop`/`main` and PRs targeting either. A green run keeps a static-site artifact named for its exact SHA, plus QA evidence for seven days. It never merges or deploys. Check the run for your proposed commit; old green runs on historical branches are not evidence for today's candidate.
+The `Rizo World release candidate` GitHub Actions workflow runs the current contracts, build and eleven browser suites on pushes to `develop`/`main` and PRs targeting either. RC2 adds the packaged-route/real-RC1-worker upgrade suite without removing the ten baseline suites. A green run keeps a static-site artifact named for its exact SHA, plus QA evidence for seven days. It never merges or deploys. Check the run for your proposed commit; old green runs on historical branches are not evidence for today's candidate.
 
 ## When I want to release
 
 1. Finish the intended work in `develop` and review its current commit.
 2. Use the **draft `develop` → `main` release PR** as the release checklist. Keep it draft while any launch gate remains open.
-3. Build the production artifact and run the current suites. See [release verification](../verification/RELEASE-ENGINEERING-VERIFICATION.md) and [deployment preparation](DEPLOYMENT-PREPARATION.md).
-4. Check real iPhone/Android play, saves, PWA updates, production compression and the host/origin decisions. Local green tests do not complete those checks.
+3. Build the production artifact and run the current suites. See [RC2 verification](../verification/WORLD-FIRST-RC2-VERIFICATION.md) and [deployment preparation](DEPLOYMENT-PREPARATION.md).
+4. Deploy that exact artifact to a **Cloudflare preview**, then check real iPhone/Android play, saves, PWA updates, headers/compression and origin behavior. The root/host direction is resolved; local green tests do not complete the physical/host checks.
 5. When you deliberately approve release, merge that reviewed commit into `main`, preferably with a merge commit so this integrated history stays visible. Record/tag that exact release SHA, build from it and deploy its artifact in the separate hosting step.
 
 Do not enable automatic merge on the release PR. New commits on `develop` change the proposed release and need fresh review. The current draft is preparation, not approval to merge or deploy.

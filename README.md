@@ -2,7 +2,7 @@
 
 A local browser companion, House, ten training games, Rizo Defense and Dungeon's complete short Threshold episode. The pet is the center: the actual raised Rizo enters its adventures.
 
-Public World: `world.html`. Playable entry remains `index.html` / the static root. Current page/runtime/service-worker build marker: **`v92-release-candidate-1`**. Advertising and analytics are disabled. The longer Dungeon campaign remains proposed development, not a feature of this build.
+**World is `/`; the existing game is `/play`.** Current page/runtime/service-worker build marker: **`v92-release-candidate-2`**. Source `world.html` packages as `dist/index.html`; source `index.html` packages as `dist/play.html`. Use the packaged site to preview production routes. Advertising and analytics are disabled. The longer Dungeon campaign remains proposed development, not a feature of this build.
 
 Start with:
 
@@ -21,9 +21,9 @@ python3 tools/build-site.py --out dist
 python3 tools/serve-site.py --directory dist --port 8000
 ```
 
-The build validates links/metadata and copies the actual production files. Output must be empty; it never deletes existing work. Use a fresh output path for subsequent builds. Developer docs, tests, reports and the instruction-only `ads.txt.template` are excluded. The preview serves missing paths with the authored 404 and a real 404 status.
+The build validates links/metadata and copies 161 production files. Output must be empty; it never deletes existing work. Use a fresh output path for subsequent builds. Developer docs, tests, reports and the instruction-only `ads.txt.template` are excluded. The local preview follows the shipped redirects and Pages-style HTML routes, with the authored 404 and a real 404 status; it does not apply production headers or compression.
 
-The production host must implement equivalent headers/statuses, DNS/TLS and the actual rizo.world routing. `_headers` is not supported by every host. No production ads.txt or verified account metadata exists yet. See the readiness document before account integration or domain migration; a new origin cannot automatically read an old origin's local saves.
+Cloudflare Pages is the intended preview/hosting direction. It serves `/play` from `play.html`; `_redirects` converges old World/game bookmarks and `_headers` defines revalidation/security intentions. Installed PWAs deliberately start at `/play?source=pwa`, preserving their root identity/scope. See [deployment preparation](docs/current/DEPLOYMENT-PREPARATION.md) for preview-only commands and host/device gates. The legacy live game at `play.rizo.store` is **v87**, stays available, and requires user-controlled export/import to a different origin. GitHub `main` is a separate older v86 candidate, not proof of the current live deployment.
 
 ## Verification
 
@@ -31,9 +31,10 @@ Run the Node contract suites with `node tests/<name>.test.js`. Browser suites us
 
 ```sh
 python3 tests/browser-public-product.py --directory dist --evidence /tmp/rizo-public-review
+python3 tests/browser-world-first.py --directory dist
 python3 tests/browser-dungeon.py
 python3 tests/browser-defense-integration.py
 python3 tests/save-safety.py
 ```
 
-These are local/mocked tests, never automated live-ad traffic. Browser test dependencies are development tools, not website dependencies. Older v75–v88 documents and historical QA/capture scripts remain available as development history; use the current architecture and verification record to distinguish them from release gates.
+These are local/mocked tests, never automated live-ad traffic. The World-first suite reconstructs the exact reviewed RC1 from Git ancestry to test the real worker upgrade. Browser test dependencies are development tools, not website dependencies. See [RC2 verification](docs/verification/WORLD-FIRST-RC2-VERIFICATION.md) for current results; older v75–v88 documents and historical QA/capture scripts remain development history.

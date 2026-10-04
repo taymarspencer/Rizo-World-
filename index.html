@@ -8,7 +8,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Rizo World" name="apple-mobile-web-app-title"/>
-<meta name="rizo-build" content="v92-release-candidate-1"/>
+<meta name="rizo-build" content="v92-release-candidate-2"/>
 <style id="rizo-boot-critical">
 /* This shell is intentionally inline and dependency-free. If every external
    stylesheet/script fails, the player still gets a dark, actionable surface. */
@@ -34,7 +34,7 @@ html,body{background:#07090d;color:#fff}
 <script id="rizo-boot-inline">
 (() => {
   "use strict";
-  const expected = "v92-release-candidate-1";
+  const expected = "v92-release-candidate-2";
   const problems = [];
   let ready = false;
   let recoveryVisible = false;
@@ -524,8 +524,8 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <title>Play | Rizo World</title>
 <link href="./assets/icon-192.png" rel="apple-touch-icon"/>
 <meta content="Raise your Rizo in the Den, make a House, train in the Arcade, and take the same pet into Defense and Dungeon’s Threshold story." name="description"/>
-<link href="https://rizo.world/" rel="canonical"/>
-<meta property="og:type" content="website"/><meta property="og:site_name" content="Rizo World"/><meta property="og:title" content="Your Rizo. A whole life."/><meta property="og:description" content="Raise a little flame and bring the same pet into Defense, the Arcade, and The Threshold."/><meta property="og:url" content="https://rizo.world/"/><meta property="og:image" content="https://rizo.world/assets/icon-512.png"/><meta property="og:image:alt" content="The Rizo flame"/><meta name="twitter:card" content="summary"/>
+<link href="https://rizo.world/play" rel="canonical"/>
+<meta property="og:type" content="website"/><meta property="og:site_name" content="Rizo World"/><meta property="og:title" content="Your Rizo. A whole life."/><meta property="og:description" content="Raise a little flame and bring the same pet into Defense, the Arcade, and The Threshold."/><meta property="og:url" content="https://rizo.world/play"/><meta property="og:image" content="https://rizo.world/assets/icon-512.png"/><meta property="og:image:alt" content="The Rizo flame"/><meta name="twitter:card" content="summary"/>
 
 <link href="./manifest.webmanifest" rel="manifest"/><link href="./launch-v79-defense-alive.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-defense-integration.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-b-economy.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-e-abilities-depth.css" rel="stylesheet"/>
 <link href="./modes/defense/styles/v81-art.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-worker-i-feel.css" rel="stylesheet"/><link href="./arcade-v75.css" rel="stylesheet"/><link href="./arcade-v83.css" rel="stylesheet"/><link href="./arcade-v84-depth.css" rel="stylesheet"/><link href="./rizo-v85-handmade.css" rel="stylesheet"/><link href="./arcade-v87-system.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-d-towers.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-h-ui.css" rel="stylesheet"/><link href="./modes/dungeon/styles/dungeon.css" rel="stylesheet"/><link href="./public-game.css" rel="stylesheet"/><style id="rizo-egg-anchor-v363">
@@ -555,7 +555,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </style>
 </head>
 <body class="rizo-handmade">
-<noscript><main class="no-script-guide"><h1>Rizo World</h1><p>Raise a little flame in the Den, make a House, and take the same Rizo into Defense, the Arcade, and Dungeon’s Threshold story.</p><p>The game needs JavaScript. You can read <a href="./world.html">World</a>, the <a href="./journal.html">development journal</a>, and the <a href="./support.html">Keeper Guide</a> without it.</p><p>Your progress saves locally on this device. No installation or online account is needed.</p></main></noscript>
+<noscript><main class="no-script-guide"><h1>Rizo World</h1><p>Raise a little flame in the Den, make a House, and take the same Rizo into Defense, the Arcade, and Dungeon’s Threshold story.</p><p>The game needs JavaScript. You can read <a href="/">World</a>, the <a href="/journal">development journal</a>, and the <a href="/support">Keeper Guide</a> without it.</p><p>Your progress saves locally on this device. No installation or online account is needed.</p></main></noscript>
 <section id="rizoBootShell" role="status" aria-live="polite" aria-label="Rizo.game loading">
   <div class="rizo-boot-card">
     <small>RIZO.GAME // STARTUP</small>
@@ -565,7 +565,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
     <div class="rizo-boot-actions">
       <button type="button" data-rizo-reload>RELOAD CLEAN</button>
       <button type="button" data-rizo-reset-cache>REPAIR APP CACHE &amp; RELOAD</button>
-      <a href="./support.html">Keeper Guide</a><a href="./world.html">Back to World</a>
+      <a href="/support">Keeper Guide</a><a href="/">Back to World</a>
     </div>
   </div>
 </section>
@@ -578,13 +578,13 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div class="install-benefits"><div><b>↗</b><span>FULLSCREEN</span></div><div><b>◉</b><span>HOME ICON</span></div><div><b>∞</b><span>SAVED PET</span></div></div>
 <div class="install-steps"><strong>HOW TO INSTALL</strong><ol data-install-steps=""></ol></div>
 <div class="install-actions"><button class="install-primary" data-install-button="" type="button">INSTALL RIZO.GAME</button><button class="install-secondary" data-play-browser="" type="button">PLAY IN BROWSER</button></div>
-<p class="install-meta">Recommended for ages 13+. By continuing, you agree to the <a href="./terms.html">Terms</a> and acknowledge the <a href="./privacy.html">Privacy Notice</a>.</p>
+<p class="install-meta">Recommended for ages 13+. By continuing, you agree to the <a href="/terms">Terms</a> and acknowledge the <a href="/privacy">Privacy Notice</a>.</p>
 </div>
 </section>
 <div aria-hidden="true" class="screen-grain"></div><div aria-hidden="true" class="sensory-flash" id="sensoryFlash"></div>
 <div aria-hidden="true" class="rain-layer" id="rainLayer"></div>
 <section aria-label="Rizo origin story" class="origin-screen" id="originScreen">
-<a class="origin-world-link" href="./world.html">Rizo World ↗</a>
+<a class="origin-world-link" href="/">Rizo World ↗</a>
 <div class="origin-sky"></div>
 <div aria-hidden="true" class="moon"></div>
 <div aria-hidden="true" class="forest forest-far"></div>
@@ -613,7 +613,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <img alt="" aria-hidden="true" src="./assets/rizo-classic.png"/>
 <span><em>RIZO APPAREL // FIELD UNIT</em><strong>RIZO.GAME</strong><small>KEEPER <b id="keeperShort">----</b></small></span>
 </button>
-<div class="header-right"><a aria-label="Explore Rizo World" class="store-pill" href="./world.html">WORLD</a>
+<div class="header-right"><a aria-label="Explore Rizo World" class="store-pill" href="/">WORLD</a>
 <button aria-label="Daily gift" class="daily-gift" id="dailyGiftButton" type="button"><span>✦</span><b id="streakCount">1</b></button>
 <div aria-label="Embers" class="currency-pill"><span class="ember-coin">R</span><b id="coinCount">0</b></div>
 </div>
@@ -835,7 +835,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </div>
 <div id="journalContent"></div>
 </section>
-<aside class="game-world-note"><p>This is your Rizo’s playable home.</p><a href="./world.html">Explore World</a><a href="./support.html">Keeper Guide</a><a href="./privacy.html">Privacy</a></aside>
+<aside class="game-world-note"><p>This is your Rizo’s playable home.</p><a href="/">Explore World</a><a href="/support">Keeper Guide</a><a href="/privacy">Privacy</a></aside>
 <nav aria-label="Main navigation" class="bottom-nav">
 <button class="active" data-nav="home" type="button"><span>⌂</span><b>DEN</b></button>
 <button data-nav="arcade" type="button"><span>✦</span><b>ARCADE</b></button>

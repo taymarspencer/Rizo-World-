@@ -2,6 +2,8 @@
 
 Date: 2026-10-04. Starting branch: `claude/rizo-codebase-audit-yuqlns`, remote `7a64fe6763d81da017458d64d8956abb33e41d48`. Implementation build: `v92-public-foundation`.
 
+Routing update in RC2 (`v92-release-candidate-2`): the owner resolved World as root and the game as `/play`, with Cloudflare Pages as the intended preview/hosting direction. The foundation/design below remains intact.
+
 Rizo World is the public home of an original digital companion and the places that companion can enter. It must be worth visiting with advertising disabled. A player raises one Rizo; care, training, House residents and adventures belong to that continuing life. The public website makes that product understandable and gives people a way to find help, understand its authorship, and decide whether to play.
 
 This document records implemented foundations and explicitly identifies later owner decisions. It does not adopt Dungeon story proposals. Read [ARCHITECTURE.md](../../ARCHITECTURE.md) for game contracts, [the story README](../dungeon/story/README.md) for narrative authority, and [PUBLISHER-READINESS.md](PUBLISHER-READINESS.md) for current Google sources and launch gates.
@@ -23,24 +25,24 @@ The hub runtime retains its historical filename. A large filename or old version
 
 | URL | Job | Content source |
 |---|---|---|
-| `/world.html` | World: explain the invitation, the actual experiences, and the physical brand connection | Current game behavior, actual Den/Hearth captures, original Defense environment plate |
-| `/index.html` and `/` | Existing playable entry | Current origin sequence and pet-centered game |
-| `/journal.html` | A small real development journal | Accepted art checkpoint, runtime contracts, this foundation pass; no invented activity |
-| `/about.html` | Rizo's origin and why the two addresses exist | Owner's published [Rizo Apparel story](https://rizo.store/pages/about), linked and attributed |
-| `/support.html` | Keeper Guide, controls, backups, recovery, accessibility limits and contact | Actual runtime and save behavior |
-| `/privacy.html` | Explain local data and the present absence of advertising/analytics | Actual deployed code; hosting details still need owner confirmation |
-| `/terms.html` | Plain language description of access, virtual items and local-save limits | Current product; owner review still required |
-| `/404.html` | A useful wrong door, served with HTTP 404 | Authored navigation back to World, Play and Guide |
+| `/` | World: explain the invitation, the actual experiences, and the physical brand connection | Current game behavior, actual Den/Hearth captures, original Defense environment plate |
+| `/play` | Existing playable entry | Current origin sequence and pet-centered game |
+| `/journal` | A small real development journal | Accepted art checkpoint, runtime contracts, this foundation pass; no invented activity |
+| `/about` | Rizo's origin and why the two addresses exist | Owner's published [Rizo Apparel story](https://rizo.store/pages/about), linked and attributed |
+| `/support` | Keeper Guide, controls, backups, recovery, accessibility limits and contact | Actual runtime and save behavior |
+| `/privacy` | Explain local data and the present absence of advertising/analytics | Actual deployed code; hosting details still need owner confirmation |
+| `/terms` | Plain language description of access, virtual items and local-save limits | Current product; owner review still required |
+| A missing URL | A useful wrong door, served from `404.html` with HTTP 404 | Authored navigation back to World, Play and Guide |
 
 World, Journal and Guide share a compact navigation; About, Contact, Privacy, Terms, Accessibility and Apparel remain in the footer. Games do not each get an empty SEO route. Contact is a Guide section linking to the existing [Rizo Apparel contact form](https://rizo.store/pages/contact-us), clearly identified as another website. A dedicated World inbox/form is an owner decision, not an invented address.
 
 Public content is semantic static HTML and works without JavaScript. Game first arrival, the normal header, Journal settings, boot recovery and the no-script view all give a route back to the public property. The playable experience remains direct: no forced promotional intro, install gate, account signup or advertisement.
 
-### Root-address decision remains open
+### Root-address decision resolved: World first
 
-This pass preserves `/index.html`, the manifest's `id`, `start_url`, scope and existing save keys. A bare `rizo.world/` consequently still serves the game on an ordinary static host. World is an explicit linked public home at `/world.html`; do not report that the root was changed into a landing page.
+RC2 packages authored `world.html` as root `index.html`, and the existing game source `index.html` as `play.html`. Cloudflare Pages serves the game at canonical `/play`; old game/World aliases redirect deliberately. No runtime relocation, client-side redirect, new promotional gate or full game load is needed to render World.
 
-Recommendation for the owner: choose World as the eventual first-time root experience once deployment and origin migration are settled, while giving returning players a stable direct Play URL. That requires a deliberate route/manifest/service-worker/canonical migration and another update test. Alternatives are keeping direct play at root, with the current World links, or an explicit root route that remembers a local preference. Do not silently infer a first-visit preference from analytics, install a redirect loop, or change PWA identity to achieve it.
+Manifest identity and root scope remain stable; installed PWAs intentionally start at `/play?source=pwa`. A fresh World visit does not register the game worker. Save keys/schema remain unchanged. The worker separates World and Play fallbacks and tests the genuine RC1 upgrade. See [deployment preparation](DEPLOYMENT-PREPARATION.md) for the full route and origin contract. `rizo.store` stays separate: no purchase requirement or shared checkout/account system.
 
 ## Public content rules
 

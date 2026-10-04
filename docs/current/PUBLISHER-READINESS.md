@@ -86,12 +86,12 @@ Remaining performance risks: the game loads its large established hub plus speci
 
 | Milestone | Remaining blockers / owner actions |
 |---|---|
-| Public beta | Choose host and actual primary/root experience; DNS/TLS/redirect/status/header verification; confirm operator, host logs/retention, working support responsibility and Terms/Privacy wording; review rights/audience; old-origin migration; physical Safari/Android/PWA and constrained-device performance checks. |
+| Public beta | World root, game `/play`, apex rizo.world and Cloudflare Pages direction are resolved in RC2. Remaining: preview and later DNS/TLS/redirect/status/header verification; confirm operator, host logs/retention, support responsibility and Terms/Privacy wording; review rights/audience; user-controlled old-origin migration; physical Safari/Android/PWA and constrained-device performance checks. |
 | AdSense application | Public beta gates; eligible owner account and verified control; live substantial original property and crawlability; current content/privacy review; exact verification method. No traffic or article quota invented. Serving configuration, consent and placements must be settled before any live ads. |
 | H5 application / integration | Approved AdSense account, separate H5 application/access subject to Google's eligibility, current HTML5 implementation and policy review. Access not inferred from existing legacy ID. |
 | Live H5 serving | Real CMP/region/audience/provider-signal integration; deliberately adopted placement and reward design; durable reward delivery; official mock-mode manual integration checks; staging/mobile/SDK failure checks; verified account/seller data; invalid-traffic operations; separately reviewed switch to production. |
 
-Owner choices still required: root World-versus-direct-play routing; launch host and old-origin availability; operator/contact/log retention; actual audience classification and geographic availability; future personalized/non-personalized/limited-ad policy and CMP; whether ads belong in the product at all, and which placement/reward first; future analytics purpose/provider; confirmed typography/asset licenses across Store/World. These do not resolve Dungeon's ten story decisions.
+Resolved launch direction: World `/`, game `/play`, Cloudflare Pages preview/hosting, and keeping legacy live **v87** at `play.rizo.store` untouched for exports. Owner choices still required: operator/contact/log retention; actual audience classification and geographic availability; future personalized/non-personalized/limited-ad policy and CMP; whether ads belong in the product at all, and which placement/reward first; future analytics purpose/provider; confirmed typography/asset licenses across Store/World. These do not resolve Dungeon's ten story decisions. Advertising remains disabled; no application/submission is authorized by RC2.
 
 ## Validation record
 

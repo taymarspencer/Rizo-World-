@@ -2,7 +2,7 @@
 
 Start with [the root README](../../README.md) and [ARCHITECTURE.md](../../ARCHITECTURE.md) for the playable game and contracts.
 
-For GitHub and release work, read [Taymar's workflow](GITHUB-AND-RELEASE-WORKFLOW.md), [the branch/PR history audit](HISTORY-AND-RELEASE-AUDIT.md), [deployment preparation](DEPLOYMENT-PREPARATION.md) and [executed release verification](../verification/RELEASE-ENGINEERING-VERIFICATION.md).
+For GitHub and release work, read [Taymar's workflow](GITHUB-AND-RELEASE-WORKFLOW.md), [the branch/PR history audit](HISTORY-AND-RELEASE-AUDIT.md), [deployment preparation](DEPLOYMENT-PREPARATION.md) and [RC2 World-first verification](../verification/WORLD-FIRST-RC2-VERIFICATION.md). [RC1 release verification](../verification/RELEASE-ENGINEERING-VERIFICATION.md) remains historical evidence. World `/`, game `/play` and Cloudflare Pages are resolved launch directions; actual preview/device approval is still required.
 
 The public-product foundation is recorded in:
 

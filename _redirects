@@ -1,2 +1,9 @@
-/play /index.html 302
-/game /index.html 302
+# Legacy game bookmarks remain direct Play; World aliases converge on root.
+/index.html /play 301
+/index /play 301
+/game /play 301
+/play/ /play 301
+/play.html /play 301
+/world.html / 301
+/world / 301
+/world/ / 301

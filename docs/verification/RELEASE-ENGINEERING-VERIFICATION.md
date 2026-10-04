@@ -1,5 +1,7 @@
 # Release engineering verification — candidate 1
 
+Historical RC1 record. The owner subsequently resolved World `/`, game `/play` and Cloudflare Pages in RC2; see [current RC2 verification](WORLD-FIRST-RC2-VERIFICATION.md) and [deployment preparation](../current/DEPLOYMENT-PREPARATION.md). The actual legacy live deployment is **v87 at play.rizo.store**, distinct from GitHub's older v86 `main`. RC1 test/fingerprint evidence below is retained unchanged.
+
 2026-10-04 UTC. Repository `taymarspencer/Rizo-World-`. Started at verified `a5b10db4ae19426e09967025baf543237bebe7c1`; `main` stayed at `e5f09048ec472850c44e69cb4f2e98c8006de02b`. `develop` was created from the exact starting SHA without rebuilding or rewriting history.
 
 Candidate build: **`v92-release-candidate-1`**. Application/test fix commit: `f723da69660611571c600387b9eadfe604879bc3`. Its Git tree **`ff1fd32c14168e90342f63d819f9f680e63468da`** exactly matches the locally tested fix tree. The documentation/CI commit layered afterward changes no production artifact files.
@@ -70,6 +72,6 @@ The [PR run at `88c81de...`](https://github.com/taymarspencer/Rizo-World-/action
 
 Draft [PR #7, `develop` → `main`](https://github.com/taymarspencer/Rizo-World-/pull/7), is the release review gate. PR #6 was closed with an explanatory archival comment after its exact head was proved to be an ancestor; its branch is intact. PRs #1–#5 stay open because they retain unique history, with their heads, bases, titles, bodies and draft states unchanged. All twelve original branch heads were rechecked unchanged. No branch was deleted. See [the complete branch/PR classification](../current/HISTORY-AND-RELEASE-AUDIT.md).
 
-Public-beta gates still open: physical iOS/Android and standalone lifecycle, constrained real-device/compressed-host performance, root/primary-hostname decision, chosen host's actual headers/404/compression, old-origin save export/import, operator/support/privacy details and shipped-asset rights. DNS/TLS/canonical/crawler/update verification follows the separately authorized host setup. Ads/account/CMP/reward-placement gates are separate and do not prevent an intentionally ad-free beta. See [deployment preparation](../current/DEPLOYMENT-PREPARATION.md).
+At RC1 review, the open public-beta gates included root/host direction and old-origin migration. The owner has now resolved the routing/Cloudflare direction and supplied independent real-v87 upgrade/export/import evidence. Remaining gates include physical iOS/Android and standalone lifecycle, constrained real-device/compressed-host performance, actual preview/host headers/404/compression, player migration instructions, operator/support/privacy details and shipped-asset rights. DNS/TLS/canonical/crawler/update verification follows separately authorized host setup. Ads/account/CMP/reward-placement gates are separate and do not prevent an intentionally ad-free beta. See [deployment preparation](../current/DEPLOYMENT-PREPARATION.md).
 
 This pass does not merge `main`, deploy a site, modify DNS, enable ads or settle the ten Dungeon narrative decisions.

@@ -33,7 +33,8 @@ test("every script and stylesheet the page loads is a required, network-first sh
   assert.deepStrictEqual(missing, []);
 });
 test("every required shell file exists and is also in the full shell", () => {
-  const absent = required.filter(file => file && !fs.existsSync(path.join(ROOT, file)));
+  const sourceFile = file => file === "" ? "world.html" : file === "play" ? "index.html" : ["about", "journal", "support", "privacy", "terms", "404"].includes(file) ? file + ".html" : file;
+  const absent = required.filter(file => !fs.existsSync(path.join(ROOT, sourceFile(file))));
   assert.deepStrictEqual(absent, []);
   assert.deepStrictEqual(required.filter(file => !shell.includes(file)), []);
 });

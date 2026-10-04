@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v92-release-candidate-1";
+  const RIZO_RUNTIME_BUILD = "v92-release-candidate-2";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -2554,7 +2554,7 @@
       <section class="settings-board"><h3>HOW TO KEEP RIZO ALIVE</h3><div class="sheet-note">Replay the care guide whenever the need meters or growth systems stop making sense.</div><button class="wide-button" data-open-care-guide>OPEN KEEPER GUIDE</button></section>
       <section class="settings-board"><h3>THIS DEVICE IS YOUR LOGIN</h3><p class="keeper-code">${state.player.keeperId}</p><div class="sheet-note">Progress lives in this browser. Copy a complete Keeper Code before switching phones or clearing website data.</div><div class="settings-actions"><button data-copy-keeper>COPY ID</button><button data-copy-recovery>COPY KEEPER CODE</button><button data-open-recovery>PASTE KEEPER CODE</button>${CONFIG.cloud.enabled ? '<button data-cloud-sync>SYNC NOW</button>' : '<button data-export-save>DOWNLOAD JSON</button>'}</div></section>
       <section class="settings-board"><h3>RIZO APPAREL</h3><div class="sheet-note">Rizo Life is made by Rizo Apparel. The game is free; the clothes are extremely real.</div><a class="wide-button" style="display:block;text-align:center;text-decoration:none" href="${escapeHTML(storeUrl())}" target="_blank" rel="noopener">SHOP RIZO.STORE ↗</a></section>
-      <section class="settings-board"><h3>INSTALL + UPDATES</h3><div class="sheet-note">${window.RizoInstall?.isStandalone?.() ? "Installed app mode is active." : "Install Rizo.game for fullscreen play and faster return visits."}<br><br><b>BUILD ${escapeHTML(RIZO_RUNTIME_BUILD)}</b> • ${releaseUpdateReady?"A newer build is waiting.":"Refresh Latest checks the network and replaces stale app caches."}${mini?.active&&mini.mode==="defense"?" Your active Defense run will checkpoint first.":""}</div><div class="settings-actions"><button data-show-install>INSTALL HELP</button><button class="update-refresh-button" data-refresh-latest>${releaseUpdateReady?"UPDATE NOW":"REFRESH LATEST"}</button></div><div class="rizo-legal-links"><a href="./world.html">WORLD</a><a href="./journal.html">JOURNAL</a><a href="./about.html">ABOUT</a><a href="./privacy.html">PRIVACY</a><a href="./terms.html">TERMS</a><a href="./support.html">SUPPORT</a></div></section>
+      <section class="settings-board"><h3>INSTALL + UPDATES</h3><div class="sheet-note">${window.RizoInstall?.isStandalone?.() ? "Installed app mode is active." : "Install Rizo.game for fullscreen play and faster return visits."}<br><br><b>BUILD ${escapeHTML(RIZO_RUNTIME_BUILD)}</b> • ${releaseUpdateReady?"A newer build is waiting.":"Refresh Latest checks the network and replaces stale app caches."}${mini?.active&&mini.mode==="defense"?" Your active Defense run will checkpoint first.":""}</div><div class="settings-actions"><button data-show-install>INSTALL HELP</button><button class="update-refresh-button" data-refresh-latest>${releaseUpdateReady?"UPDATE NOW":"REFRESH LATEST"}</button></div><div class="rizo-legal-links"><a href="/">WORLD</a><a href="/journal">JOURNAL</a><a href="/about">ABOUT</a><a href="/privacy">PRIVACY</a><a href="/terms">TERMS</a><a href="/support">SUPPORT</a></div></section>
       <section class="settings-board"><h3>SAVE TOOLS</h3><div class="settings-actions"><button data-export-save>EXPORT SAVE</button><button data-import-save>IMPORT SAVE</button><button data-replay-origin>REPLAY ORIGIN</button><button data-copy-summary>COPY STATS</button></div><button class="wide-button danger" data-reset-save>DELETE THE ENTIRE TIMELINE</button></section>
       ${setAsideSavesMarkup()}
     </div>`;
@@ -5461,7 +5461,7 @@ Streak: ${state.player.streak}`;
     try{
       // Never destroy the only playable offline copy just because the user tapped refresh.
       // A cache-busting network probe must succeed before workers/caches are removed.
-      const probe=new URL("./index.html",location.href);probe.searchParams.set("rizoNetworkProbe",String(Date.now()));
+      const probe=new URL("./play",location.href);probe.searchParams.set("rizoNetworkProbe",String(Date.now()));
       const response=await fetch(probe.href,{cache:"no-store",headers:{"x-rizo-update-probe":"1"}});
       if(!response?.ok)throw new Error("latest build is not reachable");
       const handoff=modeUpdateHandoff();

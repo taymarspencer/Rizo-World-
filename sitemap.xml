@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://rizo.world/</loc></url>
-  <url><loc>https://rizo.world/world.html</loc></url>
-  <url><loc>https://rizo.world/journal.html</loc></url>
-  <url><loc>https://rizo.world/about.html</loc></url>
-  <url><loc>https://rizo.world/support.html</loc></url>
-  <url><loc>https://rizo.world/privacy.html</loc></url>
-  <url><loc>https://rizo.world/terms.html</loc></url>
+  <url><loc>https://rizo.world/play</loc></url>
+  <url><loc>https://rizo.world/journal</loc></url>
+  <url><loc>https://rizo.world/about</loc></url>
+  <url><loc>https://rizo.world/support</loc></url>
+  <url><loc>https://rizo.world/privacy</loc></url>
+  <url><loc>https://rizo.world/terms</loc></url>
 </urlset>

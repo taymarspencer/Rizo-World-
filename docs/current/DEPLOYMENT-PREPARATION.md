@@ -1,64 +1,61 @@
 # Rizo World deployment preparation
 
-Started from public-foundation commit `a5b10db4ae19426e09967025baf543237bebe7c1`. The candidate is **`v92-release-candidate-1`**, with a minimal fix for Dungeon held controls during the hub's periodic refresh. No host, deployment, DNS, TLS or production routing was changed in this pass.
+Owner decision resolved: **World is `/`; the existing game is `/play`.** RC2 starts from reviewed RC1 `77c3582017e41921a9495fb4afb26eee8801e497`, with build marker `v92-release-candidate-2`. Cloudflare Pages is the intended static preview/hosting direction. This pass does not deploy, connect a domain, change DNS or merge PR #7.
 
-## The artifact a host must serve
-
-This is a static site. It needs no application server, package install, bundler or runtime build on the host.
+## Build the exact reviewed candidate
 
 ```sh
 python3 tools/build-site.py --out dist
 python3 tools/serve-site.py --directory dist --port 8000
 ```
 
-Run the build from the exact reviewed release commit. Output must be empty; for another build choose a fresh directory. Publish **the contents of `dist/` at the origin root**, retaining the folders and filenames. The verified artifact has 160 files. Do not publish the whole repository: the packaging excludes developer docs, tests, reports, historical manifests and the instruction-only ad template. Do not use historical ZIP instructions as the current deployment contract.
+Use a checkout of the exact RC2 SHA and an empty output directory. Publish **only the contents of `dist/` at the origin root**, keeping all folders. The 161-file artifact excludes developer docs, tests, reports, historical manifests and ad templates. No package install, bundler, application server, Worker or Function is needed. Source filenames remain historical: `world.html` copies to output `index.html`, while the original game `index.html` copies to output `play.html`. Game assets/runtime stay at their existing root paths. Previewing the raw repository does not exercise production routing.
 
-The preview provides static files and a real authored 404, but **does not implement `_headers` or compression**. Preview success does not verify production headers. A provider's settings must translate the repository's header intentions and status behavior.
+## Deliberate routes
 
-## Routing is still an owner decision
-
-| URL | Current artifact behavior |
+| URL | Static Pages behavior |
 | --- | --- |
-| `/` | Serves `index.html`, the game. |
-| `/index.html` | Direct Play entry; the PWA starts at `/index.html?source=pwa`. |
-| `/world.html` | Public World page. It does not load the game runtime. |
-| `/journal.html`, `/about.html`, `/support.html`, `/privacy.html`, `/terms.html` | Real static public pages. |
-| A missing path, including `/ads.txt` | Serve the authored `404.html` with **HTTP 404**, never a successful game response. |
+| `/` | Output `index.html`: lightweight, semantic World; no game scripts or worker registration. |
+| `/play` | Output `play.html`: the existing game. This is its canonical URL. |
+| `/play/`, `/play.html`, `/index.html`, `/index`, `/game` | Explicit 301 to `/play`, preserving query parameters. |
+| `/world.html`, `/world`, `/world/` | Explicit 301 to `/`. |
+| `/about`, `/journal`, `/support`, `/privacy`, `/terms` | Their existing static `.html` files; native `.html` normalization converges old URLs. |
+| Missing paths, including `/ads.txt` | Authored `404.html` with **HTTP 404**. No SPA catch-all. |
 
-Choose whether launch keeps direct play at `/` or deliberately changes it to World. Keeping the current root is technically coherent. Changing it requires reviewing the worker's cached root/index fallback, manifest identity/start URL, navigation, canonical URLs and update behavior together. Do not implement a host-only rewrite and assume offline/PWA behavior follows automatically. Serve at the origin root; mounting under a subdirectory requires a separate path/metadata review.
+`_redirects` ships eight exact rules. Pages evaluates them before asset handling, so `/index.html` preserves the old direct-game bookmark despite the new packaged root. Canonicals/Open Graph URLs use `https://rizo.world/`, `/play` and the clean public routes; the sitemap contains exactly those seven published pages. `www` → apex and HTTP → HTTPS remain later host setup tasks, not changes made here.
 
-The build does not copy the old `_redirects` file. No SPA catch-all is needed. Do not redirect every unknown path to the game. Retain real `.html` routes unless a later explicit route migration preserves old links.
+The local Python preview models HTML normalization, redirects and real 404s, but **does not implement `_headers` or compression**. Verify actual responses on the Cloudflare preview: HTML/worker/manifest revalidate; stable-name JS/CSS and mode files revalidate; assets have bounded caching; security headers and MIME types are correct; Brotli/gzip is negotiated. Publish the complete artifact atomically.
 
-## Host behavior to verify
+## Preview only, without domain or production setup
 
-| Resource/behavior | Required deployment treatment |
+Use a separate **preview-only Direct Upload project**, such as `rizo-world-preview`. This does not decide how the later production project integrates with GitHub; a Direct Upload project cannot be converted to Git integration later.
+
+```sh
+npx wrangler pages project create rizo-world-preview --production-branch=main
+npx wrangler pages deploy dist --project-name=rizo-world-preview --branch=develop
+```
+
+Authenticate with the intended Cloudflare account when prompted. `develop` is a preview branch because the project's production branch is `main`. Keep this project disconnected from custom domains; do not upload with `--branch=main`. Record the returned preview URL and the source SHA/fingerprint. Commands above are next steps, **not executed deployment actions**. See Cloudflare's [static serving](https://developers.cloudflare.com/pages/configuration/serving-pages/), [redirects](https://developers.cloudflare.com/pages/configuration/redirects/) and [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/) documentation.
+
+## Worker, installation and saves
+
+The game registers `/sw.js` at root scope. Cache `rizo-game-v92-release-candidate-2` requires both World `/` and game `/play`, public World CSS and the existing boot/runtime files before takeover. Optional artwork/public pages remain best-effort. Activation claims clients and retires older `rizo-game-*` caches. Navigation/runtime reads use only this candidate's cache; an old game cached at `/` cannot become the new World fallback. Navigation is network-first, preserves real online 404s, and falls back offline only to the corresponding known page. Query variants and legacy aliases work offline; unknown paths return **503**, never either shell. A fresh World-only visit has no offline shell until the game has installed its worker.
+
+Manifest `id: "./"` and `scope: "./"` remain unchanged. Installed Rizo World deliberately opens **`/play?source=pwa`** for useful direct game access. Old `/index.html?source=pwa` launches converge on Play online and under the new worker offline. Full physical installation/update/resume behavior still needs device verification.
+
+| State / origin | Meaning |
 | --- | --- |
-| HTML, `/`, worker and manifest | Revalidate (`Cache-Control: no-cache`); serve correct MIME types. |
-| JS/CSS, including `core/`, `providers/`, `training/`, `modes/` | Revalidate (`no-cache, must-revalidate`). Filenames survive releases; never assume they are immutable version hashes. |
-| `/assets/*` | Current intention: `public, max-age=3600, must-revalidate`; avoid indefinite stale artwork at stable names. |
-| Security headers | Translate `_headers`: `nosniff`, strict-origin-when-cross-origin referrer policy, disabled camera/microphone/geolocation, CSP `object-src 'none'; base-uri 'self'`. Check actual responses, not the existence of the file. |
-| Compression | Negotiate Brotli/gzip for text resources; verify `Content-Encoding` and `Vary: Accept-Encoding` with production responses. |
-| Public reachability | HTTPS, one intended canonical hostname, deliberate HTTP/alternate-host redirects, accessible robots/sitemap and real 200/404 statuses. |
-| Deployment atomicity | Publish a complete artifact together. Do not let new HTML point at missing or stale mode/runtime files. |
+| GitHub `main` at `e5f09048ec472850c44e69cb4f2e98c8006de02b` | Older v86 candidate; **not the current live deployment**. |
+| `https://play.rizo.store` | Actual legacy live **v87**, independently identified during RC1 review; leave untouched and available for exports. |
+| `develop` / RC2 | World-first candidate, requiring its own green CI and preview/phone approval. |
+| Future `https://rizo.world` | New production origin, only after release approval and separate hosting/DNS authorization. |
 
-There is no production `ads.txt`, verified publisher metadata or active ads/analytics. These are future monetization gates, not a reason to invent seller data or turn on live ads during beta tests.
+Save format/signatures, local keys, pet identity, mode checkpoints and import/export stay unchanged. Origins cannot read one another's storage. Existing players export from legacy v87 and import into the new origin; never attempt automatic cross-origin migration or erase old data. Preview → production is also a different origin. Independently reviewed real-v87 upgrade/export/import evidence belongs to RC1; RC2 adds local signed-save/worker-upgrade regression checks. Do not treat a rollback to GitHub's older v86 reader as a safe rollback for current state-version-22 saves.
 
-## Service-worker and save implications
+## Remaining release gates
 
-`sw.js` lives at `/sw.js` and has origin-root scope. Its required shell installs atomically; a missing required file prevents takeover. After successful install it skips waiting, claims clients and deletes only old `rizo-game-*` caches. Required runtime and public pages use network-first revalidation; other same-origin assets use cache-first. It does not intercept third-party traffic.
-
-Offline root/index can recover the actual game. Visited public pages remain cached. Unknown offline routes return **503**, rather than pretend to be the game. Test a genuine old-worker → new-worker update and an offline reload on the chosen host. The matching HTML/boot/hub/worker release markers are a delivery contract. This candidate bumps them together because of the control fix; the documentation/CI commit afterward does not change the artifact.
-
-Saves are in the browser's local storage, with v2 primary/backup, old migration sources and separate mode checkpoints. Keeping the schema compatible does **not** transfer them between `play.rizo.store`, a preview hostname, `www.rizo.world` and `rizo.world`. HTTPS vs HTTP also changes the origin.
-
-Keep the old playable origin available. Export a Keeper backup there, import it on the chosen new origin, and verify the same pet, House residents, clothes, wallet, Defense progress and Dungeon reward. Check reload and a fresh export. Do not overwrite an already different new-origin pet automatically or erase the old data. An installed PWA belongs to its original origin; direct users to the new origin and test its installation separately.
-
-## Gates before merging for public beta
-
-- Approve the root experience and primary hostname; choose a host and verify the actual headers, compression, route/status policy and atomic publication.
-- Confirm support responsibility, operator/privacy/host-log details, Terms wording and rights to shipped assets. The existing support page links to the separately labeled Apparel contact form.
-- Complete old-origin export/import verification and explain the migration to existing players.
-- Play on physical iOS Safari and Android Chrome, including portrait/landscape, standalone PWA resume, notch/browser chrome, keyboard, offline/update and constrained-memory behavior.
-- Measure first game arrival on production compression and weaker real phones. The existing local profile's approximately **524ms World LCP, 8.1s game LCP, 14.2s DOMContentLoaded and 2.6MB game transfer** is one throttled, uncompressed lab sample, not field percentiles. Keep this warning open; optimize measured problems in a separate pass.
-
-After DNS/TLS, check the whole actual origin: public pages, direct Play, mode/training entry and return, real 404, robots/sitemap/canonicals/share images, no console/asset errors, no external ad requests, save reload/import, worker update, offline and installation. Keep the draft release gate open until the applicable checks are recorded.
+- Deploy this exact candidate to the preview and verify routes, response headers/compression, real 404, robots/sitemap/canonicals, no ads/analytics, and full artifact delivery.
+- Test physical iPhone Safari and Android Chrome: 320–430px layouts, Play transition, portrait/landscape, text zoom, standalone installation/resume, old/new worker update, offline startup and saves. Chromium emulation is not physical-device evidence or full WCAG certification.
+- Measure compressed-host game arrival on weaker phones. RC1's approximately 0.5s World LCP, 8.1s game LCP, 14.1s DCL and 2.6MB uncompressed game resources remain known non-blocking lab findings. Slow first visits can show **“NEEDS A CLEAN RELOAD” around 6.8s before recovering** in legacy v87 and RC1. RC2 does not refactor loading or change that recovery timer.
+- Confirm support/operator/host-log/privacy/Terms details and asset rights. Advertising remains absent; Google/account/CMP/placement work is separate.
+- Record preview and device outcomes on draft PR #7. Only then seek release approval → merge reviewed `develop` into `main` → separately authorized production setup at `rizo.world`. Keep `play.rizo.store` available.

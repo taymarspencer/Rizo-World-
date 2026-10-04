@@ -1,4 +1,4 @@
-"""Rizo Dungeon Gate 1, through the real hub (index.html over HTTP, real
+"""Rizo Dungeon Gate 1, through the real hub (/play over HTTP, real
 localStorage, real reloads).
 
 Covers: entry with the actual named/dressed Rizo; keyboard, mouse and touch
@@ -17,20 +17,29 @@ forward.
 
 Chromium only. This is not Safari or physical-phone evidence.
 """
-import functools, http.server, json, re, socketserver, subprocess, sys, threading
+import argparse, functools, http.server, json, re, socketserver, subprocess, sys, threading, tempfile
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 V2, V2_BACKUP = "rizo-save-v2", "rizo-save-v2:backup"
 
-class Quiet(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, *args): pass
+parser = argparse.ArgumentParser()
+parser.add_argument('--directory')
+args = parser.parse_args()
+if args.directory:
+    directory = Path(args.directory).resolve()
+else:
+    _artifact = tempfile.TemporaryDirectory(prefix='rizo-dungeon-')
+    directory = Path(_artifact.name) / 'site'
+    subprocess.run([sys.executable,str(ROOT/'tools/build-site.py'),'--out',str(directory)],check=True)
+sys.path.insert(0,str(ROOT/'tools'))
+from static_site import StaticSiteHandler as Quiet
 socketserver.TCPServer.allow_reuse_address = True
-server = socketserver.TCPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(ROOT)))
+server = socketserver.TCPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(directory)))
 PORT = server.server_address[1]
 threading.Thread(target=server.serve_forever, daemon=True).start()
-URL = f"http://127.0.0.1:{PORT}/index.html"
+URL = f"http://127.0.0.1:{PORT}/play"
 
 results = []
 def check(name, passed, detail=""):

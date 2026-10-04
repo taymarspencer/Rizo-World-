@@ -6,7 +6,7 @@ Screenshots/logs are review evidence, not physical Safari or field CWV results.
 """
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-import argparse, functools, threading, json, sys
+import argparse, functools, threading, json, sys, subprocess, tempfile
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,15 +16,13 @@ parser.add_argument('--evidence', default='/tmp/rizo-public-review')
 args = parser.parse_args()
 directory = Path(args.directory).resolve()
 evidence = Path(args.evidence); evidence.mkdir(parents=True, exist_ok=True)
-class Handler(SimpleHTTPRequestHandler):
-    def log_message(self, *args): pass
-    def send_error(self, code, message=None, explain=None):
-        doc = directory/'404.html'
-        if code != 404 or not doc.is_file(): return super().send_error(code,message,explain)
-        body = doc.read_bytes()
-        self.send_response(404); self.send_header('Content-Type','text/html; charset=utf-8')
-        self.send_header('Content-Length',str(len(body))); self.end_headers()
-        if self.command != 'HEAD': self.wfile.write(body)
+# Exercise the production route contract, not source filenames.
+if directory == ROOT:
+    _artifact = tempfile.TemporaryDirectory(prefix='rizo-public-')
+    directory = Path(_artifact.name) / 'site'
+    subprocess.run([sys.executable,str(ROOT/'tools/build-site.py'),'--out',str(directory)],check=True)
+sys.path.insert(0,str(ROOT/'tools'))
+from static_site import StaticSiteHandler as Handler
 server = ThreadingHTTPServer(('127.0.0.1',0), functools.partial(Handler,directory=str(directory)))
 threading.Thread(target=server.serve_forever,daemon=True).start()
 origin = 'http://127.0.0.1:'+str(server.server_address[1])
@@ -55,11 +53,11 @@ with sync_playwright() as p:
         ctx.route('**/*',local_only)
         page = ctx.new_page()
         for name in ['world','about','journal','support','privacy','terms']:
-            response = page.goto(origin+'/'+name+'.html'); page.wait_for_timeout(60)
+            response = page.goto(origin+('/' if name=='world' else '/'+name)); page.wait_for_timeout(60)
             size = page.evaluate('({w:innerWidth,doc:document.documentElement.scrollWidth})')
             check(f'{width}px {name}: static content, one H1 and no horizontal overflow',response.status==200 and page.locator('main h1').count()==1 and size['doc']<=width+1 and len(page.locator('main').inner_text())>200,str(size))
             check(f'{width}px {name}: images have loaded and links are named',page.evaluate('''()=>[...document.images].every(i=>i.complete&&i.naturalWidth>0)&&[...document.querySelectorAll('a')].every(a=>Boolean(a.textContent.trim()||a.getAttribute('aria-label')||a.querySelector('img[alt]')))'''))
-        page.goto(origin+'/world.html'); page.mouse.wheel(0,650); page.wait_for_timeout(80)
+        page.goto(origin+'/'); page.mouse.wheel(0,650); page.wait_for_timeout(80)
         check(f'{width}px public page scrolls normally and keeps selectable copy',page.evaluate('scrollY>0&&getComputedStyle(document.body).position!=="fixed"&&getComputedStyle(document.querySelector(".lede")).userSelect!=="none"'))
         nav = geometry(page,'.world-header nav a')
         check(f'{width}px public primary navigation has 44px touch height',all(i['h']>=44 for i in nav),str(nav))
@@ -68,7 +66,7 @@ with sync_playwright() as p:
         ctx.close()
     # Keyboard entry and reduced motion, independently of a game's canvas.
     ctx=browser.new_context(viewport={'width':320,'height':844},reduced_motion='reduce',service_workers='block')
-    ctx.route('**/*',local_only); page=ctx.new_page(); page.goto(origin+'/world.html')
+    ctx.route('**/*',local_only); page=ctx.new_page(); page.goto(origin+'/')
     page.keyboard.press('Tab'); check('public skip link is first and visible on focus',page.locator(':focus').get_attribute('class')=='skip-link')
     page.keyboard.press('Enter'); check('skip link puts keyboard focus on the content',page.locator(':focus').get_attribute('id')=='content')
     check('public reduced-motion view removes decorative rotation',page.locator('.intro-rizo').evaluate('e=>getComputedStyle(e).transform')=='none')
@@ -82,7 +80,7 @@ with sync_playwright() as p:
         ctx.route('**/*',local_only); page=ctx.new_page(); errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.on('console',lambda m:errors.append(m.text) if m.type=='error' else None)
-        page.goto(origin+'/index.html'); page.wait_for_function('Boolean(window.RizoRuntimeQA)')
+        page.goto(origin+'/play'); page.wait_for_function('Boolean(window.RizoRuntimeQA)')
         check(f'{width}px first arrival has an exit to World and no install gate',page.locator('.origin-world-link').is_visible() and not page.locator('#rizoInstallGate').is_visible())
         pet_id=page.evaluate(SETUP); page.wait_for_timeout(160)
         check(f'{width}px Den has no horizontal page overflow',page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'))
@@ -141,15 +139,15 @@ with sync_playwright() as p:
         ctx.close()
     # A worker cannot turn an unknown route into a successful game navigation.
     ctx=browser.new_context(viewport={'width':390,'height':844});ctx.route('**/*',local_only)
-    page=ctx.new_page();page.goto(origin+'/index.html');page.wait_for_function('navigator.serviceWorker.controller!==null',timeout=30000)
-    page.goto(origin+'/world.html');page.wait_for_timeout(250)
+    page=ctx.new_page();page.goto(origin+'/play');page.wait_for_function('navigator.serviceWorker.controller!==null',timeout=30000)
+    page.goto(origin+'/');page.wait_for_timeout(250)
     ctx.unroute('**/*',local_only)
     # Shut down the origin as well: Chromium's worker network context can retain
     # connectivity when only Playwright's page context is toggled offline.
     server.shutdown();server.server_close();ctx.set_offline(True)
-    response=page.goto(origin+'/world.html');check('visited public World remains available offline',response.status==200 and page.locator('h1').count()==1)
+    response=page.goto(origin+'/');check('visited public World remains available offline',response.status==200 and page.locator('h1').count()==1)
     response=page.goto(origin+'/unknown/deep/');check('unknown offline navigation does not impersonate the game',response.status==503,str({'status':response.status,'worker':response.from_service_worker,'body':response.text()[:120]}))
-    response=page.goto(origin+'/index.html');check('the actual game still opens offline',response.status==200)
+    response=page.goto(origin+'/play');check('the actual game still opens offline',response.status==200)
     ctx.close();browser.close()
 server.shutdown()
 check('default product attempted zero external ad, analytics, font or other requests',external==[],str(external[:8]))

@@ -3,7 +3,7 @@
   "name": "Rizo World \u2014 Rizo Life",
   "short_name": "Rizo World",
   "description": "Raise your Rizo. Make a home. Take the same little flame into games and stories.",
-  "start_url": "./index.html?source=pwa",
+  "start_url": "./play?source=pwa",
   "scope": "./",
   "display": "standalone",
   "display_override": [
