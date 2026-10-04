@@ -23,6 +23,7 @@ const context={
     const url=keyOf(req);
     const make=(body,init={})=>{const r=new Response(body,init);Object.defineProperty(r,'type',{value:'basic'});return r};
     if(url.endsWith('game-v79-defense.js')) return make('NETWORK_RUNTIME',{status:200,headers:{'Content-Type':'application/javascript'}});
+    if(url.includes('/unknown/')) return make('MISSING_PAGE',{status:404});
     if(url.endsWith('index.html')||url.endsWith('/')) return make('<!doctype html>NETWORK_HTML',{status:200,headers:{'Content-Type':'text/html'}});
     return make('NETWORK_ASSET',{status:200});
   },
@@ -66,6 +67,21 @@ async function dispatch(url,{mode='same-origin'}={}){
     assert(code.includes('./rizo-v85-handmade.css'));
     assert(code.includes('await self.skipWaiting()'));
   });
-  console.log(`\n${passed}/4 service-worker policy checks passed`);
+  await test('missing online navigation preserves 404 and is never cached as successful content',async()=>{
+    networkMode='online';const url='https://play.rizo.store/unknown/deep/';
+    const r=await dispatch(url,{mode:'navigate'});assert.equal(r.status,404);assert.equal(await r.text(),'MISSING_PAGE');assert(!store.has(url));
+  });
+  await test('only the actual root/index can use a game fallback offline',async()=>{
+    networkMode='offline';
+    for(const path of ['unknown/deep/','unknown/index.html','ads.txt','missing-policy.html']){
+      const r=await dispatch('https://play.rizo.store/'+path,{mode:'navigate'});
+      assert.equal(r.status,503,path);assert(!(await r.text()).includes('NETWORK_HTML'),path);
+    }
+    const r=await dispatch('https://play.rizo.store/',{mode:'navigate'});assert.equal(r.status,200);assert((await r.text()).includes('NETWORK_HTML'));
+  });
+  await test('same-origin worker does not intercept or cache a third-party ad request',async()=>{
+    assert.equal(await dispatch('https://pagead2.googlesyndication.com/never-requested-test'),null);
+  });
+  console.log(`\n${passed}/7 service-worker policy checks passed`);
   if(process.exitCode)process.exit(process.exitCode);
 })().catch(e=>{console.error(e);process.exit(1)});

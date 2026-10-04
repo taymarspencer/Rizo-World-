@@ -7,7 +7,7 @@ def record(name, passed, detail=''):
     results.append((name,bool(passed),detail)); print(('PASS' if passed else 'FAIL'), name, detail)
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
 
     # A healthy boot must retire the shell but retain it dormant for future resume recovery.
     page=browser.new_page(viewport={'width':390,'height':844})
@@ -35,8 +35,9 @@ with sync_playwright() as p:
     # Remove runtime code after the inline boot tag, leaving the dependency-free guard + shell.
     marker='<script src="./rizo-config.js"></script>'
     # build_inline_app already replaced external scripts, so cut at the first owner config body script marker by source content signature.
-    runtime_signature='/**\n * RIZO.GAME LAUNCH CONFIG'
+    runtime_signature=(ROOT/'rizo-config.js').read_text()
     idx=html.find(runtime_signature)
+    assert idx!=-1, 'the missing-runtime fixture must find and remove the current config/runtime scripts'
     if idx!=-1:
         # Find the script start immediately before the config signature and drop all JS bodies through </body>,
         # while retaining the already-parsed HTML shell.

@@ -30,7 +30,7 @@ def discard(page):
     page.wait_for_timeout(60)
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True, executable_path='/usr/bin/chromium', args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,  args=['--no-sandbox','--disable-dev-shm-usage'])
     page, errors=boot(browser)
 
     # Forest Lunch: one coordinated row tied to the live request.
@@ -120,7 +120,8 @@ with sync_playwright() as p:
     page.evaluate('RizoRuntimeQA.arcadeFreezeForQA("background")')
     frozen=page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
     page.wait_for_timeout(700)
-    check('Rain Walk encounter survives background freeze', frozen==page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk'))
+    after_freeze=page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
+    check('Rain Walk encounter survives background freeze', frozen==after_freeze, str({'before':frozen,'after':after_freeze}))
     page.evaluate('RizoRuntimeQA.arcadeThawForQA("background")')
     page.keyboard.press('2')
     page.wait_for_timeout(100)
@@ -131,7 +132,7 @@ with sync_playwright() as p:
     # An unanswered fork resolves itself: the run never waits on the player.
     start(page,'walk')
     page.evaluate(f'RizoRuntimeQA.arcadeAdvanceClockForQA({int(walk_ms * .30)})')
-    page.wait_for_timeout(120)
+    page.wait_for_function('RizoRuntimeQA.arcadeAuthoredForQA().walk.paused')
     waiting = page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')
     page.wait_for_timeout(6900)
     decided = page.evaluate('RizoRuntimeQA.arcadeAuthoredForQA().walk')

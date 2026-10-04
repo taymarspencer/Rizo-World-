@@ -1,22 +1,25 @@
 
 /**
- * RIZO.GAME LAUNCH CONFIG
+ * RIZO WORLD LAUNCH CONFIG
  * =======================
  * This is intentionally the only file you should need to edit for ordinary launches.
  *
- * SAFE DEFAULT: advertising is OFF until you replace every placeholder and change
- * ads.enabled to true. Never test production ads by clicking them yourself.
+ * SAFE DEFAULT: advertising is OFF. See docs/current/MONETIZATION-ARCHITECTURE.md
+ * for account approval, privacy, placement and testing gates before enabling it.
+ * Never test production ads by clicking them yourself.
  */
 window.RIZO_CONFIG = Object.freeze({
   brand: {
-    siteName: "Rizo.game",
-    siteUrl: "https://play.rizo.store",
+    siteName: "Rizo World",
+    siteUrl: "https://rizo.world",
+    worldUrl: "./world.html",
     storeUrl: "https://rizo.store",
-    supportUrl: "./support.html"
+    supportUrl: "./support.html",
+    contactUrl: "https://rizo.store/pages/contact-us"
   },
 
   audience: {
-    // Keep this at 13 unless you deliberately build a child-directed compliance plan.
+    // Recommendation only; this does not establish COPPA status or ad treatment.
     minimumAge: 13,
     label: "Recommended for ages 13+"
   },
@@ -30,17 +33,25 @@ window.RIZO_CONFIG = Object.freeze({
   },
 
   ads: {
-    // Keep this false while applying. AdSense manages `rizo.store` at the root-domain
-    // level even though the game lives at play.rizo.store. Add the real publisher ID
-    // below for ownership verification; this build adds the verification meta tag
-    // without requesting ads. Turn enabled on only after the site is Ready, the three
-    // display slot IDs are real, and Privacy & messaging / CMP setup is complete.
+    // OFF until site/account approval, H5 access, reviewed placements and a real
+    // privacy adapter exist. Connecting an SDK cannot turn these gates on.
     enabled: false,
+    provider: "none",
+    publisherVerified: false,
+    // No placements are approved. Examples belong in documentation/tests.
+    placements: {},
+    requestCooldownMs: 30000,
+    interstitialCooldownMs: 180000,
+    maxRequestsPerSession: 3,
 
-    // Keep true while using Google's official H5 test mode. Change to false before launch.
+    // Keep true in approved integration testing. Live mode also requires every
+    // launch gate in MONETIZATION-ARCHITECTURE.md; this flag is not permission.
     testMode: true,
 
     adsense: {
+      // Inherited from play.rizo.store. Account/domain ownership has NOT been
+      // verified here. Not emitted or used while publisherVerified is false.
+      // Confirm with the owner before reusing it for rizo.world.
       client: "ca-pub-3212890596786480",
       displaySlots: {
         "home-feed": "REPLACE_HOME_SLOT_ID",
@@ -53,7 +64,7 @@ window.RIZO_CONFIG = Object.freeze({
       // H5 rewarded/interstitial ads require separate Google approval.
       enabled: false,
       // A hint, not a promise. Google still decides whether an ad may be shown.
-      frequencyHintSeconds: 120,
+      frequencyHintSeconds: 180,
       rewardTimeoutMs: 45000
     }
   },
@@ -64,4 +75,3 @@ window.RIZO_CONFIG = Object.freeze({
     provider: "none"
   }
 });
-

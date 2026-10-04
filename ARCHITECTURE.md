@@ -1,4 +1,4 @@
-# Rizo.game architecture
+# Rizo World architecture
 
 Rizo.game is a static vanilla HTML/CSS/JS PWA. **The pet is the hub.** Training builds the pet, and the pet
 is what the player brings into game modes.
@@ -34,7 +34,9 @@ Order matters. Each file may use only the files above it.
 
 | # | File | Kind | Owns |
 |---|---|---|---|
-| 1 | `rizo-config.js`, `install-manager.js`, `monetization.js` | browser | Owner config, PWA install, dormant ads. |
+| 1 | `rizo-config.js`, `install-manager.js` | browser | Owner config and optional PWA install. |
+| 1a | `core/rizo-ads.js`, `providers/google-h5.js` (before `monetization.js`) | pure boundary + injected provider | Approved opportunities, privacy/context denial, local caps, balanced holds and confirmed outcomes. No save writes, no automatic SDK requests. |
+| 1b | `monetization.js` | browser | Privacy-deny bootstrap and conditionally initialized SDK. Defaults never fetch it. |
 | 2 | `core/rizo-save-core.js` | **pure** (browser + Node) | Hub limits, the signed save envelope (v1 frozen, v2 current), mode-slice shape. |
 | 3 | `core/rizo-training.js` | **pure** | The training contract: game definitions and score → stat conversion. |
 | 4 | `core/rizo-modes.js` | pure rules + browser host | The game-mode contract: registry, slice migration, award limits, host API. |

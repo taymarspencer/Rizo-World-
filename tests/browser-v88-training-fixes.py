@@ -16,7 +16,7 @@ def time_up(page):
     page.evaluate('RizoRuntimeQA.arcadeAdvanceClockForQA(999999)'); page.wait_for_timeout(350)
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True, executable_path='/usr/bin/chromium', args=['--no-sandbox', '--disable-dev-shm-usage'])
+    browser = p.chromium.launch(headless=True,  args=['--no-sandbox', '--disable-dev-shm-usage'])
     page = browser.new_page(viewport={'width': 390, 'height': 844})
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))

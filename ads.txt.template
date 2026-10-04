@@ -1,1 +1,5 @@
-google.com, pub-REPLACE_WITH_YOUR_PUBLISHER_ID, DIRECT, f08c47fec0942fa0
+# Documentation template only. This file is excluded from the production package.
+# No authorized seller has been verified for rizo.world in this pass.
+# After account ownership is confirmed, copy the EXACT snippet from AdSense Sites
+# into a new /ads.txt at the deployment root. Never publish a placeholder record.
+# See docs/current/PUBLISHER-READINESS.md for verification and crawler checks.

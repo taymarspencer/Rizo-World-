@@ -2,14 +2,13 @@
 
 <html lang="en">
 <head>
-<meta content="ca-pub-3212890596786480" name="google-adsense-account"/>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <meta content="#090b0f" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
-<meta content="Rizo.game" name="apple-mobile-web-app-title"/>
-<meta name="rizo-build" content="v91-art-signature"/>
+<meta content="Rizo World" name="apple-mobile-web-app-title"/>
+<meta name="rizo-build" content="v92-public-foundation"/>
 <style id="rizo-boot-critical">
 /* This shell is intentionally inline and dependency-free. If every external
    stylesheet/script fails, the player still gets a dark, actionable surface. */
@@ -35,7 +34,7 @@ html,body{background:#07090d;color:#fff}
 <script id="rizo-boot-inline">
 (() => {
   "use strict";
-  const expected = "v91-art-signature";
+  const expected = "v92-public-foundation";
   const problems = [];
   let ready = false;
   let recoveryVisible = false;
@@ -522,13 +521,14 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 .rizo-save-blocked-card p{font-size:14px;line-height:1.45;color:#d8d1df;margin:0 0 15px}
 .rizo-save-blocked-card button{width:100%;min-height:48px;border:2px solid #17151b;border-radius:12px;background:#73e890;color:#17151b;font-weight:900;letter-spacing:.06em}
 </style>
-<title>RIZO LIFE — A RIZO APPAREL GAME</title>
+<title>Play | Rizo World</title>
 <link href="./assets/icon-192.png" rel="apple-touch-icon"/>
-<meta content="Rizo.game: raise, collect, customize, and discover Rizos in a browser pet game by Rizo Apparel." name="description"/>
-<link href="https://play.rizo.store/" rel="canonical"/>
+<meta content="Raise your Rizo in the Den, make a House, train in the Arcade, and take the same pet into Defense and Dungeon’s Threshold story." name="description"/>
+<link href="https://rizo.world/" rel="canonical"/>
+<meta property="og:type" content="website"/><meta property="og:site_name" content="Rizo World"/><meta property="og:title" content="Your Rizo. A whole life."/><meta property="og:description" content="Raise a little flame and bring the same pet into Defense, the Arcade, and The Threshold."/><meta property="og:url" content="https://rizo.world/"/><meta property="og:image" content="https://rizo.world/assets/icon-512.png"/><meta property="og:image:alt" content="The Rizo flame"/><meta name="twitter:card" content="summary"/>
 
 <link href="./manifest.webmanifest" rel="manifest"/><link href="./launch-v79-defense-alive.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-defense-integration.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-b-economy.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-e-abilities-depth.css" rel="stylesheet"/>
-<link href="./modes/defense/styles/v81-art.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-worker-i-feel.css" rel="stylesheet"/><link href="./arcade-v75.css" rel="stylesheet"/><link href="./arcade-v83.css" rel="stylesheet"/><link href="./arcade-v84-depth.css" rel="stylesheet"/><link href="./rizo-v85-handmade.css" rel="stylesheet"/><link href="./arcade-v87-system.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-d-towers.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-h-ui.css" rel="stylesheet"/><link href="./modes/dungeon/styles/dungeon.css" rel="stylesheet"/><style id="rizo-egg-anchor-v363">
+<link href="./modes/defense/styles/v81-art.css" rel="stylesheet"/><link href="./modes/defense/styles/rtd-worker-i-feel.css" rel="stylesheet"/><link href="./arcade-v75.css" rel="stylesheet"/><link href="./arcade-v83.css" rel="stylesheet"/><link href="./arcade-v84-depth.css" rel="stylesheet"/><link href="./rizo-v85-handmade.css" rel="stylesheet"/><link href="./arcade-v87-system.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-d-towers.css" rel="stylesheet"/><link href="./modes/defense/styles/worker-h-ui.css" rel="stylesheet"/><link href="./modes/dungeon/styles/dungeon.css" rel="stylesheet"/><link href="./public-game.css" rel="stylesheet"/><style id="rizo-egg-anchor-v363">
 /* V36.3 live-iPhone fix: explicit flex centering with a non-positioned egg.
    This deliberately does not depend on inset sizing, CSS translate, or an
    external stylesheet cache. */
@@ -555,7 +555,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </style>
 </head>
 <body class="rizo-handmade">
-<noscript><div style="position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:#07090d;color:#fff;padding:24px;font:800 16px system-ui;text-align:center">RIZO.GAME NEEDS JAVASCRIPT.<br><small style="opacity:.7">Open this build in Safari or deploy the ZIP root as the site root.</small></div></noscript>
+<noscript><main class="no-script-guide"><h1>Rizo World</h1><p>Raise a little flame in the Den, make a House, and take the same Rizo into Defense, the Arcade, and Dungeon’s Threshold story.</p><p>The game needs JavaScript. You can read <a href="./world.html">World</a>, the <a href="./journal.html">development journal</a>, and the <a href="./support.html">Keeper Guide</a> without it.</p><p>Your progress saves locally on this device. No installation or online account is needed.</p></main></noscript>
 <section id="rizoBootShell" role="status" aria-live="polite" aria-label="Rizo.game loading">
   <div class="rizo-boot-card">
     <small>RIZO.GAME // STARTUP</small>
@@ -565,6 +565,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
     <div class="rizo-boot-actions">
       <button type="button" data-rizo-reload>RELOAD CLEAN</button>
       <button type="button" data-rizo-reset-cache>REPAIR APP CACHE &amp; RELOAD</button>
+      <a href="./support.html">Keeper Guide</a><a href="./world.html">Back to World</a>
     </div>
   </div>
 </section>
@@ -583,6 +584,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div aria-hidden="true" class="screen-grain"></div><div aria-hidden="true" class="sensory-flash" id="sensoryFlash"></div>
 <div aria-hidden="true" class="rain-layer" id="rainLayer"></div>
 <section aria-label="Rizo origin story" class="origin-screen" id="originScreen">
+<a class="origin-world-link" href="./world.html">Rizo World ↗</a>
 <div class="origin-sky"></div>
 <div aria-hidden="true" class="moon"></div>
 <div aria-hidden="true" class="forest forest-far"></div>
@@ -611,7 +613,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <img alt="" aria-hidden="true" src="./assets/rizo-classic.png"/>
 <span><em>RIZO APPAREL // FIELD UNIT</em><strong>RIZO.GAME</strong><small>KEEPER <b id="keeperShort">----</b></small></span>
 </button>
-<div class="header-right"><a aria-label="Shop Rizo Apparel" class="store-pill" href="https://rizo.store" rel="noopener" target="_blank">SHOP</a>
+<div class="header-right"><a aria-label="Explore Rizo World" class="store-pill" href="./world.html">WORLD</a>
 <button aria-label="Daily gift" class="daily-gift" id="dailyGiftButton" type="button"><span>✦</span><b id="streakCount">1</b></button>
 <div aria-label="Embers" class="currency-pill"><span class="ember-coin">R</span><b id="coinCount">0</b></div>
 </div>
@@ -833,6 +835,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </div>
 <div id="journalContent"></div>
 </section>
+<aside class="game-world-note"><p>This is your Rizo’s playable home.</p><a href="./world.html">Explore World</a><a href="./support.html">Keeper Guide</a><a href="./privacy.html">Privacy</a></aside>
 <nav aria-label="Main navigation" class="bottom-nav">
 <button class="active" data-nav="home" type="button"><span>⌂</span><b>DEN</b></button>
 <button data-nav="arcade" type="button"><span>✦</span><b>ARCADE</b></button>
@@ -873,6 +876,8 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 
   <script src="./rizo-config.js"></script>
   <script src="./install-manager.js"></script>
+  <script src="./core/rizo-ads.js"></script>
+  <script src="./providers/google-h5.js"></script>
   <script src="./monetization.js"></script>
   <script src="./core/rizo-save-core.js"></script>
   <script src="./core/rizo-training.js"></script>

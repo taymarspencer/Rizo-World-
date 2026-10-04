@@ -1,10 +1,10 @@
 /* Offline shell for Rizo.game. Third-party ad requests are intentionally never cached. */
 const CACHE_PREFIX = "rizo-game-";
-const CACHE = "rizo-game-v91-art-signature";
+const CACHE = "rizo-game-v92-public-foundation";
 const SHELL = [
   "./", "./index.html", "./launch-v79-defense-alive.css", "./modes/defense/styles/rtd-defense-integration.css", "./modes/defense/styles/worker-b-economy.css", "./modes/defense/styles/worker-e-abilities-depth.css", "./modes/defense/styles/worker-h-ui.css", "./modes/defense/styles/v81-art.css", "./modes/defense/styles/rtd-worker-i-feel.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./modes/defense/styles/worker-d-towers.css", "./modes/defense/defense-core.js", "./modes/defense/defense-canvas.js", "./modes/defense/defense-mode.js", "./modes/dungeon/dungeon-art.js", "./modes/dungeon/dungeon-content.js", "./modes/dungeon/dungeon-core.js", "./modes/dungeon/dungeon-input.js", "./modes/dungeon/dungeon-scenery.js", "./modes/dungeon/dungeon-view.js", "./modes/dungeon/dungeon-mode.js", "./modes/dungeon/styles/dungeon.css", "./rizo-config.js", "./install-manager.js",
-  "./monetization.js", "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./core/rizo-catalog.js", "./training/kit.js", "./training/power.js", "./training/spark.js", "./training/forage.js", "./training/rush.js", "./training/walk.js", "./training/rhythm.js", "./training/memory.js", "./training/glide.js", "./training/breaker.js", "./training/maze.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
-  "./privacy.html", "./terms.html", "./support.html", "./assets/icon-192.png",
+  "./core/rizo-ads.js", "./providers/google-h5.js", "./public-game.css", "./monetization.js", "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./core/rizo-catalog.js", "./training/kit.js", "./training/power.js", "./training/spark.js", "./training/forage.js", "./training/rush.js", "./training/walk.js", "./training/rhythm.js", "./training/memory.js", "./training/glide.js", "./training/breaker.js", "./training/maze.js", "./game-v79-defense.js", "./manifest.webmanifest", "./about.html",
+  "./privacy.html", "./terms.html", "./support.html", "./world.html", "./journal.html", "./404.html", "./public-world.css", "./assets/public/den.png", "./assets/public/threshold.png", "./assets/icon-192.png",
   "./assets/defense-pine-bend.svg", "./assets/defense-ember-switchback.svg", "./assets/defense-moon-loop.svg", "./assets/defense-storm-circuit.svg", "./assets/defense-whiteout-pass.svg", "./assets/defense-eclipse-ridge.svg", "./assets/icon-512.png", "./assets/rizo-full-mark.png", "./assets/rizo-classic.png",
   "./assets/rizo-ember.png", "./assets/rizo-toxic.png", "./assets/rizo-violet.png",
   "./assets/rizo-bubblegum.png", "./assets/rizo-frost.png", "./assets/rizo-glitch.png",
@@ -39,11 +39,11 @@ const SHELL = [
 ];
 const REQUIRED_SHELL = [
   "./", "./index.html", "./launch-v79-defense-alive.css", "./modes/defense/styles/rtd-defense-integration.css", "./modes/defense/styles/worker-b-economy.css", "./modes/defense/styles/worker-h-ui.css", "./modes/defense/styles/v81-art.css", "./arcade-v75.css", "./arcade-v83.css", "./arcade-v84-depth.css", "./rizo-v85-handmade.css", "./arcade-v87-system.css", "./modes/defense/styles/worker-d-towers.css", "./modes/defense/styles/worker-e-abilities-depth.css", "./modes/defense/styles/rtd-worker-i-feel.css",
-  "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./core/rizo-catalog.js", "./training/kit.js", "./training/power.js", "./training/spark.js", "./training/forage.js", "./training/rush.js", "./training/walk.js", "./training/rhythm.js", "./training/memory.js", "./training/glide.js", "./training/breaker.js", "./training/maze.js", "./modes/defense/defense-core.js", "./modes/defense/defense-canvas.js", "./modes/defense/defense-mode.js", "./modes/dungeon/dungeon-art.js", "./modes/dungeon/dungeon-content.js", "./modes/dungeon/dungeon-core.js", "./modes/dungeon/dungeon-input.js", "./modes/dungeon/dungeon-scenery.js", "./modes/dungeon/dungeon-view.js", "./modes/dungeon/dungeon-mode.js", "./modes/dungeon/styles/dungeon.css", "./rizo-config.js", "./install-manager.js", "./monetization.js",
+  "./core/rizo-save-core.js", "./core/rizo-training.js", "./core/rizo-modes.js", "./core/rizo-catalog.js", "./training/kit.js", "./training/power.js", "./training/spark.js", "./training/forage.js", "./training/rush.js", "./training/walk.js", "./training/rhythm.js", "./training/memory.js", "./training/glide.js", "./training/breaker.js", "./training/maze.js", "./modes/defense/defense-core.js", "./modes/defense/defense-canvas.js", "./modes/defense/defense-mode.js", "./modes/dungeon/dungeon-art.js", "./modes/dungeon/dungeon-content.js", "./modes/dungeon/dungeon-core.js", "./modes/dungeon/dungeon-input.js", "./modes/dungeon/dungeon-scenery.js", "./modes/dungeon/dungeon-view.js", "./modes/dungeon/dungeon-mode.js", "./modes/dungeon/styles/dungeon.css", "./rizo-config.js", "./install-manager.js", "./core/rizo-ads.js", "./providers/google-h5.js", "./public-game.css", "./monetization.js",
   "./game-v79-defense.js", "./manifest.webmanifest", "./assets/icon-192.png",
   "./assets/defense-pine-bend.svg", "./assets/icon-512.png", "./assets/rizo-classic.png"
 ];
-const NETWORK_FIRST_PATHS = new Set(REQUIRED_SHELL.map(path => new URL(path, self.location.href).pathname));
+const NETWORK_FIRST_PATHS = new Set([...REQUIRED_SHELL, "./world.html", "./journal.html", "./about.html", "./privacy.html", "./terms.html", "./support.html", "./404.html", "./public-world.css"].map(path => new URL(path, self.location.href).pathname));
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
@@ -78,7 +78,16 @@ async function cacheIfUsable(request, response) {
 
 async function navigationResponse(request) {
   try { return await cacheIfUsable(request, await fetch(request, { cache: "no-store" })); }
-  catch (error) { return (await caches.match(request)) || caches.match("./index.html"); }
+  catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const path = new URL(request.url).pathname;
+    const gameRoot = new URL("./", self.location.href).pathname;
+    const gameIndex = new URL("./index.html", self.location.href).pathname;
+    if (path === gameRoot || path === gameIndex) return (await caches.match("./index.html")) || Response.error();
+    // Never impersonate a missing policy/ads.txt/other page with the playable app.
+    return new Response("This page is not available offline. Reconnect, or return to the game.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
 }
 
 async function networkFirst(request) {

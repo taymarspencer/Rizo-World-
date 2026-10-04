@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v91-art-signature";
+  const RIZO_RUNTIME_BUILD = "v92-public-foundation";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -60,9 +60,15 @@
   let lastOverlayFocus = null;
 
   function syncUILock() {
-    const locked = el?.bottomSheet?.classList.contains("show") || el?.modalOverlay?.classList.contains("show") || (el?.miniGameOverlay && !el.miniGameOverlay.hidden);
+    const sheetOpen = el?.bottomSheet?.classList.contains("show"), modalOpen = el?.modalOverlay?.classList.contains("show");
+    const locked = adAudioHolds > 0 || sheetOpen || modalOpen || (el?.miniGameOverlay && !el.miniGameOverlay.hidden);
     document.documentElement.classList.toggle("ui-locked", Boolean(locked));
     document.body.classList.toggle("ui-locked", Boolean(locked));
+    if (el?.gameShell) el.gameShell.inert = Boolean(locked);
+    if (el?.originScreen) el.originScreen.inert = Boolean(locked);
+    if (el?.bottomSheet) el.bottomSheet.inert = adAudioHolds > 0 || !sheetOpen || Boolean(modalOpen);
+    if (el?.modalOverlay) el.modalOverlay.inert = adAudioHolds > 0 || !modalOpen;
+    if (el?.miniGameOverlay) el.miniGameOverlay.inert = adAudioHolds > 0 || Boolean(sheetOpen || modalOpen);
   }
 
   function isUILocked() {
@@ -143,46 +149,31 @@
   }
 
   const CONFIG = {
-    ads: {
-      enabled: false,
-      provider: "none",
-      placements: ["home-feed", "arcade-between-games", "shop-footer", "death-revive", "capsule-bonus", "expedition-double"]
-    },
     cloud: {
       enabled: false,
       provider: "none"
     }
   };
 
-  /*
-    FUTURE MONETIZATION BRIDGE
-    ---------------------------------
-    A web ad network or native wrapper can replace these methods without changing game logic.
-    Example native flow: Capacitor + AdMob calls window.RizoAds.setProvider(nativeAdapter).
-  */
-  const AdBridge = {
-    provider: null,
-    setProvider(provider) {
-      this.provider = provider;
-      CONFIG.ads.enabled = Boolean(provider);
-      refreshAdSlots();
-    },
-    async showRewarded(placement) {
-      if (!CONFIG.ads.enabled || !this.provider?.showRewarded) return false;
-      try { return Boolean(await this.provider.showRewarded(placement)); }
-      catch (error) { console.warn("Rizo rewarded ad failed", error); return false; }
-    },
-    async showInterstitial(placement) {
-      if (!CONFIG.ads.enabled || !this.provider?.showInterstitial) return false;
-      try { return Boolean(await this.provider.showInterstitial(placement)); }
-      catch (error) { console.warn("Rizo interstitial failed", error); return false; }
-    },
-    mountBanner(placement, element) {
-      if (!CONFIG.ads.enabled || !this.provider?.mountBanner) return false;
-      try { this.provider.mountBanner(placement, element); return true; }
-      catch (error) { console.warn("Rizo banner failed", error); return false; }
-    }
-  };
+  let adAudioHolds = 0, adAudioWasRunning = false;
+  const AdBridge = globalThis.RizoAdCore?.createBridge({
+    enabled: () => window.RIZO_CONFIG?.ads?.enabled === true,
+    canRequestAds: () => window.RizoPrivacy?.canRequestAds() === true,
+    // The campaign and live runs are protected. Future mode-specific placements
+    // require an explicitly reviewed host opportunity; no event auto-requests ads.
+    contextSafe: () => !document.hidden && !globalThis.RizoModes?.active?.() && !mini?.active,
+    placements: window.RIZO_CONFIG?.ads?.placements || {},
+    timeoutMs: window.RIZO_CONFIG?.ads?.h5Games?.rewardTimeoutMs,
+    requestCooldownMs: window.RIZO_CONFIG?.ads?.requestCooldownMs,
+    interstitialCooldownMs: window.RIZO_CONFIG?.ads?.interstitialCooldownMs,
+    maxRequestsPerSession: window.RIZO_CONFIG?.ads?.maxRequestsPerSession,
+    onStart: detail => document.dispatchEvent(new CustomEvent("rizo:ad-start", { detail })),
+    onEnd: detail => document.dispatchEvent(new CustomEvent("rizo:ad-end", { detail })),
+    onChange: () => refreshAdSlots()
+  }) || Object.freeze({
+    setProvider: () => false, available: () => false, mountBanner: () => false,
+    showRewarded: async () => false, showInterstitial: async () => false
+  });
   window.RizoAds = AdBridge;
   window.dispatchEvent(new CustomEvent("rizo:adbridge-ready"));
 
@@ -2444,10 +2435,7 @@
         return `<article class="shop-item room-shop-card"><div class="room-swatch ${item.className}"><span>${item.icon}</span><i></i></div><div><h3>${item.name}</h3><p>${item.description}</p></div><button class="${owned ? "owned" : ""} ${shortOnEmbers ? "short-on-embers" : ""}" data-buy-room="${item.id}" ${equipped ? "disabled" : ""} title="${shortOnEmbers ? "Not enough Embers yet" : equipped ? "Current room" : owned ? "Use " + item.name : "Buy " + item.name}">${equipped ? "ACTIVE" : owned ? "USE" : `R ${item.cost}`}</button></article>`;
       }).join("");
     } else {
-      el.shopList.innerHTML = BOOSTS.filter(item => !item.futureAd || CONFIG.ads.enabled).map(item => {
-        if (item.futureAd) {
-          return `<article class="shop-item"><div class="shop-item-icon">${item.icon}</div><div><h3>${item.name}</h3><p>${item.description}</p></div><button data-ad-reward="care">WATCH</button></article>`;
-        }
+      el.shopList.innerHTML = BOOSTS.filter(item => !item.futureAd).map(item => {
         const quantity = state.inventory[item.id] || 0;
         const shortOnEmbers = state.wallet.embers < item.cost;
         return `<article class="shop-item"><div class="shop-item-icon">${item.icon}</div><div><h3>${item.name}</h3><p>${item.description} • OWNED ${quantity}</p></div><button class="${shortOnEmbers ? "short-on-embers" : ""}" data-buy-boost="${item.id}" title="${shortOnEmbers ? "Not enough Embers yet" : "Buy " + item.name}">R ${item.cost}</button></article>`;
@@ -2566,7 +2554,7 @@
       <section class="settings-board"><h3>HOW TO KEEP RIZO ALIVE</h3><div class="sheet-note">Replay the care guide whenever the need meters or growth systems stop making sense.</div><button class="wide-button" data-open-care-guide>OPEN KEEPER GUIDE</button></section>
       <section class="settings-board"><h3>THIS DEVICE IS YOUR LOGIN</h3><p class="keeper-code">${state.player.keeperId}</p><div class="sheet-note">Progress lives in this browser. Copy a complete Keeper Code before switching phones or clearing website data.</div><div class="settings-actions"><button data-copy-keeper>COPY ID</button><button data-copy-recovery>COPY KEEPER CODE</button><button data-open-recovery>PASTE KEEPER CODE</button>${CONFIG.cloud.enabled ? '<button data-cloud-sync>SYNC NOW</button>' : '<button data-export-save>DOWNLOAD JSON</button>'}</div></section>
       <section class="settings-board"><h3>RIZO APPAREL</h3><div class="sheet-note">Rizo Life is made by Rizo Apparel. The game is free; the clothes are extremely real.</div><a class="wide-button" style="display:block;text-align:center;text-decoration:none" href="${escapeHTML(storeUrl())}" target="_blank" rel="noopener">SHOP RIZO.STORE ↗</a></section>
-      <section class="settings-board"><h3>INSTALL + UPDATES</h3><div class="sheet-note">${window.RizoInstall?.isStandalone?.() ? "Installed app mode is active." : "Install Rizo.game for fullscreen play and faster return visits."}<br><br><b>BUILD ${escapeHTML(RIZO_RUNTIME_BUILD)}</b> • ${releaseUpdateReady?"A newer build is waiting.":"Refresh Latest checks the network and replaces stale app caches."}${mini?.active&&mini.mode==="defense"?" Your active Defense run will checkpoint first.":""}</div><div class="settings-actions"><button data-show-install>INSTALL HELP</button><button class="update-refresh-button" data-refresh-latest>${releaseUpdateReady?"UPDATE NOW":"REFRESH LATEST"}</button><button data-ad-reward="care" ${CONFIG.ads.enabled ? "" : "disabled"}>${CONFIG.ads.enabled ? "REWARDED CARE" : "ADS NOT READY"}</button></div><div class="rizo-legal-links"><a href="./about.html">ABOUT</a><a href="./privacy.html">PRIVACY</a><a href="./terms.html">TERMS</a><a href="./support.html">SUPPORT</a></div></section>
+      <section class="settings-board"><h3>INSTALL + UPDATES</h3><div class="sheet-note">${window.RizoInstall?.isStandalone?.() ? "Installed app mode is active." : "Install Rizo.game for fullscreen play and faster return visits."}<br><br><b>BUILD ${escapeHTML(RIZO_RUNTIME_BUILD)}</b> • ${releaseUpdateReady?"A newer build is waiting.":"Refresh Latest checks the network and replaces stale app caches."}${mini?.active&&mini.mode==="defense"?" Your active Defense run will checkpoint first.":""}</div><div class="settings-actions"><button data-show-install>INSTALL HELP</button><button class="update-refresh-button" data-refresh-latest>${releaseUpdateReady?"UPDATE NOW":"REFRESH LATEST"}</button></div><div class="rizo-legal-links"><a href="./world.html">WORLD</a><a href="./journal.html">JOURNAL</a><a href="./about.html">ABOUT</a><a href="./privacy.html">PRIVACY</a><a href="./terms.html">TERMS</a><a href="./support.html">SUPPORT</a></div></section>
       <section class="settings-board"><h3>SAVE TOOLS</h3><div class="settings-actions"><button data-export-save>EXPORT SAVE</button><button data-import-save>IMPORT SAVE</button><button data-replay-origin>REPLAY ORIGIN</button><button data-copy-summary>COPY STATS</button></div><button class="wide-button danger" data-reset-save>DELETE THE ENTIRE TIMELINE</button></section>
       ${setAsideSavesMarkup()}
     </div>`;
@@ -2607,11 +2595,9 @@
   }
 
   function refreshAdSlots() {
-    $$("[data-ad-slot]").forEach(slot => {
-      const placement = slot.dataset.adSlot;
-      slot.hidden = !CONFIG.ads.enabled;
-      if (CONFIG.ads.enabled) AdBridge.mountBanner(placement, slot);
-    });
+    // Inherited markup is retained for compatibility, never exposed or mounted.
+    // Touch-driven care, cabinet navigation and the Closet are not display inventory.
+    $$("[data-ad-slot]").forEach(slot => { slot.hidden = true; });
   }
 
   function clearToasts() {
@@ -3290,24 +3276,6 @@
     say(id === "care" ? "I FEEL EXPENSIVELY CARED FOR." : "I CAN FEEL MY LORE EXPANDING.");
   }
 
-  async function useAdReward(kind) {
-    const completed = await AdBridge.showRewarded(kind === "revive" ? "death-revive" : "care-boost");
-    if (!completed) {
-      toast(CONFIG.ads.enabled ? "AD DID NOT COMPLETE" : "ADS ARE NOT CONNECTED YET");
-      return;
-    }
-    if (kind === "care") {
-      mutate(pet => {
-        pet.health = clamp(pet.health + 15);
-        pet.hunger = clamp(pet.hunger + 25);
-        pet.mood = clamp(pet.mood + 25);
-        pet.energy = clamp(pet.energy + 25);
-        pet.hygiene = clamp(pet.hygiene + 25);
-      });
-      toast("SPONSOR CARE PACKAGE DELIVERED");
-    }
-    if (kind === "revive") revivePet("ad");
-  }
 
 
   function gardenCodePayload() {
@@ -4651,9 +4619,9 @@
   }
 
   let audioContext;
-  function ensureAudio() { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); if(audioContext.state === "suspended") audioContext.resume(); return audioContext; } catch(error){ return null; } }
-  function soundVolume(){ return state?.settings?.sound ? clamp(Number(state.settings.soundVolume ?? .85),0,1) : 0; }
-  function musicVolume(){ return state?.settings?.music ? clamp(Number(state.settings.musicVolume ?? .85),0,1) : 0; }
+  function ensureAudio() { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); if(audioContext.state === "suspended" && !adAudioHolds) audioContext.resume(); return audioContext; } catch(error){ return null; } }
+  function soundVolume(){ return !adAudioHolds && state?.settings?.sound ? clamp(Number(state.settings.soundVolume ?? .85),0,1) : 0; }
+  function musicVolume(){ return !adAudioHolds && state?.settings?.music ? clamp(Number(state.settings.musicVolume ?? .85),0,1) : 0; }
   function currentMusicGain(){ return Math.max(.001, MUSIC_MASTER_GAIN * musicVolume()); }
   function currentRhythmGain(){ return Math.max(.001, .76 * musicVolume()); }
   function tone(freq=420,duration=.05,type="square",volume=.035,delay=0,slide=0){
@@ -4796,7 +4764,7 @@
   function startMusicForScene(scene,force=false){
     // A training game that plays its own music (Ember Beat) silences the hub's.
     if(scene.startsWith("mini-")&&trainingGame(scene.slice(5))?.music===false){clearInterval(musicTimer);musicTimer=null;musicScene=scene;return;}
-    if(!musicUnlocked || !state?.settings?.music || document.hidden){ if(!state?.settings?.music) stopMusic(); return; }
+    if(adAudioHolds || !musicUnlocked || !state?.settings?.music || document.hidden){ if(!state?.settings?.music) stopMusic(); return; }
     const key=MUSIC_TRACKS[scene]||modeMusicTracks.has(scene)?scene:"home";
     if(!force&&musicScene===key&&musicTimer)return;
     const token=++musicTransitionToken;
@@ -4811,7 +4779,7 @@
     if(musicScene && !state.settings.reducedMotion)setTimeout(begin,130); else begin();
   }
 
-  function syncMusic(force=false){ startMusicForScene(sceneMusicKey(),force); }
+  function syncMusic(force=false){ document.body.dataset.rizoSound = (state?.settings?.sound && Number(state.settings.soundVolume) > 0) || (state?.settings?.music && Number(state.settings.musicVolume) > 0) ? "on" : "off"; startMusicForScene(sceneMusicKey(),force); }
 
   function unlockMusic(){
     musicUnlocked=true;
@@ -5323,8 +5291,6 @@ Streak: ${state.player.streak}`;
       window.RizoInstall?.show?.();
       return;
     }
-    const adReward = event.target.closest("[data-ad-reward]")?.dataset.adReward;
-    if (adReward) { useAdReward(adReward); return; }
 
     if (event.target.closest("[data-open-rename]")) { closeSheet(); showNameModal(false); return; }
     if (event.target.closest("[data-open-journal]")) { closeSheet(); changeView("journal"); return; }
@@ -5613,6 +5579,20 @@ Streak: ${state.player.streak}`;
       if (file) importSave(file);
     });
     document.addEventListener("keydown", event => {
+      if (event.key === "Tab") {
+        const top = el.modalOverlay?.classList.contains("show") ? el.modalOverlay
+          : el.bottomSheet?.classList.contains("show") ? el.bottomSheet
+          : !el.miniGameOverlay.hidden ? el.miniGameOverlay : null;
+        if (top) {
+          const nodes = [...top.querySelectorAll("button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex='0']")]
+            .filter(node => !node.closest("[inert]") && node.getClientRects().length > 0);
+          const first = nodes[0], last = nodes[nodes.length - 1];
+          if (first && (event.shiftKey ? document.activeElement === first || !top.contains(document.activeElement)
+            : document.activeElement === last || !top.contains(document.activeElement))) {
+            event.preventDefault(); (event.shiftKey ? last : first).focus({ preventScroll: true });
+          }
+        }
+      }
       if (event.key === "Enter" && event.target?.id === "modalNameInput") {
         event.preventDefault();
         if (renamePet(event.target.value)) closeModal();
@@ -6085,8 +6065,19 @@ Streak: ${state.player.streak}`;
   }
 
   function boot() {
-    document.addEventListener("rizo:ad-start", () => { arcadeFreeze("ad"); globalThis.RizoModes?.suspendActive?.("ad"); stopMusic(); });
-    document.addEventListener("rizo:ad-end", () => { arcadeThaw("ad"); globalThis.RizoModes?.resumeActive?.("ad"); syncMusic(true); });
+    document.addEventListener("rizo:ad-start", () => {
+      if (adAudioHolds++ === 0) adAudioWasRunning = audioContext?.state === "running";
+      arcadeFreeze("ad"); globalThis.RizoModes?.suspendActive?.("ad"); stopMusic(0);
+      if (audioContext?.state === "running") audioContext.suspend().catch(() => {});
+      syncUILock();
+    });
+    document.addEventListener("rizo:ad-end", event => {
+      adAudioHolds = Math.max(0, adAudioHolds - 1);
+      if (event.detail?.requiresResume) { openArcadePause(); globalThis.RizoModes?.suspendActive?.("manual"); }
+      arcadeThaw("ad"); globalThis.RizoModes?.resumeActive?.("ad"); syncUILock();
+      if (!adAudioHolds && !document.hidden && adAudioWasRunning) audioContext?.resume().catch(() => {});
+      if (!adAudioHolds) syncMusic(true);
+    });
     loadState();
     attachModeHost();
     buildRain();

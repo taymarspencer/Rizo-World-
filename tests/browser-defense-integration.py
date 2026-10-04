@@ -22,7 +22,7 @@ def visible_geometry(page):
     return page.evaluate('''()=>{const vp={w:innerWidth,h:innerHeight};const visible=e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return s.display!=="none"&&s.visibility!=="hidden"&&Number(s.opacity)!==0&&r.width>0&&r.height>0};const shell=document.querySelector(".defense-shell"),field=document.querySelector("#defenseWorld");const controls=[...document.querySelectorAll(".mini-game-overlay.defense-active button")].filter(visible).map(e=>{const r=e.getBoundingClientRect();return{label:e.getAttribute("aria-label")||e.textContent.trim().slice(0,50),left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}});const tiny=[...document.querySelectorAll(".mini-game-overlay.defense-active *")].filter(visible).map(e=>({tag:e.tagName,cls:e.className||"",text:(e.textContent||"").trim().slice(0,50),size:parseFloat(getComputedStyle(e).fontSize)})).filter(x=>x.text&&x.size<10.5);const sr=shell?.getBoundingClientRect(),fr=field?.getBoundingClientRect();return{vp,shell:sr?{left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom,width:sr.width,height:sr.height}:null,field:fr?{left:fr.left,top:fr.top,right:fr.right,bottom:fr.bottom,width:fr.width,height:fr.height}:null,controls,tiny};}''')
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+    browser=p.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
     # Production gate
     page,errors=new_page(browser,False)
     record('production QA API absent',page.evaluate('typeof window.RizoRuntimeQA')=='undefined',page.evaluate('typeof window.RizoRuntimeQA'))

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://play.rizo.store/sitemap.xml
+Sitemap: https://rizo.world/sitemap.xml
