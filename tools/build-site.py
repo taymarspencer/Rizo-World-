@@ -43,4 +43,4 @@ for name in sorted(files):
     dest = out/name; dest.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(ROOT/name,dest)
 for folder in ['assets','core','providers','training','modes']:
     shutil.copytree(ROOT/folder,out/folder,dirs_exist_ok=True)
-print(json.dumps({'output':str(out),'files':sum(p.is_file() for p in out.rglob('*')),'build':'v92-public-foundation','ads_txt':(out/'ads.txt').exists()},indent=2))
+print(json.dumps({'output':str(out),'files':sum(p.is_file() for p in out.rglob('*')),'build':'v92-release-candidate-1','ads_txt':(out/'ads.txt').exists()},indent=2))

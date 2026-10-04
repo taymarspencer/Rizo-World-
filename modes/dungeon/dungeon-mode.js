@@ -1255,9 +1255,11 @@
         if (ui === "panel" && panelKind === "pause") renderPausePanel();
       },
       key(event) { return Boolean(input?.bound && input.key(event)); },
-      resize() {
+      resize(reason) {
         if (!view) return;
-        if (view.layout()) { input?.clear("resize"); pending = { primary: false, secondary: false }; }
+        // The hub refreshes every five seconds. Reflow its chrome without
+        // cancelling a held control; actual viewport changes still clear it.
+        if (view.layout() && reason !== "render") { input?.clear("resize"); pending = { primary: false, secondary: false }; }
       },
       quit(reason) {
         if (stopped || exitState) return;

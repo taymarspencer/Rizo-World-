@@ -620,6 +620,12 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     st = launch(page)
     check("an interrupted homecoming resumes at the open door, never re-awarding", st["sim"]["roomId"] == "porter" and st["sim"]["flags"].get("porterDown") and page.evaluate(STORED)["accessories"].count("first-knot") == 1, str((st["sim"]["roomId"], st["sim"]["flags"])))
     skip(page)
+    # The ordinary five-second save/chrome refresh must not drop a held key.
+    # The defeated Porter's room is safe; its side wall contains this movement.
+    page.keyboard.down("d"); page.evaluate("RizoRuntimeQA.renderAll()"); page.wait_for_timeout(5300)
+    held_dir = page.locator(".dungeon-dpad").get_attribute("data-dir")
+    page.keyboard.up("d")
+    check("a held control survives hub refresh and the real autosave tick", held_dir == "right", str(held_dir))
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,30)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(1200)
     check("walking out the open door completes the journey and returns to the Den", page.evaluate("RizoModes.active()") is None and page.evaluate(STORED)["slice"]["campaign"]["status"] == "complete")
     st = launch(page)

@@ -89,7 +89,9 @@ with sync_playwright() as p:
     held = page.evaluate("()=>({jobs:window.__probe.jobs, now:window.__probeRun.now(), left:RizoRuntimeQA.arcadeClockForQA().remaining})")
     page.wait_for_timeout(700)
     later = page.evaluate("()=>({jobs:window.__probe.jobs, now:window.__probeRun.now(), left:RizoRuntimeQA.arcadeClockForQA().remaining})")
-    record("a paused run's clock stands still", later["now"] == held["now"] and abs(later["left"] - held["left"]) < 1, str((held, later)))
+    # Epoch-sized doubles can differ by one fractional-millisecond ULP when
+    # subtracting the held interval. Still reject even 1 ms of clock movement.
+    record("a paused run's clock stands still", abs(later["now"] - held["now"]) < 1 and abs(later["left"] - held["left"]) < 1, str((held, later)))
     record("a paused run fires no jobs", later["jobs"] == held["jobs"], str((held["jobs"], later["jobs"])))
     page.evaluate("RizoRuntimeQA.arcadeResumeForQA()")
     page.wait_for_timeout(300)
