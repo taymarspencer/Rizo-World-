@@ -312,11 +312,23 @@
   // narration (no portrait). Rizo never makes speeches: he reacts in-world.
   const L = (speaker, expr, text) => ({ speaker, expr, text });
   const LINES = {
-    beGood: [L("you", "neutral", "Alright Rizo, I'm gonna go in the store real quick. Be good.")],
+    // The accepted line, split (v0.3 beat sheet 2.2–2.4) so "Be good." lands alone.
+    goingIn: [L("you", "neutral", "Alright Rizo, I'm gonna go in the store real quick.")],
+    beGood: [L("you", "neutral", "Be good.")],
     thatHim: [L("hood-small", "neutral", "That him?"), L("hood-tall", "neutral", "Obviously.")],
     flinch: [L("hood-small", "neutral", "Yo—")],
     vanArgue: [L("driver", "neutral", "I thought you said he didn't do that fire shit."), L("hood-tall", "neutral", "I said probably.")],
     bump: [L("driver", "neutral", "My bad. Pothole.")],
+    // The van, overheard (v0.3 beat sheet Scene 7). Rizo understands the tone,
+    // not the words. Nobody says why, what "one" is, or what the cooler is for.
+    vanTouch: [L("hood-small", "neutral", "Boss said don't touch it."), L("hood-tall", "neutral", "I'm not touching it."), L("hood-small", "neutral", "Then why you keep looking at it?"), L("hood-tall", "neutral", "'Cause it's looking at me.")],
+    vanFilm: [L("hood-small", "neutral", "Say hi."), L("hood-tall", "neutral", "Put that away."), L("hood-small", "neutral", "It's for me. It's not for nobody.")],
+    vanCooler: [L("hood-small", "neutral", "Why do we even got a cooler."), L("driver", "neutral", "In case."), L("hood-small", "neutral", "In case of what?"), L("driver", "neutral", "…In case.")],
+    vanNumber: [L("hood-small", "neutral", "How much we getting for it?"), L("hood-tall", "neutral", "Enough."), L("hood-small", "neutral", "That's not a number."), L("driver", "neutral", "It ain't about the number. You don't say no to him."), L("hood-small", "neutral", "I'd say no."), L("driver", "neutral", "Nah. You wouldn't.")],
+    vanAsk: [L("hood-small", "neutral", "What's he even want it for?")],
+    vanPhone: [L("hood-small", "neutral", "…It's him."), L("driver", "neutral", "Don't."), L("hood-small", "neutral", "If I don't pick up—"), L("hood-tall", "neutral", "Then don't pick up.")],
+    vanLost: [L("hood-small", "neutral", "You know what happened to the last dude who lost one."), L("hood-tall", "neutral", "Shut up."), L("hood-small", "neutral", "I'm just saying."), L("hood-tall", "neutral", "I said shut the f—")],
+    vanListening: [L("hood-cap", "neutral", "Both of you. It's listening.")],
     latchApproach: [L("latch", "startled", "NO OPEN FLAMES."), L("latch", "dry", "Sorry. Sign's older than the door.")],
     latchJam: [L("latch", "procedural", "Latch is frozen. Name's Latch. Different problem.")],
     latchRescue: [L("latch", "startled", "Oh."), L("latch", "dry", "That was the useful kind."), L("latch", "procedural", "You're going up? Hearth first.")],

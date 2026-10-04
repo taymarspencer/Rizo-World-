@@ -261,6 +261,9 @@
     const list = [{ x: 120, y: 8, r: 50, strength: 0.5 }];
     if (!s.reduced) { const x = 300 - ((t / 6) % 420); list.push({ x, y: 80, r: 120, strength: 0.75, warm: 0.45 }); }
     if (room.doorLoose || room.doorOpen) list.push({ x: 226, y: 92, r: room.doorOpen ? 80 : 40, strength: 0.8 });
+    // A phone in the back: a small cold light while he films; the whole van
+    // when it rings. Its screen faces the cabin, so only the light is ours.
+    if (room.phoneLight) list.push({ x: 56, y: 108, r: room.phoneLight === "call" ? 130 : 34, strength: room.phoneLight === "call" ? 0.95 : 0.7, warm: 0 });
     return { ambient: { color: [6, 8, 12], alpha: 0.56 }, list };
   }
 
