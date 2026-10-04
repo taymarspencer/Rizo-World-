@@ -16,10 +16,9 @@ body.landing{--world-ink:#0c0d0d;--world-line:#34332d;background:#0c0d0d}
 .landing .world-brand img{width:25px;height:33px;object-fit:contain}
 .landing .world-header .nav-play{border-color:#716345}
 .landing .world-intro{position:relative;isolation:isolate;display:block;min-height:700px;padding:0;overflow:hidden;overflow:clip;background:#0c0d0d}
-.landing .intro-copy{position:relative;z-index:2;width:min(calc(100% - 2 * var(--world-space)),1100px);margin:auto;padding:87px 0 118px;pointer-events:none}
+.landing .intro-copy{position:relative;z-index:2;width:min(calc(100% - 2 * var(--world-space)),1100px);margin:auto;padding:87px 0 96px;pointer-events:none}
 .landing .intro-copy a{pointer-events:auto}
-.landing .intro-copy .eyebrow{font-size:10px;letter-spacing:.16em;color:#c4b894}
-.landing h1{font-size:clamp(70px,7.7vw,108px);font-weight:750;letter-spacing:-.07em;line-height:.97;margin:28px 0 24px;width:fit-content;max-width:100%}
+.landing h1{font-size:clamp(70px,7.1vw,100px);font-weight:750;letter-spacing:-.07em;line-height:.97;margin:28px 0 24px;width:fit-content;max-width:100%}
 .landing h1 span{color:#dac38e}
 .landing .lede{font-size:clamp(16px,1.65vw,20px);line-height:1.65;color:#c3beb2}
 .landing .entry-actions{gap:22px;margin:30px 0 16px}
@@ -34,8 +33,8 @@ body.landing{--world-ink:#0c0d0d;--world-line:#34332d;background:#0c0d0d}
 .scene-distance{position:absolute;right:-4%;bottom:16%;width:75%;height:77%;opacity:.75}
 .scene-distance svg{display:block;width:100%;height:100%}
 .scene-haze{position:absolute;right:-8%;bottom:17%;width:65%;height:18%;background:radial-gradient(ellipse,#bfa67813,transparent 68%);animation:world-haze 18s ease-in-out infinite alternate}
-.scene-floor{position:absolute;inset:65% -5% -20%;background:repeating-linear-gradient(176deg,transparent 0 54px,#9b85570e 55px 56px,transparent 57px 102px),linear-gradient(#26251e,#0d0e0d 63%);clip-path:polygon(0 14%,100% 0,100% 100%,0 100%)}
-.scene-floor:after{content:"";position:absolute;inset:0;background:linear-gradient(104deg,transparent 53%,#bba27318 53.15%,transparent 53.4%),linear-gradient(71deg,transparent 78%,#bba27314 78.15%,transparent 78.4%)}
+.scene-floor{position:absolute;inset:65% -5% -20%;background:linear-gradient(176deg,transparent 20%,#72644412 20.2%,transparent 20.5%,transparent 63%,#8f7d4910 63.2%,transparent 63.5%),linear-gradient(#20221c,#080a09 70%);clip-path:polygon(0 14%,100% 0,100% 100%,0 100%)}
+.scene-floor:after{content:"";position:absolute;inset:0;background:linear-gradient(104deg,transparent 53%,#bba27312 53.15%,transparent 53.4%)}
 .scene-door{position:absolute;right:19%;bottom:28%;height:65%;width:23%;max-width:275px;border:1px solid #454033;border-right:7px solid #303028;border-bottom:0;background:linear-gradient(90deg,#070808 78%,#24251c);transform:skewY(-3deg);box-shadow:-10px 0 0 #151713,12px -10px 0 #11130f}
 .scene-door:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 76%,#edc97515);border-right:2px solid #d4b979;box-shadow:15px 0 45px #d6a44717;opacity:.55;transition:opacity .16s}
 .scene-door:after{content:"";position:absolute;bottom:-2px;right:-38%;width:145%;height:2px;background:#d9bd793b;transform:rotate(-3deg);transform-origin:right}
@@ -44,21 +43,15 @@ body.landing{--world-ink:#0c0d0d;--world-line:#34332d;background:#0c0d0d}
 .scene-foreground:after{content:"";position:absolute;left:19%;top:0;width:2px;height:100%;background:#34342a}
 .scene-wear{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 .scene-wire{position:absolute;left:0;top:2%;width:100%;height:15%;border-bottom:1px solid #655d4638;border-radius:0 0 60% 30%;transform:rotate(-4deg)}
-.scene-ember{position:absolute;left:74%;top:48%;width:3px;height:3px;background:#dac084;opacity:0;animation:world-ember 8s ease-out infinite}
-.scene-ember:nth-of-type(2){left:66%;top:66%;animation-delay:3s}
-.scene-ember:nth-of-type(3){left:81%;top:61%;animation-delay:6s}
-.landing .intro-rizo{position:absolute;z-index:1;right:max(14%,calc((100vw - 1050px)/2));bottom:24%;width:clamp(200px,26vw,345px);max-width:none;margin:0;padding:0;transform:none;align-self:auto}
-.landing .intro-rizo:before{content:"";position:absolute;inset:25% -40% -24%;border-radius:50%;background:radial-gradient(ellipse,#d3b06a12,transparent 65%);animation:world-glow 6s ease-in-out infinite}
+.landing .intro-rizo{position:absolute;z-index:1;right:max(14%,calc((100vw - 1050px)/2));bottom:17%;width:clamp(200px,28vw,370px);max-width:none;margin:0;padding:0;transform:none;align-self:auto}
+.landing .intro-rizo:before{content:"";position:absolute;inset:79% -14% -2%;border-radius:50%;background:radial-gradient(ellipse at 52% 38%,#9ed5cb23 0,#c5b6810e 37%,transparent 69%);animation:world-glow 8.6s ease-in-out infinite}
 .landing .rizo-presence{position:relative;display:block;transition:transform .16s ease-out}
-.landing .intro-rizo img{width:100%;filter:none;transform-origin:50% 95%;animation:world-breathe 6s ease-in-out infinite}
-.landing .intro-rizo:after{content:"";position:absolute;left:15%;right:8%;bottom:-3%;height:5%;border-radius:50%;background:#0009;z-index:-1;animation:world-shadow 6s ease-in-out infinite}
-.landing .intro-rizo figcaption{position:absolute;bottom:-40px;left:0;right:0;margin:0;transform:none;text-align:center;font-size:8px;letter-spacing:.13em;color:#a9a18d}
-.landing .world-intro:has(.primary-link:is(:hover,:focus-visible,:active)) .rizo-presence{transform:translateX(-9px) rotate(-3deg)}
+.landing .intro-rizo img{width:100%;filter:none}
+.landing .intro-rizo:after{content:"";position:absolute;left:15%;right:14%;bottom:7%;height:3%;border-radius:50%;background:#0009;z-index:-1;animation:world-shadow 8.6s ease-in-out infinite}
+.landing .world-intro:has(.primary-link:is(:hover,:focus-visible,:active)) .rizo-presence{transform:translateX(-3px) rotate(-1.5deg)}
 .landing .world-intro:has(.primary-link:is(:hover,:focus-visible,:active)) .scene-door:before,.landing .world-intro:has(.primary-link:is(:hover,:focus-visible,:active)) .scene-spill{opacity:1}
-.landing .intro-rizo:hover .rizo-presence{transform:translateY(-7px) rotate(4deg)}
-.landing .intro-rizo:active .rizo-presence{transform:translateY(-11px) rotate(-4deg)}
-.threshold-label{position:absolute;z-index:2;bottom:30px;left:max(var(--world-space),calc((100vw - 1100px)/2));right:max(var(--world-space),calc((100vw - 1100px)/2));display:flex;justify-content:space-between;gap:20px;padding-top:16px;border-top:1px solid #5a503233;color:#a9a18e;font:9px/1.6 ui-monospace,monospace;letter-spacing:.12em;pointer-events:none}
-.threshold-label span:last-child{color:#cdb889}
+.landing .intro-rizo:hover .rizo-presence{transform:rotate(1.3deg)}
+.landing .intro-rizo:active .rizo-presence{transform:scale(1.012) rotate(-1deg)}
 .landing .world-inside{position:relative;width:min(calc(100% - 2 * var(--world-space)),1100px);margin:auto;padding:88px 0 40px}
 .landing .section-label{border:0;padding:0;max-width:540px}
 .landing .section-label h2{font-size:clamp(38px,5vw,64px);line-height:1.05;margin-bottom:18px}
@@ -89,29 +82,49 @@ body.landing{--world-ink:#0c0d0d;--world-line:#34332d;background:#0c0d0d}
 .landing .store-crossing p:not(.eyebrow){font-size:13px;color:#b9b5ac;margin:0;max-width:42ch}
 .landing .world-footer{padding-top:25px}
 .landing .footer-note p{font-size:12px}
-@keyframes world-breathe{0%,100%{transform:translateY(0) rotate(-1deg) scale(1)}50%{transform:translateY(-9px) rotate(1deg) scale(1.012,1.025)}}
-@keyframes world-shadow{0%,100%{transform:scaleX(1);opacity:.85}50%{transform:scaleX(.85);opacity:.55}}
-@keyframes world-glow{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes world-breathe{0%,100%{transform:rotate(-.4deg) scale(1)}24%{transform:translateY(-1px) rotate(.3deg) scale(1.008,1.016)}58%{transform:rotate(-.2deg) scale(1,.998)}77%{transform:rotate(.1deg) scale(1.003,1.008)}}
+@keyframes world-shadow{0%,58%,100%{transform:scaleX(1);opacity:.9}24%{transform:scaleX(1.025);opacity:.8}}
+@keyframes world-glow{0%,58%,100%{opacity:.66}24%{opacity:1}77%{opacity:.8}}
 @keyframes world-haze{to{transform:translateX(-5%)}}
-@keyframes world-ember{0%,20%{opacity:0;transform:translate(0,8px)}35%{opacity:.6}80%,100%{opacity:0;transform:translate(-14px,-60px)}}
 @media(min-width:1600px){.scene-door{right:calc((100vw - 900px)/2)}.scene-foreground{width:calc((100vw - 1150px)/2)}}
 @media(max-width:800px) and (min-width:651px){.landing .intro-rizo{right:7%;width:225px}.landing h1{font-size:70px}.scene-door{right:12%;width:26%}.scene-foreground{width:8%}}
 @media(max-width:650px){
  .landing .world-header{min-height:104px;gap:0;padding:8px 0 7px}.landing .world-brand{font-size:20px;min-height:40px;gap:9px}.landing .domain{font-size:13px}.landing .world-brand img{width:20px;height:26px}.landing .world-header nav a{font-size:13px}.landing .world-header .nav-play{padding:4px 12px!important;min-height:44px}.landing .world-header nav{gap:6px}
- .landing .world-intro{min-height:540px}.landing .intro-copy{padding:38px 0 104px}.landing .intro-copy .eyebrow{font-size:8px;letter-spacing:.1em}.landing h1{font-size:clamp(44px,12.3vw,68px);margin:22px 0 24px;width:fit-content;max-width:100%}.landing .lede{font-size:14px;line-height:1.6;max-width:18ch!important;margin-bottom:0}
- .landing .entry-actions{margin:27px 0 14px;gap:9px;align-items:flex-start;flex-direction:column}.landing .primary-link{min-width:190px;min-height:56px;font-size:15px}.landing .entry-actions .text-link{padding:8px 0;font-size:12px;min-height:44px}.landing .entry-note{font-size:10px;max-width:100%!important}
- .landing .intro-rizo{width:clamp(140px,39vw,215px);right:0;bottom:auto;top:140px}.landing .intro-rizo figcaption{bottom:-27px;font-size:6px;letter-spacing:.045em}.landing .intro-rizo:before{inset:20% -10% -15% -40%}
- .scene-door{right:4%;top:62px;bottom:auto;height:300px;width:37%;border-right-width:4px}.scene-distance{right:-50%;width:130%;bottom:22%;height:77%;opacity:.5}.scene-foreground{right:-18px;width:8%;height:83%;bottom:0}.scene-floor{inset:59% -15% -10%}.scene-spill{bottom:12%;right:-14%;width:83%;height:29%}.scene-haze{bottom:32%;width:95%}.scene-ember{left:82%}.scene-ember:nth-of-type(2){left:69%}.scene-ember:nth-of-type(3){left:91%}
- .threshold-label{bottom:22px;font-size:7px;gap:8px;letter-spacing:.06em}.landing .world-inside{padding:50px 0 20px}.landing .section-label h2{font-size:38px;max-width:11ch}.landing .section-label p:last-child{font-size:14px;max-width:30ch}
+ .landing .world-intro{min-height:540px}.landing .intro-copy{padding:38px 0 72px}.landing h1{font-size:clamp(40px,11.2vw,62px);margin:22px 0 24px;width:fit-content;max-width:100%}.landing .lede{font-size:14px;line-height:1.6;max-width:18ch!important;margin-bottom:0}
+ .landing .entry-actions{margin:calc(44px + 20vw) 0 14px;gap:9px;align-items:flex-start;flex-direction:column}.landing .primary-link{min-width:190px;min-height:56px;font-size:15px}.landing .entry-actions .text-link{padding:8px 0;font-size:12px;min-height:44px}.landing .entry-note{font-size:10px;max-width:100%!important}
+ .landing .intro-rizo{width:clamp(168px,52vw,224px);right:8px;bottom:auto;top:140px}
+ .scene-door{right:4%;top:62px;bottom:auto;height:350px;width:43%;border-right-width:4px}.scene-distance{right:-50%;width:130%;bottom:22%;height:77%;opacity:.5}.scene-foreground{right:-18px;width:8%;height:83%;bottom:0}.scene-floor{inset:60% -15% -10%}.scene-spill{bottom:10%;right:-8%;width:84%;height:28%}.scene-haze{bottom:32%;width:95%}
+ .landing .world-inside{padding:50px 0 20px}.landing .section-label h2{font-size:38px;max-width:11ch}.landing .section-label p:last-child{font-size:14px;max-width:30ch}
  .landing .experience,.landing .experience.defense{grid-template-columns:1fr;gap:24px;padding:35px 0 48px}.landing .experience h3{font-size:34px;margin:12px 0 16px}.landing .experience p{font-size:14px;max-width:32ch;margin-bottom:14px}.landing .experience figure{margin:0 10px 0 2px}.landing .experience.den figure{width:76%;justify-self:end;margin-right:14px;max-width:260px}.landing .experience.defense figure{grid-column:1;grid-row:2}.landing .experience.defense>div{grid-column:1;grid-row:1}.landing .world-ongoing{flex-direction:column;align-items:flex-start;gap:12px;padding:24px 0}.landing .world-ongoing p{font-size:12px}.landing .return-entry{padding:45px 0 60px}.landing .store-crossing{grid-template-columns:1fr;gap:10px;margin-bottom:25px}.landing .store-crossing h2{max-width:none}.landing .store-crossing p:not(.eyebrow){font-size:12px}.landing .world-footer nav{gap:0 19px}
 }
-@media(max-width:359px){.landing .entry-actions .primary-link{min-width:174px}.landing .intro-rizo{width:138px}}
+@media(max-width:359px){.landing .entry-actions .primary-link{min-width:174px}.landing .intro-rizo{width:168px}}
 @media(prefers-reduced-motion:reduce){
  .landing *, .landing *:before, .landing *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
  .landing .intro-rizo,.landing .experience figure,.landing .rizo-presence,.landing .intro-rizo img{transform:none!important}
- .landing .scene-ember{display:none}
+
 }
-@media(forced-colors:active){.world-scene{display:none}.landing h1 span,.landing .eyebrow,.landing .lede,.landing .entry-note{color:CanvasText}.landing .primary-link{background:ButtonFace;color:ButtonText;border:2px solid ButtonText}.landing .intro-rizo img{background:Canvas}.landing .threshold-label{border-color:CanvasText}}
+@media(forced-colors:active){.world-scene{display:none}.landing h1 span,.landing .eyebrow,.landing .lede,.landing .entry-note{color:CanvasText}.landing .primary-link{background:ButtonFace;color:ButtonText;border:2px solid ButtonText}.landing .intro-rizo img{background:Canvas}}
+
+/* The eye overlay uses the original 520 × 670 artwork coordinates. */
+.landing .rizo-body{position:relative;display:block;transform-origin:50% 91%;animation:world-breathe 8.6s ease-in-out infinite}
+.landing .rizo-eyes{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.landing .rizo-eye{transform-box:fill-box;transform-origin:center;animation:world-blink 16.7s linear infinite}
+.landing .rizo-gaze{animation:world-attention 19s ease-in-out infinite}
+.door-beyond{position:absolute;inset:4px 0 0;width:100%;height:100%}
+.scene-door{border-left:3px solid #4a4838;border-top:3px solid #35372a;box-shadow:-9px 3px 0 #20221b,-14px 7px 0 #10140f;clip-path:polygon(0 0,100% 0,100% 100%,3% 100%,3% 84%,0 83%)}
+.scene-door:before{z-index:1;pointer-events:none}
+.scene-door:after{right:-10%;width:115%;height:5px;background:linear-gradient(#78694655,#151911);transform:rotate(-1deg)}
+.door-distance-light{opacity:.65;animation:world-distant-light 19s ease-in-out infinite}
+.landing .world-intro:has(.primary-link:is(:hover,:focus-visible,:active)) .rizo-gaze{animation:none;transform:translate(-7px,4px)}
+.landing .world-intro:has(.primary-link:is(:hover,:focus-visible,:active)) .intro-rizo:before{opacity:1;animation:none}
+.landing .world-header,.landing .world-footer{width:min(calc(100% - max(var(--world-space),env(safe-area-inset-left)) - max(var(--world-space),env(safe-area-inset-right))),1100px)}
+.landing .intro-copy,.landing .world-inside{width:min(calc(100% - max(var(--world-space),env(safe-area-inset-left)) - max(var(--world-space),env(safe-area-inset-right))),1100px)}
+.landing .world-header{padding-top:max(8px,env(safe-area-inset-top))}
+@keyframes world-blink{0%,17%,19.2%,67%,69.2%,100%{transform:scaleY(1)}18%,68%{transform:scaleY(.08)}}
+@keyframes world-attention{0%,10%,31%,70%,96%,100%{transform:translate(0,0)}16%,25%{transform:translate(-7px,4px)}78%,88%{transform:translate(3px,-4px)}}
+@keyframes world-distant-light{0%,26%,35%,100%{opacity:.65}30%{opacity:.24}}
+@media(prefers-reduced-motion:reduce){.landing .rizo-body,.landing .rizo-gaze,.landing .rizo-eye{animation:none!important;transform:none!important}.door-distance-light{opacity:.65}}
+@media(forced-colors:active){.landing .rizo-eyes{display:none}}
 </style>
 
 </head><body class="landing"><a class="skip-link" href="#content">Skip to content</a>
@@ -126,25 +139,39 @@ body.landing{--world-ink:#0c0d0d;--world-line:#34332d;background:#0c0d0d}
       <path stroke="#464936" fill="none" d="M74 94q310 124 705-13M517 20v315"/>
       <path fill="#cab375" opacity=".55" d="M513 109h8v3h-8zM752 315h4v13h-4z"/>
     </svg></div>
-    <svg class="scene-wear" viewBox="0 0 1200 700" preserveAspectRatio="none" focusable="false"><g fill="none" stroke="#c5af7c" stroke-width=".6" opacity=".13"><path d="m1032 108 2 31-5 15 2 48m8-79 2 13m-8 81-3 55 5 27-2 20m-146 79 46 3 11-4 34 4m-194 39 15-3 8 2m156-270-36 3m19 4-42 4m-206 392 30 1 8 4 39-1m-501 44 44-6 8 3 48-6m523 71 9-17-7-8 4-31m55 3 3 16m-334-4 12-1m-357 24 22-1m19-8 15-2"/></g></svg><div class="scene-wire"></div><div class="scene-door"></div><div class="scene-floor"></div><div class="scene-spill"></div><div class="scene-haze"></div>
-    <div class="scene-embers"><i class="scene-ember"></i><i class="scene-ember"></i><i class="scene-ember"></i></div>
+    <svg class="scene-wear" viewBox="0 0 1200 700" preserveAspectRatio="none" focusable="false"><g fill="none" stroke="#c5af7c" stroke-width=".6" opacity=".13"><path d="m1032 108 2 31-5 15 2 48m8-79 2 13m-8 81-3 55 5 27-2 20m-146 79 46 3 11-4 34 4m-194 39 15-3 8 2m156-270-36 3m19 4-42 4m-206 392 30 1 8 4 39-1m-501 44 44-6 8 3 48-6m523 71 9-17-7-8 4-31m55 3 3 16m-334-4 12-1m-357 24 22-1m19-8 15-2"/></g></svg><div class="scene-wire"></div><div class="scene-door"><svg class="door-beyond" viewBox="0 0 200 400" preserveAspectRatio="none" focusable="false">
+      <defs><radialGradient id="door-lamp-falloff"><stop stop-color="#c9ac62" stop-opacity=".12"/><stop offset="1" stop-color="#c9ac62" stop-opacity="0"/></radialGradient></defs>
+      <path fill="#070a09" d="M0 0h200v400H0z"/>
+      <path fill="#111612" d="m0 12 34 27v282L0 354z"/>
+      <path fill="#171b14" d="m33 38 102-12 1 268-103 27z"/>
+      <path fill="#060a08" d="m51 101 57-6v199l-57 17z"/>
+      <path stroke="#606548" stroke-opacity=".2" fill="none" d="m34 39 101-12M0 354l136-60 64 33m-166-5 102-28m-113 45 129-29"/>
+      <g class="door-distance-light"><ellipse cx="79" cy="102" rx="49" ry="76" fill="url(#door-lamp-falloff)"/><path fill="#c1ad78" d="m74 94 8-1v3l-8 1z"/><path fill="#d3bd7e" opacity=".09" d="m74 97 8-1 22 83-51 3z"/></g>
+      <path fill="#21241b" d="m166 17 34-17v400l-38-16z"/><path fill="#706344" d="m166 17 3 1-4 366-3 0z"/>
+      <path fill="none" stroke="#94805b" stroke-width=".65" opacity=".35" d="m174 54 13-8m-10 6 7 1m-8 177 2 12-3 9m-5 92 16 3"/>
+      <path fill="#070a08" d="m188 74 12-3v16l-12 3zm-2 231 14 3v14l-14-3z"/>
+    </svg></div><div class="scene-floor"></div><div class="scene-spill"></div><div class="scene-haze"></div>
+
     <div class="scene-foreground"></div>
   </div>
   <div class="intro-copy">
-    <p class="eyebrow">RIZO / DIGITAL WORLD</p>
     <h1 id="entry-title">Come in.<br><span>Rizo’s here.</span></h1>
     <p class="lede">You found a little flame in the rain.<br>It has become your problem.</p>
     <div class="entry-actions"><a class="primary-link" href="/play" aria-label="Play — enter Rizo World">Play <span class="entry-arrow" aria-hidden="true">→</span></a><a class="text-link" href="/support">First time here?</a></div>
     <p class="entry-note">Free browser play. No account needed.<br>Your Rizo saves on this device.</p>
   </div>
-  <figure class="intro-rizo"><span class="rizo-presence"><img src="./assets/rizo-classic.png" width="520" height="670" alt="Rizo, a blue flame with two round eyes and a stitched mouth" fetchpriority="high"></span><figcaption>FOUND IN THE RAIN / STILL HERE</figcaption></figure>
-  <div class="threshold-label" aria-hidden="true"><span>ONE LITTLE FLAME. ALL THIS ROOM.</span><span>THERE’S MORE INSIDE ↓</span></div>
+  <figure class="intro-rizo"><span class="rizo-presence"><span class="rizo-body"><img src="./assets/rizo-classic.png" width="520" height="670" alt="Rizo, a blue flame with two round eyes and a stitched mouth" fetchpriority="high"><svg class="rizo-eyes" viewBox="0 0 520 670" aria-hidden="true" focusable="false">
+    <!-- Original eye positions. White patches reveal the same face beneath;
+         the separate lids/gaze leave the source character asset untouched. -->
+    <g fill="#fff"><ellipse cx="133" cy="395" rx="24" ry="29"/><ellipse cx="337" cy="417" rx="24" ry="29"/></g>
+    <g class="rizo-gaze" fill="#000"><ellipse class="rizo-eye" cx="133" cy="395" rx="21" ry="26"/><ellipse class="rizo-eye" cx="337" cy="417" rx="21" ry="26"/></g>
+  </svg></span></span></figure>
 </section>
 <div class="world-inside">
   <section class="experience-list" aria-labelledby="experience-title">
     <div class="section-label"><p class="eyebrow">ON THE OTHER SIDE</p><h2 id="experience-title">One Rizo.<br>Different places.</h2><p>Raise it. Make room for others. Take your actual Rizo out into a world that keeps getting stranger.</p></div>
-    <article class="experience den"><div><span class="experience-index">01 / STAY A WHILE</span><h3>A place to come back to.</h3><p>Feed, rest, clean, play. Make a home. The little things you do become part of who your Rizo is.</p><a class="text-link" href="/support#care">How life here works →</a></div><figure><img src="./assets/public/den.png" width="370" height="667" alt="A raised Rizo at home in the Den, with care controls beneath it" loading="lazy"><figcaption>THE DEN / A LITTLE EVERYDAY LIFE</figcaption></figure></article>
-    <article class="experience defense"><div><span class="experience-index">02 / GO A LITTLE FURTHER</span><h3>Same Rizo.<br>Different kind of day.</h3><p>Short games. A line to hold. Strange places to find yourself in. Your Rizo comes with you.</p><a class="text-link" href="/play">See what’s inside →</a></div><figure><img src="./assets/defense-pine-bend.svg" width="780" height="620" alt="The winding Pine Bend route, one of the playable places in Rizo Defense" loading="lazy"><figcaption>PINE BEND / RIZO DEFENSE</figcaption></figure></article>
+    <article class="experience den"><div><span class="experience-index">STAY A WHILE</span><h3>A place to come back to.</h3><p>Feed, rest, clean, play. Make a home. The little things you do become part of who your Rizo is.</p><a class="text-link" href="/support#care">How life here works →</a></div><figure><img src="./assets/public/den.png" width="370" height="667" alt="A raised Rizo at home in the Den, with care controls beneath it" loading="lazy"><figcaption>THE DEN / A LITTLE EVERYDAY LIFE</figcaption></figure></article>
+    <article class="experience defense"><div><span class="experience-index">GO A LITTLE FURTHER</span><h3>Same Rizo.<br>Different kind of day.</h3><p>Short games. A line to hold. Strange places to find yourself in. Your Rizo comes with you.</p><a class="text-link" href="/play">See what’s inside →</a></div><figure><img src="./assets/defense-pine-bend.svg" width="780" height="620" alt="The winding Pine Bend route, one of the playable places in Rizo Defense" loading="lazy"><figcaption>PINE BEND / RIZO DEFENSE</figcaption></figure></article>
   </section>
   <section class="world-ongoing" aria-label="From the workshop"><p>Created and directed by Taymar Spencer.<br>There’s more being made here.</p><a class="text-link" href="/journal">From the workshop →</a></section>
   <section class="return-entry" aria-labelledby="return-title"><h2 id="return-title">He’s still here.</h2><a class="primary-link" href="/play" aria-label="Play — enter Rizo World">Play <span class="entry-arrow" aria-hidden="true">→</span></a></section>
