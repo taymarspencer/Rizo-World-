@@ -32,6 +32,18 @@
   const TEXT_CPS = 35;
   const EXIT_MS = 560, EXIT_MS_REDUCED = 160;
   const SHELL_LOCK_MS = 560;
+  // v0.3 Track A pacing (docs/dungeon/story/Rizo-Dungeon-Opening-Beat-Sheet-v0.3.md).
+  // Curb: looking around never brings the van sooner. It comes after the
+  // minimum wait AND at least one LOOK, or at the maximum wait regardless.
+  const OPENING_WAIT_MIN_MS = 45000, OPENING_WAIT_MAX_MS = 90000;
+  // "Be good." gets its own beat and a held silence after it.
+  const BE_GOOD_HOLD_MS = 1500;
+  // Overheard talk: 0.8 s + 0.3 s a word, at least 1.6 s, with a breath between speakers.
+  const TALK_GAP_MS = 250;
+  const barkMs = text => Math.max(1600, 800 + 300 * String(text || "").split(/\s+/).filter(Boolean).length);
+  // The fall: dark, every sound stops just before impact, the handheld locks
+  // on impact, then a held black before he is seen again.
+  const FALL_DARK_MS = 900, IMPACT_SILENCE_MS = 500, LANDING_BLACK_MS = 2000;
   const DUNGEON_TRACK = Object.freeze({ id: "dungeon-below", tempo: 880, lead: [57, null, null, null, null, null, 60, null, 55, null, null, null, null, null, null, null], bass: [33, null, null, null, 36, null, null, null], wave: "sine" });
   // Outside there is almost no music: rain, a hum, one low note now and then.
   const STREET_TRACK = Object.freeze({ id: "dungeon-street", tempo: 1400, lead: [null, null, null, null, null, null, null, null], bass: [31, null, null, null, null, null, null, null, 33, null, null, null, null, null, null, null], wave: "sine" });
@@ -120,6 +132,7 @@
     let rainTickAt = 0, dripAt = 0, stepAt = 0, crackleAt = 0, thudAt = 0;
     let stillFor = 0;
     let pendingGift = null;
+    let silentUntil = 0;              // scene time before which the mode makes no sound
     let qaLog = [];
 
     const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
@@ -130,8 +143,10 @@
     const beats = () => data?.story?.committedSceneBeats || [];
     const log = entry => { if (host.debug) { qaLog.push(entry); if (qaLog.length > 60) qaLog.shift(); } };
     const sound = (kind) => {
+      if (sceneTime < silentUntil) return;
       const a = host.audio || {};
       try {
+        if (kind === "buzz") { a.tone?.(118, 0.22, "square", 0.012); a.tone?.(118, 0.22, "square", 0.012, 0.3); a.haptic?.(10); return; }
         if (kind === "flare") { a.noise?.(0.07, 0.02); a.tone?.(330, 0.06, "triangle", 0.028, 0, 160); }
         else if (kind === "spark") { a.noise?.(0.05, 0.014); a.tone?.(420, 0.05, "triangle", 0.018, 0, 120); }
         else if (kind === "hit") { a.tone?.(520, 0.05, "square", 0.03, 0, -120); a.haptic?.(12); }
@@ -400,6 +415,33 @@
       barks.push({ id, text: item.text, speaker: item.speaker, until: sceneTime + ms });
     }
     function setPose(name, ms) { poseOverride = name ? { name, until: sceneTime + (ms || 900) } : null; }
+    // Overheard talk (v0.3): lines float over whoever says them while the Rizo
+    // keeps moving; nobody has to press through it. Its clock only runs while
+    // the player is in play, so a LOOK never hides a line: the talk waits, and
+    // the line on screen stays up. Items: a line, { hold }, { pose, ms }, { call }.
+    function talk(items) {
+      let state = null;
+      return S.until(() => {
+        if (!state) state = { index: 0, clock: 0, next: 0, last: sceneTime };
+        const delta = sceneTime - state.last;
+        state.last = sceneTime;
+        if (ui === "play") state.clock += delta;
+        else for (const entry of barks) if (entry.talk) entry.until += delta;
+        while (state.index < items.length && state.clock >= state.next) {
+          const item = items[state.index];
+          state.index += 1;
+          const late = state.clock - state.next;
+          if (item.hold) { state.next += item.hold; continue; }
+          if (item.call) { item.call(); continue; }
+          if (item.pose) { setPose(item.pose, item.ms); state.next += item.ms || 0; continue; }
+          const ms = barkMs(item.text);
+          barks = barks.filter(entry => entry.id !== item.speaker);
+          barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true });
+          state.next += ms + TALK_GAP_MS;
+        }
+        return state.index >= items.length && state.clock >= state.next;
+      });
+    }
 
     // ===== NPC ACTORS (presentation only; the simulation never reads them) =====
     function npc(id, kind, x, y, extra = {}) {
@@ -423,7 +465,8 @@
           if (distance > 10) { actor.x += (dx / distance) * speed * dt; actor.y += (dy / distance) * speed * dt; actor.walking = true; actor.face = dx < 0 ? -1 : 1; }
         }
       }
-      barks = barks.filter(entry => entry.until > sceneTime);
+      // Overheard talk waits with its line on screen while play is paused (a LOOK).
+      barks = barks.filter(entry => entry.until > sceneTime || (entry.talk && ui !== "play"));
     }
 
     // ===== ROOMS =====
@@ -450,7 +493,8 @@
     function onEnterRoom(roomId, context) {
       shell = Content.isOpening(roomId) ? "open" : "locked";
       view.setShell(shell);
-      try { host.audio.music?.(Content.isOpening(roomId) ? STREET_TRACK : DUNGEON_TRACK); } catch (error) {}
+      // After the fall the black hold stays silent; the landing scene starts the music.
+      if (context !== "landed") { try { host.audio.music?.(Content.isOpening(roomId) ? STREET_TRACK : DUNGEON_TRACK); } catch (error) {} }
       const enter = ROOM_LOGIC[roomId]?.enter;
       if (enter) enter(context);
       showResumeAck();
@@ -478,19 +522,29 @@
           runScene("opening:be-good", [
             S.pose("look-up", 1600),
             S.wait(500),
-            S.say(L.beGood),
+            S.say(L.goingIn),
             S.pose("hop", 700),
             S.call(() => { npcs.get("keeper").face = -1; }),
             S.move("keeper", 176, 104, 1100),
             S.call(() => { room.doorOpen = true; sound("chime"); }),
-            S.wait(250),
+            // At the door the Keeper looks back. "Be good." lands on its own,
+            // then nothing for a moment.
+            S.call(() => { npcs.get("keeper").face = 1; }),
+            S.wait(600),
+            S.say(L.beGood),
+            S.wait(BE_GOOD_HOLD_MS),
             S.call(() => { npcs.get("keeper").visible = false; }),
             S.wait(350),
-            S.call(() => { room.doorOpen = false; room.alone = sceneTime; }),
+            S.call(() => { room.doorOpen = false; room.alone = sceneTime; sound("door"); }),
+            S.wait(1000),
             S.control(true),
             S.call(() => view.pulseKey("dpad")),
             // Movement teaches movement. Something comes for him after a while.
-            S.until(() => sceneTime - room.alone > 16000 || (room.looked >= 1 && sceneTime - room.alone > 9000) || (room.looked >= 2 && sceneTime - room.alone > 5000)),
+            // Looking around can only keep him here longer, never bring it sooner.
+            S.until(() => {
+              const alone = sceneTime - room.alone;
+              return alone >= OPENING_WAIT_MAX_MS || ((room.looked || 0) >= 1 && alone >= OPENING_WAIT_MIN_MS);
+            }),
             S.call(() => { const van = npcs.get("van"); van.visible = true; sound("car"); room.carLights = true; }),
             S.move("van", 252, 268, 1600),
             S.wait(400),
@@ -518,23 +572,43 @@
       van: {
         enter() {
           room.rumble = true;
-          npc("driver", "driver-seat", 70, 20, { face: 1 });
-          npc("hood-tall", "passenger-seat", 160, 20, { face: -1 });
+          npc("driver", "driver-seat", 70, 20, { face: 1, barkDx: 14, barkLift: 20 });
+          npc("hood-tall", "passenger-seat", 160, 20, { face: -1, barkDx: 14, barkLift: 22 });
+          // The other two ride in the back with him, on the wheel arches: the
+          // same seated silhouettes as the front, seen from behind.
+          npc("hood-small", "passenger-seat", 40, 124, { face: 1, barkDx: 14, barkLift: 22 });
+          npc("hood-cap", "passenger-seat", 172, 124, { face: -1, barkDx: 14, barkLift: 22 });
           room.cargoCount = 0;
           runScene("opening:van", [
             S.fade(0, 400),
             S.pose("recoil", 1200),
             S.wait(700),
-            S.say(L.vanArgue),
             S.control(true),
-            S.until(() => sceneTime - (room.controlAt ||= sceneTime) > 4500 || room.looked >= 1),
-            S.wait(1200),
+            // Movement one: idiots doing a job.
+            talk([
+              ...L.vanArgue, { hold: 1000 },
+              ...L.vanTouch, { pose: "look-up", ms: 1500 },
+              { call: () => { room.phoneLight = "film"; } }, ...L.vanFilm, { call: () => { room.phoneLight = null; } },
+              { hold: 1000 }
+            ]),
+            // The pothole: the cooler slides, and Tuck is learned here, as before.
             S.call(() => vanBump()),
             S.until(() => room.cargoResolved),
             S.wait(900),
             S.call(() => { if (!room.dodged) { room.cargoResolved = false; vanBump(); } }),
             S.until(() => room.cargoResolved),
-            S.wait(900),
+            // Movement two: the number nobody says. Then a phone nobody answers.
+            // Movement three: the humor dies. The screen faces the cabin, not us.
+            talk([
+              { hold: 900 },
+              ...L.vanCooler, { hold: 1000 },
+              ...L.vanNumber, { hold: 4000 },
+              ...L.vanAsk, { hold: 3000 },
+              { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); } }, { hold: 1200 },
+              ...L.vanPhone, { hold: 4000 },
+              { call: () => { room.phoneLight = null; room.phoneRinging = false; } }, { hold: 3000 },
+              ...L.vanLost, ...L.vanListening, { pose: "look-up", ms: 3000 }
+            ]),
             S.call(() => { sim.flags = { ...sim.flags, vanDoorLoose: true }; room.doorLoose = true; sound("door"); room.shake = sceneTime; room.looseAt = sceneTime; }),
             S.until(() => sim.zones.includes("van-door-zone") || sceneTime - room.looseAt > 9000),
             S.control(false),
@@ -590,12 +664,15 @@
       slip: {
         enter(context) {
           if (context !== "landed") return;
+          // A held black after impact, then he is there, in the dark. Nothing
+          // names the way out: HOME ↑ is found by walking to it and looking.
           runScene("opening:landed", [
-            S.call(() => { sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: 300 }; try { host.audio.duck?.(1600, 0.02); } catch (error) {} }),
+            S.call(() => { sceneFade = { value: 1, from: 1, to: 1, start: sceneTime, ms: 0 }; }),
+            S.wait(LANDING_BLACK_MS),
+            S.call(() => { sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: 300 }; try { host.audio.music?.(DUNGEON_TRACK); host.audio.duck?.(1600, 0.02); } catch (error) {} }),
             S.pose("land", 500),
             S.wait(500),
             S.pose("look-up", 1500),
-            S.call(() => { room.peekUntil = sceneTime + 1600; showBanner(L.homeUp); }),
             S.wait(700)
           ]);
         }
@@ -652,22 +729,30 @@
         S.pose("fall", 1200),
         S.wait(320),
         S.fade(1, 380),
+        // Falling in the dark. Just before he lands, every sound stops.
+        S.wait(FALL_DARK_MS - IMPACT_SILENCE_MS),
+        S.call(() => { silentUntil = sceneTime + IMPACT_SILENCE_MS; duck(IMPACT_SILENCE_MS + SHELL_LOCK_MS + LANDING_BLACK_MS + 1600, 0.001); }),
+        S.wait(IMPACT_SILENCE_MS),
         S.call(() => {
-          // Commit first: the journey is below from here on.
+          // Impact. Commit first: the journey is below from here on.
           const outcome = commitData(next => {
             addBeat(next, "opening:below");
             if (!next.world.visitedRooms.includes("slip")) next.world.visitedRooms.push("slip");
             setContinuation(next, "slip", "landing", Core.T.FLAME_MAX, "room-entry");
           });
           if (outcome.status === "failed") renderSaveFailedPanel("moment");
+          silentUntil = 0;
+          sound("thud");
+          // The handheld locks on impact, not before.
+          room.impactAt = sceneTime;
           shell = "locking";
           view.setShell("locking");
           setTimeout(() => sound("click"), reducedMotion() ? 60 : 380);
           try { host.event("sceneCommitted", { boundaryId: "opening-below", campaignId: data.campaign.id, tone: "protected", interruption: "none" }); } catch (error) {}
         }),
         S.wait(reducedMotion() ? 160 : SHELL_LOCK_MS),
-        S.call(() => { enterSim("slip", "landing", Core.T.FLAME_MAX); onEnterRoom("slip", "landed"); }),
-        S.fade(0, 300)
+        // Still black: the landing scene holds the dark before he is seen.
+        S.call(() => { enterSim("slip", "landing", Core.T.FLAME_MAX); onEnterRoom("slip", "landed"); })
       ]);
     }
 
@@ -1037,6 +1122,8 @@
       if (p.moving && sim.phase === "play" && time - stepAt > 270) { stepAt = time; sound(g.world && !sheltered && g.theme !== "van" ? "step-wet" : "step"); }
       // The hearth talks to itself; the Porter's weight lands when it moves.
       if (g.hearth && sim.hearthLit && time - crackleAt > 260 + (Math.sin(time) + 1) * 400) { crackleAt = time; sound("crackle"); }
+      // The van phone keeps buzzing until it rings out.
+      if (room.phoneRinging && time - room.phoneBuzzAt > 1100) { room.phoneBuzzAt = time; sound("buzz"); }
       const porterEnemy = g.id === "porter" ? sim.enemies.find(enemy => enemy.kind === "porter") : null;
       if (porterEnemy && (porterEnemy.state === "reposition" || porterEnemy.state === "charge") && time - thudAt > (porterEnemy.state === "charge" ? 140 : 380)) { thudAt = time; sound("thud"); }
       stillFor = p.moving ? 0 : stillFor + dt;
@@ -1280,7 +1367,9 @@
         data: data ? plain(data) : null,
         petId: pet?.id || null,
         actorMarkup: view?.el.pose.innerHTML.length || 0,
-        dialogue: dialogueState ? { index: dialogueState.index, shown: dialogueState.shown, lines: dialogueState.lines.length, speaker: dialogueState.lines[dialogueState.index].speaker, expr: dialogueState.lines[dialogueState.index].expr } : null,
+        dialogue: dialogueState ? { index: dialogueState.index, shown: dialogueState.shown, lines: dialogueState.lines.length, speaker: dialogueState.lines[dialogueState.index].speaker, expr: dialogueState.lines[dialogueState.index].expr, text: dialogueState.lines[dialogueState.index].text } : null,
+        barks: barks.map(entry => ({ id: entry.id, text: entry.text })),
+        sceneTime, silent: sceneTime < silentUntil, fade: sceneFade.value, impactAt: room.impactAt ?? null,
         log: [...qaLog]
       }),
       qaTeleport(x, y) { if (!sim) return false; sim.player.x = x; sim.player.y = y; prev = { x, y }; return true; },

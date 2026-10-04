@@ -198,7 +198,7 @@ html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-lock
 
 /* ===== SPEECH BUBBLES OVER NPCs ===== */
 .dungeon-barks{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
-.dungeon-bark{position:absolute;left:0;top:0;max-width:60%;padding:5px 9px;border:2px solid #0c0e12;border-radius:10px;background:#f4ecd8;color:#0c0e12;font:800 14px/1.2 Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:2px 2px 0 rgba(0,0,0,.6)}
+.dungeon-bark{position:absolute;left:0;top:0;width:max-content;max-width:60%;padding:5px 9px;border:2px solid #0c0e12;border-radius:10px;background:#f4ecd8;color:#0c0e12;font:800 14px/1.2 Inter,system-ui,sans-serif;white-space:normal;text-align:center;box-shadow:2px 2px 0 rgba(0,0,0,.6)}
 .dungeon-bark::after{content:"";position:absolute;left:50%;bottom:-7px;width:10px;height:10px;background:#f4ecd8;border-right:2px solid #0c0e12;border-bottom:2px solid #0c0e12;transform:translateX(-50%) rotate(45deg)}
 
 /* ===== A CONTROL WAKES ONCE ===== */

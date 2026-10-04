@@ -508,8 +508,9 @@
         let node = barkNodes.get(item.id);
         if (!node) { node = document.createElement("div"); node.className = "dungeon-bark"; el.barks.appendChild(node); barkNodes.set(item.id, node); }
         if (node.textContent !== item.text) node.textContent = item.text;
-        const lift = (Art.HEIGHT[actor.kind] || 54) + 4;
-        const [x, y] = toScreen(actor.x, actor.y - lift);
+        // Seated figures (the van) are short; they say where their heads are.
+        const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
+        const [x, y] = toScreen(actor.x + (actor.barkDx || 0), actor.y - lift);
         node.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -100%)`;
       }
       for (const [id, node] of barkNodes) if (!seen.has(id)) { node.remove(); barkNodes.delete(id); }
