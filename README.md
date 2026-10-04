@@ -2,10 +2,11 @@
 
 A local browser companion, House, ten training games, Rizo Defense and Dungeon's complete short Threshold episode. The pet is the center: the actual raised Rizo enters its adventures.
 
-Public World: `world.html`. Playable entry remains `index.html` / the static root. Current page/runtime/service-worker build marker: **`v92-public-foundation`**. Advertising and analytics are disabled. The longer Dungeon campaign remains proposed development, not a feature of this build.
+Public World: `world.html`. Playable entry remains `index.html` / the static root. Current page/runtime/service-worker build marker: **`v92-release-candidate-1`**. Advertising and analytics are disabled. The longer Dungeon campaign remains proposed development, not a feature of this build.
 
 Start with:
 
+- [Taymar's GitHub and release workflow](docs/current/GITHUB-AND-RELEASE-WORKFLOW.md) — use `develop` for the next version; `main` changes only through an intentional release.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — save, training and mode contracts; canonical rendering and lifecycle ownership.
 - [Current documentation](docs/current/README.md) — public product, Store/World design relationship, monetization boundary and publisher readiness.
 - [Dungeon story authority](docs/dungeon/story/README.md) — preserved v0.1 and newest v0.2 addendum; locked foundations, proposals and ten open owner decisions.
