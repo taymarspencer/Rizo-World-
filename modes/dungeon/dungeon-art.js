@@ -94,7 +94,7 @@
     minDetail: 1.5
   });
   // How far above its feet an actor's head is (speech bubbles, prompts).
-  const HEIGHT = Object.freeze({ keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88, latch: 42, van: 84, porter: 90, nell: 86, orr: 78 });
+  const HEIGHT = Object.freeze({ keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88, latch: 42, van: 84, porter: 90, nell: 86, orr: 82 });
 
   // ===== 6. WOBBLE: seeded, never per frame =====
   function seedOf(value) {
@@ -806,44 +806,94 @@
     ctx.restore();
   }
 
-  // ORR: the kitchen runner. Round, capped, an apron over a rolled shirt, a
-  // striped towel over one shoulder, and always something carried. ~76u.
+  // ORR: the kitchen runner. Compact and work-worn: low patched cap,
+  // dropped towel shoulder, reinforced apron, and a clipped serving spoon.
+  // He leans into the job instead of posing; the oversized tray stays the read. ~82u.
   function orr(ctx, x, y, o = {}) {
     const bob = o.bob || 0, state = o.state || "tray";
     drop(ctx, x, y, 14, 3.6);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
-    legs(ctx, 0, 0, -24, 4, 6, P.cloth[0], bob, P.ink);
-    // Far arm.
-    limb(ctx, state === "carry" ? [-6, -54, -10, -42, -9, -32] : [-6, -54, 2, -46, 12, -44], P.a.mustard, 4.6, P.skin[0]);
-    // Body: round shirt, long apron.
-    shape(ctx, [-13, -56, 12, -56, 16, -34, 13, -22, -14, -22, -16, -34], P.a.mustard, { ink: CH, seed: 91, amp: CA });
-    shape(ctx, [-8, -48, 9, -48, 11, -14, -10, -14], P.paper[2], { ink: 1.2, seed: 92, amp: 0.4 });
-    shape(ctx, [-8, -48, -2, -48, -3, -14, -10, -14], P.paper[1], { ink: false, seed: 93, amp: 0.3 });
-    line(ctx, -7, -48, -3, -57, P.paper[0], 1, 94, 0.1); line(ctx, 8, -48, 4, -57, P.paper[0], 1, 95, 0.1);
-    // The towel over the near shoulder: three stripes.
-    shape(ctx, [2, -60, 10, -58, 12, -40, 7, -41], P.paper[3], { ink: 1, seed: 96, amp: 0.3 });
-    for (const sy of [-55, -51, -47]) line(ctx, 3.4, sy, 10.6, sy + 0.6, P.a.red, 0.9, sy, 0.1);
-    // Near arm, and what it carries.
+
+    // Short, planted service legs. One wrapped shin breaks the symmetry.
+    legs(ctx, 0, 0, -27, 4.4, 5.4, P.cloth[0], bob, P.wood[0]);
+    rect(ctx, P.paper[0], -8.2, -14.5, 5.2, 3.2);
+    line(ctx, -7.7, -13.1, -3.5, -13.1, P.wood[1], 0.7, 201, 0.1);
+
+    // Weight forward, towel shoulder low: useful rather than heroic.
+    ctx.save();
+    ctx.translate(0, -27);
+    ctx.rotate(state === "carry" ? -0.035 : 0.045);
+    ctx.translate(0, 27);
+
+    limb(ctx, state === "carry" ? [-7, -57, -11, -45, -9, -34] : [-7, -57, 0, -48, 10, -46], P.a.mustard, 4.4, P.skin[0]);
+
+    // Rolled service shirt with an uneven shoulder instead of a round blob.
+    shape(ctx, [-14, -58, 7, -61, 14, -54, 15, -39, 10, -28, -12, -27, -16, -39], P.a.mustard, { ink: CH, seed: 91, amp: CA });
+    shape(ctx, [-14, -56, -6, -59, -7, -29, -12, -27, -16, -39], P.wood[2], { ink: false, seed: 92, amp: 0.35 });
+    rect(ctx, P.paper[0], -11, -56.8, 8, 2.2);
+
+    // Off-center apron: repaired, stained by use, heavier at one corner.
+    shape(ctx, [-8, -51, 7, -50, 10, -17, 2, -13, -11, -17, -10, -46], P.paper[1], { ink: 1.2, seed: 93, amp: 0.4 });
+    shape(ctx, [-8, -51, -2, -50, -3, -17, -11, -17, -10, -46], P.paper[0], { ink: false, seed: 94, amp: 0.25 });
+    line(ctx, -7, -49, -2, -58, P.paper[3], 1, 95, 0.1);
+    line(ctx, 7, -49, 3, -59, P.paper[3], 1, 96, 0.1);
+    box(ctx, 2, -28, 7, 7, P.wood[1], { ink: 0.8, amp: 0.25, seed: 97 });
+    stitches(ctx, 2, -28, 9, -28, P.paper[0], 2.3, 0.9, 0.5);
+
+    // Belt and one practical service signature: a spoon clipped at the hip.
+    rect(ctx, P.wood[0], -12, -31, 24, 2.6);
+    oval(ctx, -12.5, -28.5, 2.4, 2.4, null, true, 1);
+    line(ctx, -12.5, -26, -13.6, -18.5, P.metal[2], 1.2, 98, 0.1);
+    oval(ctx, -14, -16.8, 2.1, 3, P.metal[2], true, 0.8);
+
+    // Long striped towel is the identifying cloth shape, always on one shoulder.
+    shape(ctx, [3, -63, 10, -61, 9, -38, 4, -35, 1, -44], P.paper[3], { ink: 1, seed: 99, amp: 0.3 });
+    for (const sy of [-56, -50, -44]) line(ctx, 3.4, sy, 8.8, sy + 0.5, P.a.red, 0.9, sy + 200, 0.1);
+
+    // Near arm and the object he is responsible for.
     if (state === "tray") {
-      limb(ctx, [6, -54, 14, -46, 20, -46], P.a.mustard, 4.6, P.skin[0]);
-      // A tray too big for any hatch: two portions, a cloth over the bread.
-      box(ctx, 2, -51, 34, 3, P.metal[2], { ink: 1.1, amp: 0.2, seed: 97 });
-      oval(ctx, 12, -53, 5, 2.2, P.paper[3], true, 0.9); oval(ctx, 26, -53, 5, 2.2, P.paper[3], true, 0.9);
-      oval(ctx, 12, -54, 3, 1.2, P.ember[1]); oval(ctx, 26, -54, 3, 1.2, P.ember[1]);
+      limb(ctx, [6, -56, 13, -48, 20, -47], P.a.mustard, 4.5, P.skin[0]);
+      box(ctx, 0, -51, 37, 3.4, P.metal[2], { ink: 1.1, amp: 0.2, seed: 100 });
+      rect(ctx, P.metal[3], 1, -50.6, 35, 0.8);
+      oval(ctx, 11, -53.3, 5, 2.2, P.paper[3], true, 0.9);
+      oval(ctx, 26, -53.3, 5, 2.2, P.paper[3], true, 0.9);
+      oval(ctx, 11, -54.2, 3, 1.2, P.ember[1]);
+      oval(ctx, 26, -54.2, 3, 1.2, P.ember[1]);
+      shape(ctx, [18, -56, 25, -56, 28, -52, 20, -51], P.paper[1], { ink: 0.7, seed: 101, amp: 0.25 });
     } else if (state === "carry") {
-      limb(ctx, [6, -54, 10, -44, 10, -36], P.a.mustard, 4.6, P.skin[0]);
-      box(ctx, 4, -40, 4, 26, P.metal[2], { ink: 1.1, amp: 0.2, seed: 98 });
-    } else limb(ctx, [6, -54, 14, -50, 22, -52], P.a.mustard, 4.6, P.skin[0]);
-    // Head: round, flat cap, a short beard line.
-    oval(ctx, 1, -62, 7, 6.6, P.skin[0], true, 1.2);
-    shape(ctx, [-6.6, -64, -5, -70, 2, -71.4, 7.4, -68.6, 7.6, -64.6], P.cloth[2], { ink: 1.2, seed: 99, amp: 0.2 });
-    shape(ctx, [3, -65, 12, -64.4, 11, -62.6, 3, -63], P.cloth[1], { ink: 1, seed: 100, amp: 0.15 });
-    rect(ctx, P.cloth[3], -4, -70, 8, 1.2);
-    oval(ctx, 3.4, -61.4, 0.8, 0.9, P.ink); oval(ctx, 6.2, -61.4, 0.75, 0.85, P.ink);
-    line(ctx, -5, -58, 6, -56.4, P.wood[0], 1.6, 101, 0.2);
+      limb(ctx, [6, -56, 10, -45, 8, -35], P.a.mustard, 4.5, P.skin[0]);
+      box(ctx, 4, -43, 5, 27, P.metal[1], { ink: 1.1, amp: 0.2, seed: 102 });
+      rect(ctx, P.metal[3], 5, -41, 1, 23);
+      oval(ctx, 6.5, -38, 0.8, 0.8, P.a.brass);
+    } else {
+      limb(ctx, [6, -56, 14, -50, 21, -52], P.a.mustard, 4.5, P.skin[0]);
+    }
+
+    // Narrow asymmetric face: long nose, tired lids, short beard edge.
+    const headTilt = state === "carry" ? 0.08 : -0.025;
+    ctx.save(); ctx.translate(1, -67); ctx.rotate(headTilt);
+    shape(ctx, [-6.2, -1, -5.2, -7.2, -1.2, -10, 4.8, -8.8, 7, -4.2, 6.2, 2.2, 2.4, 6.2, -2.8, 5.2, -5.8, 2.2], P.skin[0], { ink: 1.2, seed: 103, amp: 0.22 });
+    oval(ctx, -5.9, -1, 1.8, 2.2, P.skin[0], true, 0.8);
+
+    // Low patched cap with a long forward brim.
+    shape(ctx, [-6.4, -6.2, -4.7, -11.2, 1.6, -12.2, 6.4, -9.4, 7.2, -6.3], P.cloth[2], { ink: 1.2, seed: 104, amp: 0.2 });
+    rect(ctx, P.cloth[3], -3.8, -11.2, 5.4, 1.4);
+    shape(ctx, [1.8, -7, 11.4, -6.1, 10.2, -4.2, 1.6, -5.2], P.cloth[1], { ink: 1, seed: 105, amp: 0.15 });
+    box(ctx, -2.8, -10.8, 3.3, 2.5, P.paper[0], { ink: 0.6, amp: 0.15, seed: 106 });
+
+    line(ctx, -1.4, -1.8, 1.2, -1.5, P.ink, 1.1);
+    oval(ctx, 0.1, -0.7, 0.7, 0.75, P.ink);
+    line(ctx, 3, -1.2, 5.3, -1.5, P.ink, 0.9);
+    oval(ctx, 4.2, -0.5, 0.65, 0.75, P.ink);
+    line(ctx, 2.3, 0.1, 3.4, 2.5, P.inkSoft, 0.7, 107, 0.1);
+    line(ctx, 0.4, 4.1, 4.6, 3.6, P.ink, 0.9, 108, 0.1);
+    line(ctx, -1.8, 4.8, 1.2, 5.6, P.wood[0], 0.8, 109, 0.15);
+    line(ctx, 2.1, 5.5, 4.4, 4.8, P.wood[0], 0.8, 110, 0.15);
+    ctx.restore();
+
+    ctx.restore();
     ctx.restore();
   }
-
   // THE NIGHT PORTER. A tall greatcoat with nobody visible inside, a brass
   // hall lantern for a head (one pane cracked and taped), keys at the hip, a
   // blank luggage tag on a button. Closed, it wraps itself shut and the seam
