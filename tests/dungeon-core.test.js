@@ -4,6 +4,7 @@ const path = require("path");
 const assert = require("assert");
 const ROOT = path.resolve(__dirname, "..");
 const Content = require(path.join(ROOT, "modes/dungeon/dungeon-content.js"));
+const Art = require(path.join(ROOT, "modes/dungeon/dungeon-art.js"));
 const D = require(path.join(ROOT, "modes/dungeon/dungeon-core.js"));
 const T = D.T;
 
@@ -63,6 +64,14 @@ test("the six rooms connect as specified, with a real hearth–queue shortcut", 
   assert.strictEqual(shortcut.openWhen, "shortcutOpen", "the shortcut starts locked");
 });
 
+test("Orr presentation exposes distinct service, irritated, and dry reads", () => {
+  assert.strictEqual(Art.HEIGHT.orr, 82, "speech/staging height follows the authored silhouette");
+  assert.deepStrictEqual(Object.keys(Content.PORTRAITS.orr).sort(), ["dry", "irritated", "serving"]);
+  assert.strictEqual(new Set(Object.values(Content.PORTRAITS.orr)).size, 3, "each Orr expression has distinct portrait art");
+  assert.ok(Object.values(Content.PORTRAITS.orr).every(svg => svg.startsWith("<svg") && svg.length > 900), "Orr portraits are complete authored SVGs");
+  assert.strictEqual(Content.LINES.rowsCrunchy[1].speaker, "orr");
+  assert.strictEqual(Content.LINES.rowsCrunchy[1].expr, "dry", "his dry joke no longer reuses the serving face");
+});
 // ---------- profile ----------
 test("skill edges use skill/(skill+50) and never pass their caps", () => {
   assert.deepStrictEqual(D.edges({}), { speed: 1, power: 1, instinct: 1, stamina: 1 });
