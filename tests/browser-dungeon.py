@@ -15,12 +15,17 @@ and GO, the cold bowl, the shortcut, the Porter's help, the First Knot gift,
 the homecoming), an interrupted committed beat, and a Gate 1 save carried
 forward.
 
-v0.3 Track A adds: LOOK can never bring the van sooner (45 s + a LOOK, else
-90 s); "Be good." as its own beat with a held silence; the van's three
-overheard movements as non-blocking barks that pause under a LOOK; the
-fall going silent before impact, the handheld locking on impact, a held
-black; no automatic HOME banner, the scratched sign still found by LOOK;
-reduced motion; and an unchanged save shape.
+v0.3 (full opening) covers all fourteen scenes in order: the parked car and
+YOU's once-only answers, "Be good." with the pet's own name, the waiting
+rule (60 s and seeing YOU, or 120 s; looking never shortens it), the dome
+light, headlights, the abduction nobody can prevent, the sack, the van's
+non-blocking talk, the held push at the gap, the roadside search (beam,
+shadow, Flare; seen never means caught), the ringing phone touched and
+ignored, the passing car, the drain into rock, the staged fall, the
+awakening, "home?" once, and HOME ↑ found by LOOK. Plus: reload at every
+point in the opening (no committed beat replays), RC2 threshold-v1 saves
+carried into threshold-v2, callerConnected persistence, the Act I locked
+staging, reduced motion, and 320–430 px phones.
 
 Chromium only. This is not Safari or physical-phone evidence.
 """
@@ -112,7 +117,7 @@ with sync_playwright() as p:
     check("shelf card describes a free journey, not an ENDLESS energy run", "FREE" in meta and "MIN" in meta and "ENDLESS" not in meta and "ENERGY" not in meta, meta)
     before_hunger = page.evaluate("RizoRuntimeQA.snapshot().pet.hunger")
     st = launch(page)
-    check("the Dungeon opens from the shelf through RizoModes, outside the store, shell open", page.evaluate("RizoModes.active()") == "dungeon" and st["sim"]["roomId"] == "curb" and st["shell"] == "open", str(st and (st["ui"], st["sim"]["roomId"], st["shell"])))
+    check("the Dungeon opens from the shelf through RizoModes, in the Keeper's car, shell open", page.evaluate("RizoModes.active()") == "dungeon" and st["sim"]["roomId"] == "car" and st["shell"] == "open", str(st and (st["ui"], st["sim"]["roomId"], st["shell"])))
     actor = page.evaluate("""(()=>{const a=document.querySelectorAll('.dungeon-actor .mini-pet');const m=a[0];return {count:a.length,variant:m?.dataset.rizoVariant,context:m?.dataset.rizoContext,alt:m?.querySelector('img')?.alt||'',wear:Boolean(m?.querySelector('.wearable-scarf'))}})()""")
     check("the actual named, dressed Rizo is the actor (canonical markup, one renderer)", actor["count"] == 1 and actor["variant"] == "classic" and actor["context"] == "dungeon" and "MOSSY" in actor["alt"] and actor["wear"], str(actor))
     s = page.evaluate(STORED)
@@ -130,6 +135,14 @@ with sync_playwright() as p:
         touch:touch.defaultPrevented,select:sel.defaultPrevented,bodySelect:bodySel.defaultPrevented,userSelect:getComputedStyle(document.querySelector('.dungeon-line')).userSelect||getComputedStyle(document.querySelector('.dungeon-line')).webkitUserSelect}})()""")
     check("while open, the page cannot scroll, rubber-band or select text (Dungeon-scoped)", lock["html"] and lock["body"] == "fixed" and lock["overflow"] == "hidden" and lock["touch"] and lock["select"] and lock["bodySelect"] and lock["userSelect"] == "none", str(lock))
     skip(page); goto(page, "clatter")
+
+    # The first Draftling: seen at the edge of his light before it notices him.
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(60,360)"); page.wait_for_timeout(200)
+    far = page.evaluate(ST)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(110,270)"); page.wait_for_timeout(200)
+    near = page.evaluate(ST)
+    check("Act I: the first Draftling is seen at the edge of his light before it notices him (he pulls in)", not far["opening"].get("sighted") and near["opening"].get("sighted") and near["pose"] == "pull-in" and not near["sim"]["enemies"][0]["aware"], str((near["pose"], near["sim"]["enemies"][0])))
+    goto(page, "clatter")
 
     # ================= INPUTS =================
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(170,330)")
@@ -243,6 +256,8 @@ with sync_playwright() as p:
     check("rest brings the ordinary Draftling back for a new leg", st["sim"]["enemies"][0]["state"] != "gone" and st["sim"]["enemies"][0]["hp"] == 4)
     check("the rest is reported as a protected semantic event (dormant)", any(e["kind"] == "checkpointRest" and e["tone"] == "protected" and e["mode"] == "dungeon" for e in page.evaluate("RizoRuntimeQA.modeEventsForQA()")))
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(176,240)")
+    hurt = page.evaluate("(RizoRuntimeQA.dungeonAdvanceForQA(3000,{}), [RizoRuntimeQA.dungeonStateForQA().sim.player.flame, RizoRuntimeQA.dungeonStateForQA().lightScale])")
+    check("Act I: a hit is the first time his light circle shrinks (flame down, the light dips)", hurt[0] < 5 and hurt[1] < 1, str(hurt))
     events = page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(20000,{})")
     st = page.evaluate(ST); s = page.evaluate(STORED)
     check("standing in the lunge line brings the Rizo down and back at the hearth", "down" in events and "respawn-ready" in events and st["sim"]["roomId"] == "hearth" and st["sim"]["player"]["flame"] == 5 and abs(st["sim"]["player"]["x"] - 200) < 0.1, str((events.count("hurt"), st["sim"]["roomId"], st["sim"]["player"])))
@@ -344,7 +359,14 @@ with sync_playwright() as p:
     check("entry and identity flows raise no page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
-    # ================= THE OPENING: "Be good." (v0.3 Track A pacing) =================
+    # ================= THE v0.3 OPENING: fourteen scenes, car to HOME ↑ =================
+    def jump(page, ms):
+        page.evaluate(f"RizoRuntimeQA.dungeonSceneTimeForQA({ms})")
+    def op(page):
+        return page.evaluate(ST)["opening"]
+    def sid(page):
+        s = page.evaluate(ST)
+        return s["scene"]["id"] if s["scene"] else None
     def hoods(page):
         return sum(n["id"].startswith("hood") for n in page.evaluate(ST)["npcs"])
     def wait_for_dialogue(page, limit=60):
@@ -352,199 +374,641 @@ with sync_playwright() as p:
             if page.evaluate(ST)["dialogue"]: return True
             page.wait_for_timeout(100)
         return False
-    def through_be_good(page):
-        press_until_closed(page); wait_for_dialogue(page); press_until_closed(page); page.wait_for_timeout(3300)
+    def to_scene(page, scene_id, step=500, limit=600, press=True):
+        """Fast-forward the scene clock (pressing through lines) until a scene starts."""
+        for _ in range(limit):
+            s = page.evaluate(ST)
+            if s["scene"] and s["scene"]["id"] == scene_id: return s
+            if s["dialogue"] and press: page.keyboard.press("z")
+            jump(page, step); page.wait_for_timeout(20)
+        return page.evaluate(ST)
+    def to_room(page, room_id, step=500, limit=600):
+        for _ in range(limit):
+            s = page.evaluate(ST)
+            if s["sim"]["roomId"] == room_id: return s
+            if s["dialogue"]: page.keyboard.press("z")
+            for e in s["sim"]["enemies"]:
+                if e["kind"] == "cargo" and e["state"] == "windup": page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:1,secondaryPressed:true})")
+            jump(page, step); page.wait_for_timeout(20)
+        return page.evaluate(ST)
+    def to_pred(page, limit=60):
+        """Run the scene clock forward until the scene waits on the player."""
+        for _ in range(limit):
+            s = page.evaluate(ST)
+            if s["scene"] and s["scene"]["waiting"] == "pred": return s
+            jump(page, 300); page.wait_for_timeout(20)
+        return page.evaluate(ST)
+    def pose_class(page):
+        return page.evaluate("document.querySelector('.dungeon-pose').className")
+    def hold(page, key, ms):
+        page.keyboard.down(key); page.wait_for_timeout(ms); page.keyboard.up(key); page.wait_for_timeout(60)
+    def beats(page):
+        return page.evaluate(STORED)["slice"]["story"]["committedSceneBeats"]
+    def end_parked(page):
+        """Scene 1, the quick way: greet YOU, then let 20 s pass."""
+        page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(190,250)"); hold(page, "a", 250)
+        for _ in range(80):
+            if page.evaluate(ST)["dialogue"] is None: break
+            page.keyboard.press("z"); page.wait_for_timeout(60)
+        jump(page, 21000); page.wait_for_timeout(100)
+    def to_waiting(page):
+        end_parked(page)
+        return to_scene(page, "opening:waiting", step=400)
 
+    # ---- Scene 1 · Parked
     ctx, page, errors = boot(browser, seed={})
     pet_id = page.evaluate(SETUP)
     st = launch(page)
-    page.wait_for_timeout(700)
     st = page.evaluate(ST)
-    portrait = page.evaluate("[document.querySelector('.dungeon-speaker').textContent, Boolean(document.querySelector('.dungeon-portrait svg')), document.querySelector('.dungeon-dialogue').classList.contains('is-narration')]")
-    check("Beat 1: the keeper's line, with a portrait, while Rizo looks up", st["dialogue"] and st["dialogue"]["speaker"] == "you" and portrait == ["YOU", True, False] and any(n["id"] == "keeper" for n in st["npcs"]), str((st["dialogue"], portrait)))
-    check("no MOVE tutorial modal: nothing but the line is on screen", page.evaluate("document.querySelector('.dungeon-panel').hidden && document.querySelector('.dungeon-cue').hidden"))
-    first = page.evaluate(ST)["dialogue"]
-    check("the accepted line comes first, word for word, without \"Be good.\"", first and first["text"] == "Alright Rizo, I'm gonna go in the store real quick." and first["lines"] == 1, str(first))
+    check("Scene 1: a new journey opens in the Keeper's parked car, shell open, no music", st["sim"]["roomId"] == "car" and st["shell"] == "open" and st["music"] == "dungeon-silence" and st["scene"]["id"] == "opening:parked", str((st["sim"]["roomId"], st["shell"], st["music"])))
+    check("1.1: it fades in from black with control removed, YOU in the driver's seat", st["ui"] == "scene" and st["fade"] > 0.3 and any(n["id"] == "you-seat" and n["visible"] for n in st["npcs"]) and st["dialogue"] is None, str((st["ui"], st["fade"])))
+    page.wait_for_timeout(4300)
+    st = page.evaluate(ST)
+    check("1.2: after the 4 s fade-in, control is his (full: move, Flare, LOOK)", st["ui"] == "play" and st["scene"]["control"] and abs(st["sim"]["player"]["x"] - 203) < 1, str((st["ui"], st["scene"])))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(195,250)"); hold(page, "a", 300)
+    st = page.evaluate(ST)
+    check("approaching YOU: “Hi. Yes. Hi.” in YOU's dialogue box", st["dialogue"] and st["dialogue"]["text"] == "Hi. Yes. Hi." and st["dialogue"]["speaker"] == "you", str(st["dialogue"]))
+    page.wait_for_timeout(5900)
+    check("a line to Rizo closes itself about 5 s after it is shown (no press needed)", page.evaluate(ST)["dialogue"] is None)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(203,252)"); page.wait_for_timeout(150)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(190,250)"); hold(page, "a", 300)
+    check("YOU never repeats: approaching again says nothing", page.evaluate(ST)["dialogue"] is None and op(page)["reactions"] == ["approach"])
+    check("…and YOU's LOOK prompt goes once YOU has answered", page.evaluate("document.querySelector('.dungeon-prompt').hidden"))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(200,214)"); hold(page, "w", 250)
+    st = page.evaluate(ST)
+    check("the dash: “Off the dash, please.”", st["dialogue"] and st["dialogue"]["text"] == "Off the dash, please.", str(st["dialogue"]))
     press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(203,290)"); page.wait_for_timeout(120)
+    page.keyboard.press("z"); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    check("a Flare: “Okay, show-off.” (the spark lights the car's ceiling)", st["dialogue"] and st["dialogue"]["text"] == "Okay, show-off.", str(st["dialogue"]))
+    press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(206,262)"); hold(page, "d", 300)
+    st = page.evaluate(ST)
+    check("the side window: “It's just rain.”", st["dialogue"] and st["dialogue"]["text"] == "It's just rain.", str(st["dialogue"]))
+    press_until_closed(page)
+    check("each reaction once, in the order he found them", op(page)["reactions"] == ["approach", "dash", "flare", "window"], str(op(page)["reactions"]))
+    check("Scene 1 holds until 20 s have passed even after every reaction", sid(page) == "opening:parked")
+    parked_at = op(page)["parkedAt"]
+    jump(page, max(0, 20500 - (page.evaluate(ST)["sceneTime"] - parked_at))); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    check("Scene 2 begins at ≥ 20 s: control removed, YOU takes the keys", st["ui"] in ("scene", "dialogue") and st["opening"]["phase"] == "leaving", str((st["ui"], st["opening"].get("phase"))))
     wait_for_dialogue(page)
     st = page.evaluate(ST)
-    check("\"Be good.\" lands alone, as its own beat, while the keeper is still at the door", st["dialogue"] and st["dialogue"]["text"] == "Be good." and st["dialogue"]["lines"] == 1 and st["dialogue"]["speaker"] == "you" and any(n["id"] == "keeper" and n["visible"] for n in st["npcs"]), str((st["dialogue"], st["npcs"])))
-    press_until_closed(page)
-    page.wait_for_timeout(700)
+    check("2.2: the accepted line, with the pet's own name (MOSSY → “Mossy”)", st["dialogue"] and st["dialogue"]["text"] == "Alright Mossy, I'm gonna go in the store real quick." and st["dialogue"]["lines"] == 1, str(st["dialogue"]))
+    press_until_closed(page); page.wait_for_timeout(300)
+    wait_for_dialogue(page)
     st = page.evaluate(ST)
-    check("then a held silence: no line, no control yet, the keeper still there", st["dialogue"] is None and st["ui"] == "scene" and any(n["id"] == "keeper" and n["visible"] for n in st["npcs"]), str((st["ui"], st["dialogue"], st["npcs"])))
-    page.wait_for_timeout(2600)
+    check("2.3: the dome light clicks on before “There. Light's on.”", st["opening"]["dome"] > 0.5, str(st["opening"].get("dome")))
+    check("2.3: “There. Light's on.”", (page.evaluate(ST)["dialogue"] or {}).get("text") == "There. Light's on.")
+    press_until_closed(page); page.wait_for_timeout(200)
+    wait_for_dialogue(page)
     st = page.evaluate(ST)
-    check("the keeper goes into the store and control comes back", st["ui"] == "play" and st["scene"]["control"] and not any(n["id"] == "keeper" and n["visible"] for n in st["npcs"]), str((st["ui"], st["npcs"])))
-    page.keyboard.down("d"); page.wait_for_timeout(2200)
-    st = page.evaluate(ST); pose_class = page.evaluate("document.querySelector('.dungeon-pose').className")
-    page.keyboard.up("d"); page.wait_for_timeout(60)
-    check("he will not wander off: he slows and looks back near the edge", st["sim"]["player"]["leashed"] and "look-back" in pose_class and st["sim"]["player"]["x"] < 252, str((st["sim"]["player"], pose_class)))
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(126,176)"); page.wait_for_timeout(100)
+    check("2.4: the door opens and “Be good.” lands alone, YOU still in the car", st["dialogue"] and st["dialogue"]["text"] == "Be good." and st["dialogue"]["lines"] == 1 and any(n["id"] == "you-seat" and n["visible"] for n in st["npcs"]), str(st["dialogue"]))
+    press_until_closed(page); page.wait_for_timeout(700)
+    st = page.evaluate(ST)
+    check("then a held silence: no line, no control, YOU not gone yet", st["dialogue"] is None and st["ui"] == "scene" and not st["transient"].get("youGone"), str((st["ui"], st["transient"])))
+    page.wait_for_timeout(1100)
+    st = page.evaluate(ST)
+    check("2.5 THUNK: YOU is outside, crossing the lot; he follows with his whole body at the glass", st["transient"].get("youGone") and any(n["id"] == "keeper" and n["visible"] for n in st["npcs"]) and st["pose"] == "press-glass" and st["ui"] == "scene", str((st["transient"], st["pose"])))
+    thunk_t = page.evaluate(ST)["sceneTime"]
+    for _ in range(80):
+        if page.evaluate(ST)["ui"] == "play": break
+        page.wait_for_timeout(100)
+    st = page.evaluate(ST)
+    check("control returns about 5 s after THUNK (1 s after the store's chime)", st["ui"] == "play" and 4000 <= st["sceneTime"] - thunk_t <= 6200 and "opening:left" in beats(page), str(st["sceneTime"] - thunk_t))
+    check("the keeper is inside the store, not on the lot", not any(n["id"] == "keeper" and n["visible"] for n in st["npcs"]) and st["scene"]["id"] == "opening:waiting")
+
+    # ---- Scene 3 · Waiting
+    vis = []
+    t0 = page.evaluate(ST)["opening"]["waitStart"]
+    for _ in range(20):
+        jump(page, 1000); vis.append(op(page)["you"]["visible"])
+    check("YOU drifts between the aisles, in sight about 70% of the time", 13 <= sum(vis) <= 15, str(sum(vis)))
+    check("looking around brings nothing: 20 s in, still only waiting", sid(page) == "opening:waiting" and hoods(page) == 0)
+    # At the glass: YOU goes out of sight and back.
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(190,208)"); page.wait_for_timeout(100)
+    t = page.evaluate(ST)["sceneTime"] - t0
+    k = (t / 1000) % 20
+    jump(page, int((7.2 - k) * 1000) if k < 7 else int((27.2 - k) * 1000)); page.wait_for_timeout(120)
+    check("at the glass when YOU goes out of sight: he presses to it", page.evaluate(ST)["pose"] == "press-glass" and not op(page)["you"]["visible"], str((page.evaluate(ST)["pose"], op(page).get("you"))))
+    jump(page, 2000); page.wait_for_timeout(120)
+    check("…and eases when YOU comes back", page.evaluate(ST)["pose"] == "settle" and op(page)["you"]["visible"], str((page.evaluate(ST)["pose"], op(page).get("you"))))
+    jump(page, 1700); page.wait_for_timeout(80)
+    check("seeing YOU through the glass for 1.5 s counts (seenYou)", op(page)["seenYou"] is True)
+    t = page.evaluate(ST)["sceneTime"] - t0
+    jump(page, int(max(0, 34000 - t))); page.wait_for_timeout(100)
+    check("the dome light is still on before 35 s", op(page)["dome"] > 0.9, str(op(page)["dome"]))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(203,290)"); page.wait_for_timeout(120)
+    jump(page, 1500); page.wait_for_timeout(80)
+    check("3.2: at 35 s the dome light times out; away from the glass he pulls in", op(page)["domeOut"] and page.evaluate(ST)["pose"] == "pull-in", str((op(page).get("domeOut"), page.evaluate(ST)["pose"])))
+    jump(page, 3200); page.wait_for_timeout(80)
+    check("…fading over 3 s: he is the only light inside now", op(page)["dome"] < 0.02)
+    jump(page, 12500); page.wait_for_timeout(80)
+    check("3.3: a shopping cart rattles past at about 50 s", any(n["id"] == "cart" for n in page.evaluate(ST)["npcs"]) and op(page)["cartDone"])
+    check("3.4: seenYou never shortens the wait below 60 s", sid(page) == "opening:waiting" and hoods(page) == 0 and page.evaluate(ST)["sceneTime"] - t0 < 60000)
+    jump(page, max(0, 60500 - (page.evaluate(ST)["sceneTime"] - t0))); page.wait_for_timeout(120)
+    check("…and at 60 s with YOU seen, the headlights begin", op(page)["phase"] == "headlights", str(op(page).get("phase")))
+
+    # ---- Scene 4 · Headlights (nothing he does changes it)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(204,222)")
+    jump(page, 1600); page.wait_for_timeout(80)
+    st = page.evaluate(ST)
+    check("4.1: he senses it first: the flame pulls in before anything is seen", st["pose"] == "pull-in" and st["lightScale"] < 0.9 and not any(n["id"] == "van" for n in st["npcs"]), str((st["pose"], st["lightScale"])))
+    jump(page, 2600); page.wait_for_timeout(80)
+    st = page.evaluate(ST)
+    check("4.2: headlights sweep the cabin and one held low tone begins", st["opening"].get("sweepAt") is not None and st["music"] == "dungeon-dread" and any(n["id"] == "van" for n in st["npcs"]), str(st["music"]))
+    jump(page, 3100); page.wait_for_timeout(80)
+    check("4.3: the van parks behind; lights off; nothing happens (no one yet)", op(page).get("vanParked") is not None and hoods(page) == 0 and page.evaluate(ST)["ui"] == "play")
+    page.wait_for_timeout(300)
+    # He hides in the footwell for all of it. Nothing is recorded.
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(206,222)"); page.wait_for_timeout(250)
+    st = page.evaluate(ST)
+    check("the footwell is the darkest place: he curls small there", st["opening"]["hiding"] and "pose-curl" in pose_class(page) and st["lightScale"] <= 0.6, str((st["opening"].get("hiding"), st["lightScale"])))
+    facts_before = page.evaluate(STORED)["slice"]["story"]
+    order = []
+    for _ in range(60):
+        jump(page, 400); page.wait_for_timeout(20)
+        st = page.evaluate(ST)
+        for b in st["barks"]:
+            if b["text"] not in order: order.append(b["text"])
+        if st["opening"].get("passengerDoor"): break
+    check("4.4–4.6 play as overheard barks, in order, word for word", order[:5] == ["Two minutes.", "That him?", "Obviously.", "Bro. It's glowing.", "Don't tap the glass."], str(order))
+    check("the barks never take control from him", st["ui"] == "play")
+    check("hiding records nothing", page.evaluate(STORED)["slice"]["story"] == facts_before)
+    check("the window LOOK is gone once they come (no line can cover the abduction)", page.evaluate("document.querySelector('.dungeon-prompt').hidden"))
+
+    # ---- Scene 5 · Taken
+    jump(page, 1600); page.wait_for_timeout(80)
+    check("5.1: the door is forced", op(page).get("passengerDoor") is not None and op(page)["phase"] == "taken")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(150,300)"); page.wait_for_timeout(60)
     page.keyboard.press("z"); page.wait_for_timeout(150)
-    st = page.evaluate(ST)
-    check("Primary near a safe object inspects it (the store sign in the puddle)", st["dialogue"] and st["dialogue"]["lines"] == 2 and st["dialogue"]["speaker"] is None, str(st["dialogue"]))
-    press_until_closed(page)
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(176,170)")
-    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(17000)"); page.wait_for_timeout(400)
-    check("LOOK cannot bring the van sooner: one look and 17 s alone, nothing comes (RC2: 9 s)", hoods(page) == 0 and page.evaluate(ST)["ui"] == "play")
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(312,148)"); page.wait_for_timeout(100)
-    page.keyboard.press("z"); page.wait_for_timeout(150)
-    looked_twice = page.evaluate(ST)["dialogue"] is not None
-    press_until_closed(page)
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(176,170)")
-    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(10000)"); page.wait_for_timeout(400)
-    check("a second LOOK still brings nothing early: 27 s alone (RC2: 5 s)", looked_twice and hoods(page) == 0, str(looked_twice))
-    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(19000)"); page.wait_for_timeout(2600)
-    bark = page.evaluate("document.querySelector('.dungeon-barks').textContent")
-    st = page.evaluate(ST)
-    check("Beat 2: after the minimum wait (and a LOOK), a vehicle and hooded figures arrive; they speak in bubbles, control stays", st["ui"] == "play" and hoods(page) == 3 and ("That him?" in bark or "Obviously." in bark), str((bark, st["ui"])))
-    page.keyboard.press("s"); page.keyboard.down("s"); page.wait_for_timeout(500); page.keyboard.up("s")
-    page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:1})")
-    a0 = page.evaluate(ST)["sim"]["player"]["attacks"]
-    page.keyboard.press("z"); page.wait_for_timeout(200)
-    check("Primary is a small frightened flame here, not a winnable fight", page.evaluate(ST)["sim"]["player"]["attacks"] > a0 and "is-spark" in page.evaluate("document.querySelector('.dungeon-pose').className") + " is-spark" and page.evaluate(ST)["sim"]["enemies"] == [])
+    b1 = [b["text"] for b in page.evaluate(ST)["barks"]]
+    page.wait_for_timeout(400); page.keyboard.press("z"); page.wait_for_timeout(150)
+    b2 = [b["text"] for b in page.evaluate(ST)["barks"]]
+    check("5.2: a first Flare makes them flinch (“Yo—”); a later one: “It's hot! It's hot!”", "Yo—" in b1 and "It's hot! It's hot!" in b2, str((b1, b2)))
     for _ in range(40):
-        page.wait_for_timeout(300)
-        if page.evaluate(ST)["sim"]["roomId"] != "curb": break
-    page.wait_for_timeout(500)
-    s = page.evaluate(STORED)
-    check("one of them grabs him: the taken beat is committed and he is in the van", page.evaluate(ST)["sim"]["roomId"] == "van" and "opening:taken" in s["slice"]["story"]["committedSceneBeats"] and s["slice"]["continuation"]["roomId"] == "van")
-    # An interruption mid-van: the committed beat is never replayed.
-    page.reload(); page.wait_for_timeout(1300)
-    st = launch(page); page.wait_for_timeout(300)
-    s = page.evaluate(STORED)
-    check("a reload in the van resumes in the van; the grab is not replayed", page.evaluate(ST)["sim"]["roomId"] == "van" and s["slice"]["story"]["committedSceneBeats"].count("opening:taken") == 1, str((page.evaluate(ST)["sim"]["roomId"], s["slice"]["story"]["committedSceneBeats"])))
+        hold(page, "s", 120)
+        if op(page).get("grabbed"): break
+    st = page.evaluate(ST)
+    check("he cannot get away: the hands have him within 6 s", st["opening"].get("grabbed") is True and st["ui"] == "scene", str(st["opening"].get("hands")))
+    page.wait_for_timeout(300)
+    check("5.3: through the windshield, YOU at the counter, back turned", op(page).get("youCounter") is True)
+    jump(page, 2500); page.wait_for_timeout(100)
+    check("5.4: “Bag. Bag.” and the pillowcase", "Bag. Bag." in [b["text"] for b in page.evaluate(ST)["barks"]] and op(page).get("bagAt") is not None)
+    st = to_room(page, "sack", step=300)
+    check("taken is committed once, and he is in the dark", st["sim"]["roomId"] == "sack" and beats(page).count("opening:taken") == 1 and "in-sack" in pose_class(page))
+
+    # ---- Scene 6 · The sack
+    page.wait_for_timeout(300)
+    st = page.evaluate(ST)
+    check("6.1: in the sack, no control for 4 s, the HUD names no room", st["ui"] == "scene" and page.evaluate("document.querySelector('.dungeon-room-name').textContent") == "", str(st["ui"]))
+    page.wait_for_timeout(4200)
+    check("6.2: then limited control: he can push", page.evaluate(ST)["ui"] == "play")
+    for key in ["a", "d", "w"]:
+        hold(page, key, 160); page.wait_for_timeout(200)
+    check("three bursts shake him free", op(page)["bursts"] >= 3, str(op(page).get("bursts")))
+    st = to_room(page, "van", step=200, limit=60)
+    check("6.3: he tumbles onto the van floor", st["sim"]["roomId"] == "van" and st["scene"]["id"] == "opening:van")
+
+    # ---- Scene 7 · The van (Track A, unchanged)
     page.wait_for_timeout(2200)
     st = page.evaluate(ST)
-    check("Beat 3: the front seats argue in bubbles; nothing to press through", st["dialogue"] is None and st["ui"] == "play" and any(b["text"] in ("I thought you said he didn't do that fire shit.", "I said probably.") for b in st["barks"]), str((st["ui"], st["barks"])))
+    check("7.1: the front seats argue in bubbles; nothing to press through", st["dialogue"] is None and st["ui"] == "play" and any(b["text"] in ("I thought you said he didn't do that fire shit.", "I said probably.") for b in st["barks"]), str((st["ui"], st["barks"])))
     x0 = st["sim"]["player"]["x"]
-    page.keyboard.down("d"); page.wait_for_timeout(400); page.keyboard.up("d"); page.wait_for_timeout(60)
+    hold(page, "d", 400)
     st = page.evaluate(ST)
-    check("the talk never blocks him: he moves while they speak", st["sim"]["player"]["x"] > x0 + 4 and st["ui"] == "play" and st["barks"], str((x0, st["sim"]["player"]["x"], st["barks"])))
+    check("the talk never blocks him: he moves while they speak", st["sim"]["player"]["x"] > x0 + 4 and st["ui"] == "play", str((x0, st["sim"]["player"]["x"])))
     for _ in range(30):
         if page.evaluate(ST)["barks"]: break
         page.wait_for_timeout(80)
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(128,70)"); page.wait_for_timeout(100); page.keyboard.press("z"); page.wait_for_timeout(150)
     st = page.evaluate(ST)
-    check("the window can be inspected in the van", st["dialogue"] is not None)
     held = [b["text"] for b in st["barks"]]
-    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(6000)"); page.wait_for_timeout(120)
+    jump(page, 6000); page.wait_for_timeout(120)
     after = [b["text"] for b in page.evaluate(ST)["barks"]]
-    check("a LOOK pauses the talk: the line on screen waits under the box, nothing is skipped", held and after == held, str((held, after)))
+    check("a LOOK pauses the talk: the line on screen waits under the box, nothing is skipped", st["dialogue"] is not None and held and after == held, str((held, after)))
     press_until_closed(page)
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(80,98)")
-    order, saw_bump = [], False
+    order, saw_bump, van_start = [], False, page.evaluate(ST)["sceneTime"]
     for _ in range(500):
-        page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(300)"); page.wait_for_timeout(25)
+        jump(page, 300); page.wait_for_timeout(25)
         st = page.evaluate(ST)
         for b in st["barks"]:
             if b["text"] not in order: order.append(b["text"])
         if not saw_bump and any(e["kind"] == "cargo" and e["state"] == "windup" for e in st["sim"]["enemies"]):
             saw_bump = True
-            pulsing = page.evaluate("document.querySelector('.dungeon-key-secondary').classList.contains('is-pulsing')")
-            check("a bump sends a loose cooler down a shown line; the TUCK key wakes once", pulsing, str(pulsing))
+            check("a bump sends a loose cooler down a shown line; the TUCK key wakes once", page.evaluate("document.querySelector('.dungeon-key-secondary').classList.contains('is-pulsing')"))
             page.keyboard.down("s"); page.keyboard.press("x"); page.wait_for_timeout(250); page.keyboard.up("s")
             page.wait_for_timeout(900)
             check("Tuck curls him out of the way; a miss would only bump, never burn", page.evaluate(ST)["sim"]["player"]["flame"] == 5)
         if st["sim"]["flags"].get("vanDoorLoose"): break
     expected = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return [...L.vanArgue,...L.vanTouch,...L.vanFilm,...L.bump,...L.vanCooler,...L.vanNumber,...L.vanAsk,...L.vanPhone,...L.vanLost,...L.vanListening].map(l=>l.text)})()")
-    check("the cooler bump still happens inside the talk", saw_bump)
-    check("the van plays its three movements in order, overheard, with nothing added or skipped", order == expected, str(order))
+    check("the van plays its three movements in order, overheard, nothing added or skipped", order == expected, str(order))
     check("every accepted RC2 van line survives word for word", all(x in order for x in ["I thought you said he didn't do that fire shit.", "I said probably.", "My bad. Pothole."]))
-    check("nobody is named and nothing is explained: no name, company or reason in the talk", not any(w in " ".join(order).lower() for w in ["because", "boss is", "company", "symbol"]), " | ".join(order))
-    check("the door works loose only after the talk", page.evaluate(ST)["sim"]["flags"].get("vanDoorLoose") is True)
-    for _ in range(30):
-        skip(page); page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(1000)"); page.wait_for_timeout(150)
-        if page.evaluate(ST)["sim"]["roomId"] == "roadside": break
+    check("nobody is named and nothing is explained in the van", not any(w in " ".join(order).lower() for w in ["because", "boss is", "company", "symbol"]), " | ".join(order))
+
+    # ---- Scene 8 · The gap (held push; never persisted)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(204,96)"); page.wait_for_timeout(300)
+    st = page.evaluate(ST)
+    check("8.1: the door works loose after the talk; at the gap, black and rain", st["sim"]["flags"].get("vanDoorLoose") and "van-door-zone" in st["sim"]["zones"] and st["opening"].get("gapAt") is not None)
+    check("8.2: he leans back from the dark, his flame pulled tight", "pose-lean-back" in pose_class(page) and st["lightScale"] <= 0.8, str((pose_class(page), st["lightScale"])))
+    page.keyboard.down("d"); page.wait_for_timeout(700)
+    x_before = page.evaluate(ST)["sim"]["player"]["x"]
+    page.keyboard.up("d"); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    check("letting go before 1.5 s: he retreats one step, and the push starts over", st["opening"]["retreats"] == 1 and st["opening"]["push"] == 0 and st["sim"]["player"]["x"] < x_before - 5 and st["scene"]["id"] == "opening:van", str((st["opening"], x_before, st["sim"]["player"]["x"])))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(204,96)"); page.wait_for_timeout(100)
+    hold(page, "d", 1750)
+    st = page.evaluate(ST)
+    check("a continuous 1.5 s push carries him through", st["opening"].get("through") == "push" and st["ui"] == "scene", str(st["opening"].get("through")))
+    st = to_room(page, "roadside", step=300, limit=40)
     s = page.evaluate(STORED)
-    check("Beat 4: the door gives, he falls; the fell beat is committed", page.evaluate(ST)["sim"]["roomId"] == "roadside" and "opening:fell" in s["slice"]["story"]["committedSceneBeats"])
-    page.wait_for_timeout(2600); page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(3000)"); page.wait_for_timeout(200)
+    check("8.3: he falls; the fell beat is committed, and the gap is not (no jumpedGap)", st["sim"]["roomId"] == "roadside" and "opening:fell" in s["slice"]["story"]["committedSceneBeats"] and "jumpedGap" not in json.dumps(s["slice"]), str(s["slice"]["story"]))
+
+    # ---- Scene 9 · Taillights and the search (being seen never costs anything)
+    to_pred(page); page.wait_for_timeout(200)
     st = page.evaluate(ST)
-    check("alone by the road he lies still until the player asks him to move", st["pose"] == "lying" and st["ui"] == "scene", str((st["pose"], st["ui"])))
-    page.keyboard.down("w"); page.wait_for_timeout(1700); page.keyboard.up("w"); page.wait_for_timeout(100)
-    y_after = page.evaluate(ST)["sim"]["player"]["y"]
-    check("Beat 5: one press and he gets up; the walk is his", page.evaluate(ST)["ui"] == "play" and y_after < 1330, str(y_after))
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(140,1030)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(80)
-    check("a familiar-shaped bowl in the rain: he approaches and stops (no text forced)", page.evaluate(ST)["pose"] == "approach-stop" and page.evaluate(ST)["dialogue"] is None)
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(100,70)"); page.keyboard.down("w"); page.wait_for_timeout(700); page.keyboard.up("w"); page.wait_for_timeout(500)
+    check("9.1: alone by the road he lies still until the player asks him to move", st["pose"] == "lying" and st["ui"] == "scene", str((st["pose"], st["ui"])))
+    hold(page, "w", 300); page.wait_for_timeout(1500)
+    check("one press and he gets up", page.evaluate(ST)["ui"] == "play")
+    jump(page, 2200); page.wait_for_timeout(80)
+    check("9.2: far up the road the taillights stop: brake red", op(page).get("brake") is True)
+    jump(page, 2200); page.wait_for_timeout(100)
     st = page.evaluate(ST)
-    check("Beat 6: shelter. The drain is quieter and he shakes off the rain", st["sim"]["roomId"] == "drain" and st["pose"] in ("shake", "settle"), str((st["sim"]["roomId"], st["pose"])))
+    check("9.3: a phone flashlight comes back along the shoulder, two of them", st["opening"].get("beam") is not None and {"hood-tall", "hood-small"} <= {n["id"] for n in st["npcs"]} and st["music"] == "dungeon-dread", str(st["opening"].get("beam")))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(36,1250)"); page.wait_for_timeout(300)
+    seen0 = op(page)["seenCount"]
     page.wait_for_timeout(1500)
+    st = page.evaluate(ST)
+    check("in the ditch's shadow, not Flaring, he is hidden: curled small, the beam passes", st["opening"]["hidden"] and not st["opening"]["inBeam"] and "pose-curl" in pose_class(page) and st["opening"]["seenCount"] == seen0, str(st["opening"]))
+    page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{primaryPressed:true})"); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    check("a Flare gives him away even in shadow: the beam stops on him", st["opening"]["seenCount"] == seen0 + 1, str(st["opening"]))
+    check("…and a voice: “Yo— was that—” (no capture, no failure)", any(b["text"] == "Yo— was that—" for b in st["barks"]) and st["ui"] == "play" and st["sim"]["roomId"] == "roadside" and st["sim"]["phase"] == "play", str(st["barks"]))
+    page.wait_for_timeout(3000)
+    seen1 = op(page)["seenCount"]
+    page.evaluate("""(()=>{const s=RizoRuntimeQA.dungeonStateForQA();const b=s.opening.beam;const x=b.x+Math.cos(b.angle)*70,y=b.y+Math.sin(b.angle)*70;RizoRuntimeQA.dungeonTeleportForQA(Math.max(60,Math.min(176,x)),y);})()"""); page.wait_for_timeout(150)
+    st = page.evaluate(ST)
+    check("standing in the beam out of shadow is seen too, and still nothing happens to him", st["opening"]["seenCount"] >= seen1 + 1 and st["sim"]["phase"] == "play" and st["ui"] == "play", str(st["opening"]))
+    hood = next(n for n in st["npcs"] if n["id"] == "hood-tall")
+    check("the searchers keep to their walk; nobody comes for him", abs(hood["x"] - 178) < 20, str(hood))
+    order = []
+    for _ in range(80):
+        jump(page, 400); page.wait_for_timeout(20)
+        st = page.evaluate(ST)
+        for b in st["barks"]:
+            if b["text"] not in order: order.append(b["text"])
+        if st["opening"].get("searchOver"): break
+    check("their talk, word for word, then another car and they go", [x for x in order if x != "Yo— was that—"] == ["It went off right here.", "It's dark as hell.", "It's a flame. Look for the light.", "I don't see no light.", "Car! Somebody's coming!", "We can't go back without it.", "We can't go back at all if we get pulled over.", "You said probably."] or [x for x in order if x != "Yo— was that—"][-4:] == ["Car! Somebody's coming!", "We can't go back without it.", "We can't go back at all if we get pulled over.", "You said probably."], str(order))
+    st = page.evaluate(ST)
+    check("9.5: they are gone; music off, rain only; the search is committed", st["opening"]["searchOver"] and st["music"] == "dungeon-silence" and "opening:searched" in beats(page) and not any(n["id"].startswith("hood") for n in st["npcs"]))
+    check("nothing in the search names anyone or says why", not any(w in " ".join(order).lower() for w in ["boss", "because", "company", "symbol"]))
+
+    # ---- Scene 10 · The ringing (touched)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(150,1300)")
+    jump(page, 8200); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    ph = st["opening"].get("phone") or {}
+    check("10.1: a dropped phone lights up in the grass about 40 units away", ph.get("state") == "ringing" and 30 <= ((ph["x"] - 150) ** 2 + (ph["y"] - 1300) ** 2) ** 0.5 <= 50, str(ph))
+    inset = page.evaluate("(()=>{const e=document.querySelector('.dungeon-phone');return {hidden:e.hidden,text:e.innerText.trim(),symbol:Boolean(e.querySelector('[data-caller-symbol=\"CALLER_SYMBOL\"]'))}})()")
+    check("its screen shows only CALLER_SYMBOL (a placeholder), no words", not inset["hidden"] and inset["symbol"] and inset["text"] == "", str(inset))
+    page.evaluate(f"RizoRuntimeQA.dungeonTeleportForQA({ph['x'] + 12},{ph['y']})"); page.wait_for_timeout(150)
+    prompt = page.evaluate("[document.querySelector('.dungeon-prompt').hidden, document.querySelector('.dungeon-prompt').textContent]")
+    a0 = page.evaluate(ST)["sim"]["player"]["attacks"]
+    page.keyboard.press("z"); page.wait_for_timeout(300)
+    st = page.evaluate(ST); s = page.evaluate(STORED)
+    check("10.2: touching it connects the call: committed first (callerConnected)", st["opening"]["phone"]["state"] == "connected" and s["slice"]["story"]["facts"].get("callerConnected") is True and "opening:phone" in s["slice"]["story"]["committedSceneBeats"] and prompt[0] is False, str((prompt, s["slice"]["story"]["facts"])))
+    check("touching is not a Flare", st["sim"]["player"]["attacks"] == a0)
+    page.wait_for_timeout(2300)
+    inset = page.evaluate("document.querySelector('.dungeon-phone').innerText.trim()")
+    check("the screen: the symbol and a running call timer, nothing else; no narration", re.fullmatch(r"00:0[1-4]", inset) is not None and page.evaluate(ST)["dialogue"] is None, inset)
+    jump(page, 3000); page.wait_for_timeout(150)
+    check("after 5 s the screen goes dark", op(page)["phone"]["state"] == "dark" and page.evaluate("document.querySelector('.dungeon-phone').hidden"))
+    check("callerConnected stays the only new opening fact", set(page.evaluate(STORED)["slice"]["story"]["facts"]) <= {"callerConnected"} and page.evaluate(STORED)["slice"]["story"]["choices"] == {})
+
+    # ---- Scene 11 · The walk, one car that is not YOU
+    jump(page, 3200); page.wait_for_timeout(100)
+    check("the walk's sparse music comes back after the phone", page.evaluate(ST)["music"] == "dungeon-street")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(140,1030)"); hold(page, "w", 500)
+    check("RC2's bowl: he approaches and stops (no text forced)", page.evaluate(ST)["pose"] == "approach-stop" and page.evaluate(ST)["dialogue"] is None)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,770)"); hold(page, "w", 400)
+    check("11.2: at the midpoint, one car passes from behind", (op(page).get("pass") or {}).get("kind") == "walk")
+    page.wait_for_timeout(1800)
+    p1 = page.evaluate(ST)["pose"]
+    page.wait_for_timeout(900)
+    p2 = page.evaluate(ST)["pose"]
+    check("its light washes over him: he flinches, then turns and watches it go", p1 in ("recoil", "watch") and p2 == "watch", str((p1, p2)))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,800)"); hold(page, "w", 500)
+    check("only one car passes", op(page)["passedOnce"] and (op(page).get("pass") is None or op(page)["pass"]["kind"] == "walk"))
+
+    # ---- Scene 12 · The drain
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(100,70)"); hold(page, "w", 700); page.wait_for_timeout(500)
+    st = page.evaluate(ST)
+    check("12.1: shelter: the drain is quieter and he shakes off the rain", st["sim"]["roomId"] == "drain" and st["pose"] in ("shake", "settle"), str((st["sim"]["roomId"], st["pose"])))
+    page.wait_for_timeout(1500)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(78,690)"); page.wait_for_timeout(120); page.keyboard.press("z"); page.wait_for_timeout(150)
+    check("the dry glove is still there", (page.evaluate(ST)["dialogue"] or {}).get("text") == "A glove. Dry. Somebody waited here once.")
+    press_until_closed(page)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,700)"); page.wait_for_timeout(100)
+    jump(page, int(max(0, 29000 - op(page).get("mouthFor", 0)))); page.wait_for_timeout(80)
+    check("12.3 waits: no headlights before 30 s near the mouth", not op(page).get("headlightsDone"))
+    jump(page, 1500); page.wait_for_timeout(80)
+    check("…at 30 s, once: headlights sweep in and he flinches deeper", op(page).get("headlightsDone") and page.evaluate(ST)["pose"] == "recoil")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,128)"); page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:-1})"); page.wait_for_timeout(100)
+    page.keyboard.press("z"); page.wait_for_timeout(120); page.keyboard.press("z"); page.wait_for_timeout(120)
+    check("at the black back: “Warm air. From down there.”", (page.evaluate(ST)["dialogue"] or {}).get("text") == "Warm air. From down there.")
+    press_until_closed(page)
     check("no objective marker tells him to go deeper", page.evaluate("document.querySelector('.dungeon-banner').hidden && document.querySelector('.dungeon-cue').hidden"))
 
-    def watch_fall(page, hold_ms=3600):
-        """Walk into the drain's depth and record the fall frame by frame."""
+    # ---- Scene 13 · The fall: a recoverable slip, then the irreversible one
+    page.keyboard.down("w")
+    for _ in range(80):
+        if op(page).get("slope"): break
+        page.wait_for_timeout(30)
+    page.keyboard.up("w")
+    check("13.1: on the slope he slips (pose), control still his", op(page).get("slope") == "slip" and page.evaluate(ST)["pose"] == "slip" and page.evaluate(ST)["ui"] == "play")
+    page.wait_for_timeout(700)
+    hold(page, "s", 200)
+    check("any move inside the 1.2 s window scrambles him back up", op(page).get("slope") in ("recovered", "armed"), str(op(page).get("slope")))
+
+    def watch_fall(page, hold_ms=0):
+        """Record the fall frame by frame until he is seen below."""
         import time as _t
         rows, silent_open, lock_rows, banner_seen = [], False, [], False
-        page.keyboard.down("w"); t0 = _t.time(); released = False
-        for _ in range(260):
+        t0 = _t.time()
+        if hold_ms: page.keyboard.down("w")
+        released = not hold_ms
+        for _ in range(500):
             st = page.evaluate(ST)
             now_ms = (_t.time() - t0) * 1000
             if not released and (now_ms > hold_ms or (st["scene"] and st["scene"]["id"] == "opening:fall")):
                 page.keyboard.up("w"); released = True
-            sid = st["scene"] and st["scene"]["id"]
-            if sid == "opening:fall" and st["silent"] and st["shell"] == "open" and st["fade"] >= 0.99: silent_open = True
+            sid_ = st["scene"] and st["scene"]["id"]
+            if sid_ == "opening:fall" and st["silent"] and st["shell"] == "open" and st["fade"] >= 0.99: silent_open = True
             if st["shell"] == "locking": lock_rows.append((now_ms, st["impactAt"] is not None, st["sim"]["roomId"]))
             if not page.evaluate("document.querySelector('.dungeon-banner').hidden"): banner_seen = True
-            rows.append((now_ms, st["sim"]["roomId"], st["shell"], sid, st["fade"]))
-            if st["sim"]["roomId"] == "slip" and sid is None: break
+            fx = page.evaluate("Boolean(document.querySelector('.dungeon-fallfx').dataset.on)")
+            rows.append((now_ms, st["sim"]["roomId"], st["shell"], sid_, st["fade"], st["actorLight"], fx, st["silent"]))
+            if st["sim"]["roomId"] == "slip" and sid_ is None: break
+            if st["sim"]["roomId"] == "slip" and len([r for r in rows if r[1] == "slip"]) > 40: break
             page.wait_for_timeout(30)
         if not released: page.keyboard.up("w")
         return rows, silent_open, lock_rows, banner_seen
 
     rows, silent_open, lock_rows, banner_seen = watch_fall(page)
+    fall_rows = [r for r in rows if r[3] == "opening:fall"]
+    check("13.2: three seconds after recovering, the second slip: irreversible", fall_rows and rows[0][3] in (None, "opening:fall"), str(rows[:3]))
+    check("13.3: falling in the black, his flame streaking (fall effects drawn above the dark)", any(r[6] for r in fall_rows))
+    check("13.4: every sound stops just before impact, the screen already black", silent_open)
     first_lock = lock_rows[0] if lock_rows else None
     slip_at = next((r[0] for r in rows if r[1] == "slip"), None)
-    open_through_fall = [r for r in rows if r[3] == "opening:fall" and r[2] == "open"]
-    check("every sound stops just before impact, while the screen is already dark", silent_open)
-    check("the handheld stays open through the dark fall and locks on impact, not before", open_through_fall and first_lock and first_lock[1] and first_lock[2] == "drain", str((first_lock, len(open_through_fall))))
+    check("13.5: the handheld stays open through the fall and locks on impact, not before", first_lock and first_lock[1] and first_lock[2] == "drain" and all(r[2] == "open" for r in fall_rows if not r[7] and r[0] < first_lock[0] - 50), str(first_lock))
     check("the lock keeps its ~560 ms", first_lock and slip_at and 400 <= slip_at - first_lock[0] <= 1100, str((first_lock, slip_at)))
+    fall_start = fall_rows[0][0] if fall_rows else 0
+    check("the fall runs about 0.3 s crack + 2.5 s in the black before impact", first_lock and 2300 <= first_lock[0] - fall_start <= 3900, str(first_lock and first_lock[0] - fall_start))
     landed = [r for r in rows if r[3] == "opening:landed"]
-    held_black = [r for r in landed if slip_at and r[0] - slip_at <= 1800]
-    check("a held black after impact: he is not seen for about 2 s", held_black and all(r[4] >= 0.99 for r in held_black) and any(r[4] < 0.5 for r in landed), str([(round(r[0]), r[4]) for r in landed][:6]))
-    page.wait_for_timeout(1500)
-    st = page.evaluate(ST); s = page.evaluate(STORED)
-    check("Beat 7: the handheld is locked below", st["shell"] == "locked" and page.evaluate("document.querySelector('.dungeon-device').dataset.shell") == "locked", st["shell"])
-    check("he lands in The Slip and below is committed", st["sim"]["roomId"] == "slip" and "opening:below" in s["slice"]["story"]["committedSceneBeats"] and s["slice"]["continuation"]["roomId"] == "slip", str(st["sim"]["roomId"]))
-    check("no HOME banner appears on its own: not in the fall, the black or the landing", not banner_seen and page.evaluate("document.querySelector('.dungeon-banner').hidden"))
+    check("a held black after impact: nothing seen for about 2 s", landed and all(r[4] >= 0.99 for r in landed if slip_at and r[0] - slip_at <= 1800), str([(round(r[0]), r[4]) for r in landed][:5]))
+    check("no HOME banner appears on its own, not in the fall or the black", not banner_seen)
+
+    # ---- Scene 14 · Awakening
+    page.wait_for_timeout(2600)
+    st = page.evaluate(ST)
+    check("14.1: total black first, then a pinprick of his flame (presentation only: Flame stays full)", st["actorLight"] < 0.5 and st["sim"]["player"]["flame"] == 5 and st["shell"] == "locked", str((st["actorLight"], st["sim"]["player"]["flame"])))
+    hold(page, "a", 150); page.wait_for_timeout(200)
+    check("input before 4 s does not wake him", page.evaluate(ST)["pose"] == "lying")
+    page.wait_for_timeout(3800)
+    st = page.evaluate(ST)
+    check("the light keeps growing back over 10 s", 0.2 < st["lightScale"] < 1, str(st["lightScale"]))
+    check("6 s in, the move key pulses once (the only hint)", page.evaluate("document.querySelector('.dungeon-dpad').classList.contains('is-pulsing')") or op(page).get("wakeAt") is not None)
+    hold(page, "a", 150); page.wait_for_timeout(1200)
+    st = page.evaluate(ST)
+    check("14.2: he wakes when the player moves", st["ui"] == "play" and st["scene"] is None and op(page).get("awakeAt") is not None, str((st["ui"], st["scene"])))
+    page.wait_for_timeout(1300)
+    st = page.evaluate(ST)
+    thought = page.evaluate("(()=>{const t=document.querySelector('.dungeon-thought');return {hidden:t.hidden,text:t.textContent,box:getComputedStyle(t).borderStyle,bg:getComputedStyle(t).backgroundColor,size:parseFloat(getComputedStyle(t).fontSize)}})()")
+    check("14.4: standing still near the landing he looks up, and the thought “home?” appears", st["thought"] and st["thought"]["text"] == "home?" and st["pose"] == "look-up" and not thought["hidden"] and thought["text"] == "home?", str((st["thought"], st["pose"], thought)))
+    check("the thought is its own thing: lowercase, small, no box, no portrait, no name", thought["text"].islower() and thought["size"] <= 14 and thought["box"] == "none" and thought["bg"] in ("rgba(0, 0, 0, 0)", "transparent") and page.evaluate("document.querySelector('.dungeon-dialogue').hidden"), str(thought))
+    check("…committed once ever (thought:home) before it shows", beats(page).count("thought:home") == 1)
+    check("nothing else talks over the thought (no prompt)", page.evaluate("document.querySelector('.dungeon-prompt').hidden"))
+    page.wait_for_timeout(4200)
+    check("the thought fades on its own", page.evaluate(ST)["thought"] is None and page.evaluate("document.querySelector('.dungeon-thought').hidden"))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(160,260)"); page.wait_for_timeout(1500)
+    check("it never comes back, even standing still at the landing again", page.evaluate(ST)["thought"] is None)
+    check("14.5: no HOME ↑ banner; below is silent until it is found", page.evaluate("document.querySelector('.dungeon-banner').hidden") and page.evaluate(ST)["music"] == "dungeon-silence")
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(160,56)"); page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(17,{moveY:-1})"); page.wait_for_timeout(100)
     page.keyboard.press("z"); page.wait_for_timeout(150); page.keyboard.press("z"); page.wait_for_timeout(120)
     st = page.evaluate(ST)
-    check("the scratched sign is still there to find: LOOK reads the accepted line", st["dialogue"] and st["dialogue"]["text"] == "Someone scratched it with a key: HOME, and an arrow. Up.", str(st["dialogue"]))
+    check("the scratched sign is found by LOOK: the accepted line", st["dialogue"] and st["dialogue"]["text"] == "Someone scratched it with a key: HOME, and an arrow. Up.", str(st["dialogue"]))
+    check("on that first read a new motif enters and the music returns", st["music"] == "dungeon-home")
     press_until_closed(page)
-    check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"])
-    flags = page.evaluate("RizoDungeonContent.FLAGS")
-    check("no new persisted story fact or choice: the save shape is unchanged", s["slice"]["story"]["choices"] == {} and all(k in flags for k in s["slice"]["story"]["facts"]) and s["slice"]["campaign"]["contentRevision"] == "threshold-v1", str(s["slice"]["story"]))
+    s = page.evaluate(STORED)
+    check("the opening's beats, in order, each once", [b for b in s["slice"]["story"]["committedSceneBeats"]] == ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home"], str(s["slice"]["story"]["committedSceneBeats"]))
+    check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"] and s["slice"]["campaign"]["contentRevision"] == "threshold-v2")
     page.reload(); page.wait_for_timeout(1300)
-    st = launch(page)
-    check("a reload after the fall resumes below, in the locked handheld", st["sim"]["roomId"] == "slip" and st["shell"] == "locked")
+    st = launch(page); page.wait_for_timeout(600)
+    check("a reload below resumes in the locked handheld; no landing, no thought replayed", st["sim"]["roomId"] == "slip" and st["shell"] == "locked" and page.evaluate(ST)["scene"] is None and op(page).get("thoughtArmed") is False)
+    page.wait_for_timeout(1200)
+    check("…and the sign already found keeps the music below playing", page.evaluate(ST)["music"] == "dungeon-below")
     check("the opening raises no page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
-    # ---- No LOOK at all: the maximum wait still advances.
+    # ---- Idle / lingering: every cap and fallback, with nobody pressing anything
     ctx, page, errors = boot(browser, seed={})
-    page.evaluate(SETUP); launch(page); page.wait_for_timeout(700)
-    through_be_good(page)
-    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(46000)"); page.wait_for_timeout(300)
-    check("with no LOOK, 46 s alone is still only waiting", hoods(page) == 0 and page.evaluate(ST)["ui"] == "play")
-    page.evaluate("RizoRuntimeQA.dungeonSceneTimeForQA(45000)"); page.wait_for_timeout(2600)
-    check("with no LOOK, the van still comes at the maximum wait (90 s)", hoods(page) == 3)
-    check("the waiting paths raise no page errors", not errors, "; ".join(errors[:3]))
+    page.evaluate(SETUP); launch(page)
+    # A journey whose save carries no pet name (YOU must still say a name).
+    page.evaluate("RizoModes.quitActive('qa')"); page.wait_for_timeout(300)
+    unnamed = json.loads(page.evaluate("localStorage.getItem('rizo-save-v2')"))["modes"]["dungeon"]["data"]
+    unnamed["campaign"]["petName"] = ""
+    env = subprocess.run(["node", "-e", r"""
+const Save=require(process.argv[1]+'/core/rizo-save-core.js');const v=JSON.parse(process.argv[2]);
+console.log(JSON.stringify(Save.createEnvelope({state:v.state,modes:{dungeon:{schema:1,data:JSON.parse(process.argv[3])}},savedAt:Date.now(),writeId:'W-UNNAMED',stateVersion:v.state.version})));""", str(ROOT), page.evaluate("localStorage.getItem('rizo-save-v2')"), json.dumps(unnamed)], capture_output=True, text=True, check=True).stdout.strip()
+    ctx.close()
+    ctx, page, errors = boot(browser, seed={V2: env, V2_BACKUP: env})
+    launch(page)
+    page.wait_for_timeout(4500)
+    jump(page, 42000); page.wait_for_timeout(100)
+    check("idle in the car: nothing at 42 s", page.evaluate(ST)["dialogue"] is None)
+    jump(page, 3500); page.wait_for_timeout(150)
+    check("idle 45 s: YOU says “It's just rain.” unprompted", (page.evaluate(ST)["dialogue"] or {}).get("text") == "It's just rain.")
+    page.wait_for_timeout(5800)
+    jump(page, 28000); page.wait_for_timeout(200)
+    check("the 75 s cap ends Scene 1 even for a player who never moves", op(page)["phase"] == "leaving")
+    wait_for_dialogue(page)
+    check("a save without a pet name hears the fallback: “Alright Rizo, …”", (page.evaluate(ST)["dialogue"] or {}).get("text") == "Alright Rizo, I'm gonna go in the store real quick.", str(page.evaluate(ST)["dialogue"]))
+    t_line = page.evaluate(ST)["sceneTime"]
+    for _ in range(320):
+        if page.evaluate(ST)["ui"] == "play": break
+        page.wait_for_timeout(100)
+    check("with no presses at all, YOU's lines close themselves and the scene goes on", page.evaluate(ST)["ui"] == "play" and sid(page) == "opening:waiting", str(page.evaluate(ST)["sceneTime"] - t_line))
+    jump(page, 119000); page.wait_for_timeout(150)
+    check("never looking out: still waiting at 119 s", op(page)["phase"] == "waiting" and not op(page)["seenYou"])
+    jump(page, 1500); page.wait_for_timeout(150)
+    check("…and the headlights at 120 s regardless", op(page)["phase"] == "headlights")
+    st = to_room(page, "sack", step=500)
+    check("without any input the abduction still happens (the hands come to him)", st["sim"]["roomId"] == "sack")
+    page.wait_for_timeout(300)
+    jump(page, 4100); page.wait_for_timeout(100); jump(page, 11500); page.wait_for_timeout(150)
+    check("6.2: without a push he is not freed early", page.evaluate(ST)["sim"]["roomId"] == "sack")
+    st = to_room(page, "van", step=300, limit=30)
+    check("…but at 12 s the sack lets him go anyway", st["sim"]["roomId"] == "van")
+    for _ in range(400):
+        s_ = page.evaluate(ST)
+        if s_["sim"]["flags"].get("vanDoorLoose"): break
+        jump(page, 400); page.wait_for_timeout(15)
+    jump(page, 9300); page.wait_for_timeout(150)
+    check("8.1: not walking to the gap, he is moved there at 9 s", "van-door-zone" in page.evaluate(ST)["sim"]["zones"] and op(page).get("gapAt") is not None)
+    jump(page, 9000); page.wait_for_timeout(100)
+    check("no push, no jolt yet at 9 s at the gap", op(page).get("through") is None)
+    jump(page, 1200); page.wait_for_timeout(100)
+    check("8.2: at 10 s the van jolts and throws him regardless", op(page).get("through") == "jolt")
+    st = to_room(page, "roadside", step=300, limit=30)
+    to_pred(page); hold(page, "w", 200); page.wait_for_timeout(1500)
+    for _ in range(80):
+        if op(page).get("searchOver"): break
+        jump(page, 500); page.wait_for_timeout(15)
+    jump(page, 8200); page.wait_for_timeout(150)
+    check("the phone rings whether or not he goes near it", op(page)["phone"]["state"] == "ringing")
+    jump(page, 39000); page.wait_for_timeout(100)
+    check("still ringing at 39 s", op(page)["phone"]["state"] == "ringing")
+    jump(page, 1500); page.wait_for_timeout(150)
+    s = page.evaluate(STORED)
+    check("10.3: ignored, it rings out and goes dark; resolved, but no callerConnected", op(page)["phone"]["state"] == "dark" and "opening:phone" in s["slice"]["story"]["committedSceneBeats"] and "callerConnected" not in s["slice"]["story"]["facts"], str(s["slice"]["story"]))
+    page.evaluate("RizoRuntimeQA.dungeonGotoForQA('drain')"); page.wait_for_timeout(1800)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,100)"); hold(page, "w", 350)
+    for _ in range(40):
+        if op(page).get("slope") != "slip": break
+        page.wait_for_timeout(50)
+    check("13.1: on the slope with no input in the window…", op(page).get("slope") in ("window", "gone"))
+    page.wait_for_timeout(1400)
+    check("…the second slip follows at once", sid(page) == "opening:fall" or page.evaluate(ST)["sim"]["roomId"] == "slip")
+    check("the idle paths raise no page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
-    # ---- Reduced motion: the same fall, a short lock, still no banner.
+    # ---- Reload throughout the opening: committed beats never replay
+    ctx, page, errors = boot(browser, seed={})
+    page.evaluate(SETUP); launch(page); page.wait_for_timeout(4400)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page)
+    check("reload in Scene 1 (nothing committed): the car again, from the start", st["sim"]["roomId"] == "car" and sid(page) == "opening:parked")
+    to_waiting(page)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(700)
+    st = page.evaluate(ST)
+    check("reload while waiting: back in the car, YOU already in the store; “Be good.” is not replayed", st["sim"]["roomId"] == "car" and sid(page) == "opening:waiting" and st["transient"].get("youGone") and st["dialogue"] is None and not any(n["id"] == "you-seat" and n["visible"] for n in st["npcs"]), str((sid(page), st["transient"])))
+    jump(page, 121000); page.wait_for_timeout(150)
+    st = to_room(page, "sack", step=500)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500)
+    check("reload in the sack: he resumes in the van; the abduction is not replayed", st["sim"]["roomId"] == "van" and beats(page).count("opening:taken") == 1)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500)
+    check("reload in the van: the van again; still one abduction", st["sim"]["roomId"] == "van" and beats(page).count("opening:taken") == 1)
+    st = to_room(page, "roadside", step=500)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500)
+    check("reload during the search (fell, not searched): the roadside from where he fell", st["sim"]["roomId"] == "roadside" and sid(page) == "opening:separation" and beats(page).count("opening:fell") == 1)
+    to_pred(page); hold(page, "w", 200); page.wait_for_timeout(1500)
+    for _ in range(80):
+        if op(page).get("searchOver"): break
+        jump(page, 500); page.wait_for_timeout(15)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(300)
+    jump(page, 2600); page.wait_for_timeout(150)
+    st = page.evaluate(ST)
+    check("reload after the search: no second search; the phone is still ringing", st["sim"]["roomId"] == "roadside" and not st["opening"].get("beam") and (st["opening"].get("phone") or {}).get("state") == "ringing" and beats(page).count("opening:searched") == 1, str(st["opening"]))
+    ph = st["opening"]["phone"]
+    page.evaluate(f"RizoRuntimeQA.dungeonTeleportForQA({ph['x'] + 12},{ph['y']})"); page.wait_for_timeout(150); page.keyboard.press("z"); page.wait_for_timeout(300)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500); jump(page, 3000); page.wait_for_timeout(150)
+    st = page.evaluate(ST); s = page.evaluate(STORED)
+    check("reload after the call: the walk, no phone again; callerConnected kept", st["sim"]["roomId"] == "roadside" and st["opening"].get("phone") is None and st["opening"].get("walkMode") and s["slice"]["story"]["facts"].get("callerConnected") is True and st["music"] == "dungeon-street")
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(100,70)"); hold(page, "w", 700); page.wait_for_timeout(500)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500)
+    check("reload in the drain: the drain's mouth", st["sim"]["roomId"] == "drain")
+    page.wait_for_timeout(1600)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,100)"); hold(page, "w", 350)
+    st = to_room(page, "slip", step=400, limit=60)
+    page.wait_for_timeout(400)
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500)
+    check("reload in the black hold after impact: below, the fall not replayed", st["sim"]["roomId"] == "slip" and beats(page).count("opening:below") == 1 and sid(page) is None)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(160,280)"); page.wait_for_timeout(1700)
+    check("a reload before the thought still lets it come once, near the landing", page.evaluate(ST)["thought"] is not None or beats(page).count("thought:home") == 1)
+    check("the reload paths raise no page errors", not errors, "; ".join(errors[:3]))
+    ctx.close()
+
+    # ---- RC2 (threshold-v1) saves carried into the car: nobody is trapped in the deleted curb
+    def rc2_envelope(slice_data):
+        return subprocess.run(["node", "-e", r"""
+const Save=require(process.argv[1]+'/core/rizo-save-core.js');
+const env=JSON.parse(process.argv[2]);const s=env.state;const data=JSON.parse(process.argv[3]);data.campaign.petId=s.pet.id;data.campaign.petName=s.pet.name;
+console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1,data}},savedAt:Date.now()-60000,writeId:'W-RC2',stateVersion:s.version})));""", str(ROOT), saved_with_knot_seed, json.dumps(slice_data)], capture_output=True, text=True, check=True).stdout.strip()
+    def rc2_slice(room, anchor, beats_, visited, extra=None):
+        data = {"settings": {"assist": False, "textSpeed": "normal"}, "campaign": {"id": "threshold-rc2save", "kind": "proof", "contentRevision": "threshold-v1", "petId": "", "petName": "", "status": "active", "chapterId": "threshold"},
+                "world": {"visitedRooms": visited, "openedShortcuts": [], "durableRoomFlags": {}, "defeatedEncounters": []}, "story": {"facts": {}, "choices": {}, "committedSceneBeats": beats_, "resumeScene": None},
+                "npcs": {"latch": {"state": "unmet", "locationAnchor": None, "evidence": []}}, "inventory": {"knownLocalItems": []}, "checkpoint": {"hearthId": None, "roomId": None, "spawnAnchorId": None},
+                "continuation": {"roomId": room, "safeAnchorId": anchor, "roomEntryFlame": 5, "resumeKind": "opening"}, "legProfile": {"edges": {"speed": 1, "power": 1, "instinct": 1, "stamina": 1}, "bondBand": "new", "cues": {"favoriteFoodId": None, "favoriteGameId": None}},
+                "journal": {"discoveredEntryIds": ["puddle"]}, "pendingRewards": [], "proofComplete": False, "storyComplete": False}
+        if extra: extra(data)
+        return data
+    for label, slice_, room, scene_ in [
+        ("at the curb", rc2_slice("curb", "start", [], ["curb"]), "car", "opening:parked"),
+        ("taken, in the van", rc2_slice("van", "start", ["opening:taken"], ["curb", "van"]), "van", "opening:van"),
+        ("fallen, by the road", rc2_slice("roadside", "fallen", ["opening:taken", "opening:fell"], ["curb", "van", "roadside"]), "roadside", "opening:separation"),
+        ("in the drain", rc2_slice("drain", "mouth", ["opening:taken", "opening:fell"], ["curb", "van", "roadside", "drain"]), "drain", "opening:shelter")]:
+        env = rc2_envelope(slice_)
+        ctx, page, errors = boot(browser, seed={V2: env, V2_BACKUP: env})
+        st = launch(page); page.wait_for_timeout(300)
+        s = page.evaluate(STORED)
+        check(f"an RC2 journey {label} resumes sensibly in v2 ({room})", st["sim"]["roomId"] == room and sid(page) == scene_ and s["slice"]["campaign"]["id"] == "threshold-rc2save" and s["slice"]["campaign"]["contentRevision"] == "threshold-v2", str((st["sim"]["roomId"], sid(page), s["slice"]["campaign"])))
+        check(f"…its committed beats are kept, none replayed or duplicated ({label})", s["slice"]["story"]["committedSceneBeats"] == slice_["story"]["committedSceneBeats"] and "curb" not in s["slice"]["world"]["visitedRooms"] and s["slice"]["journal"]["discoveredEntryIds"] == ["puddle"], str(s["slice"]["story"]))
+        check(f"…without page errors ({label})", not errors, "; ".join(errors[:2]))
+        ctx.close()
+    below = rc2_slice("queue", "queue-entry", ["opening:taken", "opening:fell", "opening:below", "latch-rescue:freed", "hearth-seat:sit"], ["curb", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth", "queue"], lambda d: (d["story"].update({"facts": {"jamInspected": True, "seatChosen": True, "sharedRest": True, "hearthArrived": True}, "choices": {"hearth-seat": "sit"}}), d["world"].update({"durableRoomFlags": {"latchFreed": True}}), d["checkpoint"].update({"hearthId": "threshold-hearth", "roomId": "hearth", "spawnAnchorId": "hearth-side"}), d["npcs"].update({"latch": {"state": "waiting-hearth", "locationAnchor": "hearth-latch", "evidence": ["rescue"]}}), d["continuation"].update({"resumeKind": "room-entry"})))
+    env = rc2_envelope(below)
+    ctx, page, errors = boot(browser, seed={V2: env, V2_BACKUP: env})
+    st = launch(page); page.wait_for_timeout(300)
+    s = page.evaluate(STORED)
+    check("an RC2 journey below resumes where it was, every fact, choice and hearth intact", st["sim"]["roomId"] == "queue" and st["shell"] == "locked" and s["slice"]["story"]["choices"] == {"hearth-seat": "sit"} and s["slice"]["story"]["facts"].get("sharedRest") and s["slice"]["checkpoint"]["hearthId"] == "threshold-hearth" and s["slice"]["world"]["durableRoomFlags"] == {"latchFreed": True} and s["slice"]["npcs"]["latch"]["state"] == "waiting-hearth", str(s["slice"]["story"]))
+    check("…no thought comes to a journey already past the Slip", "thought:home" not in s["slice"]["story"]["committedSceneBeats"])
+    goto(page, "slip"); page.wait_for_timeout(1500)
+    check("…even standing at the landing", page.evaluate(ST)["thought"] is None)
+    check("the migrated below-journey raises no page errors", not errors, "; ".join(errors[:2]))
+    ctx.close()
+
+    # ---- Reduced motion: every new sweep, fall and camera treatment has a still version
     ctx, page, errors = boot(browser, seed={})
     page.evaluate(SETUP.replace("RizoRuntimeQA.loadForQA(s)", "s.settings.reducedMotion=true;RizoRuntimeQA.loadForQA(s)"))
-    launch(page); page.wait_for_timeout(500)
-    goto(page, "drain"); page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,300)")
-    rows, silent_open, lock_rows, banner_seen = watch_fall(page)
+    launch(page); page.wait_for_timeout(600)
+    check("reduced motion: the stage carries the reduced-motion class", page.evaluate("document.getElementById('miniGameOverlay').classList.contains('dungeon-reduced-motion')"))
+    to_waiting(page)
+    jump(page, 121000); page.wait_for_timeout(100); jump(page, 4100); page.wait_for_timeout(80)
+    xs = []
+    for _ in range(4):
+        jump(page, 700); page.wait_for_timeout(60)
+        xs.append(page.evaluate("RizoDungeonScenery.lights(RizoDungeonCore.room('car'),{sim:RizoRuntimeQA.dungeonStateForQA().sim,time:0,extras:{room:RizoRuntimeQA.dungeonStateForQA().opening,sceneTime:RizoRuntimeQA.dungeonStateForQA().sceneTime,npcs:[]},view:{x:0,y:0,w:320,h:480},reduced:true}).list.filter(l=>l.r===150).map(l=>l.x)"))
+    check("reduced motion: the headlights brighten and fade in place instead of sweeping", all(x == [180] for x in xs[:3] if x), str(xs))
+    page.evaluate("RizoRuntimeQA.dungeonGotoForQA('roadside')"); page.wait_for_timeout(500)
+    page.evaluate("RizoRuntimeQA.dungeonGotoForQA('drain')"); page.wait_for_timeout(1500)
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,100)")
+    rows, silent_open, lock_rows, banner_seen = watch_fall(page, hold_ms=3000)
     first_lock = lock_rows[0] if lock_rows else None
     slip_at = next((r[0] for r in rows if r[1] == "slip"), None)
+    fall_rows = [r for r in rows if r[3] == "opening:fall"]
+    early = [r[4] for r in fall_rows if r[0] - fall_rows[0][0] < 700] if fall_rows else []
+    check("reduced motion: no cut to black and no flashes, a slow dim fade instead", early and max(early) < 0.8, str(early[:6]))
     check("reduced motion: the handheld still locks on impact, quickly (~160 ms)", first_lock and first_lock[1] and slip_at and slip_at - first_lock[0] < 450, str((first_lock, slip_at)))
     check("reduced motion: the fall still goes silent first and lands without a banner", silent_open and not banner_seen and page.evaluate(ST)["sim"]["roomId"] == "slip")
     check("reduced motion raises no page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
+
+    # ---- Phones first: 320, 375, 390, 430 wide
+    for w, h in [(320, 568), (375, 667), (390, 844), (430, 932)]:
+        ctx, page, errors = boot(browser, seed={}, viewport=(w, h))
+        page.evaluate(SETUP); launch(page); page.wait_for_timeout(4500)
+        layout = page.evaluate("""(()=>{const r=e=>document.querySelector(e).getBoundingClientRect();const screen=r('.dungeon-screen'),pad=r('.dungeon-dpad'),keys=r('.dungeon-key-primary');
+          return {overflowX:document.documentElement.scrollWidth>innerWidth,overflowY:document.documentElement.scrollHeight>innerHeight+1,screenBottom:screen.bottom,padTop:pad.top,keysTop:keys.top,screenW:screen.width,screenLeft:screen.left,screenRight:screen.right}})()""")
+        cam = page.evaluate("RizoRuntimeQA.dungeonStateForQA() && (()=>{const v=document.querySelector('.dungeon-screen').getBoundingClientRect();return v.height/(v.width/320)})()")
+        check(f"{w}×{h}: no page scroll, the screen sits above the controls", not layout["overflowX"] and not layout["overflowY"] and layout["screenBottom"] <= min(layout["padTop"], layout["keysTop"]) + 1 and layout["screenLeft"] >= 0 and layout["screenRight"] <= w, str(layout))
+        check(f"{w}×{h}: the store window and the whole cabin fit on screen together", cam >= 330, str(cam))
+        page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(190,250)"); hold(page, "a", 250)
+        box = page.evaluate("(()=>{const d=document.querySelector('.dungeon-dialogue').getBoundingClientRect(),s=document.querySelector('.dungeon-screen').getBoundingClientRect();return [d.left>=s.left-1,d.right<=s.right+1,d.bottom<=s.bottom+1,d.top>=s.top]})()")
+        check(f"{w}×{h}: YOU's line fits inside the screen, never under the controls", all(box), str(box))
+        check(f"{w}×{h}: no page errors", not errors, "; ".join(errors[:2]))
+        ctx.close()
 
     # ================= THE THRESHOLD: SIT path, through to the Den =================
     ctx, page, errors = boot(browser, seed={})
@@ -569,6 +1033,7 @@ with sync_playwright() as p:
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(90,170)"); page.wait_for_timeout(300)
     st = page.evaluate(ST); s = page.evaluate(STORED)
     check("the hearth registers on safe arrival and restores Flame", s["slice"]["checkpoint"]["hearthId"] == "threshold-hearth" and st["sim"]["player"]["flame"] == 5)
+    check("entering the Shared Hearth he visibly loosens: the pose, and his light swells a little", st["opening"].get("loosenAt") is not None and (st["pose"] == "loosen" or "pose-loosen" in page.evaluate("document.querySelector('.dungeon-pose').className")), str((st["pose"], st["opening"].get("loosenAt"))))
     press_until_closed(page); page.wait_for_timeout(150)
     st = page.evaluate(ST)
     check("Latch offers the seat; SIT / GO waits for the player, no timer", st["choice"] and st["choice"]["options"] == ["sit", "go"] and not page.evaluate("document.querySelector('.dungeon-choice').hidden"))
@@ -580,6 +1045,9 @@ with sync_playwright() as p:
     page.wait_for_timeout(1400)
     st = page.evaluate(ST)
     check("SIT: Rizo settles on the bench beside Latch (a quiet proximity beat)", abs(st["sim"]["player"]["x"] - 156) < 2 and st["pose"] == "settle", str((st["sim"]["player"]["x"], st["pose"])))
+    press_until_closed(page); page.wait_for_timeout(1500)
+    st = page.evaluate(ST)
+    check("SIT's quiet aftermath: after Latch's line, nothing is said for a while", st["dialogue"] is None and st["scene"] and st["scene"]["id"] == "hearth-seat" and st["opening"].get("quietAt") is not None, str((st["dialogue"], st["scene"])))
     for _ in range(8):
         skip(page); page.wait_for_timeout(100)
     check("Latch's warning before the Porter is said", page.evaluate(STORED)["slice"]["story"]["facts"].get("beforePorterSaid") is True)
@@ -605,7 +1073,14 @@ with sync_playwright() as p:
     ev = page.evaluate("RizoRuntimeQA.dungeonAdvanceForQA(400,{primaryPressed:true})")
     s = page.evaluate(STORED)
     check("at half health the help beat is committed first (alcove open, Latch helping)", "porter-half" in ev and s["slice"]["story"]["facts"].get("porterHelp") and s["slice"]["world"]["durableRoomFlags"].get("alcoveOpen") and s["slice"]["npcs"]["latch"]["state"] == "helping", str(ev))
-    page.wait_for_timeout(1400)
+    page.wait_for_timeout(300)
+    st = page.evaluate(ST)
+    check("the Porter climax: his light at its smallest, a look back, nobody there yet", st["lightScale"] <= 0.55 and st["pose"] == "look-back" and not any(n["id"] == "latch" and n["visible"] for n in st["npcs"]) and st["dialogue"] is None, str((st["lightScale"], st["pose"], st["npcs"])))
+    page.wait_for_timeout(1800)
+    st = page.evaluate(ST)
+    check("…then silence, still nobody", not any(n["id"] == "latch" and n["visible"] for n in st["npcs"]) and st["dialogue"] is None)
+    page.wait_for_timeout(1700)
+    check("…then the alcove clunks open and Latch is there", any(n["id"] == "latch" and n["visible"] for n in page.evaluate(ST)["npcs"]) and page.evaluate(ST)["opening"].get("smallestDone") is True)
     st = page.evaluate(ST)
     check("Latch: “Here. I found a door that still does doors.” (urgent)", st["dialogue"] and st["dialogue"]["expr"] == "urgent", str(st["dialogue"]))
     # Interrupt the help beat with a reload: the boss restarts, the help is never granted twice.
@@ -623,7 +1098,9 @@ with sync_playwright() as p:
     s = page.evaluate(STORED)
     check("the Porter settles; the First Knot and shared-hearth mark are committed with the proof", "porter-down" in ev and "first-knot" in s["accessories"] and any(m["id"] == "shared-hearth" for m in (s["marks"] or [])) and s["slice"]["proofComplete"] and not s["slice"]["storyComplete"] and s["slice"]["campaign"]["status"] == "homecoming-ready", str(ev))
     check("the reward is never auto-equipped", s["accessory"] == "scarf")
-    page.wait_for_timeout(2500)
+    page.wait_for_timeout(1200)
+    check("a held quiet after the Porter, before anything is given", page.evaluate(ST)["dialogue"] is None and page.evaluate(ST)["scene"]["id"] == "knot-gift")
+    page.wait_for_timeout(2200)
     check("Latch's gift lines: “Keeps the draft off.”", (page.evaluate(ST)["dialogue"] or {}).get("speaker") == "latch")
     press_until_closed(page, 30); page.wait_for_timeout(1300); press_until_closed(page, 30); page.wait_for_timeout(900); press_until_closed(page, 30)
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,30)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(1600)
@@ -686,7 +1163,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     ctx, page, errors = boot(browser, seed={V2: gate1, V2_BACKUP: gate1})
     st = launch(page)
     s = page.evaluate(STORED)
-    check("a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening", s["slice"]["campaign"]["id"] == "threshold-gate1abc" and s["slice"]["campaign"]["contentRevision"] == "threshold-v1" and s["slice"]["settings"] == {"assist": True, "textSpeed": "instant"} and st["sim"]["roomId"] == "curb", str(s["slice"]["campaign"]))
+    check("a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening", s["slice"]["campaign"]["id"] == "threshold-gate1abc" and s["slice"]["campaign"]["contentRevision"] == "threshold-v2" and s["slice"]["settings"] == {"assist": True, "textSpeed": "instant"} and st["sim"]["roomId"] == "car", str(s["slice"]["campaign"]))
     check("the migration boots without page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
@@ -783,7 +1260,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     check("a confirmed commit lets the update proceed and stops simulation", ok == {"ok": True, "status": "committed"} and "update" in page.evaluate(ST)["holds"], str(ok))
     page.reload(); page.wait_for_timeout(1300)
     st = launch(page)
-    check("after the (simulated) update the same campaign resumes", st["data"]["campaign"]["id"] == camp and st["sim"]["roomId"] == "curb")
+    check("after the (simulated) update the same campaign resumes", st["data"]["campaign"]["id"] == camp and st["sim"]["roomId"] == "car")
     ctx.close()
 
     # ================= SAVE-BLOCKED TAB =================

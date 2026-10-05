@@ -350,10 +350,19 @@
         const cx = (light.x - view.x + PAD) * RES, cy = (light.y - view.y + PAD) * RES, flat = light.flat ?? RULES.light.flat;
         for (const [k, a] of RULES.light.bands) {
           lc.fillStyle = `rgba(0,0,0,${Math.min(1, a * (light.strength ?? 1))})`;
-          lc.beginPath(); lc.ellipse(cx, cy, light.r * k * RES, light.r * k * RES * flat, 0, 0, TAU); lc.fill();
+          lc.beginPath();
+          // A cone (a flashlight): a wedge from its source instead of a pool.
+          if (light.cone) { lc.moveTo(cx, cy); lc.arc(cx, cy, light.r * Math.min(1, k + 0.25) * RES, light.cone.angle - light.cone.half * (0.4 + 0.6 * k), light.cone.angle + light.cone.half * (0.4 + 0.6 * k)); lc.closePath(); }
+          else lc.ellipse(cx, cy, light.r * k * RES, light.r * k * RES * flat, 0, 0, TAU);
+          lc.fill();
         }
       }
       lc.globalCompositeOperation = "source-over";
+      // Shadow that light does not fully reach (the ditch, behind a post).
+      for (const shade of ambient.shades || []) {
+        lc.fillStyle = `rgba(${ambient.color.join(",")},${shade.alpha ?? 0.3})`;
+        lc.fillRect((shade.x - view.x + PAD) * RES, (shade.y - view.y + PAD) * RES, shade.w * RES, shade.h * RES);
+      }
       ctx.drawImage(canvas, view.x - PAD, view.y - PAD, view.w + PAD * 2, view.h + PAD * 2);
       // Warm light tints what it reaches, in the same three bands.
       ctx.save();
@@ -479,6 +488,8 @@
   function van(ctx, x, y, o = {}) {
     drop(ctx, x, y + 2, 78, 7, 0.55);
     ctx.save(); ctx.translate(x, y);
+    // Drawn nose-left; face 1 turns it to drive right.
+    if (o.face === 1) ctx.scale(-1, 1);
     const body = [-76, -8, -76, -40, -64, -46, -42, -70, 62, -72, 72, -66, 74, -8];
     shape(ctx, body, P.paper[1], { ink: CH, seed: 21, amp: 0.4 });
     shape(ctx, [-72, -22, 72, -22, 73, -8, -75, -8], P.paper[0], { ink: false, seed: 22, amp: 0.3 });
@@ -571,6 +582,46 @@
       shape(ctx, [-8, -88, -6, -94, 6, -94, 8, -88], P.cloth[0], { ink: 1.2, seed: 56, amp: 0.3 });
       box(ctx, -15, -90, 8, 3, P.cloth[0], { ink: 1, amp: 0.2 });
     }
+    ctx.restore();
+  }
+  // YOU in the driver's seat, seen from above with the roof cut away: the
+  // back of a head, the camel coat's shoulders, hands at the wheel. Never a face.
+  // States: reach (a hand toward him), keys, turn / look (head toward him or
+  // the rain), look-back (over the shoulder), reach-up (the dome light).
+  function youSeated(ctx, x, y, o = {}) {
+    const state = o.state || "idle", t = o.t || 0;
+    const breathe = Math.sin(t / 900) * 0.4;
+    drop(ctx, x, y + 14, 15, 5, 0.3);
+    // Shoulders and back of the coat.
+    shape(ctx, [x - 14, y - 2, x - 9, y - 10, x + 9, y - 10, x + 14, y - 2, x + 12, y + 14, x - 12, y + 14], P.wood[2], { ink: CH, seed: 61, amp: CA });
+    shape(ctx, [x - 14, y - 2, x - 9, y - 10, x - 3, y - 10, x - 6, y + 14, x - 12, y + 14], P.wood[1], { ink: false, seed: 62, amp: CA });
+    rect(ctx, P.a.maroon, x - 6, y - 11, 12, 3);
+    // Arms forward to the wheel, or reaching.
+    const handR = state === "reach" ? [x + 26, y - 4] : state === "keys" ? [x + 13, y - 18] : state === "reach-up" ? [x + 20, y + 14] : [x + 7, y - 26];
+    const handL = [x - 8, y - 26];
+    for (const [hx, hy, sx] of [[handL[0], handL[1], x - 11], [handR[0], handR[1], x + 11]]) {
+      line(ctx, sx, y - 4, hx, hy, P.ink, 5.4, hx, 0.1); line(ctx, sx, y - 4, hx, hy, P.wood[2], 3.6, hx, 0.1);
+      oval(ctx, hx, hy, 2.4, 2.2, P.skin[1], true, 0.9);
+    }
+    if (state === "keys") { rect(ctx, P.metal[3], handR[0] + 1, handR[1] - 3, 2, 3); rect(ctx, P.a.brass, handR[0] - 2, handR[1] - 4, 2, 2); }
+    // The back of the head turns where YOU looks.
+    const turn = state === "reach" || state === "turn" || state === "look" ? 3 : state === "look-back" ? -3 : 0;
+    const hy = state === "look-back" ? y - 3 : y - 6 + breathe * 0.2;
+    oval(ctx, x + turn, hy, 7.2, 7.6, P.inkSoft, true, CH);
+    oval(ctx, x + turn - 1.5, hy - 2, 3.2, 2.6, P.cloth[2]);
+    if (turn) oval(ctx, x + turn * 2.1, hy + 1, 1.6, 2.4, P.skin[0], true, 0.7);
+  }
+  // A shopping cart rattling past on its own; one wheel wants to go somewhere else.
+  function cart(ctx, x, y, o = {}) {
+    const jig = o.rolling && o.t ? Math.sin(o.t / 60) * 0.6 : 0;
+    drop(ctx, x, y, 12, 3);
+    ctx.save(); ctx.translate(x, y + jig);
+    shape(ctx, [-12, -22, 12, -22, 9, -8, -9, -8], null, { ink: 1.2, amp: 0.2 });
+    for (let gx = -10; gx <= 10; gx += 4) line(ctx, gx, -22, gx * 0.78, -8, P.metal[2], 0.6, gx, 0);
+    line(ctx, -11, -15, 11, -15, P.metal[2], 0.6, 1, 0);
+    line(ctx, 12, -22, 16, -26, P.metal[2], 1.2, 2, 0); rect(ctx, P.a.red, 14, -28, 4, 2);
+    line(ctx, -8, -8, -8, -2, P.metal[1], 1); line(ctx, 8, -8, 8, -2, P.metal[1], 1);
+    for (const wx of [-8, 8]) oval(ctx, wx, -1.5, 1.8, 1.8, P.ink);
     ctx.restore();
   }
   // Silhouettes in the van's front seats, seen from behind.
@@ -920,7 +971,7 @@
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
-    keeper, van, hood, seated, latch, porter, lantern, draftling, needle, cooler, bowl,
+    keeper, van, hood, seated, youSeated, cart, latch, porter, lantern, draftling, needle, cooler, bowl,
     PORTRAITS
   });
 });

@@ -43,8 +43,9 @@ function duel({ assist = false } = {}) {
 test("content is frozen: the opening plus the six stable Threshold rooms, all reachable", () => {
   assert.ok(Object.isFrozen(Content.ROOMS.clatter.solids[0]));
   assert.deepStrictEqual(Content.ROOM_IDS, ["slip", "clatter", "hem", "hearth", "queue", "porter"]);
-  assert.deepStrictEqual(Content.OPENING_ROOMS, ["curb", "van", "roadside", "drain"]);
-  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v1");
+  assert.deepStrictEqual(Content.OPENING_ROOMS, ["car", "sack", "van", "roadside", "drain"]);
+  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v2");
+  assert.strictEqual(Content.ROOMS.curb, undefined, "the curb is gone: the car replaced it");
   for (const [id, room] of Object.entries(Content.ROOMS)) {
     for (const [name, anchor] of Object.entries(room.anchors)) {
       assert.ok(!room.solids.some(rect => !rect.openWhen && D.circleHitsRect(anchor.x, anchor.y, T.PLAYER_RADIUS, rect)), `${id}/${name} stands on open floor`);
@@ -377,12 +378,12 @@ test("pause holds: the player's Resume clears manual, performance and a failed u
 
 // ---------- slice ----------
 const pet = { id: "PET-1", name: "MOSSY", skills: { speed: 20 }, careSummary: { favoriteFood: null, favoriteGameId: null, bondBand: "familiar" } };
-test("a new campaign binds the pet, starts outside the store and stays small", () => {
+test("a new campaign binds the pet, starts in the parked car and stays small", () => {
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
   assert.strictEqual(data.campaign.petId, "PET-1");
   assert.strictEqual(data.campaign.kind, "proof");
-  assert.strictEqual(data.campaign.contentRevision, "threshold-v1");
-  assert.deepStrictEqual(data.continuation, { roomId: "curb", safeAnchorId: "start", roomEntryFlame: 5, resumeKind: "opening" });
+  assert.strictEqual(data.campaign.contentRevision, "threshold-v2");
+  assert.deepStrictEqual(data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
   assert.strictEqual(data.proofComplete, false);
   assert.strictEqual(data.storyComplete, false);
   assert.ok(JSON.stringify(data).length < 50_000);
@@ -430,7 +431,7 @@ test("a newer or unknown content revision is preserved untouched", () => {
 });
 test("death returns to the registered hearth, or where he landed before one", () => {
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
-  assert.deepStrictEqual(D.safeReturn(data), { roomId: "curb", anchorId: "start", resumeKind: "opening" });
+  assert.deepStrictEqual(D.safeReturn(data), { roomId: "car", anchorId: "seat", resumeKind: "opening" });
   data.story.committedSceneBeats.push("opening:below");
   assert.deepStrictEqual(D.safeReturn(data), { roomId: "slip", anchorId: "landing", resumeKind: "room-entry" });
   data.checkpoint = { hearthId: "threshold-hearth", roomId: "hearth", spawnAnchorId: "hearth-side" };
@@ -451,15 +452,33 @@ test("summary publishes only labels and a journey; never ENDLESS/energy", () => 
 
 
 // ---------- Run 2: the opening, rooms, the Threshold's enemies ----------
-test("outside the store the Rizo slows and looks back instead of hitting a wall", () => {
-  const sim = D.createSim({ roomId: "curb" });
-  const events = run(sim, 3000, { moveX: 1 });
-  const leash = D.room("curb").leash;
-  assert.ok(Math.hypot(sim.player.x - leash.x, sim.player.y - leash.y) <= leash.r + 0.5, "stays near the door");
-  assert.ok(events.some(event => event.type === "leash") && sim.player.leashed);
-  const back = run(sim, 500, { moveX: -1 });
-  assert.ok(!sim.player.leashed && sim.player.x < 240, "walking back home is free");
-  assert.ok(!back.some(event => event.type === "leash"));
+test("in the parked car the Rizo moves only inside the cabin: seats, dash, window, YOU", () => {
+  const sim = D.createSim({ roomId: "car" });
+  assert.deepStrictEqual([sim.player.x, sim.player.y], [203, 252], "he starts on the passenger seat");
+  run(sim, 3000, { moveX: 1 });
+  assert.ok(sim.player.x <= 213.5, "the passenger door holds");
+  const toDash = run(sim, 3000, { moveY: -1 });
+  assert.ok(sim.player.y <= 206 && toDash.some(event => event.type === "zone" && event.id === "dash"), "up to the dash, nose to the windshield");
+  run(sim, 3000, { moveX: -1 });
+  assert.ok(sim.player.x >= 172 + 7 - 0.5, "YOU, in the driver's seat, is in the way");
+  sim.flags = { youGone: true };
+  run(sim, 3000, { moveX: -1 });
+  assert.ok(sim.player.x < 160, "with YOU gone the driver's seat is his too");
+  const back = D.createSim({ roomId: "car" });
+  run(back, 4000, { moveY: 1 });
+  assert.ok(back.player.y <= 321.5, "the back bench, and no further");
+  const props = id => D.interactables({ ...back, flags: id }).map(item => item.id);
+  assert.deepStrictEqual(props({}), ["you"]);
+  assert.deepStrictEqual(props({ youGone: true }), ["store-window"]);
+  assert.deepStrictEqual(props({ youGone: true, threat: true }), [], "nothing to look at once they come");
+});
+test("the drain goes back too far: concrete, brick, rock, then a slope into nothing", () => {
+  const drain = D.room("drain");
+  assert.deepStrictEqual(drain.anchors.mouth, { x: 120, y: 720 });
+  const sim = D.createSim({ roomId: "drain", anchorId: "mouth" });
+  const events = run(sim, 12000, { moveY: -1 });
+  assert.ok(events.some(event => event.type === "zone" && event.id === "slope"), "walking inward reaches the slope");
+  assert.ok(D.room("drain").props.some(prop => prop.id === "warm-air" && prop.lines[0] === "Warm air. From down there."));
 });
 test("exits fire once, only after stepping clear; zones report entry", () => {
   const sim = D.createSim({ roomId: "slip", anchorId: "slip-north" });
@@ -582,10 +601,10 @@ test("a Gate 1 review campaign is carried into The Threshold explicitly", () => 
   assert.strictEqual(result.status, "migrated");
   assert.strictEqual(result.data.campaign.id, "threshold-old123");
   assert.strictEqual(result.data.campaign.petId, "PET-1");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v1");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v2");
   assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
   assert.deepStrictEqual(result.data.journal.discoveredEntryIds, ["ticket-stub"]);
-  assert.strictEqual(result.data.continuation.roomId, "curb");
+  assert.strictEqual(result.data.continuation.roomId, "car");
   assert.strictEqual(result.data.checkpoint.hearthId, null);
 });
 test("story facts, choices and beats are validated against known ids", () => {
@@ -600,6 +619,77 @@ test("story facts, choices and beats are validated against known ids", () => {
   assert.deepStrictEqual(out.world.durableRoomFlags, { shortcutOpen: true });
   assert.deepStrictEqual(out.npcs.latch.evidence, ["rescue"]);
   assert.deepStrictEqual(D.flagsOf(out), { shortcutOpen: true, sharedRest: true });
+});
+
+// ---------- v0.3: the threshold-v1 → threshold-v2 migration ----------
+function v1Save(mutate) {
+  const data = D.newCampaign({ pet, id: "threshold-rc2abc" });
+  data.campaign.contentRevision = "threshold-v1";
+  data.world.visitedRooms = ["curb"];
+  data.continuation = { roomId: "curb", safeAnchorId: "start", roomEntryFlame: 5, resumeKind: "opening" };
+  mutate?.(data);
+  return clone(data);
+}
+test("an RC2 journey still at the curb becomes the same journey in the car, nothing reset", () => {
+  const raw = v1Save(data => { data.settings = { assist: true, textSpeed: "instant" }; data.journal.discoveredEntryIds = ["puddle"]; });
+  const result = D.normalizeSlice(raw);
+  assert.strictEqual(result.status, "migrated");
+  assert.deepStrictEqual(result.notes, ["migrated-from-v1"]);
+  assert.strictEqual(result.data.campaign.id, "threshold-rc2abc");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v2");
+  assert.deepStrictEqual(result.data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
+  assert.deepStrictEqual(result.data.world.visitedRooms, ["car"]);
+  assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
+  assert.deepStrictEqual(result.data.journal.discoveredEntryIds, ["puddle"]);
+  assert.strictEqual(D.normalizeSlice(result.data).status, "ok", "migrated once; afterwards it is an ordinary v2 save");
+});
+test("RC2 journeys mid-opening keep every committed beat and their room", () => {
+  for (const [roomId, anchor, beats] of [["van", "start", ["opening:taken"]], ["roadside", "fallen", ["opening:taken", "opening:fell"]], ["drain", "mouth", ["opening:taken", "opening:fell"]], ["roadside", "drain-front", ["opening:taken", "opening:fell"]]]) {
+    const raw = v1Save(data => { data.world.visitedRooms = ["curb", "van", roomId]; data.story.committedSceneBeats = [...beats]; data.continuation = { roomId, safeAnchorId: anchor, roomEntryFlame: 5, resumeKind: "opening" }; });
+    const result = D.normalizeSlice(raw);
+    assert.strictEqual(result.status, "migrated", roomId);
+    assert.deepStrictEqual(result.data.story.committedSceneBeats, beats, `${roomId}: beats kept`);
+    assert.deepStrictEqual(result.data.continuation, raw.continuation, `${roomId}: same room and anchor`);
+    assert.deepStrictEqual(result.data.world.visitedRooms, ["car", "van", roomId].filter((id, index, list) => list.indexOf(id) === index));
+  }
+});
+test("RC2 journeys below keep hearth, facts, choices, Latch and rewards exactly", () => {
+  const raw = v1Save(data => {
+    data.world.visitedRooms = ["curb", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth"];
+    data.world.durableRoomFlags = { latchFreed: true, shortcutOpen: true };
+    data.world.openedShortcuts = ["hearth-queue"];
+    data.story.facts = { jamInspected: true, hearthArrived: true, seatChosen: true, sharedRest: true };
+    data.story.choices = { "hearth-seat": "sit" };
+    data.story.committedSceneBeats = ["opening:taken", "opening:fell", "opening:below", "latch-rescue:freed", "hearth-seat:sit"];
+    data.npcs.latch = { state: "waiting-hearth", locationAnchor: "hearth-latch", evidence: ["rescue"] };
+    data.checkpoint = { hearthId: "threshold-hearth", roomId: "hearth", spawnAnchorId: "hearth-side" };
+    data.continuation = { roomId: "queue", safeAnchorId: "queue-entry", roomEntryFlame: 3, resumeKind: "room-entry" };
+    data.pendingRewards = [{ receiptId: "threshold-rc2abc:threshold-complete", entitlements: ["first-knot"] }];
+  });
+  const out = D.normalizeSlice(raw).data;
+  for (const key of ["story", "npcs", "checkpoint", "continuation", "pendingRewards", "legProfile", "inventory", "journal"]) assert.deepStrictEqual(out[key], raw[key], key);
+  assert.deepStrictEqual(out.world.durableRoomFlags, raw.world.durableRoomFlags);
+  assert.deepStrictEqual(out.world.visitedRooms, ["car", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth"]);
+  assert.strictEqual(D.summary(raw).bestLabel, "ROOM 4/6", "the shelf card reads the migrated journey");
+});
+test("callerConnected is the one new opening fact: allowlisted, persisted, never invented", () => {
+  assert.ok(Content.FLAGS.includes("callerConnected"));
+  assert.ok(!Content.FLAGS.includes("jumpedGap"), "the gap is never persisted");
+  const data = D.newCampaign({ pet, id: "threshold-abc123" });
+  data.story.facts = { callerConnected: true, jumpedGap: true };
+  data.story.committedSceneBeats = ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home"];
+  const out = D.normalizeSlice(data).data;
+  assert.deepStrictEqual(out.story.facts, { callerConnected: true });
+  assert.deepStrictEqual(out.story.choices, {}, "it is a fact, not a menu choice");
+  assert.deepStrictEqual(out.story.committedSceneBeats, data.story.committedSceneBeats, "every new beat token is valid");
+  assert.deepStrictEqual(D.normalizeSlice(v1Save()).data.story.facts, {}, "a migrated RC2 save gets no phone fact");
+});
+test("a newer revision is still preserved untouched; a v1 save is never mistaken for one", () => {
+  const future = v1Save(data => { data.campaign.contentRevision = "threshold-v3"; });
+  assert.strictEqual(D.normalizeSlice(future).status, "unsupported");
+  assert.deepStrictEqual(D.normalizeSlice(future).data, future);
+  const badId = v1Save(data => { data.campaign.id = "not-a-threshold"; });
+  assert.strictEqual(D.normalizeSlice(badId).status, "unsupported");
 });
 
 console.log(`\n${passed}/${total} dungeon core checks passed`);

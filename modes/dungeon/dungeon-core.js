@@ -727,6 +727,19 @@
     out.story.committedSceneBeats = ["review:carried"];
     return out;
   }
+  // An RC2 journey (threshold-v1) keeps everything: the same campaign, beats,
+  // facts, choices, hearth and journal. The curb it may still name no longer
+  // exists, so it becomes the car that replaced it; every other room and
+  // anchor is unchanged. Committed beats decide on entry where it resumes, so
+  // nothing committed is ever replayed.
+  function migrateV1(data) {
+    const out = plain(data);
+    out.campaign = { ...out.campaign, contentRevision: C.CONTENT_REVISION };
+    if (isObject(out.world) && Array.isArray(out.world.visitedRooms)) out.world.visitedRooms = [...new Set(out.world.visitedRooms.map(id => (id === "curb" ? C.START_ROOM : id)))];
+    if (isObject(out.continuation) && out.continuation.roomId === "curb") out.continuation = { ...out.continuation, roomId: C.START_ROOM, safeAnchorId: room(C.START_ROOM).entryAnchor, resumeKind: "opening" };
+    if (isObject(out.checkpoint) && out.checkpoint.roomId === "curb") out.checkpoint = { hearthId: null, roomId: null, spawnAnchorId: null };
+    return out;
+  }
   // Validates a stored slice on entry. Unknown locations fall back to a known
   // safe anchor; a campaign is never reset because of them. A revision this
   // build does not know is preserved untouched ("unsupported").
@@ -740,6 +753,9 @@
     if (data.campaign.kind === C.CAMPAIGN_KIND && C.LEGACY_REVISIONS.includes(data.campaign.contentRevision) && CAMPAIGN_ID.test(String(data.campaign.id || ""))) {
       data = migrateGate1(data);
       notes.push("migrated-from-gate1");
+    } else if (data.campaign.kind === C.CAMPAIGN_KIND && (C.CARRIED_REVISIONS || []).includes(data.campaign.contentRevision) && CAMPAIGN_ID.test(String(data.campaign.id || ""))) {
+      data = migrateV1(data);
+      notes.push("migrated-from-v1");
     }
     const campaign = data.campaign;
     if (campaign.kind !== C.CAMPAIGN_KIND || campaign.contentRevision !== C.CONTENT_REVISION || !CAMPAIGN_ID.test(String(campaign.id || ""))) return { status: "unsupported", data: plain(raw), notes: ["revision"] };
@@ -790,7 +806,7 @@
       const back = safeReturn(out);
       out.continuation = { roomId: back.roomId, safeAnchorId: back.anchorId, roomEntryFlame: T.FLAME_MAX, resumeKind: back.resumeKind };
     }
-    const migrated = notes.includes("migrated-from-gate1");
+    const migrated = notes.includes("migrated-from-gate1") || notes.includes("migrated-from-v1");
     return { status: migrated ? "migrated" : notes.length ? "repaired" : "ok", data: out, notes };
   }
   const flagsOf = data => ({ ...(data?.world?.durableRoomFlags || {}), ...(data?.story?.facts || {}) });
