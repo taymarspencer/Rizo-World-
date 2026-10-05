@@ -449,10 +449,11 @@ test("summary publishes only labels and a journey; never ENDLESS/energy", () => 
   data.proofComplete = true;
   assert.strictEqual(D.summary(data).bestLabel, "ROOM 2/6", "the First Knot alone is not home: the campaign goes on");
   assert.deepStrictEqual(D.summary(data).badge, { text: "KNOT", title: "Carries Latch's First Knot" });
-  data.world.visitedRooms.push("receiving", "drytable");
-  assert.strictEqual(D.summary(data).bestLabel, "ROWS 2/10");
   data.campaign.status = "complete";
   assert.strictEqual(D.summary(data).bestLabel, "HOME", "a proof journey that walked home stays complete");
+  assert.strictEqual(D.summary(data).journey.complete, true);
+  data.world.visitedRooms.push("receiving", "drytable");
+  assert.strictEqual(D.summary(data).bestLabel, "ROWS 2/10", "a journey that went on through the Porter's door shows how far it went");
 });
 
 
@@ -716,11 +717,11 @@ test("each Rows route opens through work, never through affection", () => {
   assert.strictEqual(gated("eyelet", "eyelet-to-press"), "rowsPressOpen");
   assert.strictEqual(gated("press", "press-to-upper"), "rowsShutter");
   assert.strictEqual(gated("upper", "upper-to-stair"), "rowsStair");
-  assert.strictEqual(gated("drytable", "table-to-window"), "rowsShutter");
-  for (const flag of ["rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair"]) assert.ok(Content.ROOM_FLAGS.includes(flag) && Content.FLAGS.includes(flag), flag);
+  assert.strictEqual(gated("drytable", "table-to-window"), "rowsOnward", "Nell moves the sheets when she heads to the counter herself");
+  for (const flag of ["rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward"]) assert.ok(Content.ROOM_FLAGS.includes(flag) && Content.FLAGS.includes(flag), flag);
   const sim = D.createSim({ roomId: "drytable" });
   run(sim, 3000, { moveY: -1, moveX: 1 });
-  assert.ok(sim.player.y > 20, "the onward doorway is blocked by the drying load until the shutter is done");
+  assert.ok(sim.player.y > 20, "the onward doorway is blocked by the drying load until Nell moves it");
   assert.strictEqual(D.room("drytable").hearth.id, "rows-stove");
 });
 test("a threshold-v2 journey is carried into v3 untouched (rooms and facts were only added)", () => {

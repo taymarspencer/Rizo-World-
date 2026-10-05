@@ -1201,6 +1201,8 @@
       if (!fact("rowsCatch")) { nell(206, 150, { state: "support", face: -1 }); setTransient("catchReady", true); return; }
       if (fact("rowsGrille") && !done("rows:meal")) { tableMeal(); return; }
       if (done("rows:upper") && !done("rows:wrap")) { tableReturn(); return; }
+      // Interrupted after the wrap: the sheets are already moved for him.
+      if (done("rows:wrap") && !fact("rowsOnward")) setRoomFlag("rowsOnward");
     }
     function syncTableExtras() {
       // The prepared low board and the angled lamp stay once she has set them.
@@ -1298,7 +1300,12 @@
           S.call(() => { nellState("walk"); }),
           S.control(true),
           talk([...L.rowsOnward]),
-          S.call(() => leave("nell", 260, 26, 2000))
+          // She moves the wet sheets off the doorway on her way: the way on opens because she's going too.
+          S.call(() => { walk("nell", 260, 40, 1600); }),
+          S.wait(1650),
+          S.call(() => { nellState("lift"); sound("cloth"); setRoomFlag("rowsOnward"); }),
+          S.wait(700),
+          S.call(() => { nellState("walk"); leave("nell", 260, 4, 900); })
         );
       };
     }
@@ -1472,7 +1479,7 @@
           S.call(() => { nellState("sit"); npc("latch", "latch", 304, 210, { face: -1 }); walk("latch", 236, 150, 2600); }),
           S.wait(2700),
           talk([...(fact("rowsLatchHelped") ? L.rowsLatchAgainHelped : L.rowsLatchAgain)]),
-          S.call(() => { leave("latch", 304, 120, 2400); }),
+          S.call(() => { leave("latch", 304, 120, 2400); room.latchGone = sceneTime; }),
           S.until(() => inZone("gate-window") || sceneTime - room.enteredAt > 26000),
           S.call(() => boundary())
         ], { control: true });
@@ -1486,9 +1493,9 @@
       openPanel("boundary", card({
         kicker: "MENDING ROWS",
         title: "WINDOW HALL IS NEXT",
-        body: esc("Nell waits with him at the closed window. The journey is saved here; the next part of the road isn't built yet."),
+        body: esc("The window says BACK SOON. Nell sits down to wait, and leaves him the dry end of the bench. Somebody behind that counter is going to open it."),
         actions: `<button type="button" class="primary" data-dungeon-action="stay">STAY A WHILE</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
-        fine: esc("GO HOME keeps this journey. It picks up here next time.")
+        fine: esc("End of what's built so far. The journey is saved here, and picks up at this window when the next part opens.")
       }));
     }
 
@@ -1513,7 +1520,12 @@
       press: { music: () => ROWS_TRACK, enter: pressEnter, tick: pressTick },
       upper: { music: () => ROWS_TRACK, enter: upperEnter },
       stair: { music: () => ROWS_TRACK, enter() {} },
-      windowgate: { music: () => ROWS_TRACK, enter: windowgateEnter }
+      windowgate: {
+        music: () => ROWS_TRACK,
+        enter: windowgateEnter,
+        // The first time he drifts toward the rest of the hall, she keeps him close. Kindly.
+        tick() { if (!room.farSaid && npcs.has("nell") && sim.player.x > 248 && (room.latchGone || done("rows:boundary"))) { room.farSaid = true; bark("nell", L.rowsStayNear[0], 2600); } }
+      }
     };
 
 
@@ -1816,6 +1828,8 @@
       if (kind === "bowl") return coldBowl();
       if (kind === "lever") return pullLever();
       if (id === "bowl-road") setPose("approach-stop", 1100);
+      // Her chalk, under the board where it rolled: he finds it, she gets it back.
+      if (id === "chalk") { room.chalkFound = true; setTransient("chalkOut", false); setFactNow("rowsChalk"); sound("tap"); nellState("work"); bark("nell", L.rowsChalkFound[0], 2400); return; }
       openDialogue(prop.lines);
     }
     function talkToLatch() {
@@ -2566,7 +2580,12 @@
         else try { host.event("chapterComplete", { boundaryId: "threshold-complete", campaignId: next.campaign.id, tone: "protected", interruption: "none" }); } catch (error) {}
         return outcome;
       },
-      qaRetryPending: () => retryPendingRewards()
+      qaRetryPending: () => retryPendingRewards(),
+      // A proof journey that walked home under the proof edition (QA only): status complete, parked at the Porter.
+      qaProofHome() {
+        if (!host.debug || !data?.proofComplete) return null;
+        return commitData(next => { next.campaign.status = "complete"; addBeat(next, "homecoming:complete"); setContinuation(next, "porter", "porter-entry", Core.T.FLAME_MAX, "room-entry"); });
+      }
     };
     return api;
   }
@@ -2585,6 +2604,7 @@
       dungeonEnemyForQA: (id, patch) => need().qaEnemy(id, patch),
       dungeonCompleteFixtureForQA: options => need().qaCompleteFixture(options),
       dungeonRetryPendingForQA: () => need().qaRetryPending(),
+      dungeonProofHomeForQA: () => need().qaProofHome(),
       dungeonSummaryForQA: () => Modes.summary(MODE_ID)
     };
   }

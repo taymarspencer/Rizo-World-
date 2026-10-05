@@ -126,7 +126,22 @@
     function setPet(snapshot) {
       actorUnits = ACTOR_UNITS * (STAGE_SCALE[snapshot?.stage] || 1);
       el.pose.innerHTML = snapshot ? host.petMarkup(snapshot, { context: "dungeon", extraClass: "dungeon-rizo", label: `${snapshot.name}` }) : "";
+      if (wearNode) el.pose.appendChild(wearNode);
       sizeActor();
+    }
+    // Something he chose to wear (the Rows wrap) rides on the Rizo in every room.
+    let wearNode = null;
+    function setWear(name) {
+      if ((wearNode?.dataset.wear || null) === (name || null)) return;
+      wearNode?.remove();
+      wearNode = null;
+      if (!name) return;
+      wearNode = document.createElement("i");
+      wearNode.className = `dungeon-wear dungeon-wear-${name}`;
+      wearNode.dataset.wear = name;
+      wearNode.setAttribute("aria-hidden", "true");
+      wearNode.innerHTML = '<b class="dungeon-wear-strap"></b><b class="dungeon-wear-clasp"></b>';
+      el.pose.appendChild(wearNode);
     }
     function sizeActor() {
       const size = Math.round(actorUnits * metrics.scale);
@@ -223,6 +238,8 @@
           break;
         }
         case "latch": Art.latch(ctx, actor.x, actor.y, o); break;
+        case "nell": Art.nell(ctx, actor.x, actor.y, o); break;
+        case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
         default: break;
       }
     }
@@ -710,7 +727,7 @@
     function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
-    return { el, layout, setPet, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, toScreen, metrics, camera, destroy, esc };
+    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, toScreen, metrics, camera, destroy, esc };
   }
 
   return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });

@@ -27,6 +27,13 @@ point in the opening (no committed beat replays), RC2 threshold-v1 saves
 carried into threshold-v2, callerConnected persistence, the Act I locked
 staging, reduced motion, and 320–430 px phones.
 
+Chapter 1 (threshold-v3) covers the Mending Rows: the Porter's door opening
+onward instead of home, Latch and Nell in Receiving, every work-gated route
+(catch, low route, grille, meal, press stop/brake/test/shutter, stair, the
+sheets moved aside), SIT/GO at the meal, the chalk, the wrap worn and still
+worn after a reload, Latch remembering help, the Window Hall boundary, reloads
+throughout, a completed proof going on through the door, and phones.
+
 Chromium only. This is not Safari or physical-phone evidence.
 """
 import argparse, functools, http.server, json, re, socketserver, subprocess, sys, threading, tempfile
@@ -808,7 +815,7 @@ with sync_playwright() as p:
     press_until_closed(page)
     s = page.evaluate(STORED)
     check("the opening's beats, in order, each once", [b for b in s["slice"]["story"]["committedSceneBeats"]] == ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home"], str(s["slice"]["story"]["committedSceneBeats"]))
-    check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"] and s["slice"]["campaign"]["contentRevision"] == "threshold-v2")
+    check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"] and s["slice"]["campaign"]["contentRevision"] == "threshold-v3")
     page.reload(); page.wait_for_timeout(1300)
     st = launch(page); page.wait_for_timeout(600)
     check("a reload below resumes in the locked handheld; no landing, no thought replayed", st["sim"]["roomId"] == "slip" and st["shell"] == "locked" and page.evaluate(ST)["scene"] is None and op(page).get("thoughtArmed") is False)
@@ -957,7 +964,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
         ctx, page, errors = boot(browser, seed={V2: env, V2_BACKUP: env})
         st = launch(page); page.wait_for_timeout(300)
         s = page.evaluate(STORED)
-        check(f"an RC2 journey {label} resumes sensibly in v2 ({room})", st["sim"]["roomId"] == room and sid(page) == scene_ and s["slice"]["campaign"]["id"] == "threshold-rc2save" and s["slice"]["campaign"]["contentRevision"] == "threshold-v2", str((st["sim"]["roomId"], sid(page), s["slice"]["campaign"])))
+        check(f"an RC2 journey {label} resumes sensibly in v3 ({room})", st["sim"]["roomId"] == room and sid(page) == scene_ and s["slice"]["campaign"]["id"] == "threshold-rc2save" and s["slice"]["campaign"]["contentRevision"] == "threshold-v3", str((st["sim"]["roomId"], sid(page), s["slice"]["campaign"])))
         check(f"…its committed beats are kept, none replayed or duplicated ({label})", s["slice"]["story"]["committedSceneBeats"] == slice_["story"]["committedSceneBeats"] and "curb" not in s["slice"]["world"]["visitedRooms"] and s["slice"]["journal"]["discoveredEntryIds"] == ["puddle"], str(s["slice"]["story"]))
         check(f"…without page errors ({label})", not errors, "; ".join(errors[:2]))
         ctx.close()
@@ -1108,12 +1115,12 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
     check("Latch's gift lines: “Keeps the draft off.”", (page.evaluate(ST)["dialogue"] or {}).get("speaker") == "latch")
     press_until_closed(page, 30); page.wait_for_timeout(1300); press_until_closed(page, 30); page.wait_for_timeout(900); press_until_closed(page, 30)
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,30)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(1600)
-    s = page.evaluate(STORED)
-    check("the protected homecoming: device retracts, the real Den, journey complete", page.evaluate("RizoModes.active()") is None and page.evaluate("RizoRuntimeQA.currentViewForQA()") == "home" and s["slice"]["campaign"]["status"] == "complete")
-    page.wait_for_timeout(500)
-    check("one familiar gesture in the Den, and no modal or store interrupts it", "behavior-shake" in page.evaluate("document.getElementById('petActor')?.className||''") and not page.evaluate("document.getElementById('modalOverlay').classList.contains('show')"), page.evaluate("document.getElementById('petActor')?.className||''")[:160])
+    s = page.evaluate(STORED); st = page.evaluate(ST)
+    check("the open door leads on: the Mending Rows' Receiving, the journey still going and the proof kept", st["sim"]["roomId"] == "receiving" and page.evaluate("RizoModes.active()") == "dungeon" and s["slice"]["campaign"]["status"] == "homecoming-ready" and s["slice"]["proofComplete"] and "receiving" in s["slice"]["world"]["visitedRooms"], str((st["sim"]["roomId"], s["slice"]["campaign"]["status"])))
+    check("Latch got there first, and Nell is at work", {"latch", "nell"} <= {n["id"] for n in st["npcs"]} and st["music"] == "dungeon-rows", str(st["npcs"]))
+    page.evaluate("RizoModes.quitActive('qa')"); page.wait_for_timeout(900)
     fed = page.evaluate("(()=>{const before=RizoRuntimeQA.snapshot().pet.hunger;RizoRuntimeQA.useFoodForQA('crumbs');return [before,RizoRuntimeQA.snapshot().pet.hunger]})()")
-    check("ordinary feeding works after the homecoming", fed[1] > fed[0], str(fed))
+    check("ordinary feeding works after leaving the Rows", fed[1] > fed[0], str(fed))
     check("the story path raises no page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
@@ -1167,7 +1174,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     ctx, page, errors = boot(browser, seed={V2: gate1, V2_BACKUP: gate1})
     st = launch(page)
     s = page.evaluate(STORED)
-    check("a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening", s["slice"]["campaign"]["id"] == "threshold-gate1abc" and s["slice"]["campaign"]["contentRevision"] == "threshold-v2" and s["slice"]["settings"] == {"assist": True, "textSpeed": "instant"} and st["sim"]["roomId"] == "car", str(s["slice"]["campaign"]))
+    check("a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening", s["slice"]["campaign"]["id"] == "threshold-gate1abc" and s["slice"]["campaign"]["contentRevision"] == "threshold-v3" and s["slice"]["settings"] == {"assist": True, "textSpeed": "instant"} and st["sim"]["roomId"] == "car", str(s["slice"]["campaign"]))
     check("the migration boots without page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
@@ -1241,12 +1248,167 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     page.keyboard.up("d")
     check("a held control survives hub refresh and the real autosave tick", held_dir == "right", str(held_dir))
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,30)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(1200)
-    check("walking out the open door completes the journey and returns to the Den", page.evaluate("RizoModes.active()") is None and page.evaluate(STORED)["slice"]["campaign"]["status"] == "complete")
+    check("walking out the open door goes on into the Rows; the proof stays complete", page.evaluate(ST)["sim"]["roomId"] == "receiving" and page.evaluate(STORED)["slice"]["proofComplete"] and page.evaluate(STORED)["accessories"].count("first-knot") == 1)
+    # A journey that came home under the proof edition (status complete) is still home, and may go on.
+    page.evaluate("RizoRuntimeQA.dungeonProofHomeForQA()"); page.evaluate("RizoModes.quitActive('qa')"); page.wait_for_timeout(700)
     st = launch(page)
-    check("a completed proof opens a small return panel, never replaying the reward", st["ui"] == "blocked" and "REACHED HOME" in page.evaluate("document.querySelector('.dungeon-panel').textContent") and page.evaluate(STORED)["accessories"].count("first-knot") == 1)
-    page.evaluate("document.querySelector('[data-dungeon-action=\"leave\"]').click()"); page.wait_for_timeout(700)
+    panel = page.evaluate("document.querySelector('.dungeon-panel').textContent")
+    check("a completed proof still says it reached home, never replaying the reward, and offers the open door", st["ui"] == "blocked" and "REACHED HOME" in panel and "GO THROUGH THE DOOR" in panel and page.evaluate(STORED)["accessories"].count("first-knot") == 1, panel[:160])
+    page.evaluate("document.querySelector('[data-dungeon-action=\"onward\"]').click()"); page.wait_for_timeout(500)
+    st = page.evaluate(ST)
+    check("going on resumes in the Porter's room with the door open, still complete", st["ui"] == "play" and st["sim"]["roomId"] == "porter" and st["sim"]["flags"].get("porterDown") and page.evaluate(STORED)["slice"]["campaign"]["status"] == "complete", str((st["ui"], st["sim"]["roomId"])))
+    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(180,30)"); page.keyboard.down("w"); page.wait_for_timeout(500); page.keyboard.up("w"); page.wait_for_timeout(1200)
+    check("…and through it into the Rows; next launch resumes there, not at the panel", page.evaluate(ST)["sim"]["roomId"] == "receiving", page.evaluate(ST)["sim"]["roomId"])
+    page.evaluate("RizoModes.quitActive('qa')"); page.wait_for_timeout(700)
+    st = launch(page)
+    check("(a completed journey that went on resumes in the Rows; the summary shows how far)", st["ui"] != "blocked" and st["sim"]["roomId"] == "receiving" and page.evaluate("RizoRuntimeQA.dungeonSummaryForQA()")["bestLabel"].startswith("ROWS"), str((st["ui"], st["sim"]["roomId"])))
+    page.evaluate("RizoModes.quitActive('qa')"); page.wait_for_timeout(700)
     check("fixture flows raise no page errors", not errors, "; ".join(errors[:3]))
     saved_with_knot = page.evaluate("localStorage.getItem('rizo-save-v2')")
+    ctx.close()
+
+    # ================= CHAPTER 1 · THE MENDING ROWS (threshold-v3) =================
+    # Played through in order with the real keys for every WARM and LOOK; scene
+    # time is advanced with the QA clock. Enemies are settled with the QA hook.
+    def rgo(page, room, anchor=None, flags=None):
+        page.evaluate("([r,a,f])=>RizoRuntimeQA.dungeonGotoForQA(r,a,f||{})", [room, anchor, flags]); page.wait_for_timeout(250)
+    def tp(page, x, y): page.evaluate(f"RizoRuntimeQA.dungeonTeleportForQA({x},{y})"); page.wait_for_timeout(60)
+    def clock(page, ms): page.evaluate(f"RizoRuntimeQA.dungeonSceneTimeForQA({ms})")
+    def drive(page, pred, limit=140, step=300):
+        for _ in range(limit):
+            st = page.evaluate(ST)
+            if pred(st): return st
+            if st["choice"] or st["dialogue"]: page.keyboard.press("z"); page.wait_for_timeout(50); continue
+            clock(page, step); page.wait_for_timeout(12)
+        return page.evaluate(ST)
+    def warm(page, x, y):
+        tp(page, x, y); page.wait_for_timeout(80)
+        prompt = page.evaluate("document.querySelector('.dungeon-prompt')?.textContent||''")
+        page.keyboard.press("z"); page.wait_for_timeout(160)
+        return prompt
+    def said(st, text): return any(text in b["text"] for b in st["barks"])
+    rbeats = lambda: page.evaluate(STORED)["slice"]["story"]["committedSceneBeats"]
+    rflags = lambda: page.evaluate(STORED)["slice"]["world"]["durableRoomFlags"]
+
+    ctx, page, errors = boot(browser, seed={})
+    page.evaluate(SETUP); launch(page); skip(page)
+    rgo(page, "porter", "porter-entry", {"porterDown": True, "latchFreed": True, "sharedRest": True, "seatChosen": True}); skip(page)
+    tp(page, 180, 30); page.keyboard.down("w"); page.wait_for_timeout(600); page.keyboard.up("w"); page.wait_for_timeout(500)
+    st = page.evaluate(ST)
+    check("Rows: the Porter's open door walks into Receiving; Latch got there first, Nell is mending", st["sim"]["roomId"] == "receiving" and {"latch", "nell"} <= {n["id"] for n in st["npcs"]} and "rows:arrived" in rbeats(), str((st["sim"]["roomId"], st["npcs"])))
+    seen = []
+    st = drive(page, lambda st: (seen.extend(b["text"] for b in st["barks"]) or st["sim"]["flags"].get("ledgeReady")))
+    check("Rows: Latch's greeting remembers the shared rest; the satchel dispute is overheard, not a dialogue box", any("chair survived" in t for t in seen) and any("It needs to be empty." in t for t in seen) and st["dialogue"] is None, str(seen[:6]))
+    tp(page, 160, 120)
+    st = drive(page, lambda st: said(st, "This bit's dry."))
+    check("Rows: when he comes close, Nell clears a dry patch for him first", said(st, "This bit's dry.") and any(n["id"] == "nell" and n["state"] == "clear" for n in st["npcs"]), str(st["npcs"]))
+    prompt = warm(page, 236, 72)
+    st = drive(page, lambda st: st["scene"] is None)
+    check("Rows: warming the ledge catch is optional help, and it is remembered", "WARM" in prompt and page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsLatchHelped") is True, prompt)
+    rgo(page, "drytable", "drytable-west"); clock(page, 2600)
+    tp(page, 150, 60)
+    st = drive(page, lambda st: st["sim"]["flags"].get("catchReady"))
+    check("Rows: at the Dry Table she misreads him (the warm room), then follows his look up: “Further up.”", "rows:met" in rbeats() and st["sim"]["flags"].get("catchReady"), str(rbeats()[-3:]))
+    check("Rows: the way into the rows is shut until the work is done", not st["sim"]["flags"].get("rowsCatch"))
+    prompt = warm(page, 200, 186)
+    st = drive(page, lambda st: st["scene"] is None and st["sim"]["flags"].get("rowsCatch"))
+    check("Rows: the first small job holds (“Holds.”) and opens the door north", "WARM" in prompt and rflags().get("rowsCatch") is True, prompt)
+    tp(page, 252, 196); page.wait_for_timeout(300)
+    check("Rows: the table's stove is a dry place to come back to (a checkpoint)", page.evaluate(STORED)["slice"]["checkpoint"]["hearthId"] == "rows-stove", str(page.evaluate(STORED)["slice"]["checkpoint"]))
+    page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(300)
+    check("Rows: reload at the table resumes there; the meeting never replays", st["sim"]["roomId"] == "drytable" and st["scene"] is None and st["sim"]["flags"].get("rowsCatch"), str((st["sim"]["roomId"], st["scene"])))
+    rgo(page, "hangrow", "hangrow-entry"); clock(page, 3000)
+    page.evaluate("RizoRuntimeQA.dungeonEnemyForQA('row-draftling',{state:'gone'})")
+    tp(page, 240, 150)
+    st = drive(page, lambda st: st["sim"]["flags"].get("lowReady"))
+    prompt = warm(page, 278, 106)
+    st = drive(page, lambda st: st["scene"] is None and st["sim"]["flags"].get("rowsLowRoute")); clock(page, 1200); st = page.evaluate(ST)
+    check("Rows: Hanging Row splits by size: he takes the low route, she names where they'll meet", "WARM" in prompt and rflags().get("rowsLowRoute") and "rows:split" in rbeats() and not any(n["id"] == "nell" and n["visible"] for n in st["npcs"]), str(st["npcs"]))
+    rgo(page, "eyelet", "eyelet-low"); clock(page, 400); tp(page, 160, 120)
+    st = drive(page, lambda st: st["sim"]["flags"].get("grilleReady"))
+    check("Rows: she kept the appointment at Eyelet Landing, and Orr arrives with a tray too big for the hatch", "rows:eyelet" in rbeats() and any(n["id"] == "orr" for n in st["npcs"]), str(st["npcs"]))
+    prompt = warm(page, 36, 130)
+    st = drive(page, lambda st: st["scene"] is None and st["sim"]["flags"].get("rowsGrille"))
+    check("Rows: the grille opens for the tray; the way back to the table is open", rflags().get("rowsGrille") and "rows:orr" in rbeats())
+    rgo(page, "drytable", "drytable-east"); clock(page, 400); tp(page, 150, 210)
+    st = drive(page, lambda st: st["choice"] is not None)
+    check("Rows: the meal: Nell loses a small argument, then SIT or GO", st["choice"] and st["choice"]["options"] == ["sit", "go"], str(st["choice"]))
+    page.keyboard.press("d"); page.wait_for_timeout(120); page.keyboard.press("z"); page.wait_for_timeout(200)
+    st = drive(page, lambda st: st["scene"] is None)
+    s = page.evaluate(STORED)["slice"]
+    check("Rows: GO is honoured (no pressure); the press door opens either way", s["story"]["choices"].get("rows-meal") == "go" and s["world"]["durableRoomFlags"].get("rowsPressOpen"), str(s["story"]["choices"]))
+    rgo(page, "press", "press-entry"); clock(page, 400); tp(page, 160, 400)
+    st = drive(page, lambda st: "rows:screen" in st["data"]["story"]["committedSceneBeats"])
+    check("Rows: Press House: she braces a screen while the carriage passes once", "rows:screen" in rbeats())
+    tp(page, 160, 250); clock(page, 800); page.wait_for_timeout(100)
+    st = page.evaluate(ST)
+    check("Rows: caught on the running track he is knocked clear, never hurt", st["sim"]["player"]["flame"] == 5, str(st["sim"]["player"]))
+    page.evaluate("RizoRuntimeQA.dungeonEnemyForQA('press-needle',{state:'gone'})"); tp(page, 160, 160)
+    st = drive(page, lambda st: st["sim"]["flags"].get("brakeReady"))
+    prompt = warm(page, 284, 196); tp(page, 160, 160)
+    st = drive(page, lambda st: st["sim"]["flags"].get("shutterReady"))
+    check("Rows: stop, brake (his side), one test with him off the track, parked", rflags().get("rowsPressStop") and rflags().get("rowsBrake"), str(rflags()))
+    prompt = warm(page, 196, 56)
+    st = drive(page, lambda st: st["scene"] is None and st["sim"]["flags"].get("rowsShutter"))
+    check("Rows: the shutter: he warms it, she lifts", rflags().get("rowsShutter") is True)
+    rgo(page, "upper", "upper-entry")
+    st = drive(page, lambda st: "rows:upper" in st["data"]["story"]["committedSceneBeats"])
+    check("Rows: the upper landing: the stair opens, and she names the next appointment (the table)", rflags().get("rowsStair") and "rows:upper" in rbeats())
+    page.reload(); page.wait_for_timeout(1300); st = launch(page)
+    check("Rows: reload on the landing resumes there with nothing replayed", st["sim"]["roomId"] == "upper" and st["scene"] is None, str((st["sim"]["roomId"], st["scene"])))
+    rgo(page, "drytable", "drytable-stair"); clock(page, 400); tp(page, 150, 196)
+    st = drive(page, lambda st: st["sim"]["flags"].get("boardReady"))
+    check("Rows: she kept the table appointment: a low board set at his height", "rows:return" in rbeats() and st["sim"]["flags"].get("boardReady"))
+    warm(page, 150, 188)
+    st = drive(page, lambda st: st["sim"]["flags"].get("chalkOut"))
+    tp(page, 196, 186); page.wait_for_timeout(80); page.keyboard.press("z"); page.wait_for_timeout(200)
+    st = page.evaluate(ST)
+    check("Rows: he finds her chalk (“I was keeping it warm.”), and it is remembered", said(st, "keeping it warm") and page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsChalk") is True, str(st["barks"]))
+    st = drive(page, lambda st: st["choice"] is not None)
+    check("Rows: the wrap is offered, never put on him: WEAR IT, FOLDED or LEAVE IT", st["choice"] and st["choice"]["options"] == ["worn", "folded", "peg"], str(st["choice"]))
+    page.keyboard.press("z"); page.wait_for_timeout(200)
+    st = drive(page, lambda st: st["scene"] is None)
+    wear = page.evaluate("Boolean(document.querySelector('.dungeon-pose .dungeon-wear-wrap'))")
+    check("Rows: WEAR IT is committed and shows on him; she moves the wet sheets off the way on", page.evaluate(STORED)["slice"]["story"]["choices"].get("rows-wrap") == "worn" and wear and rflags().get("rowsOnward"), str((wear, rflags())))
+    page.reload(); page.wait_for_timeout(1300); st = launch(page)
+    wear = page.evaluate("Boolean(document.querySelector('.dungeon-pose .dungeon-wear-wrap'))")
+    check("Rows: after a reload he is still wearing it", wear and st["sim"]["roomId"] == "drytable", str((wear, st["sim"]["roomId"])))
+    tp(page, 260, 30); page.keyboard.down("w"); page.wait_for_timeout(600); page.keyboard.up("w"); page.wait_for_timeout(500)
+    st = page.evaluate(ST)
+    check("Rows: through the doorway the sheets hid: Window Hall", st["sim"]["roomId"] == "windowgate", st["sim"]["roomId"])
+    seen = []
+    st = drive(page, lambda st: (seen.extend(b["text"] for b in st["barks"]) or "rows:boundary" in st["data"]["story"]["committedSceneBeats"]), limit=200, step=250)
+    check("Rows: CLOSED, BACK SOON; Latch remembers the catch he warmed", any("They'll open." in t for t in seen) and any("Your catch held." in t for t in seen), str(seen[-6:]))
+    panel = page.evaluate("document.querySelector('.dungeon-panel')?.textContent||''")
+    check("Rows: the boundary is said plainly: WINDOW HALL IS NEXT, saved here", "WINDOW HALL IS NEXT" in panel and "STAY A WHILE" in panel and "GO HOME" in panel, panel[:120])
+    check("Rows: the shelf summary shows how far the journey went (rooms visited in the Rows)", page.evaluate("RizoRuntimeQA.dungeonSummaryForQA()")["bestLabel"] == f"ROWS {len([r for r in page.evaluate(STORED)['slice']['world']['visitedRooms'] if r in ('receiving','drytable','hangrow','lowrun','eyelet','traypass','press','upper','stair','windowgate')])}/10", str(page.evaluate("RizoRuntimeQA.dungeonSummaryForQA()")))
+    page.click("[data-dungeon-action='stay']"); page.wait_for_timeout(300)
+    check("Rows: STAY A WHILE closes the card and play goes on", page.evaluate(ST)["ui"] == "play")
+    tp(page, 270, 200); clock(page, 400)
+    check("Rows: the first time he drifts toward the rest of the hall, she keeps him close", said(page.evaluate(ST), "Stay where I can see you."), str(page.evaluate(ST)["barks"]))
+    for width in (320, 375, 430):
+        page.set_viewport_size({"width": width, "height": 760}); page.wait_for_timeout(250)
+        page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(150,120)"); clock(page, 200); page.wait_for_timeout(120)
+        metrics = page.evaluate("""(()=>{const se=document.scrollingElement;const scr=document.querySelector('.dungeon-screen').getBoundingClientRect();
+          const out=[...document.querySelectorAll('.dungeon-bark')].some(b=>{const r=b.getBoundingClientRect();return r.left<scr.left-1||r.right>scr.right+1});
+          return {scroll:se.scrollHeight>innerHeight+1||se.scrollWidth>innerWidth+1,out,sel:getSelection().toString().length}})()""")
+        check(f"Rows: {width} px: no page scroll, barks inside the screen, nothing selected", not metrics["scroll"] and not metrics["out"] and not metrics["sel"], str(metrics))
+    page.set_viewport_size({"width": 390, "height": 844}); page.wait_for_timeout(200)
+    page.evaluate("RizoModes.quitActive('qa')"); page.wait_for_timeout(700)
+    st = launch(page); page.wait_for_timeout(300)
+    check("Rows: the next launch resumes at the closed window: Nell waiting, no card replayed, still wearing the wrap", st["sim"]["roomId"] == "windowgate" and st["panelKind"] != "boundary" and any(n["id"] == "nell" and n["state"] == "sit" for n in st["npcs"]) and page.evaluate("Boolean(document.querySelector('.dungeon-wear-wrap'))"), str((st["sim"]["roomId"], st["panelKind"], st["npcs"])))
+    check("Rows: the chapter raises no page errors", not errors, "; ".join(errors[:3]))
+    ctx.close()
+
+    # Without the help at Receiving, Latch's line is different (nothing is lost). Reduced motion here.
+    ctx, page, errors = boot(browser, seed={})
+    page.evaluate(SETUP.replace("RizoRuntimeQA.loadForQA(s)", "s.settings.reducedMotion=true;RizoRuntimeQA.loadForQA(s)")); launch(page); skip(page)
+    rgo(page, "windowgate", "gate-entry")
+    check("Rows: reduced motion is honoured in the Rows", page.evaluate("Boolean(document.querySelector('.dungeon-reduced-motion'))"))
+    seen = []
+    drive(page, lambda st: (seen.extend(b["text"] for b in st["barks"]) or any(n["id"] == "latch" for n in st["npcs"]) and any("It shows." in t for t in seen)), limit=80, step=250)
+    check("Rows: without the ledge help Latch says something else, and nothing is closed off", any("You two opened the rows. It shows." in t for t in seen) and not any("catch held" in t for t in seen), str(seen[-4:]))
+    check("Rows (reduced-motion variant) raises no page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
     # ================= FORCE-UPDATE HANDOFF =================

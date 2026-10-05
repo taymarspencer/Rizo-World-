@@ -374,7 +374,7 @@
       solids: [
         ...wallSet(320, 340, 20, { n: [[60, 100], [240, 280]], w: [[150, 190]], e: [[60, 100], [230, 270]] }),
         { id: "rows-door", x: 60, y: 0, w: 40, h: 20, kind: "door", openWhen: "rowsCatch" },
-        { id: "drying-load", x: 240, y: 0, w: 40, h: 24, kind: "load", openWhen: "rowsShutter" },
+        { id: "drying-load", x: 240, y: 0, w: 40, h: 24, kind: "load", openWhen: "rowsOnward" },
         { id: "stair-catch", x: 300, y: 60, w: 20, h: 40, kind: "door", openWhen: "rowsStair" },
         { id: "bench", x: 120, y: 120, w: 100, h: 44, kind: "bench" }
       ],
@@ -384,7 +384,7 @@
       hearth: { id: "rows-stove", x: 262, y: 176, r: 10, spawnAnchorId: "drytable-stove", banner: "A DRY PLACE TO COME BACK TO" },
       props: [
         { id: "route-card", kind: "inspect", x: 150, y: 30, r: 8, prompt: "LOOK", lines: ["A route card, pinned crooked. The dry way goes up through the rows."] },
-        { id: "drying-load-look", kind: "door", x: 260, y: 32, r: 10, prompt: "LOOK", lines: ["Wet sheets on a stuck rail, hung right across the doorway."], when: { rowsShutter: false } },
+        { id: "drying-load-look", kind: "door", x: 260, y: 32, r: 10, prompt: "LOOK", lines: ["Wet sheets hung right across the doorway. Somebody will have to move them."], when: { rowsOnward: false } },
         { id: "work-catch", kind: "warm", x: 200, y: 172, r: 7, prompt: "WARM", when: { rowsCatch: false, catchReady: true } },
         { id: "low-board", kind: "warm", x: 150, y: 174, r: 8, prompt: "WARM", when: { boardReady: true } },
         { id: "chalk", kind: "inspect", x: 196, y: 172, r: 6, prompt: "LOOK", lines: [], when: { chalkOut: true } },
@@ -395,7 +395,7 @@
       exits: [
         { id: "table-to-receiving", x: 0, y: 150, w: 12, h: 40, to: "receiving", anchor: "receiving-east" },
         { id: "table-to-rows", x: 60, y: 0, w: 40, h: 10, to: "hangrow", anchor: "hangrow-entry", openWhen: "rowsCatch" },
-        { id: "table-to-window", x: 240, y: 0, w: 40, h: 10, to: "windowgate", anchor: "gate-entry", openWhen: "rowsShutter" },
+        { id: "table-to-window", x: 240, y: 0, w: 40, h: 10, to: "windowgate", anchor: "gate-entry", openWhen: "rowsOnward" },
         { id: "table-to-stair", x: 308, y: 60, w: 12, h: 40, to: "stair", anchor: "stair-bottom", openWhen: "rowsStair" },
         { id: "table-to-tray", x: 308, y: 230, w: 12, h: 40, to: "traypass", anchor: "tray-west" }
       ],
@@ -682,6 +682,7 @@
     rowsOnward: [L("nell", "work", "Counter's through there. I'm going that way.")],
     // Window Hall: the staffed side of CLOSED.
     rowsClosed: [L("nell", "tired", "Closed. They'll open.")],
+    rowsStayNear: [L("nell", "work", "Stay where I can see you. They call in order.")],
     rowsLatchAgainHelped: [L("latch", "procedural", "Packet arrived dry. Your catch held."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
     rowsLatchAgain: [L("latch", "dry", "You two opened the rows. It shows."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
     latchApproach: [L("latch", "startled", "NO OPEN FLAMES."), L("latch", "dry", "Sorry. Sign's older than the door.")],
@@ -735,9 +736,9 @@
     // connected. Its consequence is deliberately undecided; it only persists.
     FLAGS: ["latchFreed", "jamInspected", "sharedRest", "seatChosen", "bowlSeen", "shortcutOpen", "porterHelp", "alcoveOpen", "porterDown", "beforePorterSaid", "hearthArrived", "callerConnected",
       // Mending Rows: work that stays done (routes), and two small remembered kindnesses.
-      "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsLatchHelped", "rowsChalk"],
+      "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLatchHelped", "rowsChalk"],
     // Durable room work lives in world.durableRoomFlags; the rest in story.facts.
-    ROOM_FLAGS: ["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown", "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair"],
+    ROOM_FLAGS: ["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown", "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward"],
     // Story choices and their allowed values (the save keeps nothing else).
     CHOICES: { "hearth-seat": ["sit", "go"], "rows-meal": ["sit", "go"], "rows-wrap": ["worn", "folded", "peg"] },
     // The caller's symbol is an owner/art decision. Until it exists, the phone
