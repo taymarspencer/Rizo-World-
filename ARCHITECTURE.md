@@ -449,15 +449,20 @@ below, inside the Rizo Field Unit. It is a complete small story, not the full ca
 | The handheld (open → locking → locked), frame composition (room layer → live scenery → actors by depth → rain → the dark → telegraphs and fire above it), portrait dialogue, choices, speech bubbles, footfalls | `dungeon-view.js`, `styles/dungeon.css` |
 | Registration, binding, loop, scenes, story beats, lifecycle, persistence, page lock, QA hooks | `dungeon-mode.js` |
 
-**The story, in rooms.** `curb` (the late store: "Be good.", free movement with a soft leash, two things to
-look at; a van, three hooded figures, a grab) → `van` (an argument up front, a loose cooler that teaches Tuck,
-a door that gives) → `roadside` (alone; he gets up when the player asks; a lonely walk past a bowl that is not
-his) → `drain` (shelter; he shakes off the rain) → the ground gives way and the handheld locks around the world →
-`slip` (HOME ↑) → `clatter` (Draftling) → `hem` (Latch, trapped by a frozen latch; warm it) → `hearth`
+**The story, in rooms** (the opening follows the v0.3 beat sheet,
+`docs/dungeon/story/Rizo-Dungeon-Opening-Beat-Sheet-v0.3.md`). `car` (the Keeper's car parked at the late
+store, seen from above: YOU answers each thing once; "Be good." with the pet's own name; YOU goes in and the
+dome light times out; headlights, three hooded figures, a forced door, a grab nobody can prevent) → `sack`
+(black but his glow through a pillowcase; three pushes free him) → `van` (overheard talk as bubbles, a loose
+cooler that teaches Tuck, a door that gives under a held push or a jolt) → `roadside` (alone; a flashlight
+search where light and Flare get him seen but never caught; an optional ringing phone; a passing car that is
+not YOU; the lonely walk past a bowl that is not his) → `drain` (shelter, then brick, then rock; warm air from
+below; two slips) → the fall, and the handheld locks on impact → `slip` (he wakes in the dark; one thought,
+"home?"; HOME ↑ is found by his own light) → `clatter` (Draftling) → `hem` (Latch, trapped by a frozen latch; warm it) → `hearth`
 (checkpoint, SIT / GO, the cold bowl) → `queue` (Draftling + Needle; a lever opens the hearth shortcut) →
 `porter` (the Night Porter; Latch opens the alcove at half health; the First Knot) → home, to the real Den.
 
-- **Teaching by situation.** No tutorial screens: movement is taught by waiting outside, Primary by looking at
+- **Teaching by situation.** No tutorial screens: movement is taught in the parked car, Primary by looking at
   safe things, Flare by a frightened little flame (the hoods only flinch: it is not a fight), Tuck by the
   cooler (it bumps, never burns; the TUCK key pulses once). Below, the first Draftling wakes the FLARE key and
   a short key cue appears without stopping play.
@@ -485,20 +490,22 @@ his) → `drain` (shelter; he shakes off the rain) → the ground gives way and 
 - **The real pet** (unchanged from Gate 1): the campaign binds `host.pet().id`; House swaps and released pets
   are explained, never rebound. The Rizo on screen is `host.petMarkup(snapshot, { context: "dungeon" })`.
 - **Saving**: every room entry commits the safe continuation; story beats, hearths, deaths, the lever and the
-  reward commit at once; a dirty journey commits at most every 5 s. Opening rooms resume at their own start;
+  reward commit at once; a dirty journey commits at most every 5 s. Opening rooms resume at the start of the
+last committed opening beat (`opening:left`, `opening:taken`, `opening:fell`, `opening:searched`,
+`opening:phone`, `opening:below`), so no committed beat replays;
   the Porter resumes at its pre-fight anchor (at full HP; help, once committed, keeps the alcove open).
 - **Homecoming**: walking out of the Porter's open door commits `status: "complete"` and exits with
   `destination: "home", homecoming: true`; the Hub shows one small familiar gesture (shake) and nothing else.
   A pet with the shared-hearth mark rarely settles quietly in the Den.
 
-Its slice (`schema: 1`, content revision `threshold-v1`, about 2 KB):
+Its slice (`schema: 1`, content revision `threshold-v2`, about 2 KB):
 
 ```json
 { "settings": { "assist": false, "textSpeed": "normal" },
-  "campaign": { "id": "threshold-…", "kind": "proof", "contentRevision": "threshold-v1", "petId": "…", "petName": "MOSSY", "status": "active", "chapterId": "threshold" },
-  "world": { "visitedRooms": ["curb", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth"], "openedShortcuts": ["hearth-queue"], "durableRoomFlags": { "latchFreed": true, "shortcutOpen": true }, "defeatedEncounters": [] },
+  "campaign": { "id": "threshold-…", "kind": "proof", "contentRevision": "threshold-v2", "petId": "…", "petName": "MOSSY", "status": "active", "chapterId": "threshold" },
+  "world": { "visitedRooms": ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth"], "openedShortcuts": ["hearth-queue"], "durableRoomFlags": { "latchFreed": true, "shortcutOpen": true }, "defeatedEncounters": [] },
   "story": { "facts": { "jamInspected": true, "hearthArrived": true, "seatChosen": true, "sharedRest": true, "beforePorterSaid": true, "bowlSeen": true }, "choices": { "hearth-seat": "sit" },
-             "committedSceneBeats": ["opening:taken", "opening:fell", "opening:below", "latch-rescue:freed", "hearth-arrival:registered", "hearth-seat:sit", "cold-bowl:seen", "queue-lever:pulled"], "resumeScene": null },
+             "committedSceneBeats": ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home", "latch-rescue:freed", "hearth-arrival:registered", "hearth-seat:sit", "cold-bowl:seen", "queue-lever:pulled"], "resumeScene": null },
   "npcs": { "latch": { "state": "waiting-hearth", "locationAnchor": "hearth-latch", "evidence": ["rescue"] } },
   "inventory": { "knownLocalItems": [] },
   "checkpoint": { "hearthId": "threshold-hearth", "roomId": "hearth", "spawnAnchorId": "hearth-side" },
@@ -509,7 +516,11 @@ Its slice (`schema: 1`, content revision `threshold-v1`, about 2 KB):
 
 **Migration.** A Gate 1 review campaign (`threshold-gate1`) is carried forward explicitly: same campaign id,
 pet, settings and journal, starting at the opening (that story did not exist yet); its review-hearth
-checkpoint is dropped. Any other unknown revision is preserved untouched.
+checkpoint is dropped. An RC2 journey (`threshold-v1`) is carried forward without a reset: everything is kept,
+and only the deleted `curb` becomes the `car` that replaced it (in `visitedRooms` and in a continuation); every
+committed beat stays, so nobody replays the abduction or is left in a room that no longer exists. The one new
+opening fact is `callerConnected` (the phone call connected; its consequence is deliberately undecided). The
+gap is never persisted. Any other unknown revision is preserved untouched.
 
 **QA hooks** (QA builds only): `dungeonGotoForQA(room, anchor, flags)`, `dungeonSkipSceneForQA()`,
 `dungeonSceneTimeForQA(ms)`, `dungeonEnemyForQA(id, patch)`, `dungeonAdvanceForQA(ms, input)`,

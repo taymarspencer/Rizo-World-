@@ -36,6 +36,10 @@
   const ACTOR_UNITS = 34;
   const STAGE_SCALE = { spark: 0.82, kid: 0.9, teen: 0.96, beast: 1, legend: 1.04 };
   const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+  // CALLER_SYMBOL: PLACEHOLDER ONLY. The real glyph is an owner/art decision
+  // (narrative package v0.3 §3.6). This deliberately neutral dashed frame is
+  // not a letter, face, mark or the Rizo blue; replace this one function.
+  const callerSymbol = () => `<svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-placeholder="true" viewBox="0 0 40 40" aria-hidden="true"><rect x="9" y="9" width="22" height="22" rx="2" fill="none" stroke="#c9c4b8" stroke-width="2.4" stroke-dasharray="4 3"/></svg>`;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
   function deviceMarkup() {
@@ -48,6 +52,7 @@
         <canvas class="dungeon-canvas" aria-hidden="true"></canvas>
         <div class="dungeon-actors" aria-hidden="true"><div class="dungeon-actor"><div class="dungeon-pose"></div></div></div>
         <div class="dungeon-barks" aria-live="polite"></div>
+        <div class="dungeon-thought" hidden aria-live="polite"></div>
         <div class="dungeon-hud" aria-hidden="true"><span class="dungeon-flame"></span><b class="dungeon-room-name"></b></div>
         <div class="dungeon-prompt" hidden aria-hidden="true"></div>
         <div class="dungeon-cue" hidden aria-hidden="true"></div>
@@ -55,6 +60,8 @@
         <div class="dungeon-dialogue" data-dungeon-ui hidden role="dialog" aria-live="polite"><div class="dungeon-portrait" aria-hidden="true"></div><div class="dungeon-speech"><b class="dungeon-speaker"></b><p class="dungeon-line"></p></div><span class="dungeon-more" aria-hidden="true"></span></div>
         <div class="dungeon-choice" data-dungeon-ui hidden role="group" aria-label="Choose"></div>
         <div class="dungeon-fade" aria-hidden="true"></div>
+        <canvas class="dungeon-fallfx" aria-hidden="true"></canvas>
+        <div class="dungeon-phone" hidden aria-hidden="true"></div>
         <div class="dungeon-panel" data-dungeon-ui hidden role="dialog" aria-modal="false"></div>
       </div>
       </div>
@@ -81,6 +88,7 @@
       prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
       fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), dpad: $(".dungeon-dpad"),
+      thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"),
       keys: { primary: $('[data-dungeon-key="primary"]'), secondary: $('[data-dungeon-key="secondary"]'), system: $('[data-dungeon-key="system"]') }
     };
     const ctx = el.canvas.getContext("2d");
@@ -134,7 +142,10 @@
       lead.y += ((heading ? heading.y * 18 : 0) - lead.y) * ease;
       const fx = peek ? peek.x : px + lead.x, fy = peek ? peek.y + metrics.viewH * 0.3 : py + lead.y;
       const targetX = maxX <= 0 ? maxX / 2 : Math.min(maxX, Math.max(0, fx - metrics.viewW / 2));
-      const targetY = maxY <= 0 ? maxY / 2 : Math.min(maxY, Math.max(0, fy - metrics.viewH * 0.55));
+      let targetY = maxY <= 0 ? maxY / 2 : Math.min(maxY, Math.max(0, fy - metrics.viewH * 0.55));
+      // A room may ask to keep one line in view when the screen is short (the
+      // car keeps the store window), as long as the Rizo still fits below it.
+      if (roomGeo.cameraKeep && maxY > 0 && !peek) targetY = Math.max(0, Math.min(maxY, Math.max(py - metrics.viewH + 16, Math.min(targetY, roomGeo.cameraKeep.y))));
       if (!camera.ready) { camera.x = targetX; camera.y = targetY; camera.ready = true; return; }
       const k = reducedMotion ? 1 : Math.min(1, dt * (peek ? 3 : 7));
       camera.x += (targetX - camera.x) * k;
@@ -194,14 +205,18 @@
       const o = { face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state, expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated };
       switch (actor.kind) {
         case "keeper": Art.keeper(ctx, actor.x, actor.y, o); break;
-        case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights) }); break;
+        case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
+        case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
+        case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;
         case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
         case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y); break;
         case "taillights": {
-          const a = Math.max(0, Math.min(1, (actor.y - 760) / 420)) * (actor.moveMs ? 1 : 0.4);
+          // Far off they are two red points; braking, they flare.
+          const a = Math.max(0, Math.min(1, (actor.y + 160) / 300));
           if (a <= 0) break;
+          const brake = lastRoom.brake ? 1.6 : 1;
           ctx.save(); ctx.globalAlpha = a;
-          for (const dx of [-8, 8]) { Art.oval(ctx, actor.x + dx, actor.y, 6, 3.4, "rgba(184,53,47,.35)"); Art.oval(ctx, actor.x + dx, actor.y, 3, 1.8, P.a.red, true, 0.9); }
+          for (const dx of [-8, 8]) { Art.oval(ctx, actor.x + dx, actor.y, 6 * brake, 3.4 * brake, "rgba(184,53,47,.35)"); Art.oval(ctx, actor.x + dx, actor.y, 3, 1.8, lastRoom.brake ? "#ff5040" : P.a.red, true, 0.9); }
           ctx.restore();
           break;
         }
@@ -341,6 +356,11 @@
         else if (enemy.kind === "cargo" && enemy.state === "windup") paintSlide(enemy);
         else if (enemy.kind === "porter") paintPorterTell(enemy, sim, geo);
         if ((enemy.kind === "draftling" || enemy.kind === "needle") && enemy.aware && enemy.state !== "gone") notches(enemy);
+        // Not yet aware, at the edge of his light: two pale points looking back.
+        if (enemy.kind === "draftling" && !enemy.aware && enemy.state !== "gone") {
+          const d = Math.hypot(enemy.x - sim.player.x, enemy.y - sim.player.y);
+          if (d < 150) { ctx.save(); ctx.globalAlpha = Math.min(1, (150 - d) / 40) * 0.9; Art.rect(ctx, P.paper[3], enemy.x - 3.2, enemy.y - 3, 1.6, 1.6); Art.rect(ctx, P.paper[3], enemy.x + 1.6, enemy.y - 3, 1.6, 1.6); ctx.restore(); }
+        }
         if (enemy.kind === "draftling" && enemy.state === "recover") {
           // Open: two loose curls above it say "now".
           ctx.save(); ctx.strokeStyle = P.danger[1]; ctx.lineWidth = 1.2;
@@ -486,8 +506,14 @@
       // The dark, and what cuts it.
       const lit = Scenery.lights(geo, scene);
       const flame = Math.max(0, p.flame);
-      lit.list.push({ x: pos.x, y: pos.y - 2, r: (geo.world ? 30 : 46) + flame * 8, strength: geo.world ? 0.75 : 1, warm: geo.world ? 0.3 : 0.6 });
+      const lightScale = extras.lightScale ?? 1;
+      if (lightScale > 0) lit.list.push({ x: pos.x, y: pos.y - 2, r: ((geo.world ? 30 : 46) + flame * 8) * lightScale, strength: geo.world ? 0.75 : 1, warm: geo.world ? 0.3 : 0.6 });
       lighting.apply(ctx, view, lit.ambient, lit.list);
+      Scenery.paintOver?.(ctx, geo, scene);
+      // Waking in the dark: a pinprick of his flame before anything else.
+      const actorLight = extras.actorLight ?? 1;
+      if (actorLight > 0 && actorLight < 0.6) { ctx.save(); ctx.globalAlpha = 1 - actorLight; Art.flame(ctx, pos.x, pos.y - 4, 1.4 + actorLight * 4, reducedMotion ? 0 : time); ctx.restore(); }
+      setActorLight(actorLight);
       paintTelegraphs(sim, geo);
       paintKindle(sim, geo);
       paintFlare(sim, Boolean(geo.world), time);
@@ -496,8 +522,88 @@
       const [ax, ay] = toScreen(pos.x + ox, pos.y + oy + Core.T.PLAYER_RADIUS * 0.6);
       const size = actorUnits * metrics.scale;
       el.actor.style.transform = `translate3d(${(ax - size / 2).toFixed(1)}px, ${(ay - size * 0.84).toFixed(1)}px, 0)`;
+      // A line never hides the one it is said to: on a short screen, if the box
+      // would cover him, it sits at the top instead (decided once per line).
+      if (!el.dialogue.hidden && !el.dialogue.dataset.placed) {
+        const boxTop = metrics.cssH - (el.dialogue.offsetHeight || 72) - 12;
+        el.dialogue.classList.toggle("at-top", ay + size * 0.16 > boxTop);
+        el.dialogue.dataset.placed = "1";
+      }
       renderBarks(extras.barks || [], extras.npcs || []);
+      renderThought(extras.thought, pos);
     }
+    // Actor brightness: only waking in the dark changes it.
+    let lastActorLight = -1;
+    function setActorLight(k) {
+      const value = Math.round(k * 50) / 50;
+      if (value === lastActorLight) return;
+      lastActorLight = value;
+      el.actor.style.filter = value >= 1 ? "" : `brightness(${(0.12 + value * 0.88).toFixed(2)})`;
+      el.actor.style.opacity = value <= 0 ? "0" : "";
+    }
+    // A thought (v0.3): his, not speech. Lowercase, small, beside him, no box or name; it fades itself.
+    function renderThought(thought, pos) {
+      if (!thought || thought.alpha <= 0) { if (!el.thought.hidden) { el.thought.hidden = true; el.thought.textContent = ""; } return; }
+      if (el.thought.textContent !== thought.text) el.thought.textContent = thought.text;
+      el.thought.hidden = false;
+      const [x, y] = toScreen(pos.x + 12, pos.y - 34);
+      const drift = reducedMotion ? 0 : (1 - thought.alpha) * -4;
+      el.thought.style.opacity = thought.alpha.toFixed(2);
+      el.thought.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y + drift)}px, 0)`;
+    }
+    // The phone in the grass, up close. Only CALLER_SYMBOL (a neutral
+    // placeholder until the owner picks the glyph) and, connected, a timer.
+    let lastPhone = "";
+    function phone(state) {
+      const key = state ? `${state.connected}:${state.ringing}:${state.seconds}` : "";
+      if (key === lastPhone) return;
+      lastPhone = key;
+      if (!state) { el.phone.hidden = true; el.phone.innerHTML = ""; return; }
+      const time = `${String(Math.floor(state.seconds / 60)).padStart(2, "0")}:${String(state.seconds % 60).padStart(2, "0")}`;
+      el.phone.hidden = false;
+      el.phone.classList.toggle("is-ringing", state.ringing && !reducedMotion);
+      el.phone.classList.toggle("is-connected", state.connected);
+      el.phone.innerHTML = `<div class="dungeon-phone-screen">${callerSymbol()}${state.connected ? `<span class="dungeon-phone-timer">${time}</span>` : ""}</div>`;
+    }
+    // A fall in the black: his flame streaking, three glimpses of the deep.
+    let fallCtx = null;
+    function fallFx(state) {
+      const c = el.fallfx;
+      if (!state) { if (c.dataset.on) { c.dataset.on = ""; fallCtx?.clearRect(0, 0, c.width, c.height); } return; }
+      const w = Math.round(metrics.cssW * metrics.dpr), h = Math.round(metrics.cssH * metrics.dpr);
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; c.style.width = `${metrics.cssW}px`; c.style.height = `${metrics.cssH}px`; }
+      fallCtx = fallCtx || c.getContext("2d");
+      c.dataset.on = "1";
+      const g = fallCtx, k = Math.min(1, state.t / state.ms), s = metrics.scale * metrics.dpr, vw = metrics.viewW, vh = metrics.viewH;
+      g.setTransform(s, 0, 0, s, 0, 0);
+      g.clearRect(0, 0, vw, vh);
+      const cx = vw / 2, cy = vh * 0.46;
+      if (reducedMotion) {
+        // No streak, no flashes: one ember, dimming slowly.
+        g.globalAlpha = Math.max(0, 1 - k);
+        Art.flame(g, cx, cy, 3.4, 0, { still: true });
+        g.globalAlpha = 1;
+        return;
+      }
+      // Three glimpses: a pipe, stitched cloth, a lit window very far off.
+      const flashes = [[0.18, "pipe"], [0.42, "cloth"], [0.66, "window"]];
+      for (const [at, kind] of flashes) {
+        const age = (k - at) / 0.07;
+        if (age < 0 || age > 1) continue;
+        g.globalAlpha = Math.sin(age * Math.PI) * 0.85;
+        const y = cy - 60 + (1 - age) * 140;
+        if (kind === "pipe") { Art.box(g, cx - 64, y - 70, 14, 150, P.metal[1], { ink: 1.4, amp: 0.2 }); for (let d = -60; d < 80; d += 22) Art.rivet(g, cx - 57, y + d, 1.2); }
+        else if (kind === "cloth") { Art.box(g, cx + 22, y - 40, 54, 80, P.paper[1], { ink: 1.2, amp: 0.6 }); Art.stitches(g, cx + 30, y - 30, cx + 30, y + 34, P.ink, 4, 2, 0.8); }
+        else { Art.rect(g, P.sodium[2], cx - 30, y - 20, 6, 8); Art.rect(g, P.ember[4], cx - 29, y - 19, 4, 3); }
+      }
+      g.globalAlpha = 1;
+      // His flame streaks: a smear of light trailing above him.
+      const trail = g.createLinearGradient(cx, cy - 80, cx, cy);
+      trail.addColorStop(0, "rgba(255,175,74,0)"); trail.addColorStop(1, "rgba(255,175,74,.55)");
+      g.fillStyle = trail; g.fillRect(cx - 2.2, cy - 80, 4.4, 80);
+      Art.flame(g, cx, cy + 4, 4.5, time0 + state.t);
+    }
+    const time0 = 0;
     // Speech bubbles over NPCs: DOM, 14px, never covering the controls.
     function renderBarks(list, actors) {
       const seen = new Set();
@@ -510,7 +616,13 @@
         if (node.textContent !== item.text) node.textContent = item.text;
         // Seated figures (the van) are short; they say where their heads are.
         const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
-        const [x, y] = toScreen(actor.x + (actor.barkDx || 0), actor.y - lift);
+        // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.
+        let [x, y] = toScreen(actor.x + (actor.barkDx || 0), actor.y - lift);
+        const width = node.offsetWidth || 120, height = node.offsetHeight || 30, edge = 8;
+        const off = x < 0 || x > metrics.cssW || y < height + 30 || y > metrics.cssH - 10;
+        x = Math.min(metrics.cssW - width / 2 - edge, Math.max(width / 2 + edge, x));
+        y = Math.min(metrics.cssH - edge - 8, Math.max(height + 34, y));
+        node.classList.toggle("is-edge", off);
         node.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -100%)`;
       }
       for (const [id, node] of barkNodes) if (!seen.has(id)) { node.remove(); barkNodes.delete(id); }
@@ -559,7 +671,8 @@
     function banner(text) { el.banner.textContent = text || ""; el.banner.hidden = !text; }
     // Dialogue: a speaker's portrait (data-driven expression) beside the line.
     function dialogue(text, { done = false, speaker = null, expr = null } = {}) {
-      if (text === null) { el.dialogue.hidden = true; el.line.textContent = ""; lastPortrait = ""; return; }
+      // null, not "": the next line always redraws its portrait (narration hides it).
+      if (text === null) { el.dialogue.hidden = true; el.line.textContent = ""; lastPortrait = null; el.dialogue.dataset.placed = ""; el.dialogue.classList.remove("at-top"); return; }
       el.dialogue.hidden = false;
       const who = speaker ? Content.SPEAKERS[speaker] : null;
       el.dialogue.classList.toggle("is-narration", !who);
@@ -592,10 +705,10 @@
     function setFade(value) { const next = String(Math.round(value * 100) / 100); if (el.fade.style.opacity !== next) el.fade.style.opacity = next; }
     function setPhase(phase) { el.device.dataset.phase = phase; }
     function setShell(state) { if (el.device.dataset.shell !== state) { el.device.dataset.shell = state; requestAnimationFrame(() => layout()); } }
-    function destroy() { effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
+    function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
-    return { el, layout, setPet, render, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, toScreen, metrics, camera, destroy, esc };
+    return { el, layout, setPet, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, toScreen, metrics, camera, destroy, esc };
   }
 
   return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });

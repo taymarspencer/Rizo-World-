@@ -9,8 +9,10 @@
   Coordinates are fixed logical units (the camera is about 320 wide). Rooms
   never change size with the screen.
 
-  THE THRESHOLD (content revision "threshold-v1"):
-    opening, outside, before the handheld locks:  curb → van → roadside → drain
+  THE THRESHOLD (content revision "threshold-v2"):
+    opening, outside, before the handheld locks:  car → sack → van → roadside → drain
+    (v0.3: the Keeper's parked car replaced RC2's curb; threshold-v1 saves are
+    carried forward by dungeon-core's migrateV1, curb → car, nothing reset)
     below, inside the Rizo Field Unit:            slip → clatter → hem → hearth
                                                   hem → queue → porter
                                                   hearth ↔ queue (shortcut, lever)
@@ -51,35 +53,62 @@
     return out;
   };
 
-  const CONTENT_REVISION = "threshold-v1";
-  // Revisions this build knows how to carry forward (see dungeon-core normalizeSlice).
+  const CONTENT_REVISION = "threshold-v2";
+  // Revisions this build knows how to carry forward (see dungeon-core normalizeSlice):
+  // a Gate 1 review campaign restarts at the opening; an RC2 (threshold-v1)
+  // journey keeps everything and only leaves the deleted curb for the car.
   const LEGACY_REVISIONS = ["threshold-gate1"];
+  const CARRIED_REVISIONS = ["threshold-v1"];
   const CAMPAIGN_KIND = "proof";
   const CHAPTER_ID = "threshold";
-  const OPENING_ROOMS = ["curb", "van", "roadside", "drain"];
+  const OPENING_ROOMS = ["car", "sack", "van", "roadside", "drain"];
   const ROOM_IDS = ["slip", "clatter", "hem", "hearth", "queue", "porter"];
   const BUILT_ROOMS = [...OPENING_ROOMS, ...ROOM_IDS];
 
   const ROOMS = {
     // ===== THE OPENING (outside; the handheld is not locked yet) =====
-    curb: {
-      id: "curb", name: "LATE STORE", world: true, w: 360, h: 300, theme: "curb", rain: 0.55,
+    // The Keeper's car, parked nose-in at the late store. Seen from above with
+    // the roof cut away; the store is across the sidewalk, through the glass.
+    // Rizo can only move inside the cabin: seats, dash, the side window, YOU.
+    car: {
+      id: "car", name: "LATE STORE", world: true, w: 360, h: 384, theme: "car", rain: 0.55,
+      // On a short screen the camera still keeps the store window in view if it can.
+      cameraKeep: { y: 40 },
       solids: [
-        { id: "storefront", x: 0, y: 0, w: 360, h: 96, kind: "storefront" },
-        { id: "icebox", x: 296, y: 104, w: 34, h: 26, kind: "icebox" },
-        { id: "bin", x: 28, y: 110, w: 20, h: 22, kind: "bin" },
-        { id: "curbstone", x: 0, y: 236, w: 360, h: 64, kind: "street" }
+        { id: "car-front", x: 124, y: 136, w: 112, h: 62, kind: "car" },
+        { id: "car-left", x: 124, y: 136, w: 16, h: 240, kind: "car" },
+        { id: "car-right", x: 220, y: 136, w: 16, h: 240, kind: "car" },
+        { id: "car-rear", x: 124, y: 328, w: 112, h: 48, kind: "car" },
+        // YOU in the driver's seat (and the wheel in front of YOU), until YOU goes in.
+        { id: "you-seat", x: 142, y: 204, w: 30, h: 64, kind: "you", openWhen: "youGone" }
       ],
-      anchors: { start: { x: 178, y: 152 }, "store-door": { x: 176, y: 104 }, "keeper-start": { x: 204, y: 140 } },
-      entryAnchor: "start",
-      // Rizo will not wander far from the door: it slows and looks back.
-      leash: { x: 176, y: 156, r: 74 },
-      shelters: [{ x: 116, y: 96, w: 124, h: 30 }],
+      anchors: { seat: { x: 203, y: 252 }, dash: { x: 192, y: 210 } },
+      entryAnchor: "seat",
+      shelters: [{ x: 124, y: 136, w: 112, h: 240 }],
       props: [
-        { id: "puddle", kind: "inspect", x: 112, y: 182, r: 10, prompt: "LOOK", lines: ["The store sign shakes in the puddle.", "It says OPEN. Mostly."] },
-        { id: "icebox-look", kind: "inspect", x: 312, y: 134, r: 8, prompt: "LOOK", lines: ["ICE. The machine hums like it's thinking about it."] }
+        { id: "you", kind: "npc", x: 162, y: 238, r: 10, prompt: "LOOK", when: { youGone: false, youGreeted: false } },
+        { id: "store-window", kind: "inspect", x: 180, y: 203, r: 8, prompt: "LOOK", lines: ["Inside, between the chips and the cold drinks: YOU."], when: { youGone: true, threat: false } }
       ],
-      exits: [], zones: [], encounters: []
+      zones: [
+        { id: "dash", x: 140, y: 198, w: 80, h: 9 },
+        { id: "footwell", x: 192, y: 216, w: 28, h: 8 },
+        { id: "you-near", x: 172, y: 206, w: 13, h: 62 },
+        { id: "window-side", x: 215, y: 226, w: 5, h: 80 }
+      ],
+      exits: [], encounters: []
+    },
+    // Inside the pillowcase: nothing but his own glow through the cloth.
+    sack: {
+      id: "sack", name: "", world: true, w: 200, h: 200, theme: "sack", rain: 0,
+      solids: [
+        { id: "sack-n", x: 0, y: 0, w: 200, h: 92, kind: "cloth" },
+        { id: "sack-s", x: 0, y: 120, w: 200, h: 80, kind: "cloth" },
+        { id: "sack-w", x: 0, y: 0, w: 90, h: 200, kind: "cloth" },
+        { id: "sack-e", x: 110, y: 0, w: 90, h: 200, kind: "cloth" }
+      ],
+      anchors: { start: { x: 100, y: 106 } },
+      entryAnchor: "start",
+      props: [], zones: [], exits: [], encounters: []
     },
     van: {
       id: "van", name: "BACK OF A VAN", world: true, w: 240, h: 150, theme: "van", rain: 0,
@@ -123,25 +152,38 @@
         { id: "bowl-road", kind: "inspect", x: 142, y: 984, r: 7, prompt: "LOOK", lines: ["A bowl in the rain. Somebody's, once.", "Not his."] },
         { id: "bus-sign", kind: "inspect", x: 66, y: 592, r: 7, prompt: "LOOK", lines: ["A bus stop. No bus."] }
       ],
-      zones: [{ id: "bowl-near", x: 112, y: 950, w: 64, h: 64 }, { id: "rain-worse", x: 22, y: 26, w: 176, h: 300 }],
+      zones: [{ id: "bowl-near", x: 112, y: 950, w: 64, h: 64 }, { id: "rain-worse", x: 22, y: 26, w: 176, h: 300 }, { id: "midpoint", x: 22, y: 700, w: 176, h: 40 }],
+      // Shadow a beam passes over: the ditch along the embankment, the lee of
+      // each guardrail post, the torn bin bag.
+      hides: [
+        { id: "ditch", x: 22, y: 26, w: 30, h: 1360 },
+        { id: "bag-lee", x: 140, y: 962, w: 40, h: 30 },
+        ...Array.from({ length: 30 }, (_, index) => ({ id: `post-${index}`, x: 184, y: 66 + index * 44, w: 14, h: 16 }))
+      ],
       exits: [{ id: "into-drain", x: 70, y: 0, w: 60, h: 40, to: "drain", anchor: "mouth" }],
       encounters: []
     },
+    // Concrete at the mouth, then old brick, then rock: further in than a drain goes.
     drain: {
-      id: "drain", name: "THE DRAIN", world: true, w: 240, h: 380, theme: "drain", rain: 0.15,
+      id: "drain", name: "THE DRAIN", world: true, w: 240, h: 760, theme: "drain", rain: 0.15,
       solids: [
-        { id: "drain-w", x: 0, y: 0, w: 42, h: 380, kind: "concrete" },
-        { id: "drain-e", x: 198, y: 0, w: 42, h: 380, kind: "concrete" },
-        { id: "drain-n", x: 0, y: 0, w: 240, h: 22, kind: "concrete" }
+        { id: "drain-w", x: 0, y: 240, w: 42, h: 520, kind: "concrete" },
+        { id: "drain-e", x: 198, y: 240, w: 42, h: 520, kind: "concrete" },
+        { id: "rock-w", x: 0, y: 0, w: 62, h: 240, kind: "rock" },
+        { id: "rock-e", x: 178, y: 0, w: 62, h: 240, kind: "rock" },
+        { id: "rock-n", x: 0, y: 0, w: 240, h: 30, kind: "rock" },
+        { id: "rock-a", x: 62, y: 150, w: 18, h: 22, kind: "rock" },
+        { id: "rock-b", x: 162, y: 94, w: 16, h: 20, kind: "rock" }
       ],
-      anchors: { mouth: { x: 120, y: 340 } },
+      anchors: { mouth: { x: 120, y: 720 } },
       entryAnchor: "mouth",
-      shelters: [{ x: 42, y: 22, w: 156, h: 318 }],
+      shelters: [{ x: 42, y: 0, w: 156, h: 742 }],
       props: [
-        { id: "glove", kind: "inspect", x: 78, y: 300, r: 6, prompt: "LOOK", lines: ["A glove. Dry. Somebody waited here once."] }
+        { id: "glove", kind: "inspect", x: 78, y: 680, r: 6, prompt: "LOOK", lines: ["A glove. Dry. Somebody waited here once."] },
+        { id: "warm-air", kind: "inspect", x: 120, y: 112, r: 10, prompt: "LOOK", lines: ["Warm air. From down there."] }
       ],
-      zones: [{ id: "deep", x: 84, y: 40, w: 72, h: 70 }],
-      exits: [{ id: "drain-out", x: 42, y: 372, w: 156, h: 8, to: "roadside", anchor: "drain-front" }],
+      zones: [{ id: "slope", x: 82, y: 30, w: 76, h: 46 }],
+      exits: [{ id: "drain-out", x: 42, y: 752, w: 156, h: 8, to: "roadside", anchor: "drain-front" }],
       encounters: []
     },
 
@@ -313,8 +355,24 @@
   const L = (speaker, expr, text) => ({ speaker, expr, text });
   const LINES = {
     // The accepted line, split (v0.3 beat sheet 2.2–2.4) so "Be good." lands alone.
-    goingIn: [L("you", "neutral", "Alright Rizo, I'm gonna go in the store real quick.")],
+    // "{name}" is the pet's own name (campaign.petName), "Rizo" when there is none.
+    goingIn: [L("you", "neutral", "Alright {name}, I'm gonna go in the store real quick.")],
+    lightsOn: [L("you", "neutral", "There. Light's on.")],
     beGood: [L("you", "neutral", "Be good.")],
+    // Parked (beat sheet 1.2): YOU answers each thing once, never twice.
+    youHi: [L("you", "neutral", "Hi. Yes. Hi.")],
+    youDash: [L("you", "neutral", "Off the dash, please.")],
+    youShowOff: [L("you", "neutral", "Okay, show-off.")],
+    youRain: [L("you", "neutral", "It's just rain.")],
+    // Headlights and taken (4.4–5.4), overheard through the glass.
+    twoMinutes: [L("driver", "neutral", "Two minutes.")],
+    glowing: [L("hood-small", "neutral", "Bro. It's glowing."), L("hood-tall", "neutral", "Don't tap the glass.")],
+    hot: [L("hood-small", "neutral", "It's hot! It's hot!")],
+    bag: [L("hood-tall", "neutral", "Bag. Bag.")],
+    // The roadside search (9.3–9.4).
+    search: [L("hood-tall", "neutral", "It went off right here."), L("hood-small", "neutral", "It's dark as hell."), L("hood-tall", "neutral", "It's a flame. Look for the light."), L("hood-small", "neutral", "I don't see no light.")],
+    seen: [L("hood-small", "neutral", "Yo— was that—")],
+    leave: [L("driver", "neutral", "Car! Somebody's coming!"), L("hood-tall", "neutral", "We can't go back without it."), L("driver", "neutral", "We can't go back at all if we get pulled over."), L("hood-small", "neutral", "You said probably.")],
     thatHim: [L("hood-small", "neutral", "That him?"), L("hood-tall", "neutral", "Obviously.")],
     flinch: [L("hood-small", "neutral", "Yo—")],
     vanArgue: [L("driver", "neutral", "I thought you said he didn't do that fire shit."), L("hood-tall", "neutral", "I said probably.")],
@@ -360,6 +418,7 @@
   const api = {
     CONTENT_REVISION,
     LEGACY_REVISIONS,
+    CARRIED_REVISIONS,
     CAMPAIGN_KIND,
     CHAPTER_ID,
     OPENING_ROOMS,
@@ -371,10 +430,15 @@
     PORTRAITS,
     LINES,
     ACKS,
-    START_ROOM: "curb",
+    START_ROOM: "car",
     BELOW_START: "slip",
     // Durable flags a campaign may hold (world.durableRoomFlags / story.facts).
-    FLAGS: ["latchFreed", "jamInspected", "sharedRest", "seatChosen", "bowlSeen", "shortcutOpen", "porterHelp", "alcoveOpen", "porterDown", "beforePorterSaid", "hearthArrived"],
+    // callerConnected (v0.3): Rizo touched the ringing phone and the call
+    // connected. Its consequence is deliberately undecided; it only persists.
+    FLAGS: ["latchFreed", "jamInspected", "sharedRest", "seatChosen", "bowlSeen", "shortcutOpen", "porterHelp", "alcoveOpen", "porterDown", "beforePorterSaid", "hearthArrived", "callerConnected"],
+    // The caller's symbol is an owner/art decision. Until it exists, the phone
+    // shows a neutral placeholder under this internal name, nowhere else.
+    CALLER_SYMBOL: "CALLER_SYMBOL",
     knownRoom: id => BUILT_ROOMS.includes(id),
     isOpening: id => OPENING_ROOMS.includes(id),
     knownAnchor: (roomId, anchorId) => Boolean(ROOMS[roomId]?.anchors?.[anchorId]),

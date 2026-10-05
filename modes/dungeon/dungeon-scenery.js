@@ -13,10 +13,11 @@
   s = { sim, time, extras, view: {x,y,w,h}, pos, reduced }
 
   One idea per place, the thing that should survive memory:
-    curb     a bright late store, a dry strip under the awning, OPEN in a puddle
+    car      a parked car in the rain, nose to a bright late store; YOU inside it
+    sack     black, and his own glow through a pillowcase
     van      somebody's dirty van: cans, a cup, a swapped door, the road below
     roadside a tiny flame beside an endless road; far-off lit windows
-    drain    shelter that slowly stops being a city pipe
+    drain    shelter that slowly stops being a city pipe: concrete, brick, rock
     slip     the bottom of a shaft; home is a lit door very far up
     clatter  a lost-luggage line that half wakes when he passes
     hem      somebody sweeps here, and has been counting days
@@ -70,9 +71,11 @@
     alpha(c, 0.16, () => { shape(c, [x + 10, y, x + 26, y, x + 6, y + h, x - 10 + 10, y + h], P.paper[3], { ink: false }); shape(c, [x + w - 40, y, x + w - 32, y, x + w - 50, y + h, x + w - 56, y + h], P.paper[3], { ink: false }); });
     box(c, x, y, w, h, null, { ink: 2.2, amp: 0.3 });
   }
-  function curbStatic(c, geo, m) {
-    const W = geo.w, L = -m.mx, R = W + m.mx, T = -m.my, B = geo.h + m.my;
-    // Far: the flat above the shop, the far side of the street. No ink out there.
+  // ---- the car: the Keeper's car, parked nose-in at the late store
+  const CAR = Object.freeze({ body: "#3f5d72", side: "#2d4456", top: "#5a7b91", trim: "#1d2b36" });
+  function storefront(c, geo, m) {
+    const L = -m.mx, R = geo.w + m.mx, T = -m.my, B = geo.h + m.my;
+    // Far: the flat above the shop. No ink out there.
     rect(c, P.night[0], L, T, R - L, B - T);
     rect(c, P.night[1], L, T, R - L, -T);
     alpha(c, 0.4, () => { for (let y = -6; y > T; y -= 6) rect(c, P.night[0], L, y, R - L, 1); });
@@ -84,110 +87,227 @@
     rect(c, P.night[2], 244, -34, 48, 3);
     box(c, 254, -26, 24, 12, P.metal[1], { ink: 0.8, amp: 0.3 });
     for (let gx = 257; gx < 276; gx += 3) rect(c, P.metal[0], gx, -24, 1, 8);
-    // A drainpipe split and taped.
     rect(c, P.metal[1], 8, T, 5, 96 - T); rect(c, P.metal[2], 8, T, 1.4, 96 - T); tape(c, 10.5, 34, 9, 1.45, 3); tape(c, 10.5, 38, 8, 1.6, 4);
     // Fascia sign: FOOD · ICE · LOTTO, one letter dead.
     box(c, 20, 1, 320, 19, P.night[2], { ink: 1.2, amp: 0.3 });
     label(c, "FOOD · ICE · LOTTO", 180, 15, { size: 10, color: P.fluoro[2], shadow: P.ink, spacing: 1.2 });
     alpha(c, 0.75, () => rect(c, P.night[2], 236, 5, 7, 12));
-    // Piers, windows, the door frame, kick plates.
     for (const [x, w] of [[0, 30], [142, 12], [198, 16], [330, 30]]) { rect(c, P.concrete[1], x, 20, w, 76); rect(c, P.concrete[2], x, 20, w, 2); rect(c, P.concrete[0], x + w - 1.5, 20, 1.5, 76); }
     storeWindow(c, 30, 22, 112, 66, 1, { poster: [82, 18] });
     storeWindow(c, 214, 22, 116, 66, 2, { counter: true });
     box(c, 154, 26, 44, 70, P.metal[2], { ink: 1.4, amp: 0.3 });
     rect(c, P.metal[1], 30, 88, 112, 8); rect(c, P.metal[1], 214, 88, 116, 8);
     rect(c, P.ink, 30, 88, 112, 1); rect(c, P.ink, 214, 88, 116, 1);
-    // Sidewalk: wet slabs, a dry strip under the awning where he was told to wait.
-    A.concrete(c, 0, 96, W, 140, "curb", { wet: true, joint: 40 });
-    alpha(c, 0.45, () => rect(c, P.concrete[2], 116, 96, 124, 30));
-    alpha(c, 0.12, () => { for (const [x, w] of [[30, 112], [214, 116]]) { shape(c, [x, 96, x + w, 96, x + w + 14, 170, x - 14, 170], P.fluoro[1], { ink: false }); shape(c, [x + 8, 96, x + w - 8, 96, x + w, 132, x, 132], P.fluoro[2], { ink: false }); } });
-    worn(c, 176, 110, 18, 6, P.concrete[3], 0.45);
-    const random = rng("gum");
-    for (let index = 0; index < 22; index += 1) oval(c, 10 + random() * 340, 130 + random() * 100, 1.2, 0.8, P.concrete[0]);
-    // The awning: striped canvas, sagging, a taped tear.
+  }
+  function carBody(c) {
+    // Top-down, roof cut away, nose to the store.
+    drop(c, 180, 258, 66, 122, 0.5);
+    // Wheels peeking past the body at the four corners.
+    for (const [x, y] of [[119, 152], [233, 152], [119, 326], [233, 326]]) { box(c, x, y, 8, 30, P.ink, { ink: false, amp: 0.2 }); rect(c, P.metal[1], x + 2, y + 4, 4, 22); }
+    // The body: a sedan's outline, slightly pinched at the windshield.
+    shape(c, [132, 136, 228, 136, 236, 146, 237, 196, 236, 340, 233, 372, 226, 378, 134, 378, 127, 372, 124, 340, 123, 196, 124, 146], CAR.body, { ink: 2, seed: 701, amp: 0.25 });
+    shape(c, [124, 146, 132, 136, 140, 136, 134, 150, 133, 370, 127, 372, 124, 340, 123, 196], CAR.side, { ink: false, seed: 702, amp: 0.2 });
+    // Hood: a crease down the middle, wipers resting on the glass.
+    rect(c, CAR.top, 140, 140, 80, 2);
+    line(c, 180, 140, 180, 174, CAR.side, 1, 11, 0.2);
+    // Headlights at the nose (they face the store), a grille, a plate.
+    for (const x of [130, 214]) { box(c, x, 137, 16, 5, P.fluoro[1], { ink: 1, amp: 0.2 }); rect(c, P.fluoro[2], x + 2, 138, 12, 1.4); }
+    box(c, 166, 136, 28, 4, P.ink, { ink: false, amp: 0.1 });
+    // Side mirrors.
+    box(c, 112, 192, 12, 7, CAR.side, { ink: 1.2, amp: 0.2 }); box(c, 236, 192, 12, 7, CAR.side, { ink: 1.2, amp: 0.2 });
+    // Windshield (its wet surface is live).
+    shape(c, [140, 177, 220, 177, 227, 198, 133, 198], P.wet[1], { ink: 1.4, seed: 703, amp: 0.2 });
+    for (const x of [150, 186]) line(c, x, 196, x + 24, 192, P.ink, 1.3, x, 0.1);
+    // The cabin floor and the dark under the dash (his footwell).
+    rect(c, P.cloth[1], 138, 198, 84, 130);
+    rect(c, P.cloth[0], 188, 208, 32, 18);
+    // Doors: inside panels, armrests, the thin side glass.
+    for (const [x, glass] of [[124, 136], [220, 220]]) {
+      rect(c, CAR.trim, x, 198, 16, 130);
+      rect(c, P.cloth[2], x + (x < 180 ? 2 : 4), 206, 10, 116);
+      box(c, x + (x < 180 ? 4 : 6), 236, 6, 22, P.cloth[3], { ink: 0.8, amp: 0.2 });
+      rect(c, P.wet[1], glass, 204, 4, 120);
+      line(c, x, 266, x + 16, 266, P.ink, 0.9);
+    }
+    // Dash: instruments glow on YOU's side, vents, a phone mount left empty.
+    box(c, 138, 198, 84, 10, P.ink, { ink: 1, amp: 0.1 });
+    oval(c, 157, 203, 6, 2.6, P.service[2], true, 0.6); oval(c, 157, 203, 3, 1.3, P.service[3]);
+    for (const x of [176, 186, 200]) rect(c, P.cloth[2], x, 201, 6, 3);
+    // The wheel, seen from above at an angle.
+    oval(c, 157, 214, 11, 4.2, null, true, 2.2);
+    line(c, 147, 214, 167, 214, P.ink, 1.4);
+    // Front seats: cushion, then seatback and headrest toward the rear.
+    for (const x of [144, 188]) {
+      box(c, x, 226, 30, 28, P.cloth[2], { ink: 1.3, amp: 0.3, seed: x });
+      rect(c, P.cloth[3], x + 3, 228, 24, 2);
+      box(c, x + 1, 254, 28, 14, P.cloth[3], { ink: 1.3, amp: 0.3, seed: x + 1 });
+      box(c, x + 8, 266, 14, 6, P.cloth[2], { ink: 1, amp: 0.2, seed: x + 2 });
+    }
+    // Console: two cupholders, the gearstick, a crumpled receipt.
+    box(c, 175, 214, 11, 58, P.cloth[0], { ink: 1, amp: 0.2 });
+    oval(c, 180.5, 224, 3, 3, P.ink); oval(c, 180.5, 233, 3, 3, P.ink);
+    oval(c, 180.5, 248, 2.2, 2.2, P.metal[2], true, 0.8);
+    shape(c, [177, 260, 184, 258, 185, 264, 178, 266], P.paper[2], { ink: 0.6, amp: 0.5 });
+    // Back bench, its seams, a folded blanket.
+    box(c, 140, 286, 80, 40, P.cloth[2], { ink: 1.3, amp: 0.3, seed: 704 });
+    for (const x of [166, 194]) line(c, x, 288, x, 324, P.cloth[1], 0.9, x, 0.1);
+    box(c, 196, 296, 18, 14, P.a.maroon, { ink: 1, amp: 0.4 }); rect(c, P.a.maroonLight, 197, 297, 16, 2);
+    // Rear window, trunk lid, and the rear face with its taillights.
+    shape(c, [138, 328, 222, 328, 218, 346, 142, 346], P.wet[1], { ink: 1.3, seed: 705, amp: 0.2 });
+    rect(c, CAR.top, 140, 348, 80, 2);
+    box(c, 127, 368, 106, 10, CAR.side, { ink: 1.4, amp: 0.2 });
+    for (const x of [130, 218]) box(c, x, 369, 12, 5, P.a.red, { ink: 0.8, amp: 0.1 });
+    box(c, 168, 369, 24, 6, P.paper[2], { ink: 0.8, amp: 0.1 });
+  }
+  function carStatic(c, geo, m) {
+    const W = geo.w, L = -m.mx, R = W + m.mx, B = geo.h + m.my;
+    storefront(c, geo, m);
+    // Sidewalk: a narrow wet strip and a dry one under the awning.
+    A.concrete(c, 0, 96, W, 38, "curb", { wet: true, joint: 40 });
+    alpha(c, 0.45, () => rect(c, P.concrete[2], 116, 96, 124, 26));
+    alpha(c, 0.12, () => { for (const [x, w] of [[30, 112], [214, 116]]) shape(c, [x, 96, x + w, 96, x + w + 10, 134, x - 10, 134], P.fluoro[1], { ink: false }); });
     for (let x = 112, index = 0; x < 244; x += 11, index += 1) shape(c, [x, 90, x + 11, 90, x + 11, 101 + (index % 2), x + 5.5, 103, x, 101], index % 2 ? P.a.red : P.paper[2], { ink: false, seed: x, amp: 0.3 });
     rect(c, P.ink, 112, 89, 132, 1.4);
-    line(c, 112, 101, 244, 101, P.ink, 1, 77, 0.6);
     tape(c, 186, 95, 8, 0.4, 5);
-    // The puddle (its reflection is drawn live).
-    oval(c, 112, 183, 23, 8.5, P.wet[0]); oval(c, 108, 181.5, 15, 4.5, P.wet[1]); line(c, 92, 186, 130, 187, P.wet[2], 0.8, 8, 0.6);
-    // Bin and the ice chest.
-    drop(c, 38, 132, 12, 3.5);
-    box(c, 28, 112, 20, 20, P.metal[1], { ink: 1.2, amp: 0.4 });
-    for (let x = 31; x < 47; x += 3) rect(c, P.metal[0], x, 114, 1, 17);
-    shape(c, [26, 112, 50, 112, 49, 108, 38, 104, 28, 108], P.cloth[0], { ink: 1, amp: 0.6 });
-    box(c, 41, 102, 5, 6, P.paper[3], { ink: 0.7, amp: 0.2 });
-    drop(c, 313, 131, 19, 4);
-    box(c, 296, 106, 34, 25, P.paper[2], { ink: 1.4, amp: 0.4 });
-    rect(c, P.paper[3], 297, 107, 32, 3);
-    box(c, 299, 112, 28, 8, P.a.umbrella, { ink: 0.8, amp: 0.2 });
-    label(c, "ICE", 313, 119, { size: 7, color: P.paper[3] });
-    alpha(c, 0.8, () => { for (let x = 298; x < 328; x += 4) rect(c, "#eef4f8", x, 105.5, 2.4, 1.2); });
-    box(c, 318, 122, 7, 5, P.a.mustard, { ink: 0.6, amp: 0.2 });
-    // Curb: chipped yellow paint; the storm drain he'll come to know.
-    rect(c, P.concrete[3], 0, 231, W, 5); rect(c, P.concrete[1], 0, 236, W, 2);
-    for (let x = 4; x < W; x += 22) if ((x / 22) % 3 !== 1) rect(c, P.a.mustard, x, 231.5, 15, 2.2);
-    rect(c, P.ink, 62, 232, 34, 6); for (let x = 64; x < 95; x += 4) rect(c, P.metal[1], x, 233, 1.4, 5);
-    // Street.
-    A.asphalt(c, L, 238, R - L, B - 238, "street");
-    for (let x = L + 4; x < R; x += 44) box(c, x, 277, 24, 2.6, P.a.mustard, { ink: false, amp: 0.3 });
-    alpha(c, 0.16, () => { const smear = rng("smear"); for (const [x0, x1] of [[34, 140], [218, 328]]) for (let x = x0 + 6; x < x1; x += 14 + smear() * 12) box(c, x, 242 + smear() * 6, 2 + smear() * 3, 20 + smear() * 34, P.fluoro[2], { ink: false, amp: 0.8 }); });
-    oval(c, 312, 262, 11, 4.5, P.asphalt[0], true, 1); for (let gx = 304; gx < 320; gx += 4) rect(c, P.asphalt[2], gx, 260, 1.2, 4);
-    // The far side: a shuttered laundromat, unlit.
-    rect(c, P.concrete[1], L, 330, R - L, 4);
-    rect(c, P.night[1], L, 334, R - L, B - 334);
-    rect(c, P.night[2], 150, 344, 150, 40);
-    alpha(c, 0.5, () => { for (let y = 346; y < 384; y += 3) rect(c, P.night[0], 150, y, 150, 1); });
-    label(c, "WASH & FOLD", 225, 342, { size: 7, color: P.night[3] });
+    // Bin and the ice chest (it hums).
+    drop(c, 38, 126, 12, 3.5);
+    box(c, 28, 104, 20, 22, P.metal[1], { ink: 1.2, amp: 0.4 });
+    for (let x = 31; x < 47; x += 3) rect(c, P.metal[0], x, 106, 1, 19);
+    box(c, 296, 100, 34, 26, P.paper[2], { ink: 1.4, amp: 0.4 });
+    box(c, 299, 105, 28, 8, P.a.umbrella, { ink: 0.8, amp: 0.2 });
+    label(c, "ICE", 313, 112, { size: 7, color: P.paper[3] });
+    // Curb, chipped yellow.
+    rect(c, P.concrete[3], 0, 132, W, 4); rect(c, P.concrete[1], 0, 136, W, 2);
+    for (let x = 4; x < W; x += 22) if ((x / 22) % 3 !== 1) rect(c, P.a.mustard, x, 132.5, 15, 2);
+    // The lot: wet asphalt, faded stall lines, OPEN in a puddle.
+    A.asphalt(c, L, 138, R - L, B - 138, "street");
+    for (const x of [100, 260]) for (let y = 142; y < 384; y += 10) rect(c, P.paper[1], x, y, 2, 6);
+    alpha(c, 0.16, () => { const smear = rng("smear"); for (const [x0, x1] of [[34, 140], [218, 328]]) for (let x = x0 + 6; x < x1; x += 14 + smear() * 12) box(c, x, 140 + smear() * 6, 2 + smear() * 3, 18 + smear() * 30, P.fluoro[2], { ink: false, amp: 0.8 }); });
+    oval(c, 58, 214, 22, 8, P.wet[0]); oval(c, 54, 212.5, 14, 4.2, P.wet[1]);
+    carBody(c);
   }
-  function curbDynamic(ctx, geo, s) {
-    const room = s.extras.room || {}, t = s.time;
-    const flicker = s.reduced ? 1 : (Math.sin(t / 170) > -0.9 ? 1 : 0.3) * (Math.sin(t / 2300) > -0.97 ? 1 : 0.4);
-    // The door: glass with a push bar; open, the inside spills out.
-    if (room.doorOpen) { rect(ctx, P.fluoro[2], 156, 28, 40, 66); rect(ctx, P.fluoro[1], 156, 80, 40, 14); box(ctx, 156, 28, 8, 66, P.metal[2], { ink: 1, amp: 0.2 }); }
-    else { rect(ctx, P.fluoro[1], 156, 28, 40, 66); rect(ctx, P.fluoro[0], 156, 76, 40, 18); rect(ctx, P.metal[3], 160, 60, 32, 2.6); rect(ctx, P.ink, 160, 62.6, 32, 0.8); label(ctx, "PULL", 176, 54, { size: 5, color: P.a.red }); }
-    // Bell over the door.
-    oval(ctx, 176, 24, 2.2, 2, P.a.brass, true, 0.8);
-    // OPEN, in red neon tubes in the left window, and in the puddle.
+  // YOU, small, inside the lit store: no umbrella in here, still never a face.
+  function youInside(ctx, x, footY, o = {}) {
     ctx.save();
-    ctx.globalAlpha = 0.35 * flicker; ctx.lineJoin = "round";
-    ctx.font = "900 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center";
+    ctx.translate(x, footY); ctx.scale(0.5, 0.5);
+    rect(ctx, P.a.denim, -5, -34, 4, 32); rect(ctx, P.a.denim, 1, -34, 4, 32);
+    shape(ctx, [-11, -76, 10, -76, 13, -32, -13, -31], P.wood[2], { ink: 1.6, seed: 11, amp: 0.3 });
+    shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
+    // Back turned (at the counter), the head is only hair.
+    oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[1], true, 1.4);
+    oval(ctx, 0, -90, 6.4, 3.6, P.inkSoft);
+    if (o.back) { shape(ctx, [10, -74, 18, -62, 15, -60, 8, -70], P.wood[2], { ink: 1.1, amp: 0.2 }); }
+    ctx.restore();
+  }
+  function carDynamic(ctx, geo, s) {
+    const room = s.extras.room || {}, t = s.time, now = s.extras.sceneTime || 0, p = s.pos;
+    const flicker = s.reduced ? 1 : (Math.sin(t / 170) > -0.9 ? 1 : 0.3) * (Math.sin(t / 2300) > -0.97 ? 1 : 0.4);
+    // The store door, its bell, OPEN in neon (and in the puddle).
+    if (room.storeDoorOpen) { rect(ctx, P.fluoro[2], 156, 28, 40, 66); rect(ctx, P.fluoro[1], 156, 80, 40, 14); box(ctx, 156, 28, 8, 66, P.metal[2], { ink: 1, amp: 0.2 }); }
+    else { rect(ctx, P.fluoro[1], 156, 28, 40, 66); rect(ctx, P.fluoro[0], 156, 76, 40, 18); rect(ctx, P.metal[3], 160, 60, 32, 2.6); rect(ctx, P.ink, 160, 62.6, 32, 0.8); label(ctx, "PULL", 176, 54, { size: 5, color: P.a.red }); }
+    oval(ctx, 176, 24, 2.2, 2, P.a.brass, true, 0.8);
+    // YOU in the store: between the aisles, or at the counter with YOU's back to the window.
+    const you = room.youCounter ? { x: 296, visible: true, back: true } : room.you;
+    if (you?.visible) {
+      const window = you.x < 150 ? [30, 22, 112, 66] : [214, 22, 116, 66];
+      A.clip(ctx, window[0] + 1, window[1] + 1, window[2] - 2, window[3] - 2, () => youInside(ctx, you.x, 92, { back: you.back }));
+    }
+    ctx.save();
+    ctx.globalAlpha = 0.35 * flicker; ctx.font = "900 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center";
     ctx.strokeStyle = P.a.neon; ctx.lineWidth = 3; ctx.strokeText("OPEN", 72, 48);
     ctx.globalAlpha = flicker; ctx.fillStyle = "#ffd0d6"; ctx.fillText("OPEN", 72, 48);
-    ctx.globalAlpha = 0.85; rect(ctx, P.ink, 52, 51, 40, 1.2);
-    // Reflection, upside down and broken by ripples.
-    ctx.globalAlpha = 0.5 * flicker; ctx.fillStyle = P.a.neon;
-    for (let index = 0; index < 5; index += 1) { const wob = s.reduced ? 0 : Math.sin(t / 260 + index) * 1.4; ctx.fillRect(98 + index * 6 + wob, 179 + (index % 2), 4, 1.2); }
+    ctx.globalAlpha = 0.45 * flicker; ctx.fillStyle = P.a.neon;
+    for (let index = 0; index < 5; index += 1) { const wob = s.reduced ? 0 : Math.sin(t / 260 + index) * 1.4; ctx.fillRect(44 + index * 6 + wob, 211 + (index % 2), 4, 1.2); }
     ctx.restore();
-    // Awning drips.
-    if (!s.reduced) for (let x = 118, index = 0; x < 242; x += 13, index += 1) {
-      const k = ((t / 520) + index * 0.29) % 1;
-      rect(ctx, P.wet[3], x, 103 + k * 26, 0.9, 2.4);
-      if (k > 0.92) { ctx.strokeStyle = P.wet[3]; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.ellipse(x, 129, 3, 1.1, 0, 0, TAU); ctx.stroke(); }
+    if (!s.reduced) for (let x = 118, index = 0; x < 242; x += 13, index += 1) { const k = ((t / 520) + index * 0.29) % 1; rect(ctx, P.wet[3], x, 103 + k * 26, 0.9, 2.4); }
+    // Rain on the glass: drops landing, a few trails running; his breath fogs it where he presses close.
+    const glass = [[140, 177, 87, 21], [138, 328, 84, 18], [136, 204, 4, 120], [220, 204, 4, 120]];
+    for (const [gx, gy, gw, gh] of glass) {
+      const count = Math.round((gw * gh) / 70);
+      for (let index = 0; index < count; index += 1) {
+        const seed = index * 7.13 + gx;
+        const k = s.reduced ? 0.5 : ((t / 1400) + (Math.sin(seed) + 1) * 0.5) % 1;
+        const x = gx + ((Math.sin(seed * 3.1) + 1) / 2) * gw, y = gy + ((Math.sin(seed * 1.7) + 1) / 2) * gh;
+        alpha(ctx, (1 - k) * 0.8, () => rect(ctx, P.wet[3], x, y + (index % 4 === 0 ? k * 6 : 0), 0.9, index % 4 === 0 ? 2.2 + k * 3 : 0.9));
+      }
     }
-    // A car going by: its headlights slide over the wet road.
-    if (!s.reduced) {
-      const k = (t / 5200) % 1, carX = geo.w + 80 - k * (geo.w + 200);
-      alpha(ctx, 0.22, () => { shape(ctx, [carX - 10, 250, carX + 60, 244, carX + 60, 290, carX - 10, 282], P.fluoro[2], { ink: false }); });
+    if ((room.fog || 0) > 0.02) alpha(ctx, room.fog * 0.45, () => { oval(ctx, room.fogX || p.x, 190, 16, 7, P.paper[3]); oval(ctx, (room.fogX || p.x) - 4, 191, 9, 4, P.paper[3]); });
+    // The driver's door open (YOU going), the passenger door forced (them).
+    if (room.driverDoor) { rect(ctx, P.ink, 124, 206, 14, 60); ctx.save(); ctx.translate(124, 206); ctx.rotate(-0.85); box(ctx, -16, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); ctx.restore(); }
+    if (room.passengerDoor) {
+      const k = Math.min(1, (now - room.passengerDoor) / 260);
+      rect(ctx, P.ink, 222, 206, 14, 60);
+      ctx.save(); ctx.translate(236, 206); ctx.rotate(0.95 * k); box(ctx, 0, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); rect(ctx, P.wet[2], 2, 2, 3, 56); ctx.restore();
+      if (!s.reduced) alpha(ctx, 0.6, () => { for (let index = 0; index < 8; index += 1) { const y = 210 + ((t / 5 + index * 17) % 56); line(ctx, 238, y, 226, y + 4, P.wet[3], 0.8, index, 0); } });
     }
-    // The van's headlights, once it is here.
-    const vanActor = (s.extras.npcs || []).find(actor => actor.id === "van");
-    if (room.carLights && vanActor) alpha(ctx, 0.09, () => { shape(ctx, [vanActor.x - 76, vanActor.y - 32, vanActor.x - 190, vanActor.y - 70, vanActor.x - 190, vanActor.y + 20, vanActor.x - 76, vanActor.y - 22], P.fluoro[2], { ink: false }); });
+    // The dome light, when it is on.
+    if ((room.dome || 0) > 0.02) alpha(ctx, room.dome, () => { box(ctx, 174, 276, 12, 6, P.paper[3], { ink: 0.8, amp: 0.1 }); });
+    // Hands, reaching in through the forced door.
+    if (room.hands) {
+      const h = room.hands;
+      line(ctx, 250, 244, h.x + 4, h.y - 2, P.ink, 9, 3, 0.2); line(ctx, 250, 244, h.x + 4, h.y - 2, P.cloth[1], 6.4, 3, 0.2);
+      oval(ctx, h.x, h.y, 5.5, 4.5, P.cloth[0], true, 1.2);
+      for (let f = -2; f <= 2; f += 2) line(ctx, h.x - 2, h.y + f, h.x - 7, h.y + f * 1.4, P.ink, 1.6, f, 0);
+    }
+    // The pillowcase coming down over him.
+    if (room.bagAt != null) {
+      const k = Math.min(1, (now - room.bagAt) / 400);
+      const top = p.y - 40 + k * 26;
+      shape(ctx, [p.x - 15, top, p.x + 15, top - 2, p.x + 17, p.y + 8, p.x - 16, p.y + 9], P.a.white, { ink: 1.6, amp: 0.8 });
+      rect(ctx, P.a.denim, p.x - 14, top + 6, 28, 2);
+    }
   }
-  function curbLights(geo, s) {
-    const room = s.extras.room || {}, list = [
+  function carLights(geo, s) {
+    const room = s.extras.room || {}, now = s.extras.sceneTime || 0, list = [
       { x: 86, y: 100, r: 120, strength: 0.95, flat: 0.55 },
       { x: 272, y: 100, r: 124, strength: 0.95, flat: 0.55 },
       { x: 72, y: 60, r: 40, strength: 0.6, warm: 0.4 }
     ];
-    if (room.doorOpen) list.push({ x: 176, y: 100, r: 70, strength: 1 });
-    if (!s.reduced) { const k = (s.time / 5200) % 1; list.push({ x: geo.w + 100 - k * (geo.w + 200), y: 266, r: 70, strength: 0.7 }); }
+    if (room.storeDoorOpen) list.push({ x: 176, y: 100, r: 70, strength: 1 });
+    if (room.youCounter) list.push({ x: 296, y: 70, r: 50, strength: 0.6 });
+    if ((room.dome || 0) > 0.02) list.push({ x: 180, y: 268, r: 92, strength: 0.85 * room.dome, warm: 0.7 * room.dome });
+    // The little flame lights the ceiling.
+    if (room.flashAt != null && now - room.flashAt < 450) list.push({ x: 180, y: 262, r: 100, strength: 0.8 * (1 - (now - room.flashAt) / 450), warm: 0.8 });
+    // Headlights sweep the cabin left to right (with reduced motion: they brighten and fade).
+    if (room.sweepAt != null && now - room.sweepAt < 3200) {
+      const k = (now - room.sweepAt) / 3200;
+      if (s.reduced) list.push({ x: 180, y: 300, r: 150, strength: Math.sin(k * Math.PI) * 0.9 });
+      else list.push({ x: 90 + k * 200, y: 300 - Math.sin(k * Math.PI) * 30, r: 130, strength: 0.95 });
+    }
     const vanActor = (s.extras.npcs || []).find(actor => actor.id === "van");
-    if (room.carLights && vanActor) list.push({ x: vanActor.x - 130, y: vanActor.y - 20, r: 95, strength: 0.9 });
+    if (room.vanLights && vanActor) list.push({ x: vanActor.x + 110, y: vanActor.y - 26, r: 90, strength: 0.8 });
+    if (room.passengerDoor) list.push({ x: 238, y: 236, r: 46, strength: 0.4 });
     const small = (s.extras.npcs || []).find(actor => actor.kind === "hood-small");
-    if (small) list.push({ x: small.x + 17 * (small.face || 1), y: small.y - 50, r: 30, strength: 0.8 });
-    return { ambient: { color: [8, 11, 20], alpha: 0.5 }, list };
+    if (small) list.push({ x: small.x + 17 * (small.face || 1), y: small.y - 50, r: 28, strength: 0.7 });
+    return { ambient: { color: [8, 11, 20], alpha: 0.6 }, list };
   }
+
+  // ---- the sack: black, and his glow through the weave
+  function sackStatic(c, geo, m) { rect(c, P.void, -m.mx, -m.my, geo.w + m.mx * 2, geo.h + m.my * 2); }
+  function sackOver(ctx, geo, s) {
+    const room = s.extras.room || {}, now = s.extras.sceneTime || 0, p = s.pos, t = s.reduced ? 0 : s.time;
+    if (room.freedAt != null && now - room.freedAt > 300) return;
+    const burst = room.burstAt != null ? Math.max(0, 1 - (now - room.burstAt) / 300) : 0;
+    const dir = room.burstDir || { x: 0, y: -1 };
+    const tremble = s.reduced ? 0 : Math.sin(t / 37) * 0.8;
+    const bx = p.x + tremble + dir.x * burst * 5, by = p.y + dir.y * burst * 5;
+    ctx.save();
+    // Drawn large: on a phone the sack is the whole picture.
+    ctx.translate(bx, by); ctx.scale(1.9, 1.9); ctx.translate(-bx, -by);
+    const glow = ctx.createRadialGradient(bx, by - 4, 2, bx, by - 4, 30);
+    glow.addColorStop(0, "rgba(255,186,96,.95)"); glow.addColorStop(0.45, "rgba(196,104,44,.55)"); glow.addColorStop(1, "rgba(40,20,10,0)");
+    // The cloth: a pillowcase drawn tight around him, the open end twisted shut above.
+    const pts = [bx - 22, by + 14, bx - 24 - burst * 3 * Math.abs(dir.x), by - 10, bx - 14, by - 28, bx - 4, by - 34, bx + 4, by - 34, bx + 14, by - 28, bx + 24 + burst * 3 * Math.abs(dir.x), by - 10, bx + 22, by + 14];
+    shape(ctx, pts, "#2a1a10", { ink: 1.4, amp: 0.6, seed: 801 });
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.ellipse(bx, by - 6, 24, 24, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 0.3; ctx.strokeStyle = P.ink; ctx.lineWidth = 0.6;
+    for (let d = -24; d <= 24; d += 3) { ctx.beginPath(); ctx.moveTo(bx + d, by - 34); ctx.lineTo(bx + d, by + 14); ctx.stroke(); }
+    ctx.globalAlpha = 0.6; stitches(ctx, bx - 20, by + 12, bx + 20, by + 12, P.paper[1], 4, 1.6, 0.7);
+    ctx.globalAlpha = 1;
+    line(ctx, bx - 4, by - 34, bx + 4, by - 40, P.paper[1], 2.2, 3, 0.4);
+    ctx.restore();
+  }
+  function sackLights() { return { ambient: { color: [0, 0, 0], alpha: 0.96 }, list: [] }; }
 
   // ---- the van
   function vanStatic(c, geo) {
@@ -285,8 +405,9 @@
     rect(c, P.concrete[0], 150, 0, 48, geo.h);
     for (let index = 0; index < 900; index += 1) rect(c, random() < 0.5 ? P.concrete[1] : P.asphalt[1], 150 + random() * 48, random() * geo.h, 1.2, 1.2);
     alpha(c, 0.5, () => { rect(c, P.asphalt[0], 162, 0, 6, geo.h); rect(c, P.asphalt[0], 182, 0, 5, geo.h); });
-    // The embankment edge.
+    // The embankment edge, and the ditch along it: the darkest ground by the road.
     rect(c, P.grass[0], 0, 0, 22, geo.h); rect(c, P.grass[2], 21, 0, 1.4, geo.h);
+    alpha(c, 0.75, () => { rect(c, P.ink, 22, 26, 30, geo.h - 40); rect(c, P.grass[0], 50, 26, 3, geo.h - 40); });
     // The road itself, wet, the lamps smeared across it.
     A.asphalt(c, 206, T, R - 206, B - T, "road");
     rect(c, P.paper[2], 212, T, 2.2, B - T);
@@ -333,60 +454,137 @@
     alpha(c, 0.6, () => { for (let index = 0; index < 8; index += 1) rect(c, P.grass[3], 74 + index * 7, 26 + (index % 3) * 4, 5, 1.4); });
   }
   function roadDynamic(ctx, geo, s) {
+    const room = s.extras.room || {};
     const bowlProp = geo.props.find(prop => prop.id === "bowl-road");
     if (bowlProp) A.bowl(ctx, bowlProp.x, bowlProp.y, { water: true, t: s.reduced ? null : s.time });
+    // The dropped phone, face up in the grass.
+    const phone = room.phone;
+    if (phone) {
+      ctx.save(); ctx.translate(phone.x, phone.y); ctx.rotate(-0.3);
+      drop(ctx, 0, 4, 6, 2);
+      box(ctx, -3.5, -6, 7, 12, P.ink, { ink: 1, amp: 0.1 });
+      const lit = phone.state === "connected" || (phone.state === "ringing" && (phone.ringing || s.reduced));
+      rect(ctx, lit ? P.fluoro[2] : P.cloth[1], -2.5, -5, 5, 10);
+      ctx.restore();
+      if (phone.state === "ringing" && phone.ringing && !s.reduced) alpha(ctx, 0.5, () => { const k = (s.time / 500) % 1; ctx.strokeStyle = P.fluoro[2]; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.ellipse(phone.x, phone.y, 6 + k * 10, (6 + k * 10) * 0.5, 0, 0, TAU); ctx.stroke(); });
+    }
+    // A car on the road that is not YOU: a dark shape behind its own lights.
+    if (room.pass) {
+      const y = room.pass.y;
+      box(ctx, 236, y - 6, 30, 52, P.night[2], { ink: 1.4, amp: 0.2 });
+      rect(ctx, P.wet[1], 240, y + 4, 22, 10);
+      for (const x of [238, 258]) rect(ctx, P.fluoro[2], x, y - 6, 6, 3);
+      for (const x of [238, 258]) rect(ctx, P.a.red, x, y + 44, 6, 2);
+    }
+  }
+  // The search beam and a passing car's light read on top of the dark.
+  function roadOver(ctx, geo, s) {
+    const room = s.extras.room || {};
+    const beam = room.beam;
+    if (beam) {
+      const stopped = room.beamStop && (s.extras.sceneTime || 0) < room.beamStop.until;
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const grad = ctx.createRadialGradient(beam.x, beam.y, 4, beam.x, beam.y, beam.length);
+      grad.addColorStop(0, `rgba(255,250,228,${stopped ? 0.5 : 0.32})`); grad.addColorStop(1, "rgba(255,250,228,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(beam.x, beam.y); ctx.arc(beam.x, beam.y, beam.length, beam.angle - beam.half, beam.angle + beam.half); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      // Shadow keeps its edge even in the beam: the ditch and the lee of the posts stay dark.
+      alpha(ctx, 0.35, () => { for (const r of geo.hides || []) if (Math.hypot(r.x + r.w / 2 - beam.x, r.y + r.h / 2 - beam.y) < beam.length + 30) rect(ctx, P.ink, r.x, r.y, r.w, r.h); });
+      // The phone in his hand.
+      rect(ctx, P.fluoro[2], beam.x - 1.5, beam.y - 2, 3, 3);
+    }
+    if (room.pass && !s.reduced) {
+      const y = room.pass.y;
+      alpha(ctx, 0.18, () => shape(ctx, [236, y - 6, 268, y - 6, 300, y - 150, 190, y - 150], P.fluoro[2], { ink: false }));
+    }
   }
   function roadLights(geo, s) {
+    const room = s.extras.room || {};
     const list = (geo.lights || []).map(light => ({ x: light.x + 26, y: light.y + 2, r: 110, strength: 0.85, warm: 0.5, flat: 0.55 }));
     list.push({ x: 112, y: 590, r: 46, strength: 0.6 });
     list.push({ x: 100, y: 16, r: 44, strength: 0.4, warm: 0.6 });
-    for (const actor of s.extras.npcs || []) if (actor.kind === "taillights") list.push({ x: actor.x, y: actor.y, r: 50, strength: 0.6, warm: 0.3 });
-    return { ambient: { color: [5, 7, 12], alpha: 0.58 }, list };
+    for (const actor of s.extras.npcs || []) if (actor.kind === "taillights") list.push({ x: actor.x, y: actor.y, r: room.brake ? 70 : 50, strength: room.brake ? 0.8 : 0.6, warm: 0.3 });
+    if (room.beam) list.push({ x: room.beam.x, y: room.beam.y, r: room.beam.length, strength: 1, cone: { angle: room.beam.angle, half: room.beam.half } });
+    const phone = room.phone;
+    if (phone && (phone.state === "connected" || (phone.state === "ringing" && (phone.ringing || s.reduced)))) list.push({ x: phone.x, y: phone.y, r: 38, strength: 0.75 });
+    if (room.pass) list.push({ x: 251, y: room.pass.y - 40, r: 150, strength: 0.95, flat: 0.9 });
+    return { ambient: { color: [5, 7, 12], alpha: 0.6, shades: (geo.hides || []).map(r => ({ ...r, alpha: 0.18 })) }, list };
   }
 
-  // ---- the drain: shelter that stops being a city pipe
+  // ---- the drain: shelter that stops being a city pipe, then stops being a pipe
   function drainStatic(c, geo, m) {
     const L = -m.mx, R = geo.w + m.mx, T = -m.my, B = geo.h + m.my;
     rect(c, P.void, L, T, R - L, B - T);
-    // The channel floor: concrete near the mouth, brick further in, then something sewn.
     const random = rng("drain");
-    A.concrete(c, 42, 190, 156, 190, "drain-floor", { joint: 38 });
-    rect(c, P.plaster[1], 42, 0, 156, 190);
-    for (let y = 2, row = 0; y < 190; y += 7, row += 1) for (let x = 42 + (row % 2) * 6; x < 198; x += 12) rect(c, random() < 0.2 ? P.plaster[0] : P.plaster[2], x + 0.6, y + 0.6, 10.8, 5.8);
-    alpha(c, 0.8, () => { for (let y = 150; y < 200; y += 3) rect(c, P.concrete[1], 42, y, 156, (y - 150) / 20); });
-    // The trickle runs the wrong way: from the mouth inward.
-    A.trace(c, [120, 372, 118, 300, 122, 220, 117, 140, 121, 80], 7, 1, false); A.inkStroke(c, 3.4, P.wet[1]);
-    A.trace(c, [120, 372, 118, 300, 122, 220, 117, 140, 121, 80], 7, 1, false); A.inkStroke(c, 1, P.wet[2]);
+    // Concrete at the mouth.
+    A.concrete(c, 42, 500, 156, 260, "drain-floor", { joint: 38 });
+    // Then old brick, laid by hand, the courses not quite level.
+    rect(c, P.plaster[1], 42, 240, 156, 260);
+    for (let y = 242, row = 0; y < 500; y += 7, row += 1) for (let x = 42 + (row % 2) * 6; x < 198; x += 12) rect(c, random() < 0.2 ? P.plaster[0] : P.plaster[2], x + 0.6, y + 0.6 + Math.sin(x / 30 + row) * 0.6, 10.8, 5.8);
+    alpha(c, 0.8, () => { for (let y = 480; y < 520; y += 3) rect(c, P.concrete[1], 42, y, 156, (y - 480) / 14); });
+    // Then rock, older than any of it: the floor uneven, the light gone ochre.
+    rect(c, P.below[2], 62, 30, 116, 210);
+    for (let index = 0; index < 60; index += 1) { const x = 62 + random() * 116, y = 30 + random() * 210, r = 2 + random() * 5; oval(c, x, y, r, r * 0.6, random() < 0.5 ? P.below[3] : P.below[1]); }
+    alpha(c, 0.7, () => { for (let y = 226; y < 262; y += 3) rect(c, P.plaster[1], 62, y, 116, (y - 226) / 12); });
+    // The trickle runs the wrong way: from the mouth inward, all the way to the back.
+    const trickle = [120, 752, 118, 640, 122, 520, 117, 400, 121, 280, 116, 170, 122, 90];
+    A.trace(c, trickle, 7, 1, false); A.inkStroke(c, 3.4, P.wet[1]);
+    A.trace(c, trickle, 7, 1, false); A.inkStroke(c, 1, P.wet[2]);
     // Wet leaves and grit at the mouth.
-    for (let index = 0; index < 26; index += 1) { const x = 48 + random() * 144, y = 326 + random() * 48; shape(c, [x, y, x + 3, y - 1.6, x + 5, y + 0.6, x + 2, y + 1.6], random() < 0.5 ? P.wood[2] : P.grass[3], { ink: false, seed: index, amp: 0.3 }); }
-    // Walls: tall concrete, seen from above; a tag low down, moss, then roots.
+    for (let index = 0; index < 26; index += 1) { const x = 48 + random() * 144, y = 700 + random() * 48; shape(c, [x, y, x + 3, y - 1.6, x + 5, y + 0.6, x + 2, y + 1.6], random() < 0.5 ? P.wood[2] : P.grass[3], { ink: false, seed: index, amp: 0.3 }); }
+    // Walls: concrete with a tag and moss; brick with roots; then raw rock.
     for (const [x, edge] of [[0, 40.8], [198, 198]]) {
-      rect(c, P.concrete[1], x, 0, 42, geo.h); rect(c, P.concrete[2], edge, 0, 1.2, geo.h);
-      alpha(c, 0.6, () => { for (let y = 30; y < geo.h; y += 70) rect(c, P.grass[2], x + (x ? 2 : 32), y, 8, 26); });
+      rect(c, P.concrete[1], x, 500, 42, 260); rect(c, P.concrete[2], edge, 500, 1.2, 260);
+      rect(c, P.plaster[0], x, 240, 42, 260); rect(c, P.plaster[2], edge, 240, 1.2, 260);
+      for (let y = 244, row = 0; y < 500; y += 8, row += 1) rect(c, P.plaster[1], x + 2 + (row % 2) * 5, y, 36, 1);
+      alpha(c, 0.6, () => { for (let y = 520; y < 760; y += 70) rect(c, P.grass[2], x + (x ? 2 : 32), y, 8, 26); });
     }
-    alpha(c, 0.7, () => { A.trace(c, [8, 300, 18, 292, 26, 302, 34, 290], 1, 0.6, false); A.inkStroke(c, 1.6, P.a.umbrellaLight); });
-    for (let index = 0; index < 6; index += 1) { const y = 30 + index * 26; A.trace(c, [40, y, 52, y + 6, 58, y + 18], index, 1, false); A.inkStroke(c, 1, P.wood[1]); A.trace(c, [200, y + 12, 188, y + 20, 184, y + 30], index + 9, 1, false); A.inkStroke(c, 1, P.wood[1]); }
-    rect(c, P.concrete[0], 0, 0, geo.w, 22);
-    // The seams of the deep end are stitched, not mortared.
-    for (let index = 0; index < 5; index += 1) { const y = 20 + index * 30; stitches(c, 50, y, 190, y + 4, P.paper[1], 6, 1.6, 0.8); }
-    // The warm crack in the back wall.
-    shape(c, [98, 58, 112, 70, 120, 62, 130, 76, 144, 66, 138, 74, 128, 82, 118, 70, 106, 74], P.ember[1], { ink: 1.6, amp: 0.4 });
+    alpha(c, 0.7, () => { A.trace(c, [8, 660, 18, 652, 26, 662, 34, 650], 1, 0.6, false); A.inkStroke(c, 1.6, P.a.umbrellaLight); });
+    for (let index = 0; index < 6; index += 1) { const y = 260 + index * 36; A.trace(c, [40, y, 52, y + 6, 58, y + 18], index, 1, false); A.inkStroke(c, 1, P.wood[1]); A.trace(c, [200, y + 12, 188, y + 20, 184, y + 30], index + 9, 1, false); A.inkStroke(c, 1, P.wood[1]); }
+    // Where the brick ends the seams are stitched, not mortared.
+    for (let index = 0; index < 3; index += 1) { const y = 250 + index * 26; stitches(c, 50, y, 190, y + 4, P.paper[1], 6, 1.6, 0.8); }
+    for (const solid of geo.solids) {
+      if (solid.kind !== "rock") continue;
+      rect(c, P.below[1], solid.x, solid.y, solid.w, solid.h);
+      const rocks = rng(`rock${solid.id}`);
+      for (let index = 0; index < Math.max(3, (solid.w * solid.h) / 260); index += 1) {
+        const x = solid.x + rocks() * solid.w, y = solid.y + rocks() * solid.h, r = 4 + rocks() * 8;
+        shape(c, [x - r, y, x - r * 0.4, y - r * 0.8, x + r * 0.6, y - r * 0.6, x + r, y + r * 0.2, x + r * 0.2, y + r * 0.7], rocks() < 0.5 ? P.below[2] : P.below[3], { ink: 1, seed: index + solid.x, amp: 0.5 });
+      }
+    }
+    // The back: a slope of loose grit to a lip, and below the lip, nothing.
+    rect(c, P.void, 82, 30, 76, 18);
+    for (let index = 0; index < 30; index += 1) oval(c, 84 + random() * 72, 48 + random() * 26, 1.2, 0.8, P.below[3]);
+    line(c, 82, 48, 158, 47, P.ink, 1.6, 31, 0.8);
+    // The warm crack.
+    shape(c, [98, 34, 112, 40, 120, 34, 130, 42, 144, 36, 138, 41, 128, 46, 118, 40, 106, 42], P.ember[1], { ink: 1.6, amp: 0.4 });
     // A shopping-trolley wheel, the dry glove.
-    oval(c, 176, 344, 4, 4, P.metal[1], true, 1); oval(c, 176, 344, 1.4, 1.4, P.ink);
-    shape(c, [72, 302, 80, 297, 86, 300, 88, 306, 80, 309, 74, 307], P.wood[2], { ink: 1.1, amp: 0.3 }); for (const fx of [80, 83, 86]) line(c, fx, 298, fx + 2, 294, P.wood[2], 1.4, fx, 0.1);
+    oval(c, 176, 724, 4, 4, P.metal[1], true, 1); oval(c, 176, 724, 1.4, 1.4, P.ink);
+    shape(c, [72, 682, 80, 677, 86, 680, 88, 686, 80, 689, 74, 687], P.wood[2], { ink: 1.1, amp: 0.3 }); for (const fx of [80, 83, 86]) line(c, fx, 678, fx + 2, 674, P.wood[2], 1.4, fx, 0.1);
   }
   function drainDynamic(ctx, geo, s) {
-    const room = s.extras.room || {};
-    // Outside the mouth: rain, and the road's light.
-    rect(ctx, P.night[1], 42, 370, 156, 16);
+    const room = s.extras.room || {}, now = s.extras.sceneTime || 0;
+    rect(ctx, P.night[1], 42, 742, 156, 18);
     if (room.crack) {
-      const k = Math.min(1, (s.extras.sceneTime - room.crack) / 500), p = s.sim.player;
+      const k = Math.min(1, (now - room.crack) / 500), p = s.sim.player;
       for (let index = 0; index < 7; index += 1) { const a = (index / 7) * TAU + 0.3; line(ctx, p.x, p.y + 4, p.x + Math.cos(a) * 30 * k, p.y + 4 + Math.sin(a) * 16 * k, P.ink, 2, index, 1.5); }
     }
-    if (!s.reduced) { const k = (s.time / 1800) % 1; alpha(ctx, 0.5 * (1 - k), () => rect(ctx, P.ember[3], 121, 66 - k * 10, 1.2, 1.2)); }
+    // Grit trickling over the lip once he is on the slope.
+    if (room.trickleAt != null && !s.reduced) for (let index = 0; index < 5; index += 1) { const k = ((s.time / 700) + index / 5) % 1; rect(ctx, P.below[3], 96 + index * 12, 70 - k * 30, 1.2, 1.2); }
+    // Warm air from the dark: a shimmer at the edge of his light.
+    if (!s.reduced) for (let index = 0; index < 4; index += 1) { const k = ((s.time / 1800) + index / 4) % 1; alpha(ctx, 0.5 * (1 - k), () => rect(ctx, P.ember[3], 108 + index * 8, 46 - k * 14, 1.2, 1.2)); }
   }
   function drainLights(geo, s) {
-    return { ambient: { color: [4, 5, 8], alpha: 0.56 }, list: [{ x: 120, y: 380, r: 110, strength: 0.75 }, { x: 121, y: 70, r: 70, strength: 0.75, warm: 0.8 }] };
+    const room = s.extras.room || {}, now = s.extras.sceneTime || 0;
+    const list = [{ x: 120, y: 760, r: 110, strength: 0.75 }, { x: 121, y: 42, r: 60, strength: 0.55, warm: 0.9 }];
+    // Once: headlights on the road sweep in through the mouth.
+    if (room.sweepAt != null && now - room.sweepAt < 2600) {
+      const k = (now - room.sweepAt) / 2600;
+      list.push(s.reduced ? { x: 120, y: 690, r: 140, strength: Math.sin(k * Math.PI) * 0.8 } : { x: 60 + k * 120, y: 760 - Math.sin(k * Math.PI) * 160, r: 120, strength: 0.85 });
+    }
+    return { ambient: { color: [4, 5, 8], alpha: 0.62 }, list };
   }
 
   // ===================== BELOW =====================
@@ -749,7 +947,14 @@
   function belowLights(geo, s) {
     const sim = s.sim, list = [];
     let ambient = { color: [10, 7, 5], alpha: 0.5 };
-    if (geo.id === "slip") list.push({ x: 160, y: -40, r: 90, strength: 0.6, warm: 0.4 });
+    if (geo.id === "slip") {
+      // The Slip is dark: he finds it by his own light. Faint grey far above,
+      // where the rain light was; total black while he comes to.
+      const room = s.extras.room || {};
+      list.push({ x: 160, y: -40, r: 80, strength: 0.3 });
+      const waking = room.wakeAt != null && (s.extras.sceneTime || 0) - room.wakeAt < 4000;
+      ambient = { color: [4, 3, 3], alpha: waking ? 0.985 : 0.9 };
+    }
     if (geo.id === "hem") list.push({ x: 101, y: 30, r: 120, strength: 0.75, warm: 0.5 });
     if (geo.id === "clatter") { list.push({ x: 290, y: 40, r: 60, strength: 0.5, warm: 0.4 }); list.push({ x: 176, y: 90, r: 70, strength: 0.35 }); }
     if (geo.id === "queue") { list.push({ x: 123, y: 26, r: 90, strength: 0.65, warm: 0.4 }); list.push({ x: 160, y: 0, r: 40, strength: 0.4, warm: 0.6 }); }
@@ -771,9 +976,10 @@
   }
 
   const THEMES = {
-    curb: { paintStatic: curbStatic, paintDynamic: curbDynamic, lights: curbLights },
+    car: { paintStatic: carStatic, paintDynamic: carDynamic, lights: carLights },
+    sack: { paintStatic: sackStatic, paintOver: sackOver, lights: sackLights },
     van: { paintStatic: vanStatic, paintUnder: vanUnder, paintDynamic: vanDynamic, lights: vanLights, transparent: true },
-    road: { paintStatic: roadStatic, paintDynamic: roadDynamic, lights: roadLights },
+    road: { paintStatic: roadStatic, paintDynamic: roadDynamic, paintOver: roadOver, lights: roadLights },
     drain: { paintStatic: drainStatic, paintDynamic: drainDynamic, lights: drainLights }
   };
   const BELOW_THEME = { paintStatic: belowStatic, paintDynamic: belowDynamic, lights: belowLights };
@@ -784,6 +990,7 @@
     paintStatic: (c, geo, margin) => themeOf(geo).paintStatic(c, geo, margin),
     paintUnder: (ctx, geo, s) => themeOf(geo).paintUnder?.(ctx, geo, s),
     paintDynamic: (ctx, geo, s) => themeOf(geo).paintDynamic?.(ctx, geo, s),
+    paintOver: (ctx, geo, s) => themeOf(geo).paintOver?.(ctx, geo, s),
     lights: (geo, s) => themeOf(geo).lights(geo, s),
     transparent: geo => Boolean(themeOf(geo).transparent)
   });

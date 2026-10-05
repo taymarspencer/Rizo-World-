@@ -257,3 +257,48 @@ html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-lock
 .dungeon-pose.is-wet .mini-pet{filter:saturate(.8) brightness(.93) hue-rotate(-6deg)}
 .dungeon-pose.is-warm .mini-pet{filter:saturate(1.1) brightness(1.06)}
 .minigame-overlay.dungeon-reduced-motion .dungeon-pose{animation:none!important;scale:none!important}
+
+/* ===== v0.3 OPENING (presentation only; never delays control) ===== */
+/* Fear and comfort, in his body: pressed to the glass, pulled in, curled
+   small, leaning back from the dark, straining toward it, trembling, slipping,
+   scrambling, held, loosening by a fire. Each has a still version under reduced motion. */
+.dungeon-pose.pose-press-glass{--lean:-8deg;--sx:.94;--sy:1.08}
+.dungeon-pose.pose-pull-in{--sx:.86;--sy:.84;animation:dungeonPullIn .4s ease-out}
+.dungeon-pose.pose-curl{--sx:.9;--sy:.72;--lean:4deg}
+.dungeon-pose.pose-lean-back{--lean:-11deg;--sx:.92;--sy:.98}
+.dungeon-pose.pose-edge{--lean:9deg;--sx:1.04;--sy:.94;animation:dungeonShiver .12s linear infinite}
+.dungeon-pose.pose-tremble{--sx:.9;--sy:.84;animation:dungeonShiver .09s linear infinite}
+.dungeon-pose.pose-slip{animation:dungeonSlip .6s ease-in both}
+.dungeon-pose.pose-scramble{animation:dungeonScramble .5s ease-out}
+.dungeon-pose.pose-held{--sx:.88;--sy:1.1;animation:dungeonShiver .1s linear infinite;translate:0 -5px}
+.dungeon-pose.pose-loosen{--sx:1.06;--sy:.95;animation:dungeonLoosen 2.4s ease-in-out}
+.dungeon-pose.pose-watch{animation:dungeonLookBack 2.4s ease-in-out;--lean:-4deg}
+.dungeon-pose.in-sack,.dungeon-pose.is-gone{opacity:0;animation:none!important}
+@keyframes dungeonPullIn{from{scale:1.05 1.05}to{scale:1 1}}
+@keyframes dungeonSlip{0%{translate:0 0}40%{translate:0 -5px;transform:scaleX(var(--face)) rotate(-14deg)}100%{translate:0 -3px;transform:scaleX(var(--face)) rotate(-6deg) scale(.96,1)}}
+@keyframes dungeonScramble{0%{translate:0 -3px}40%{translate:0 2px;transform:scaleX(var(--face)) scale(1.08,.9)}100%{translate:0 0}}
+@keyframes dungeonLoosen{0%{scale:1 1;filter:none}50%{scale:1.04 .96;filter:brightness(1.12) saturate(1.1)}100%{scale:1 1;filter:none}}
+
+/* A thought: lowercase, small, beside him. No box, no name, no portrait. */
+.dungeon-thought{position:absolute;left:0;top:0;z-index:5;pointer-events:none;font:italic 500 13px/1 Georgia,"Times New Roman",serif;letter-spacing:.04em;color:#f6e7c8;text-shadow:0 0 6px rgba(255,170,80,.55),0 1px 0 #000;white-space:nowrap;transition:opacity .12s linear}
+.dungeon-thought[hidden]{display:none!important}
+
+/* The dropped phone's screen up close: CALLER_SYMBOL (placeholder) and, once connected, a timer. */
+.dungeon-phone{position:absolute;left:50%;top:34px;z-index:5;transform:translateX(-50%);pointer-events:none}
+.dungeon-phone[hidden]{display:none!important}
+.dungeon-phone-screen{display:grid;place-items:center;gap:4px;width:66px;height:104px;padding:10px 6px;box-sizing:border-box;border-radius:12px;border:3px solid #0b0b0c;background:linear-gradient(#22262b,#151719);box-shadow:0 0 0 1px rgba(233,223,199,.25),0 0 18px rgba(201,214,181,.25)}
+.dungeon-phone.is-ringing .dungeon-phone-screen{animation:dungeonRing 1s ease-in-out infinite}
+.dungeon-phone.is-connected .dungeon-phone-screen{box-shadow:0 0 0 1px rgba(233,223,199,.35),0 0 24px rgba(201,214,181,.4)}
+.dungeon-caller-symbol{width:34px;height:34px;display:block}
+.dungeon-phone-timer{font:700 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#c9d6b5;letter-spacing:.06em}
+@keyframes dungeonRing{0%,100%{transform:rotate(0)}10%{transform:rotate(-4deg)}20%{transform:rotate(4deg)}30%{transform:rotate(-3deg)}40%{transform:rotate(0)}}
+
+/* The fall's flame streak and glimpses sit above the black. */
+.dungeon-fallfx{position:absolute;left:0;top:0;z-index:4;pointer-events:none}
+
+/* A bubble from somebody off screen waits at the nearest edge, dashed. */
+.dungeon-bark.is-edge{border-style:dashed;opacity:.94}
+
+.minigame-overlay.dungeon-reduced-motion .dungeon-phone-screen,.minigame-overlay.dungeon-reduced-motion .dungeon-thought{animation:none!important;transition:none!important}
+/* A line that would cover the Rizo moves to the top of the screen. */
+.dungeon-dialogue.at-top{top:30px;bottom:auto}
