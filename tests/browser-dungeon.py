@@ -772,9 +772,13 @@ with sync_playwright() as p:
     check("no HOME banner appears on its own, not in the fall or the black", not banner_seen)
 
     # ---- Scene 14 · Awakening
-    page.wait_for_timeout(2600)
+    for _ in range(200):
+        if op(page).get("wakeAt") is not None: break
+        page.wait_for_timeout(50)
     st = page.evaluate(ST)
-    check("14.1: total black first, then a pinprick of his flame (presentation only: Flame stays full)", st["actorLight"] < 0.5 and st["sim"]["player"]["flame"] == 5 and st["shell"] == "locked", str((st["actorLight"], st["sim"]["player"]["flame"])))
+    t_wake = st["sceneTime"] - st["opening"]["wakeAt"]
+    expected = 0 if t_wake < 1000 else 0.12 + 0.88 * (1 - (1 - min(1, (t_wake - 1000) / 10000)) ** 2)
+    check("14.1: total black first, then a pinprick of his flame (presentation only: Flame stays full)", abs(st["actorLight"] - expected) < 0.06 and st["actorLight"] < 0.5 and st["sim"]["player"]["flame"] == 5 and st["shell"] == "locked", str((t_wake, st["actorLight"], st["sim"]["player"]["flame"])))
     hold(page, "a", 150); page.wait_for_timeout(200)
     check("input before 4 s does not wake him", page.evaluate(ST)["pose"] == "lying")
     page.wait_for_timeout(3800)
