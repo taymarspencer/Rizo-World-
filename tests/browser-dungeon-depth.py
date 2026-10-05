@@ -132,6 +132,12 @@ def play_van(page, viewport_name=None, until_quiet=False):
             samples[-1]["shot"] = True
             samples[-1]["inside"] = bark_inside(page)
             shot(page, f"van-quiet-{viewport_name}")
+        if st["depth"]["hush"] == "wipers" and not any("prompt_hidden" in s for s in samples):
+            # Step right up to the window while the cabin is quiet: nothing should ask to be pressed.
+            tp(page, 128, 66)
+            page.wait_for_timeout(90)
+            samples[-1]["prompt_hidden"] = page.evaluate("document.querySelector('.dungeon-prompt').hidden")
+            tp(page, 80, 98)
         if samples[-1]["loose"] or (until_quiet and samples[-1].get("shot")):
             break
     return samples
@@ -185,6 +191,7 @@ with sync_playwright() as pw:
     check("“It's listening.”: everyone turns to him, and he stares back, in rain only",
           stare > capped >= 0 and all(a["state"] == "stare" for a in samples[stare]["depth"]["actors"] if a["id"] in seated) and samples[stare]["pose"] == "stare" and samples[stare]["depth"]["hush"] == "rain", (capped, stare))
     loose = samples[-1]
+    check("while the cabin is quiet, no prompt competes with it (even beside the window)", any(s.get("prompt_hidden") is True for s in samples), [s.get("prompt_hidden") for s in samples if "prompt_hidden" in s])
     check("then the door comes loose and the road is back under everything", loose["loose"] and loose["depth"]["hush"] is None and loose["music"] == "dungeon-van", (loose["loose"], loose["depth"]["hush"], loose["music"]))
     check("quiet lines stay inside the screen (390)", any(s.get("inside") for s in samples), [s.get("inside") for s in samples if s.get("shot")])
     check("no page errors in the van", not errors, errors[:3])
@@ -230,6 +237,25 @@ with sync_playwright() as pw:
     check("the Porter's hall tolls (and its danger layer can rise)", state(page)["music"] == "dungeon-porter", state(page)["music"])
     goto(page, "porter", "porter-entry", {"porterDown": True, "latchFreed": True, "sharedRest": True, "seatChosen": True})
     check("after the Porter: the Rows are heard faintly through the open door", state(page)["music"] == "dungeon-rows-far", state(page)["music"])
+
+    # ================= ONE MOTIF THAT COMES BACK =================
+    motif = [64, 67, 69, 72, 67]
+    track = lambda tid, start, count: page.evaluate("([i,f,c])=>RizoRuntimeQA.dungeonTrackForQA(i,f,c)", [tid, start, count])
+    before_home = [n["note"] for n in track("dungeon-hearth", 48, 16) if n["type"] == "triangle"]
+    goto(page, "slip", None, {})
+    tp(page, 160, 54)
+    page.wait_for_timeout(150)
+    page.keyboard.press("z")
+    page.wait_for_timeout(300)
+    close_dialogue(page)
+    st = state(page)
+    check("reading HOME ↑ is what lets its motif come back", st["depth"]["home"] is True and "home-sign" in st["data"]["journal"]["discoveredEntryIds"], (st["depth"]["home"],))
+    quote = [n["note"] for n in track("dungeon-hearth", 48, 16) if n["type"] == "triangle"]
+    lullaby = [n["note"] for n in track("dungeon-hearth", 0, 16) if n["type"] == "triangle"]
+    check("…as the Shared Hearth's lullaby every fourth phrase (an octave down), and not before it is known",
+          quote == [m - 12 for m in motif] and lullaby != quote and before_home == lullaby, (quote, lullaby, before_home))
+    echo = [n for n in track("dungeon-below", 112, 4) if n["type"] == "triangle" and n["note"] in motif]
+    check("…and faintly in the music Below, now and then", echo and all(n["volume"] < 0.012 for n in echo), echo)
 
     # ================= DANGER, FEAR AND RELIEF (Below) =================
     goto(page, "clatter")

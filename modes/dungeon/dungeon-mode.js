@@ -64,7 +64,8 @@
   // The emotional state the adaptive tracks read. One Dungeon runs at a time;
   // the live instance writes it each frame (presentation only, never saved).
   //   danger 0..1: something below is aware of him, or committing to him.
-  const MOOD = { danger: 0 };
+  //   home: HOME ↑ has been read, so its motif may come back (faintly) below.
+  const MOOD = { danger: 0, home: false };
   // States in which something is about to happen to him.
   const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep"]);
   // Danger is restrained: a low pulse under whatever is playing, then a tick
@@ -77,6 +78,9 @@
     const lead = DUNGEON_LEAD[step % DUNGEON_LEAD.length], bass = DUNGEON_BASS[step % DUNGEON_BASS.length];
     if (lead != null) play(lead, 0.63, 0.026, 0, "sine");
     if (bass != null) play(bass, 1.28, 0.018, 0, "triangle");
+    // Once HOME ↑ is known, now and then the first of its notes, far off, when nothing is near.
+    const echo = step % 128 - 112;
+    if (MOOD.home && MOOD.danger < 0.2 && echo >= 0 && echo < 4 && HOME_MOTIF[echo] != null) play(HOME_MOTIF[echo], 1.1, 0.008, 0, "triangle");
     dangerLayer(step, play);
   }
   const DUNGEON_TRACK = Object.freeze({ id: "dungeon-below", tempo: 880, lead: DUNGEON_LEAD, bass: DUNGEON_BASS, wave: "sine", beat: belowBeat });
@@ -89,7 +93,13 @@
   // The Shared Hearth: the only lullaby below. Slow, close, warm.
   const HEARTH_LEAD = [60, null, null, 64, null, null, 67, null, 65, null, null, 64, null, null, null, null], HEARTH_BASS = [36, null, null, null, 41, null, null, null];
   const HEARTH_TRACK = Object.freeze({ id: "dungeon-hearth", tempo: 980, lead: HEARTH_LEAD, bass: HEARTH_BASS, wave: "triangle",
-    beat(step, play) { const lead = HEARTH_LEAD[step % 16], bass = HEARTH_BASS[step % 8]; if (lead != null) play(lead, 0.95, 0.019, 0, "triangle"); if (bass != null) play(bass, 1.7, 0.015, 0, "sine"); } });
+    beat(step, play) {
+      // Every fourth phrase, once he knows it, the lullaby turns into HOME ↑'s motif, an octave down.
+      const quote = MOOD.home && step % 64 >= 48, motif = HOME_MOTIF[step % 16];
+      const lead = quote ? (motif != null ? motif - 12 : null) : HEARTH_LEAD[step % 16], bass = HEARTH_BASS[step % 8];
+      if (lead != null) play(lead, quote ? 1.4 : 0.95, quote ? 0.016 : 0.019, 0, "triangle");
+      if (bass != null) play(bass, 1.7, 0.015, 0, "sine");
+    } });
   // The Night Porter's hall: a tolling key-bell and a held breath.
   const PORTER_TRACK = Object.freeze({ id: "dungeon-porter", tempo: 640, lead: [null], bass: [null], wave: "sine",
     beat(step, play) { if (step % 8 === 0) play(31, 2.4, 0.022, 0, "triangle"); if (step % 8 === 4) play(30, 1.3, 0.011, 0, "triangle"); if (step % 16 === 10) play(55, 0.5, 0.009, 0, "sine"); dangerLayer(step, play); } });
@@ -616,6 +626,7 @@
       const track = logic?.music ? logic.music(context) : Content.isOpening(roomId) ? STREET_TRACK : DUNGEON_TRACK;
       if (track) setMusic(track);
       syncWear();
+      MOOD.home = Boolean(data?.journal?.discoveredEntryIds?.includes("home-sign"));
       const enter = logic?.enter;
       if (enter) enter(context);
       showResumeAck();
@@ -2012,7 +2023,7 @@
       if (id === "you") { youReact("approach"); return; }
       if (id === "store-window") room.seenYou = true;
       // HOME ↑, found by his own light: only now does a new motif enter, and the music below returns.
-      if (id === "home-sign" && first) { room.motifAt = sceneTime; setMusic(HOME_TRACK); }
+      if (id === "home-sign" && first) { room.motifAt = sceneTime; MOOD.home = true; setMusic(HOME_TRACK); }
       if (kind === "npc") return talkToLatch();
       if (kind === "bowl") return coldBowl();
       if (kind === "lever") return pullLever();
@@ -2441,7 +2452,8 @@
       const alpha = Math.max(0, Math.min(1, acc / Core.STEP_MS));
       const pos = { x: prev.x + (sim.player.x - prev.x) * alpha, y: prev.y + (sim.player.y - prev.y) * alpha };
       const g = geo();
-      let target = ui === "play" && !thoughtNow() ? Core.focusTarget(sim) : null;
+      // While a thought is up, or the van has gone quiet, no prompt competes with it.
+      let target = ui === "play" && !thoughtNow() && !room.hush ? Core.focusTarget(sim) : null;
       if (!target && ui === "play" && phoneNear()) target = { x: room.phone.x, y: room.phone.y, r: 3, prompt: "LOOK" };
       view.render(sim, pos, time, dt / 1000, {
         npcs: [...npcs.values()].filter(actor => actor.visible),
@@ -2716,7 +2728,7 @@
         actorMarkup: view?.el.pose.innerHTML.length || 0,
         dialogue: dialogueState ? { index: dialogueState.index, shown: dialogueState.shown, lines: dialogueState.lines.length, speaker: dialogueState.lines[dialogueState.index].speaker, expr: dialogueState.lines[dialogueState.index].expr, text: dialogueState.lines[dialogueState.index].text } : null,
         barks: barks.map(entry => ({ id: entry.id, text: entry.text, quiet: Boolean(entry.quiet) })),
-        depth: { mood: room.mood && sceneTime - room.mood.at <= room.mood.ms ? room.mood.kind : null, danger: Math.round(MOOD.danger * 100) / 100, hush: room.hush ?? null, noticed: [...noticed], beckonAt: room.beckonAt ?? null, firstLookAt: room.firstLookAt ?? null, still: stillFor, facing: sim ? { x: sim.player.fx, y: sim.player.fy } : null, actors: [...npcs.values()].filter(actor => actor.visible).map(actor => ({ id: actor.id, state: actor.state, face: actor.face })) },
+        depth: { mood: room.mood && sceneTime - room.mood.at <= room.mood.ms ? room.mood.kind : null, danger: Math.round(MOOD.danger * 100) / 100, home: MOOD.home, hush: room.hush ?? null, noticed: [...noticed], beckonAt: room.beckonAt ?? null, firstLookAt: room.firstLookAt ?? null, still: stillFor, facing: sim ? { x: sim.player.fx, y: sim.player.fy } : null, actors: [...npcs.values()].filter(actor => actor.visible).map(actor => ({ id: actor.id, state: actor.state, face: actor.face })) },
         sceneTime, silent: sceneTime < silentUntil, fade: sceneFade.value, impactAt: room.impactAt ?? null,
         music: musicId, transient: { ...transient }, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
         opening: openingQA(),
@@ -2831,7 +2843,15 @@
       dungeonCompleteFixtureForQA: options => need().qaCompleteFixture(options),
       dungeonRetryPendingForQA: () => need().qaRetryPending(),
       dungeonProofHomeForQA: () => need().qaProofHome(),
-      dungeonSummaryForQA: () => Modes.summary(MODE_ID)
+      dungeonSummaryForQA: () => Modes.summary(MODE_ID),
+      // The notes an adaptive track would play over some steps, as data (no sound).
+      dungeonTrackForQA: (id, from = 0, count = 16) => {
+        const track = [DUNGEON_TRACK, VAN_TRACK, DRAIN_TRACK, HEARTH_TRACK, PORTER_TRACK, HOME_TRACK].find(item => item.id === id);
+        if (!track) return null;
+        const notes = [];
+        for (let step = from; step < from + count; step += 1) track.beat(step, (note, duration, volume, delay, type) => notes.push({ step, note, volume, type }));
+        return notes;
+      }
     };
   }
 
