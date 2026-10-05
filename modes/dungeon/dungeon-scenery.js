@@ -193,10 +193,17 @@
     rect(ctx, P.a.denim, -5, -34, 4, 32); rect(ctx, P.a.denim, 1, -34, 4, 32);
     shape(ctx, [-11, -76, 10, -76, 13, -32, -13, -31], P.wood[2], { ink: 1.6, seed: 11, amp: 0.3 });
     shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
-    // Back turned (at the counter), the head is only hair.
-    oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[1], true, 1.4);
+    // Back turned (at the counter), the head is only hair. Never a face: facing out, it stays in shadow.
+    oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[0], true, 1.4);
     oval(ctx, 0, -90, 6.4, 3.6, P.inkSoft);
+    if (!o.back) { ctx.globalAlpha = 0.6; oval(ctx, 0, -85, 6, 4, P.ink); ctx.globalAlpha = 1; }
     if (o.back) { shape(ctx, [10, -74, 18, -62, 15, -60, 8, -70], P.wood[2], { ink: 1.1, amp: 0.2 }); }
+    // Checking on the car: one hand up, a small wave.
+    if (o.wave) {
+      const w = Math.sin((o.t || 0) / 140) * 4;
+      shape(ctx, [8, -72, 13, -74, 16 + w * 0.3, -96, 11 + w * 0.3, -97], P.wood[2], { ink: 1.2, amp: 0.2 });
+      oval(ctx, 14 + w, -101, 3.4, 3.6, P.skin[1], true, 1.1);
+    }
     ctx.restore();
   }
   function carDynamic(ctx, geo, s) {
@@ -210,7 +217,7 @@
     const you = room.youCounter ? { x: 296, visible: true, back: true } : room.you;
     if (you?.visible) {
       const window = you.x < 150 ? [30, 22, 112, 66] : [214, 22, 116, 66];
-      A.clip(ctx, window[0] + 1, window[1] + 1, window[2] - 2, window[3] - 2, () => youInside(ctx, you.x, 92, { back: you.back }));
+      A.clip(ctx, window[0] + 1, window[1] + 1, window[2] - 2, window[3] - 2, () => youInside(ctx, you.x, 92, { back: you.back, wave: you.wave, t: s.reduced ? 0 : t }));
     }
     ctx.save();
     ctx.globalAlpha = 0.35 * flicker; ctx.font = "900 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center";
@@ -232,6 +239,15 @@
       }
     }
     if ((room.fog || 0) > 0.02) alpha(ctx, room.fog * 0.45, () => { oval(ctx, room.fogX || p.x, 190, 16, 7, P.paper[3]); oval(ctx, (room.fogX || p.x) - 4, 191, 9, 4, P.paper[3]); });
+    // YOU's blue umbrella, leaning by the driver's door until YOU takes it.
+    if (!room.youOut) {
+      ctx.save(); ctx.translate(141, 288); ctx.rotate(-0.12);
+      box(ctx, -2.6, -34, 5.2, 34, P.a.umbrella, { ink: 1.2, amp: 0.2 });
+      rect(ctx, P.a.umbrellaLight, -1.6, -32, 1.4, 28);
+      line(ctx, 0, -34, 0, -40, P.ink, 1.2);
+      ctx.strokeStyle = P.ink; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(2.6, 2, 2.6, Math.PI, 0, true); ctx.stroke();
+      ctx.restore();
+    }
     // The driver's door open (YOU going), the passenger door forced (them).
     if (room.driverDoor) { rect(ctx, P.ink, 124, 206, 14, 60); ctx.save(); ctx.translate(124, 206); ctx.rotate(-0.85); box(ctx, -16, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); ctx.restore(); }
     if (room.passengerDoor) {
@@ -298,8 +314,15 @@
     glow.addColorStop(0, "rgba(255,186,96,.95)"); glow.addColorStop(0.45, "rgba(196,104,44,.55)"); glow.addColorStop(1, "rgba(40,20,10,0)");
     // The cloth: a pillowcase drawn tight around him, the open end twisted shut above.
     const pts = [bx - 22, by + 14, bx - 24 - burst * 3 * Math.abs(dir.x), by - 10, bx - 14, by - 28, bx - 4, by - 34, bx + 4, by - 34, bx + 14, by - 28, bx + 24 + burst * 3 * Math.abs(dir.x), by - 10, bx + 22, by + 14];
-    shape(ctx, pts, "#2a1a10", { ink: 1.4, amp: 0.6, seed: 801 });
+    shape(ctx, pts, "#3b2717", { ink: 1.6, amp: 0.6, seed: 801 });
+    ctx.save(); ctx.globalCompositeOperation = "screen";
     ctx.fillStyle = glow; ctx.beginPath(); ctx.ellipse(bx, by - 6, 24, 24, 0, 0, TAU); ctx.fill();
+    // His shape pressing the cloth from inside: a flame's outline, brighter.
+    ctx.fillStyle = "rgba(255,214,140,.55)";
+    ctx.beginPath(); ctx.moveTo(bx - 9, by + 8); ctx.quadraticCurveTo(bx - 11, by - 8, bx - 1, by - 22 - burst * 4); ctx.quadraticCurveTo(bx + 11, by - 8, bx + 9, by + 8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // Folds catching the light at the edges.
+    ctx.globalAlpha = 0.5; line(ctx, bx - 18, by - 14, bx - 13, by + 10, P.paper[1], 1, 5, 0.6); line(ctx, bx + 17, by - 12, bx + 12, by + 10, P.paper[1], 1, 6, 0.6); ctx.globalAlpha = 1;
     ctx.globalAlpha = 0.3; ctx.strokeStyle = P.ink; ctx.lineWidth = 0.6;
     for (let d = -24; d <= 24; d += 3) { ctx.beginPath(); ctx.moveTo(bx + d, by - 34); ctx.lineTo(bx + d, by + 14); ctx.stroke(); }
     ctx.globalAlpha = 0.6; stitches(ctx, bx - 20, by + 12, bx + 20, by + 12, P.paper[1], 4, 1.6, 0.7);

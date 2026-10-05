@@ -39,7 +39,9 @@
   // CALLER_SYMBOL: PLACEHOLDER ONLY. The real glyph is an owner/art decision
   // (narrative package v0.3 §3.6). This deliberately neutral dashed frame is
   // not a letter, face, mark or the Rizo blue; replace this one function.
-  const callerSymbol = () => `<svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-placeholder="true" viewBox="0 0 40 40" aria-hidden="true"><rect x="9" y="9" width="22" height="22" rx="2" fill="none" stroke="#c9c4b8" stroke-width="2.4" stroke-dasharray="4 3"/></svg>`;
+  // On a phone lying in the rain it is seen through water on the glass, so the
+  // placeholder reads as a real screen, not a missing image.
+  const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-placeholder="true" viewBox="0 0 40 40" aria-hidden="true"><rect x="10" y="10" width="20" height="20" rx="4" fill="#d9d4c6"/></svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
   function deviceMarkup() {

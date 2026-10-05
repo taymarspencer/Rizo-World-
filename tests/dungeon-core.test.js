@@ -44,7 +44,7 @@ test("content is frozen: the opening plus the six stable Threshold rooms, all re
   assert.ok(Object.isFrozen(Content.ROOMS.clatter.solids[0]));
   assert.deepStrictEqual(Content.ROOM_IDS, ["slip", "clatter", "hem", "hearth", "queue", "porter"]);
   assert.deepStrictEqual(Content.OPENING_ROOMS, ["car", "sack", "van", "roadside", "drain"]);
-  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v2");
+  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v3");
   assert.strictEqual(Content.ROOMS.curb, undefined, "the curb is gone: the car replaced it");
   for (const [id, room] of Object.entries(Content.ROOMS)) {
     for (const [name, anchor] of Object.entries(room.anchors)) {
@@ -382,7 +382,7 @@ test("a new campaign binds the pet, starts in the parked car and stays small", (
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
   assert.strictEqual(data.campaign.petId, "PET-1");
   assert.strictEqual(data.campaign.kind, "proof");
-  assert.strictEqual(data.campaign.contentRevision, "threshold-v2");
+  assert.strictEqual(data.campaign.contentRevision, "threshold-v3");
   assert.deepStrictEqual(data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
   assert.strictEqual(data.proofComplete, false);
   assert.strictEqual(data.storyComplete, false);
@@ -447,7 +447,12 @@ test("summary publishes only labels and a journey; never ENDLESS/energy", () => 
   data.world.visitedRooms.push("slip", "clatter");
   assert.strictEqual(D.summary(data).bestLabel, "ROOM 2/6");
   data.proofComplete = true;
-  assert.strictEqual(D.summary(data).bestLabel, "HOME");
+  assert.strictEqual(D.summary(data).bestLabel, "ROOM 2/6", "the First Knot alone is not home: the campaign goes on");
+  assert.deepStrictEqual(D.summary(data).badge, { text: "KNOT", title: "Carries Latch's First Knot" });
+  data.world.visitedRooms.push("receiving", "drytable");
+  assert.strictEqual(D.summary(data).bestLabel, "ROWS 2/10");
+  data.campaign.status = "complete";
+  assert.strictEqual(D.summary(data).bestLabel, "HOME", "a proof journey that walked home stays complete");
 });
 
 
@@ -601,7 +606,7 @@ test("a Gate 1 review campaign is carried into The Threshold explicitly", () => 
   assert.strictEqual(result.status, "migrated");
   assert.strictEqual(result.data.campaign.id, "threshold-old123");
   assert.strictEqual(result.data.campaign.petId, "PET-1");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v2");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
   assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
   assert.deepStrictEqual(result.data.journal.discoveredEntryIds, ["ticket-stub"]);
   assert.strictEqual(result.data.continuation.roomId, "car");
@@ -636,7 +641,7 @@ test("an RC2 journey still at the curb becomes the same journey in the car, noth
   assert.strictEqual(result.status, "migrated");
   assert.deepStrictEqual(result.notes, ["migrated-from-v1"]);
   assert.strictEqual(result.data.campaign.id, "threshold-rc2abc");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v2");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
   assert.deepStrictEqual(result.data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
   assert.deepStrictEqual(result.data.world.visitedRooms, ["car"]);
   assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
@@ -685,11 +690,62 @@ test("callerConnected is the one new opening fact: allowlisted, persisted, never
   assert.deepStrictEqual(D.normalizeSlice(v1Save()).data.story.facts, {}, "a migrated RC2 save gets no phone fact");
 });
 test("a newer revision is still preserved untouched; a v1 save is never mistaken for one", () => {
-  const future = v1Save(data => { data.campaign.contentRevision = "threshold-v3"; });
+  const future = v1Save(data => { data.campaign.contentRevision = "threshold-v9"; });
   assert.strictEqual(D.normalizeSlice(future).status, "unsupported");
   assert.deepStrictEqual(D.normalizeSlice(future).data, future);
   const badId = v1Save(data => { data.campaign.id = "not-a-threshold"; });
   assert.strictEqual(D.normalizeSlice(badId).status, "unsupported");
+});
+
+// ---------- Chapter 1: Mending Rows ----------
+test("the Porter's door now opens into the Mending Rows, and the rows connect both ways", () => {
+  const door = D.room("porter").exits.find(exit => exit.id === "porter-to-rows");
+  assert.deepStrictEqual([door.to, door.anchor, door.openWhen], ["receiving", "receiving-entry", "porterDown"]);
+  assert.ok(!D.room("porter").exits.some(exit => exit.to === "home"), "no shortcut home from the proof door any more");
+  const links = new Set();
+  for (const room of Object.values(Content.ROOMS)) for (const exit of room.exits) links.add(`${room.id}>${exit.to}`);
+  for (const [a, b] of [["porter", "receiving"], ["receiving", "drytable"], ["drytable", "hangrow"], ["hangrow", "lowrun"], ["lowrun", "eyelet"], ["eyelet", "traypass"], ["traypass", "drytable"], ["eyelet", "press"], ["press", "upper"], ["upper", "stair"], ["stair", "drytable"], ["drytable", "windowgate"]]) {
+    assert.ok(links.has(`${a}>${b}`) && links.has(`${b}>${a}`), `${a} <-> ${b}`);
+  }
+});
+test("each Rows route opens through work, never through affection", () => {
+  const gated = (roomId, exitId) => D.room(roomId).exits.find(exit => exit.id === exitId).openWhen;
+  assert.strictEqual(gated("drytable", "table-to-rows"), "rowsCatch");
+  assert.strictEqual(gated("hangrow", "rows-to-lowrun"), "rowsLowRoute");
+  assert.strictEqual(gated("eyelet", "eyelet-to-tray"), "rowsGrille");
+  assert.strictEqual(gated("eyelet", "eyelet-to-press"), "rowsPressOpen");
+  assert.strictEqual(gated("press", "press-to-upper"), "rowsShutter");
+  assert.strictEqual(gated("upper", "upper-to-stair"), "rowsStair");
+  assert.strictEqual(gated("drytable", "table-to-window"), "rowsShutter");
+  for (const flag of ["rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair"]) assert.ok(Content.ROOM_FLAGS.includes(flag) && Content.FLAGS.includes(flag), flag);
+  const sim = D.createSim({ roomId: "drytable" });
+  run(sim, 3000, { moveY: -1, moveX: 1 });
+  assert.ok(sim.player.y > 20, "the onward doorway is blocked by the drying load until the shutter is done");
+  assert.strictEqual(D.room("drytable").hearth.id, "rows-stove");
+});
+test("a threshold-v2 journey is carried into v3 untouched (rooms and facts were only added)", () => {
+  const data = D.newCampaign({ pet, id: "threshold-v2abcd" });
+  data.campaign.contentRevision = "threshold-v2";
+  data.world.visitedRooms = ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth", "queue", "porter"];
+  data.story.facts = { callerConnected: true, sharedRest: true, seatChosen: true, porterHelp: true };
+  data.story.choices = { "hearth-seat": "sit" };
+  data.world.durableRoomFlags = { latchFreed: true, porterDown: true, alcoveOpen: true };
+  data.story.committedSceneBeats = ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home", "knot-gift:granted"];
+  data.continuation = { roomId: "porter", safeAnchorId: "porter-entry", roomEntryFlame: 5, resumeKind: "boss" };
+  data.proofComplete = true; data.campaign.status = "homecoming-ready";
+  const result = D.normalizeSlice(clone(data));
+  assert.strictEqual(result.status, "migrated");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
+  for (const key of ["world", "story", "continuation", "checkpoint", "npcs", "journal", "pendingRewards", "proofComplete"]) assert.deepStrictEqual(result.data[key], clone(data)[key], key);
+});
+test("Rows choices are allowlisted with their exact values; anything else is dropped", () => {
+  const data = D.newCampaign({ pet, id: "threshold-abc123" });
+  data.story.choices = { "hearth-seat": "sit", "rows-meal": "sit", "rows-wrap": "worn", "rows-trust": "high", "rows-wrap-2": "folded" };
+  assert.deepStrictEqual(D.normalizeSlice(data).data.story.choices, { "hearth-seat": "sit", "rows-meal": "sit", "rows-wrap": "worn" });
+  data.story.choices = { "rows-wrap": "burned", "rows-meal": "go" };
+  assert.deepStrictEqual(D.normalizeSlice(data).data.story.choices, { "rows-meal": "go" });
+  data.story.facts = { rowsLatchHelped: true, rowsChalk: true, rowsFriend: true };
+  assert.deepStrictEqual(D.normalizeSlice(data).data.story.facts, { rowsLatchHelped: true, rowsChalk: true }, "no friendship score exists to be saved");
 });
 
 console.log(`\n${passed}/${total} dungeon core checks passed`);

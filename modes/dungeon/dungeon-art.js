@@ -590,26 +590,28 @@
   // the rain), look-back (over the shoulder), reach-up (the dome light).
   function youSeated(ctx, x, y, o = {}) {
     const state = o.state || "idle", t = o.t || 0;
-    const breathe = Math.sin(t / 900) * 0.4;
-    drop(ctx, x, y + 14, 15, 5, 0.3);
-    // Shoulders and back of the coat.
-    shape(ctx, [x - 14, y - 2, x - 9, y - 10, x + 9, y - 10, x + 14, y - 2, x + 12, y + 14, x - 12, y + 14], P.wood[2], { ink: CH, seed: 61, amp: CA });
-    shape(ctx, [x - 14, y - 2, x - 9, y - 10, x - 3, y - 10, x - 6, y + 14, x - 12, y + 14], P.wood[1], { ink: false, seed: 62, amp: CA });
-    rect(ctx, P.a.maroon, x - 6, y - 11, 12, 3);
-    // Arms forward to the wheel, or reaching.
-    const handR = state === "reach" ? [x + 26, y - 4] : state === "keys" ? [x + 13, y - 18] : state === "reach-up" ? [x + 20, y + 14] : [x + 7, y - 26];
-    const handL = [x - 8, y - 26];
+    const breathe = Math.sin(t / 900) * 0.35;
+    drop(ctx, x, y + 12, 16, 5, 0.3);
+    // Arms forward to the wheel, or reaching: drawn first, under the shoulders.
+    const handR = state === "reach" ? [x + 27, y - 2] : state === "keys" ? [x + 15, y - 16] : state === "reach-up" ? [x + 19, y + 13] : [x + 8, y - 27];
+    const handL = state === "look-back" ? [x - 13, y - 6] : [x - 8, y - 27];
     for (const [hx, hy, sx] of [[handL[0], handL[1], x - 11], [handR[0], handR[1], x + 11]]) {
-      line(ctx, sx, y - 4, hx, hy, P.ink, 5.4, hx, 0.1); line(ctx, sx, y - 4, hx, hy, P.wood[2], 3.6, hx, 0.1);
-      oval(ctx, hx, hy, 2.4, 2.2, P.skin[1], true, 0.9);
+      line(ctx, sx, y - 1, hx, hy, P.ink, 6.4, hx, 0.1); line(ctx, sx, y - 1, hx, hy, P.wood[2], 4.4, hx, 0.1);
+      oval(ctx, hx, hy, 2.6, 2.4, P.skin[1], true, 1);
     }
-    if (state === "keys") { rect(ctx, P.metal[3], handR[0] + 1, handR[1] - 3, 2, 3); rect(ctx, P.a.brass, handR[0] - 2, handR[1] - 4, 2, 2); }
-    // The back of the head turns where YOU looks.
-    const turn = state === "reach" || state === "turn" || state === "look" ? 3 : state === "look-back" ? -3 : 0;
-    const hy = state === "look-back" ? y - 3 : y - 6 + breathe * 0.2;
-    oval(ctx, x + turn, hy, 7.2, 7.6, P.inkSoft, true, CH);
-    oval(ctx, x + turn - 1.5, hy - 2, 3.2, 2.6, P.cloth[2]);
-    if (turn) oval(ctx, x + turn * 2.1, hy + 1, 1.6, 2.4, P.skin[0], true, 0.7);
+    if (state === "keys") { rect(ctx, P.metal[3], handR[0] + 1, handR[1] - 4, 2, 4); rect(ctx, P.a.brass, handR[0] - 2, handR[1] - 5, 2.4, 2.4); }
+    // The camel coat's shoulders from above, the scarf ring, the back of the head.
+    shape(ctx, [x - 15, y + 2, x - 12, y - 6, x - 5, y - 9, x + 5, y - 9, x + 12, y - 6, x + 15, y + 2, x + 12, y + 12, x - 12, y + 12], P.wood[2], { ink: CH, seed: 61, amp: CA });
+    shape(ctx, [x - 15, y + 2, x - 12, y - 6, x - 5, y - 9, x - 3, y + 12, x - 12, y + 12], P.wood[1], { ink: false, seed: 62, amp: CA });
+    rect(ctx, P.wood[3], x - 9, y - 8, 18, 1.4);
+    oval(ctx, x, y - 6 + breathe * 0.2, 7.4, 4.6, P.a.maroon, true, 1.2);
+    oval(ctx, x - 2, y - 7, 3, 1.6, P.a.maroonLight);
+    // The head turns where YOU looks. Never a face: hair, and an ear when turned.
+    const turn = state === "reach" || state === "turn" || state === "look" ? 3.2 : state === "look-back" ? -3.2 : 0;
+    const hy = y - 10;
+    oval(ctx, x + turn, hy, 7.6, 8, P.inkSoft, true, CH);
+    oval(ctx, x + turn - 1.8, hy - 2.4, 3.4, 2.8, P.wood[1]);
+    if (turn) oval(ctx, x + turn * 2.3, hy + 1, 1.7, 2.6, P.skin[1], true, 0.8);
   }
   // A shopping cart rattling past on its own; one wheel wants to go somewhere else.
   function cart(ctx, x, y, o = {}) {
