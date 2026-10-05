@@ -8,7 +8,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Rizo World" name="apple-mobile-web-app-title"/>
-<meta name="rizo-build" content="v93-home-train-go"/>
+<meta name="rizo-build" content="v94-alive"/>
 <style id="rizo-boot-critical">
 /* This shell is intentionally inline and dependency-free. If every external
    stylesheet/script fails, the player still gets a dark, actionable surface. */
@@ -34,7 +34,7 @@ html,body{background:#07090d;color:#fff}
 <script id="rizo-boot-inline">
 (() => {
   "use strict";
-  const expected = "v93-home-train-go";
+  const expected = "v94-alive";
   const problems = [];
   let ready = false;
   let recoveryVisible = false;
@@ -555,6 +555,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 }
 </style>
 <link href="./home-world.css" rel="stylesheet"/>
+<link href="./home-alive.css" rel="stylesheet"/>
 </head>
 <body class="rizo-handmade">
 <noscript><main class="no-script-guide"><h1>Rizo World</h1><p>Raise a little flame in the Den, make a House, and take the same Rizo into Defense, the Arcade, and Dungeon’s Threshold story.</p><p>The game needs JavaScript. You can read <a href="/">World</a>, the <a href="/journal">development journal</a>, and the <a href="/support">Keeper Guide</a> without it.</p><p>Your progress saves locally on this device. No installation or online account is needed.</p></main></noscript>
@@ -633,6 +634,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div aria-hidden="true" class="habitat-window"><i></i><i></i><i></i><i></i></div>
 <div aria-hidden="true" class="habitat-shelf"><span></span><span></span></div>
 <div aria-hidden="true" class="habitat-floor"></div>
+<div aria-hidden="true" class="den-tier"><i class="den-wall"></i><i class="den-roofline"><b></b><b></b><b></b></i><i class="den-sky"><b></b></i><i class="den-skyline"><b></b><b></b><b></b><b></b><b></b></i><i class="den-parapet"></i><i class="den-crate"><b></b></i><i class="den-drip"><b></b><s></s></i><i class="den-frame"></i><i class="den-curtains"><b></b><b></b></i><i class="den-pendant"></i><i class="den-plant"><b></b></i><i class="den-door"></i></div>
 <div aria-hidden="true" class="home-arch"><i></i></div>
 <div aria-hidden="true" class="home-rug"></div>
 <div aria-hidden="true" class="home-lamp"><i></i></div>
@@ -640,12 +642,14 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div aria-hidden="true" class="home-balcony"></div>
 <div aria-hidden="true" class="home-stringlights"><i></i><i></i><i></i><i></i><i></i></div>
 <div aria-hidden="true" class="home-telescope"><i></i></div>
-<button class="den-bed" id="denBed" type="button" data-den-bed aria-label="Let Rizo rest in his bed"><i></i><span>☾</span></button>
+<div aria-hidden="true" class="den-light"><i class="den-shade"></i><i class="den-glow"></i></div>
+<button class="den-bed" id="denBed" type="button" data-den-bed aria-label="Let Rizo rest in his bed"><i></i><b class="den-bed-frame"></b><span>☾</span></button>
+<div aria-hidden="true" class="den-blanket"></div>
 <div class="den-keepsakes" aria-label="Things we brought home">
 <span id="denTrainingMemory" class="den-training-memory" hidden></span>
 <span id="denDefenseMemory" class="den-defense-memory" hidden></span>
-<span id="denKnotMemory" class="den-knot-memory" hidden role="img" aria-label="Latch's First Knot hangs at home">⌁</span>
-<span id="denHearthMemory" class="den-hearth-memory" hidden role="img" aria-label="A warm light remembers the shared hearth">♦</span>
+<span id="denKnotMemory" class="den-knot-memory" hidden role="img" aria-label="Latch's First Knot hangs at home"><i></i></span>
+<span id="denHearthMemory" class="den-hearth-memory" hidden role="img" aria-label="A warm light remembers the shared hearth"><i></i></span>
 </div>
 <div aria-label="Interactive garden toys" class="habitat-toys">
 <button aria-label="Play ball with Rizo" class="garden-toy toy-ball" data-garden-toy="ball" title="Ball: raises Speed" type="button"></button>
@@ -684,7 +688,6 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </button>
 </div>
 <div class="tap-combo" id="tapCombo">x2</div>
-<div class="den-play-tray" id="denPlayTray" hidden><span>Tap a toy. Rizo's watching.</span><button type="button" data-head-pat>♥ PAT</button><button type="button" data-den-play-done aria-label="Finish playing">×</button></div>
 <div class="scene-bottomline">
 <div>
 <strong id="petName">MYSTERY EGG</strong>
@@ -693,6 +696,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div class="level-badge"><span>LV</span><b id="petLevel">0</b></div>
 </div>
 </div>
+<div class="den-play-tray" id="denPlayTray" hidden><span>Tap a toy, or drag the ball. He's watching.</span><button type="button" data-head-pat>♥ PAT</button><button type="button" data-den-play-done aria-label="Finish playing">×</button></div>
 <div class="progress-wrap">
 <div class="progress-copy"><span id="growthTitle">HATCHING</span><b id="growthText">0%</b></div>
 <div class="progress-track"><i id="growthBar"></i></div>
@@ -705,8 +709,6 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </div>
 <div aria-live="polite" class="garden-growth" id="gardenGrowth"></div>
 </section>
-<button class="home-goal" id="homeGoal" type="button" data-open-home-plans><small>RAIN SHELTER / 1</small><b>NEXT: WARM DEN</b><span>R 100 / 180</span><u><i></i></u><em aria-hidden="true">↗</em></button>
-<p class="home-return" id="homeReturn" aria-live="polite" hidden></p>
 <section class="care-panel">
 <div class="section-heading"><div><small>AT HOME</small><h2><span id="careName">RIZO</span> // TOGETHER</h2></div><button aria-label="More care options" class="text-button" id="moreCareButton" type="button">MORE</button></div>
 <div class="care-actions">
@@ -716,6 +718,8 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <button class="care-action sleep" data-action="sleep" type="button"><span class="care-icon">☾</span><span><b id="sleepActionText">SLEEP</b><small>REST</small></span></button>
 </div>
 </section>
+<p class="home-return" id="homeReturn" aria-live="polite" hidden></p>
+<button class="home-goal" id="homeGoal" type="button" data-open-home-plans><small>RAIN SHELTER / 1</small><b>NEXT: WARM DEN</b><span>R 100 / 180</span><u><i></i></u><em aria-hidden="true">↗</em></button>
 <nav class="home-tools" aria-label="Around home"><button data-nav="farm" type="button">HOUSE</button><button data-nav="closet" type="button">WARDROBE</button><button data-nav="journal" type="button">JOURNAL</button></nav>
 <details class="home-notes"><summary>THE LITTLE THINGS <span>MISSIONS · MEMORIES</span></summary>
 <section class="quest-card">
@@ -741,11 +745,11 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <section aria-label="Sponsored content" class="ad-slot" data-ad-slot="home-feed" hidden=""></section>
 </section>
 <section class="view" data-view="arcade" id="viewArcade">
-<div class="training-heading"><small>SHORT GAMES / REAL GROWTH</small><h1>TRAIN TOGETHER.</h1><p>Try a drill. Bring a little more home.</p></div>
+<div class="training-heading"><small>THE YARD / SHORT DRILLS</small><h1>TRAIN TOGETHER.</h1><p>Rizo practices out back. Every drill you try earns a patch for the board at home.</p></div>
 <div class="training-focus" aria-label="Training focus"><button type="button" data-training-focus="all" aria-pressed="true">ANYTHING</button><button type="button" data-training-focus="speed" aria-pressed="false">SPEED</button><button type="button" data-training-focus="power" aria-pressed="false">POWER</button><button type="button" data-training-focus="instinct" aria-pressed="false">INSTINCT</button></div>
 <section class="training-featured" id="trainingFeatured" aria-label="Suggested training drill"></section>
 <p class="training-home-goal" id="trainingHomeGoal"></p>
-<details class="training-library" id="trainingLibrary"><summary>CHOOSE YOUR OWN DRILL <span>10 GAMES ↓</span></summary>
+<details class="training-library" id="trainingLibrary"><summary>THE DRILL BOARD <span>ALL 10 DRILLS ↓</span></summary>
 <div class="game-card rhythm-card arcade-headliner">
 <div class="game-art rhythm-art"><img alt="" src="./assets/rizo-violet.png"/><span>♫</span></div>
 <div><small>HOUSE FAVORITE // TEN TRACKS</small><h2>EMBER BEAT</h2><p>Four lanes, strict timing, real charts. Clean runs unlock harder songs and permanently build Speed and Bond.</p><div class="game-meta" data-arcade-meta="rhythm"></div></div>
@@ -805,14 +809,14 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </details>
 <section aria-label="Sponsored content" class="ad-slot" data-ad-slot="arcade-between-games" hidden=""></section>
 </section>
-<section class="view" data-view="go" id="viewGo"><div class="go-heading"><small>BEYOND THE DEN</small><h1>LET'S GO.</h1><p>Some days, we go a little further.</p></div><div class="destination dungeon-destination" data-mode-card="dungeon">
-<div class="game-art dungeon-art"><img alt="" src="./assets/rizo-classic.png"/><span>◆</span></div>
+<section class="view" data-view="go" id="viewGo"><div class="go-heading"><small>OUT THE DOOR</small><h1>LET'S GO.</h1><p>Some days, we go a little further. Home keeps the light on.</p></div><div class="destination dungeon-destination" data-mode-card="dungeon">
+<div class="game-art dungeon-art"><img alt="" src="./assets/rizo-classic.png"/><span>◆</span></div><div class="destination-way" aria-hidden="true"><i></i></div><div class="destination-companion" aria-hidden="true"></div>
 <div><small>BELOW / AN AUTHORED JOURNEY</small><h2>RIZO DUNGEON</h2><p>You said you would be right back. Something bad happened. Your Rizo is alone, and somewhere below. Get him home.</p><div class="game-meta" data-mode-meta="dungeon"></div></div>
 <p class="departure-note" id="dungeonDeparture"></p>
 <button data-mode="dungeon" data-mode-label="GO BELOW" type="button">GO BELOW</button>
 </div>
 <div class="destination defense-destination" data-mode-card="defense">
-<div class="game-art defense-art"><img alt="" src="./assets/rizo-ember.png"/><span class="defense-card-balloon"><i></i></span></div>
+<div class="game-art defense-art"><img alt="" src="./assets/rizo-ember.png"/><span class="defense-card-balloon"><i></i></span></div><div class="destination-way" aria-hidden="true"><i></i></div><div class="destination-companion" aria-hidden="true"></div>
 <div><small>THE FIELD / STRATEGY + SURVIVAL</small><h2>RIZO DEFENSE</h2><p>Your raised Rizos become the roster. Place, upgrade, read the route, survive bosses, weather, and stranger balloon properties.</p><div class="game-meta" data-mode-meta="defense"></div></div>
 <p class="departure-note" id="defenseDeparture"></p>
 <button data-mode="defense" data-mode-label="DEFEND" type="button">DEFEND</button>

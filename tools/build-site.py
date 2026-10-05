@@ -58,4 +58,4 @@ for name in sorted(files):
 for folder in ['assets','core','providers','training','modes']:
     shutil.copytree(ROOT/folder,out/folder,dirs_exist_ok=True)
 fingerprints = {str(p.relative_to(out)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(out.rglob('*')) if p.is_file()}
-print(json.dumps({'output':str(out),'files':len(fingerprints),'build':'v93-home-train-go','ads_txt':(out/'ads.txt').exists(),'fingerprint':hashlib.sha256(json.dumps(fingerprints,sort_keys=True).encode()).hexdigest()},indent=2))
+print(json.dumps({'output':str(out),'files':len(fingerprints),'build':'v94-alive','ads_txt':(out/'ads.txt').exists(),'fingerprint':hashlib.sha256(json.dumps(fingerprints,sort_keys=True).encode()).hexdigest()},indent=2))
