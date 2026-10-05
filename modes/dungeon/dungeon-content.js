@@ -655,7 +655,7 @@
     rowsTable: [L("orr", "serving", "Table, then. Food wants sitting down.")],
     // The meal: Nell loses a small argument.
     rowsMeal: [L("nell", "irritated", "Not on the cleared bit."), L("orr", "serving", "It's food. It wants the reachable bit."), L("nell", "work", "I just cleared it."), L("orr", "irritated", "Then move the chalk."), L("nell", "work", "Fine.")],
-    rowsCrunchy: [L("nell", "amused", "Where's the other crunchy edge?"), L("orr", "serving", "On what you just ate.")],
+    rowsCrunchy: [L("nell", "amused", "Where's the other crunchy edge?"), L("orr", "dry", "On what you just ate.")],
     rowsPressNext: [L("nell", "work", "Press house next. Its door sticks.")],
     rowsTakeEdge: [L("orr", "serving", "Take the edge at least.")],
     // Press House: an opening stays an opening; an empty job stopped together.
