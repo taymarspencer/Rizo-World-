@@ -115,4 +115,36 @@ modes are unchanged.
 
 ## Tests
 
-See the PR for the run. New: `tests/browser-dungeon-depth.py` (in release CI).
+New: `tests/browser-dungeon-depth.py`, 44 checks, added to release CI (about
+two minutes). It reads the presentation state through `dungeonStateForQA().depth`
+and the notes an adaptive track would play through `dungeonTrackForQA`; nothing
+it checks is saved.
+
+Local mirror of the release workflow, all green:
+
+- `git diff --check`, syntax of every shipped script, the site build.
+- 13 Node suites, 236 checks.
+- 16 browser suites, 1,332 checks: Home/Train/Go 110, Home alive 57, Dungeon 371,
+  Dungeon controls 185, Dungeon cohesion 67, **Dungeon depth 44**, save safety 37,
+  Defense integration 78, mode contract 25, training contract 22, launch
+  recovery 5, training fixes 13, authored arcade 25, arcade freeze 66, public
+  product 150, World-first 77.
+
+The main Dungeon suite still pins the van's exact line order, every opening beat
+and timing, saves, reloads and the Rows. Phones covered: 320×568, 375×812 (in
+the controls suite), 390×844, 430×932 and short landscape 568×320 / 844×390 (cohesion
+and controls); the depth suite adds the van's quiet line at 320×568, 390×844,
+430×932 and 568×320. Reduced motion is honoured (a still glint instead of
+drifting air; the new poses have still versions).
+
+Chromium emulation only. Sound was verified as states and note data, not by ear
+on a device.
+
+## Left for later
+
+- The runtime build stays `v94-alive` (as with the other open Dungeon passes).
+  A release bump is needed so installed PWAs fetch the new Dungeon files.
+- An on-device listen for volumes: the danger layer and the HOME echo are
+  deliberately faint.
+- The Mending Rows don't point the way when he stops; Nell leads there.
+- The car and the abduction keep their staging: their canon timings are pinned.
