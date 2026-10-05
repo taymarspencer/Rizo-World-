@@ -236,7 +236,7 @@
     }
 
     // ===== ACTORS (Art cutouts; feet at x,y) =====
-    let extrasTime = 0, lastRoom = {};
+    let extrasTime = 0, lastRoom = {}, speaking = new Set();
     const walkBob = (actor, time) => (actor.walking && !reducedMotion ? Math.sin(time / 110) * 2 : 0);
     function paintNpc(actor, time) {
       const t = reducedMotion ? 0 : time;
@@ -247,7 +247,7 @@
         case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
         case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;
         case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
-        case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y); break;
+        case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y, { who: actor.id, talking: speaking.has(actor.id), state: actor.state, face: actor.face || 1, t }); break;
         case "taillights": {
           // Far off they are two red points; braking, they flare.
           const a = Math.max(0, Math.min(1, (actor.y + 160) / 300));
@@ -466,6 +466,7 @@
       for (let index = effects.length - 1; index >= 0; index -= 1) {
         const fx = effects[index], age = (time - fx.at) / fx.life;
         if (age >= 1) { effects.splice(index, 1); continue; }
+        if (age < 0) continue;
         ctx.save(); ctx.globalAlpha = 1 - age;
         if (fx.kind === "spark") Art.rect(ctx, age < 0.5 ? P.ember[4] : P.ember[3], fx.x + fx.vx * age * 16 - 1, fx.y + fx.vy * age * 16 - 1 - age * 4, 2, 2);
         else if (fx.kind === "impact") {
@@ -473,6 +474,17 @@
           const r = 3 + age * 7;
           Art.shape(ctx, [fx.x, fx.y - r, fx.x + r * 0.25, fx.y - r * 0.25, fx.x + r, fx.y, fx.x + r * 0.25, fx.y + r * 0.25, fx.x, fx.y + r, fx.x - r * 0.25, fx.y + r * 0.25, fx.x - r, fx.y, fx.x - r * 0.25, fx.y - r * 0.25], P.danger[2], { ink: 1, amp: 0.1 });
         } else if (fx.kind === "puff") { Art.oval(ctx, fx.x, fx.y, 3 + age * 9, (3 + age * 9) * 0.45, null, false); ctx.strokeStyle = P.paper[2]; ctx.lineWidth = 1.4 * (1 - age) + 0.3; ctx.stroke(); }
+        else if (fx.kind === "glint") {
+          // A catch of light on something he has just seen: small, warm, once.
+          const r = 2 + Math.sin(Math.min(1, age * 1.4) * Math.PI) * 3.4;
+          ctx.globalAlpha = Math.sin(age * Math.PI) * 0.9;
+          Art.shape(ctx, [fx.x, fx.y - r, fx.x + r * 0.2, fx.y - r * 0.2, fx.x + r, fx.y, fx.x + r * 0.2, fx.y + r * 0.2, fx.x, fx.y + r, fx.x - r * 0.2, fx.y + r * 0.2, fx.x - r, fx.y, fx.x - r * 0.2, fx.y - r * 0.2], P.paper[3], { ink: false, amp: 0 });
+        } else if (fx.kind === "mote") {
+          // Air moving: a speck carried from the way on toward him.
+          ctx.globalAlpha = Math.sin(age * Math.PI) * 0.9;
+          const wob = Math.sin(age * 9 + fx.seed) * 2.4;
+          Art.rect(ctx, P.paper[3], fx.x + fx.vx * age + wob * -fx.vy / 40 - 1.1, fx.y + fx.vy * age + wob * fx.vx / 40 - 1.1, 2.2, 2.2);
+        }
         else if (fx.kind === "deflect") { ctx.strokeStyle = P.paper[3]; ctx.lineWidth = 1.4; for (let d = 0; d < 3; d += 1) { ctx.beginPath(); ctx.moveTo(fx.x + (d - 1) * 6 - 3, fx.y - age * 10 + 2); ctx.lineTo(fx.x + (d - 1) * 6, fx.y - age * 10 - 2); ctx.lineTo(fx.x + (d - 1) * 6 + 3, fx.y - age * 10 + 2); ctx.stroke(); } }
         ctx.restore();
       }
@@ -489,9 +501,21 @@
       for (let index = 0; index < count; index += 1) {
         if (effects.length >= MAX_EFFECTS) effects.shift();
         const angle = Math.random() * Math.PI * 2;
-        effects.push({ kind, x, y, vx: Math.cos(angle), vy: Math.sin(angle), at: time, life: kind === "spark" ? 360 : 460 });
+        effects.push({ kind, x, y, vx: Math.cos(angle), vy: Math.sin(angle), at: time, life: kind === "spark" ? 360 : kind === "glint" ? 1100 : 460 });
       }
       if (kind === "spark") { if (effects.length >= MAX_EFFECTS) effects.shift(); effects.push({ kind: "impact", x, y, vx: 0, vy: 0, at: time, life: 140 }); }
+    }
+    // A draft from somewhere he hasn't been yet: a few specks drifting from
+    // (x, y) toward (toX, toY), never all the way. The room's own way of pointing.
+    function addDraft(x, y, toX, toY, count = 6, time = performance.now()) {
+      addEffect("glint", x, y, 1, time);
+      if (reducedMotion) return;
+      const dx = toX - x, dy = toY - y, d = Math.max(1, Math.hypot(dx, dy)), reach = Math.min(d * 0.7, 120);
+      for (let index = 0; index < count; index += 1) {
+        if (effects.length >= MAX_EFFECTS) effects.shift();
+        const spread = (index - (count - 1) / 2) * 7;
+        effects.push({ kind: "mote", x: x + (-dy / d) * spread, y: y + (dx / d) * spread, vx: (dx / d) * reach, vy: (dy / d) * reach, seed: index * 1.7, at: time + index * 160, life: 2300 });
+      }
     }
     // Footfalls: ripples in the wet outside, a little grit below.
     function trackSteps(geo, pos, time, moving) {
@@ -512,6 +536,7 @@
       if (!geo || !metrics.cssW) return;
       extrasTime = extras.sceneTime || 0;
       lastRoom = extras.room || {};
+      speaking = new Set((extras.barks || []).map(item => item.id));
       const p = sim.player;
       follow(pos.x, pos.y, geo, dt, extras.peek, p.moving ? { x: p.fx || 0, y: p.fy || 0 } : null);
       const shake = extras.shake && !reducedMotion ? extras.shake * 2 : 0;
@@ -685,6 +710,7 @@
         let node = barkNodes.get(item.id);
         if (!node) { node = document.createElement("div"); node.className = "dungeon-bark"; el.barks.appendChild(node); barkNodes.set(item.id, node); }
         if (node.textContent !== item.text) node.textContent = item.text;
+        node.classList.toggle("is-quiet", Boolean(item.quiet));
         // Seated figures (the van) are short; they say where their heads are.
         const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
         // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.
@@ -798,7 +824,7 @@
     function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
-    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, toScreen, metrics, camera, destroy, esc };
+    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
   return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });

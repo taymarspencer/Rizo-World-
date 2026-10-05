@@ -626,17 +626,37 @@
     for (const wx of [-8, 8]) oval(ctx, wx, -1.5, 1.8, 1.8, P.ink);
     ctx.restore();
   }
-  // Silhouettes in the van's front seats, seen from behind.
-  function seated(ctx, kind, x, y) {
+  // Silhouettes in the van, seen from behind: the same four people as outside,
+  // each still carrying one mark (the tall hood, the beanie's pom, the cap).
+  // Whoever is talking moves; frozen, nobody does; staring, eyes catch the light.
+  function seated(ctx, kind, x, y, o = {}) {
+    const t = o.t || 0, still = o.state === "freeze" || o.state === "stare";
+    const nod = still || !t ? 0 : o.talking ? Math.sin(t / 95) * 0.9 + Math.sin(t / 37) * 0.35 : Math.sin(t / 900 + x) * 0.35;
+    const turn = o.talking && !still && t ? Math.sin(t / 260) * 1.2 : 0;
+    const hx = x + 14 + turn, hy = (kind === "driver-seat" ? y - 5 : y - 6) + nod;
     if (kind === "driver-seat") {
-      oval(ctx, x + 14, y - 5, 9, 9, P.cloth[0], true, 1.2);
-      shape(ctx, [x + 6, y - 12, x + 22, y - 12, x + 24, y - 9, x + 4, y - 9], P.cloth[1], { ink: 1, amp: 0.2 });
+      oval(ctx, hx, hy, 9, 9, P.cloth[0], true, 1.2);
+      shape(ctx, [hx - 8, hy - 7, hx + 8, hy - 7, hx + 10, hy - 4, hx - 10, hy - 4], P.cloth[1], { ink: 1, amp: 0.2 });
       box(ctx, x + 2, y + 2, 24, 12, P.cloth[0], { ink: 1.1, amp: 0.3 });
     } else {
-      oval(ctx, x + 14, y - 6, 9.5, 10, P.cloth[2], true, 1.2);
-      shape(ctx, [x + 8, y - 15, x + 20, y - 15, x + 23, y - 2, x + 5, y - 2], P.cloth[2], { ink: 1, amp: 0.3 });
-      box(ctx, x + 2, y + 2, 25, 12, P.cloth[2], { ink: 1.1, amp: 0.3 });
+      const coat = o.who === "hood-small" ? P.a.maroon : o.who === "hood-cap" ? P.a.track : P.cloth[2];
+      oval(ctx, hx, hy, 9.5, 10, coat === P.a.maroon ? P.ink : P.cloth[2], true, 1.2);
+      if (o.who === "hood-small") {
+        // The mustard beanie and its pom.
+        shape(ctx, [hx - 8, hy - 3, hx - 7, hy - 9, hx, hy - 12, hx + 7, hy - 9, hx + 8, hy - 3], P.a.mustard, { ink: 1.1, amp: 0.3 });
+        oval(ctx, hx + 1, hy - 13, 2.2, 2, P.a.mustard, true, 0.9);
+      } else if (o.who === "hood-cap") {
+        // The cap on backwards, its brim at the back of his neck.
+        oval(ctx, hx, hy - 5, 8.6, 5, P.ink, true, 1);
+        rect(ctx, P.ink, hx - 6 * (o.face || 1) - 3, hy - 3, 6, 1.6);
+      } else {
+        // The tall one's hood, its peak drooping forward.
+        shape(ctx, [hx - 6, hy - 9, hx + 6, hy - 9, hx + 9, hy + 4, hx - 9, hy + 4], P.cloth[2], { ink: 1, amp: 0.3 });
+      }
+      box(ctx, x + 2, y + 2, 25, 12, coat, { ink: 1.1, amp: 0.3 });
     }
+    // Staring at him: two points of light where the eyes would be.
+    if (o.state === "stare") { oval(ctx, hx - 2.4, hy + 1, 1, 0.8, P.paper[3]); oval(ctx, hx + 2.4, hy + 1, 1, 0.8, P.paper[3]); }
   }
 
   // LATCH. A stranded courier: a folded-paper coat with the collar turned

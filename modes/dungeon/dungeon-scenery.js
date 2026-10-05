@@ -407,6 +407,8 @@
     // A phone in the back: a small cold light while he films; the whole van
     // when it rings. Its screen faces the cabin, so only the light is ours.
     if (room.phoneLight) list.push({ x: 56, y: 108, r: room.phoneLight === "call" ? 130 : 34, strength: room.phoneLight === "call" ? 0.95 : 0.7, warm: 0 });
+    // While it rings the whole cabin goes the colour of that screen.
+    if (room.phoneLight === "call") return { ambient: { color: [18, 34, 62], alpha: 0.5 }, list };
     return { ambient: { color: [6, 8, 12], alpha: 0.56 }, list };
   }
 
