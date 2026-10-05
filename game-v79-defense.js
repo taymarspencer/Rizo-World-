@@ -618,6 +618,10 @@
   let denBehaviorSequence = 0;
   const denReactions = new Map();
   let denPlayActive = false;
+  // Transient presentation only (never saved): the build ceremony and the
+  // "we're back" beat after a journey or a drill.
+  let homeBuiltUntil = 0;
+  let pendingArrival = null;
   let trainingFocus = "all";
   let petBehaviorTimer = null;
   let worldEventOpen = false;
@@ -2245,8 +2249,18 @@
     }
   }
 
-  function moveDenTo(x, y = 0) {
+  function moveDenTo(x, y = 0, { lead = 0 } = {}) {
+    const from = state.pet.denPosition?.x ?? 50;
     state.pet.denPosition = Home.position({ x, y });
+    const placement = $("#denPlacement"), to = state.pet.denPosition.x;
+    if (placement && Math.abs(to - from) > 3 && !reducedMotionActive()) {
+      // Position is saved now; the body may take a breath before it goes.
+      placement.style.transitionDelay = lead ? `${lead}ms` : "";
+      clearTimeout(moveDenTo.timer);
+      placement.classList.remove("walking-left", "walking-right");
+      const step = () => { placement.classList.add(to < from ? "walking-left" : "walking-right"); moveDenTo.timer = setTimeout(() => { placement.classList.remove("walking-left", "walking-right"); placement.style.transitionDelay = ""; }, 860); };
+      if (lead) moveDenTo.timer = setTimeout(step, lead); else step();
+    }
     syncDenPosition();
     saveState();
   }
@@ -2321,6 +2335,7 @@
 
   function rememberHomeReturn(source, name, embers = 0) {
     state.home.lastReturn = { source, name, embers, at: now() };
+    pendingArrival = { source, at: now() };
     saveState();
   }
 
@@ -2329,9 +2344,18 @@
     return next ? `${formatNumber(Math.min(state.wallet.embers, next.cost))} / ${formatNumber(next.cost)} Embers toward ${next.name}` : `${formatNumber(state.wallet.embers)} / ${formatNumber(Home.HORIZON.cost)} Embers. Orbit is a distant plan.`;
   }
 
+  // One stitched patch per drill we've actually done together.
+  const DRILL_PATCH = Object.freeze({ power: "#d9534f", spark: "#f2c14e", forage: "#7cc36b", rush: "#3fb6c9", walk: "#5b8fd6", rhythm: "#a36bdc", memory: "#8fae5a", glide: "#7fd6c2", breaker: "#e8803a", maze: "#6c5ca8" });
+  const ARRIVAL_LINES = Object.freeze({
+    training: ["BACK. I'M BASICALLY AN ATHLETE NOW.", "WE DID A DRILL. TELL EVERYONE.", "HOME. THAT COUNTS AS CARDIO."],
+    defense: ["THE FIELD HELD. MOSTLY.", "HOME. NO BALLOONS IN HERE.", "WE HELD THE LINE. I NEED A SNACK."],
+    dungeon: ["…HOME.", "IT'S DRY HERE.", "YOU LEFT THE LIGHT ON."],
+    expedition: ["I BROUGHT BACK DIRT. AND LORE.", "THE WOODS SAY HI."]
+  });
   function renderHomeGrowth() {
     const h = state.home, next = Home.next(h), tier = Home.TIERS[h.tier];
     el.habitatScene.dataset.homeTier = String(h.tier);
+    $("#habitatCard")?.setAttribute("data-tier-name", tier.name);
     const bed = $("#denBed");
     if (bed) {
       bed.disabled = state.pet.stage === "egg" || state.pet.resting;
@@ -2345,13 +2369,19 @@
       goal.querySelector("span").textContent = next ? `R ${formatNumber(state.wallet.embers)} / ${formatNumber(next.cost)}` : `R ${formatNumber(state.wallet.embers)} / 1M · FUTURE`;
       goal.querySelector("i").style.width = `${clamp(state.wallet.embers / (next?.cost || Home.HORIZON.cost) * 100)}%`;
       goal.classList.toggle("ready", Boolean(next && state.wallet.embers >= next.cost));
+      let need = goal.querySelector(".home-goal-need");
+      if (!need) { need = document.createElement("strong"); need.className = "home-goal-need"; goal.querySelector("u")?.after(need); }
+      need.textContent = !next ? "A distant plan. Keep living here." : state.wallet.embers >= next.cost ? "READY TO BUILD — TAP TO SEE IT" : `${formatNumber(next.cost - state.wallet.embers)} more Embers · ${next.detail}`;
       goal.setAttribute("aria-label", `${tier.name}. ${homeTargetCopy()}. Open home plans.`);
     }
     const ret = $("#homeReturn");
     if (ret) {
       const last = h.lastReturn;
       ret.hidden = !last;
-      if (last) ret.textContent = `${last.name} → HOME${last.embers ? ` · +R ${formatNumber(last.embers)}` : ""}`;
+      if (last) {
+        const what = { training: "a patch on the board", defense: "the pennant", dungeon: "something kept", expedition: "dirt and lore" }[last.source] || "";
+        ret.innerHTML = `<span aria-hidden="true">↩</span><span><b>${escapeHTML(last.name)}</b> → HOME${last.embers ? ` · +R ${formatNumber(last.embers)}` : ""}${what ? ` · ${what}` : ""}</span>`;
+      }
     }
     // The hub reads mode summaries/earned entitlements, never rewrites a slice.
     const hearth = Object.values(state.modeReceipts?.dungeon || {}).some(receipt => receipt.entitlements.includes("shared-hearth")) || [...(state.pet.storyMarks || []), ...(state.farm?.roster || []).flatMap(p => p.storyMarks || [])].some(mark => mark.id === "shared-hearth" && mark.mode === "dungeon");
@@ -2360,7 +2390,8 @@
     const trainingPatch = $("#denTrainingMemory");
     if (trainingPatch) {
       trainingPatch.hidden = !h.trained.length;
-      trainingPatch.textContent = `★ ${h.trained.length}/10`;
+      const patches = Home.DRILLS.map(id => h.trained.includes(id) ? `<b style="--c:${DRILL_PATCH[id]}"></b>` : `<b class="empty"></b>`).join("");
+      if (trainingPatch.dataset.patches !== h.trained.join()) { trainingPatch.innerHTML = patches; trainingPatch.dataset.patches = h.trained.join(); }
       trainingPatch.setAttribute("aria-label", `Training patch: ${h.trained.length} different drills played`);
     }
     const defensePatch = $("#denDefenseMemory"), defense = globalThis.RizoModes?.summary?.("defense");
@@ -2373,11 +2404,18 @@
 
   function openHomePlans() {
     const h = state.home, next = Home.next(h);
+    const room = tier => `<div class="plan-room" data-tier="${tier}" aria-hidden="true"><i class="pr-a"></i><i class="pr-b"></i><i class="pr-c"></i><i class="pr-light"></i></div>`;
+    const changes = { warm: ["a real bed", "a woven rug", "the lamp left on", "curtains"], room: ["an archway to a second room", "books + a plant", "daylight", "a shelf for what we bring back"], roof: ["open night sky", "string lights", "a telescope", "the door left open"] };
+    const preview = next
+      ? `<div class="plan-preview"><figure>${room(h.tier)}<figcaption>NOW · ${escapeHTML(Home.TIERS[h.tier].name)}</figcaption></figure><figure class="next">${room(h.tier + 1)}<figcaption>NEXT · ${escapeHTML(next.name)}</figcaption></figure></div>
+        <ul class="plan-changes">${(changes[next.id] || []).map(item => `<li>+ ${escapeHTML(item)}</li>`).join("")}</ul>
+        <div class="plan-meter"><span>${formatNumber(Math.min(state.wallet.embers, next.cost))} / ${formatNumber(next.cost)} Embers</span><b>${state.wallet.embers >= next.cost ? "READY" : `${formatNumber(next.cost - state.wallet.embers)} TO GO`}</b><u><i style="width:${clamp(state.wallet.embers / next.cost * 100)}%"></i></u></div>`
+      : `<div class="plan-preview"><figure class="next">${room(h.tier)}<figcaption>OURS · ${escapeHTML(Home.TIERS[h.tier].name)}</figcaption></figure></div>`;
     openSheet("OUR HOME", "MAKE ROOM FOR MORE", `
-      <div class="home-plan-scene" data-plan-tier="${h.tier}" aria-hidden="true"><i></i><b>⌂</b><span>${escapeHTML(Home.TIERS[h.tier].name)}</span></div>
+      ${preview}
+      ${next ? `<button class="home-build-button" type="button" data-home-upgrade="${next.id}" ${state.wallet.embers < next.cost ? "disabled" : ""}>${state.wallet.embers < next.cost ? `${formatNumber(next.cost - state.wallet.embers)} MORE EMBERS` : `BUILD ${next.name} · R ${formatNumber(next.cost)}`}</button>` : `<p class="home-plan-copy">The rooftop is yours. Keep growing Rizo, filling the shelf, and dreaming bigger.</p>`}
       <p class="home-plan-copy">Embers from care, play, training, and journeys build the place we come back to.</p>
       <ol class="home-plan-tiers">${Home.TIERS.map((tier, i) => `<li class="${i <= h.tier ? "built" : i === h.tier + 1 ? "next" : "later"}"><span>${i <= h.tier ? "✓" : `0${i + 1}`}</span><div><b>${tier.name}</b><p>${tier.detail}</p></div><small>${i <= h.tier ? "HOME" : `R ${formatNumber(tier.cost)}`}</small></li>`).join("")}</ol>
-      ${next ? `<button class="home-build-button" type="button" data-home-upgrade="${next.id}" ${state.wallet.embers < next.cost ? "disabled" : ""}>${state.wallet.embers < next.cost ? `${formatNumber(next.cost - state.wallet.embers)} MORE EMBERS` : `BUILD ${next.name} · R ${formatNumber(next.cost)}`}</button>` : `<p class="home-plan-copy">The rooftop is yours. Keep growing Rizo, filling the shelf, and dreaming bigger.</p>`}
       <div class="home-horizon"><span>✧</span><div><b>${Home.HORIZON.name}</b><p>R ${formatNumber(Home.HORIZON.cost)} · A distant plan. No purchase yet.</p></div></div>`);
   }
 
@@ -2395,11 +2433,43 @@
     }
     closeSheet(); changeView("home"); renderAll();
     addMemory("A BIGGER HOME", `${state.pet.name} has a ${Home.TIERS[state.home.tier].name}. We built this together.`, "⌂");
-    saveState(); sfx("reward");
-    el.habitatScene.classList.add("home-built");
-    setTimeout(() => el.habitatScene.classList.remove("home-built"), 1400);
-    setLifeBehavior("proud", 1600, ["", "LEAVE THE LIGHT ON.", "ROOM FOR MY BAD IDEAS.", "THIS SKY IS MINE NOW."][state.home.tier]);
+    saveState(); sfx("reward"); haptic([20, 40, 70]);
+    playBuildCeremony();
+    const tierNow = state.home.tier, petId = state.pet.id;
+    setTimeout(() => { if (state.pet.id === petId && state.home.tier === tierNow) setLifeBehavior("proud", 1800, ["", "LEAVE THE LIGHT ON.", "ROOM FOR MY BAD IDEAS.", "THIS SKY IS MINE NOW."][tierNow]); }, reducedMotionActive() ? 0 : 1050);
     return true;
+  }
+
+  // Lights down, the new room arrives, lights up. Presentation only: the
+  // purchase is already committed before this runs.
+  function playBuildCeremony() {
+    const scene = el.habitatScene, tier = Home.TIERS[state.home.tier];
+    if (!scene || !tier) return;
+    homeBuiltUntil = now() + 1700;
+    scene.querySelectorAll(".den-build-veil,.den-build-banner").forEach(node => node.remove());
+    scene.classList.add("home-built");
+    const veil = document.createElement("div"); veil.className = "den-build-veil"; veil.setAttribute("aria-hidden", "true");
+    const banner = document.createElement("div"); banner.className = "den-build-banner"; banner.setAttribute("aria-hidden", "true");
+    banner.innerHTML = `<small>WE BUILT</small><b>${escapeHTML(tier.name)}</b>`;
+    scene.append(veil, banner);
+    setTimeout(() => { veil.remove(); banner.remove(); if (now() >= homeBuiltUntil) scene.classList.remove("home-built"); }, reducedMotionActive() ? 1600 : 2700);
+  }
+
+  // Rizo went somewhere, and came back. A quick beat, never a cutscene.
+  function playHomeArrival() {
+    const arrival = pendingArrival;
+    pendingArrival = null;
+    if (!arrival || now() - arrival.at > 10 * 60 * 1000 || currentView !== "home") return;
+    const pet = state.pet;
+    if (!pet?.alive || pet.stage === "egg" || pet.sleeping || pet.resting || isUILocked()) return;
+    const keep = { training: "#denTrainingMemory", defense: "#denDefenseMemory", dungeon: "#denHearthMemory:not([hidden]),#denKnotMemory:not([hidden])" }[arrival.source];
+    const node = keep ? $(keep) : null;
+    if (node && !node.hidden) { node.classList.remove("is-new"); void node.offsetWidth; node.classList.add("is-new"); setTimeout(() => node.classList.remove("is-new"), 3400); }
+    const ret = $("#homeReturn");
+    if (ret && !ret.hidden) { ret.classList.remove("fresh"); void ret.offsetWidth; ret.classList.add("fresh"); }
+    animatePet("den-arrive", 900);
+    const lines = ARRIVAL_LINES[arrival.source] || ARRIVAL_LINES.training;
+    setTimeout(() => { if (currentView === "home" && state.pet.id === pet.id) say(lines[Math.floor(Math.random() * lines.length)], 2600); }, 420);
   }
 
   function renderTrainingFocus() {
@@ -2415,7 +2485,8 @@
     $$("[data-training-focus]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.trainingFocus === trainingFocus)));
     const host = $("#trainingFeatured");
     if (host && game) {
-      host.innerHTML = `<div class="training-companion">${petMarkup({ extraClass: "training-rizo", context: "card" })}</div><div class="training-pick"><small>${state.home.trained.includes(game.id) ? "ANOTHER ROUND?" : "TRY SOMETHING NEW"}</small><h2>${game.name}</h2><p>${SKILLS.filter(skill => game.trains[skill.id] > 0).map(skill => skill.name).join(" + ")} · ${game.duration}s · ${game.energy} energy</p><button data-minigame="${game.id}" type="button">TRAIN TOGETHER</button></div>`;
+      host.style.setProperty("--patch", DRILL_PATCH[game.id] || "#cfc4a2");
+      host.innerHTML = `<div class="training-yard" aria-hidden="true"><i class="yard-fence"></i><i class="yard-bag"></i><i class="yard-cones"></i><i class="yard-lamp"></i></div><div class="training-companion">${petMarkup({ extraClass: "training-rizo", context: "card" })}</div><div class="training-pick"><small>${state.home.trained.includes(game.id) ? "ANOTHER ROUND?" : "TODAY: SOMETHING NEW"}</small><h2>${game.name}</h2><p>${SKILLS.filter(skill => game.trains[skill.id] > 0).map(skill => skill.name).join(" + ")} · ${game.duration}s · ${game.energy} energy</p><button data-minigame="${game.id}" type="button">TRAIN TOGETHER</button></div>`;
     }
     const line = $("#trainingHomeGoal");
     if (line) line.textContent = homeTargetCopy();
@@ -2423,6 +2494,12 @@
 
   function renderGo() {
     renderModeShelf(); renderExpedition();
+    const pet = state.pet, key = `${pet.id}:${pet.stage}:${pet.variant}:${pet.accessory}`;
+    for (const spot of $$("#viewGo .destination-companion")) {
+      if (spot.dataset.key === key) continue;
+      spot.dataset.key = key;
+      spot.innerHTML = pet.stage === "egg" ? "" : petMarkup({ extraClass: "go-rizo", context: "card" });
+    }
     const dungeon = globalThis.RizoModes?.summary?.("dungeon"), savedDefense = modeRunStore("defense").read();
     const dungeonButton = $("#viewGo [data-mode='dungeon']"), defenseButton = $("#viewGo [data-mode='defense']");
     if (dungeonButton && !dungeonButton.classList.contains("game-blocked")) dungeonButton.textContent = dungeon?.journey && !dungeon.journey.complete ? "CONTINUE JOURNEY" : dungeon?.journey?.complete ? "VISIT AGAIN" : "GO WITH RIZO";
@@ -2440,6 +2517,9 @@
 
     el.habitatScene.className = `habitat-scene ${ROOMS.find(room => room.id === pet.room)?.className || "theme-rain"}`;
     el.habitatScene.classList.toggle("den-playing", denPlayActive);
+    // Redraws must not cancel what the room is in the middle of showing.
+    el.habitatScene.classList.toggle("den-sleeping", Boolean(pet.sleeping && !isEgg));
+    if (now() < homeBuiltUntil) el.habitatScene.classList.add("home-built");
     el.moodChip.querySelector("i").style.background = mood.color;
     el.moodChip.querySelector("span").textContent = mood.label;
     applyLivingMood();
@@ -2609,6 +2689,12 @@
       meta.innerHTML=`<span class="meta-best"><small>${arcadeBestLabel(mode)}</small><b>${arcadeBestValue(mode)}</b></span>`
         +`<span class="meta-energy${affordable?"":" short"}"><small>ENERGY</small><b>${game.energy}</b></span>`
         +`<span class="meta-length"><small>RUN</small><b>${arcadeRunLength(mode)}</b></span>`;
+    }
+    for(const mode of ARCADE_MODES){
+      const card=$(`#trainingLibrary [data-minigame="${mode}"]`)?.closest(".game-card");
+      if(!card) continue;
+      card.style.setProperty("--patch", DRILL_PATCH[mode]||"#cfc4a2");
+      card.classList.toggle("drill-done", state.home.trained.includes(mode));
     }
     renderTrainingFocus();
     $$('[data-minigame]').forEach(button => {
@@ -2844,7 +2930,7 @@
     renderCurrentView();
     refreshAdSlots();
     syncMusic();
-    if (view === "home") schedulePetBehavior(3500);
+    if (view === "home") { schedulePetBehavior(3500); if (pendingArrival) setTimeout(playHomeArrival, 140); }
     if (view === "journal" && state.player.tutorialStep === 4) {
       state.player.tutorialStep = 5;
       addMemory("TUTORIAL COMPLETE", "You learned the basics. Rizo is now legally your problem.", "✓");
@@ -3256,8 +3342,9 @@
       if (p.sleeping) { p.mood = clamp(p.mood + 2); shiftAlignment(1, "rest"); gainSkill("stamina", .25, { silent: true }); }
     });
     if (state.pet.sleeping) moveDenTo(72, 0);
-    if (state.pet.sleeping) say("DO NOT LET THE APP DIE WHILE I'M OUT.");
-    else setLifeBehavior("wake-grump", 1200, "I WAS DREAMING ABOUT INVENTORY.");
+    const pick = list => list[Math.floor(Math.random() * list.length)];
+    if (state.pet.sleeping) say(state.home.tier === 0 && Math.random() < .5 ? "THE TIN WILL CATCH IT. NIGHT." : pick(["DO NOT LET THE APP DIE WHILE I'M OUT.", "NIGHT. LEAVE THE LIGHT ON.", "WAKE ME IF SOMETHING IS ON FIRE. OTHER THAN ME."]));
+    else setLifeBehavior("wake-grump", 1200, pick(["I WAS DREAMING ABOUT INVENTORY.", "FIVE MORE MINUTES WAS THE PLAN.", "I'M UP. MOSTLY."]));
     sfx(state.pet.sleeping ? "sleep" : "wake");
   }
 
@@ -3352,7 +3439,8 @@
       return;
     }
 
-    combo = time - lastTapAt < 620 ? Math.min(99, combo + 1) : 1;
+    const gap = time - lastTapAt;
+    combo = gap < 620 ? Math.min(99, combo + 1) : 1;
     lastTapAt = time;
     clearTimeout(comboTimer);
     comboTimer = setTimeout(() => { combo = 0; el.tapCombo.classList.remove("show"); }, 900);
@@ -3371,7 +3459,17 @@
       progressQuest("tap");
       earnHeat(jackpot ? 5 : 1, false);
     });
-    animatePet(jackpot ? "happy-jump" : "boing", jackpot ? 520 : 240);
+    // Notice → react. A first touch after a while gets noticed; a quick
+    // run of taps stays snappy; otherwise where you touch him matters.
+    let reaction = jackpot ? "happy-jump" : "boing";
+    if (!jackpot && combo < 4) {
+      if (gap > 15000) reaction = "tap-notice";
+      else if (pet.energy < 22) reaction = "tap-sleepy";
+      else reaction = tapZone(event) || "boing";
+    }
+    animatePet(reaction, { "happy-jump": 520, boing: 240, "tap-notice": 520, "tap-sleepy": 720 }[reaction] || 440);
+    if (reaction === "tap-notice" && !el.thoughtBubble.classList.contains("show") && Math.random() < .45) say(["OH. HI.", "YOU RANG?", "I WAS BUSY. SORT OF."][Math.floor(Math.random() * 3)], 1500);
+    else if (reaction === "tap-head" && combo === 1 && !el.thoughtBubble.classList.contains("show") && Math.random() < .18) say(["THAT'S THE SPOT.", "OKAY. KEEP GOING."][Math.floor(Math.random() * 2)], 1500);
     el.tapCombo.textContent = jackpot ? `JACKPOT x${combo}` : `x${combo} HYPE`;
     el.tapCombo.classList.toggle("show", combo > 1 || jackpot);
     floatText(event, jackpot ? `JACKPOT +R ${gain}` : `+R ${gain}`);
@@ -3381,6 +3479,18 @@
     if (combo === 20) say("OKAY OKAY I GET IT.");
     else if (combo === 40) say("THIS IS BECOMING A LABOR ISSUE.");
     else if (state.meta.totalTaps % 75 === 0) say(TALK_LINES[Math.floor(Math.random() * TALK_LINES.length)]);
+  }
+
+  // Head, belly, or a side: the sprite's own box, not the 292px hit area.
+  function tapZone(event) {
+    if (!event || !Number.isFinite(event.clientX) || (!event.clientX && !event.clientY)) return null;
+    const box = el.petSprite?.getBoundingClientRect();
+    if (!box?.width || !box.height) return null;
+    const x = (event.clientX - box.left) / box.width, y = (event.clientY - box.top) / box.height;
+    if (y < .4) return "tap-head";
+    if (x < .24) return "tap-side-left";
+    if (x > .76) return "tap-side-right";
+    return "tap-belly";
   }
 
   function hatchPet() {
@@ -3684,13 +3794,62 @@
       whole.garden.toyUses[id]=(whole.garden.toyUses[id]||0)+1;
       whole.garden.favoriteToy=Object.entries(whole.garden.toyUses).sort((a,b)=>b[1]-a[1])[0]?.[0]||id;
     });
-    const places = { ball: {x:32,y:1}, stump: {x:72,y:0}, puddle: {x:50,y:2}, bush: {x:27,y:7} };
+    const places = { ball: {x:32,y:1}, stump: {x:75,y:-4}, puddle: {x:30,y:-1}, bush: {x:27,y:7} };
     const uses = state.garden.toyUses[id], lines = { ball:["I CALL NEXT GOAL.","AGAIN. SAME BALL.","YOU SAW THAT, RIGHT?"], stump:["THIS STUMP KNOWS WHAT IT DID.","STILL GOT IT."], puddle:["I REGRET NOTHING.","THE FLOOR NEEDED WATER."], bush:["THE BUSH HAD LORE.","CHECKED. STILL A BUSH."] };
-    startDenBehavior(toy.behavior, 1800, lines[id][(uses - 1) % lines[id].length], destination || places[id]);
     const object = $(`[data-garden-toy="${id}"]`);
+    // He looks first, crouches, then goes. Saved position changes now.
+    lookAtNode(object);
+    animatePet("toy-ready", 220);
+    const target = destination || places[id];
+    const pool = lines[id];
+    let line = pool[(uses - 1) % pool.length];
+    if (id === state.garden.favoriteToy && uses > 5 && Math.random() < .3) line = "MY FAVORITE. DON'T TELL THE OTHERS.";
+    else if (id === "bush" && state.pet.hunger < 35) line = "ANYTHING EDIBLE IN HERE?";
+    clearTimeout(denBehaviorTimer);
+    const sequence = ++denBehaviorSequence, petId = state.pet.id;
+    activePetBehavior = toy.behavior;
+    moveDenTo(target.x, target.y, { lead: 180 });
+    renderHome();
+    if (line) say(line, 2300);
+    denBehaviorTimer = setTimeout(() => {
+      if (sequence !== denBehaviorSequence || state.pet.id !== petId) return;
+      activePetBehavior = null;
+      if (currentView === "home") renderHome();
+    }, 1900);
     object?.classList.remove("toy-in-play"); void object?.offsetWidth; object?.classList.add("toy-in-play");
-    setTimeout(() => object?.classList.remove("toy-in-play"), 1800);
-    sfx(id==="puddle"?"sick":"spark"); sensoryBurst(id==="puddle"?"💧":"✦",currentVariant().color,8);
+    setTimeout(() => object?.classList.remove("toy-in-play"), 2000);
+    sfx(id==="puddle"?"sick":"spark");
+    setTimeout(() => { if (currentView === "home" && state.pet.id === petId) toyAnswer(id, object); }, reducedMotionActive() ? 0 : 680);
+  }
+
+  function lookAtNode(node) {
+    if (!node || !el.petActor || reducedMotionActive()) return;
+    const box = node.getBoundingClientRect(), rect = el.petActor.getBoundingClientRect();
+    const x = clamp(((box.left + box.width / 2) - (rect.left + rect.width / 2)) / rect.width * 7, -3, 3);
+    const y = clamp(((box.top + box.height / 2) - (rect.top + rect.height / 2)) / rect.height * 5, -2, 2);
+    el.petActor.style.setProperty("--gaze-x", `${x.toFixed(2)}px`);
+    el.petActor.style.setProperty("--gaze-y", `${y.toFixed(2)}px`);
+  }
+
+  // A few authored particles at the toy itself (drops, leaves, a thwack).
+  function toyAnswer(id, object) {
+    const scene = el.habitatScene;
+    if (!scene || !object || reducedMotionActive()) return;
+    const box = object.getBoundingClientRect(), room = scene.getBoundingClientRect();
+    const kind = { puddle: "drop", bush: "leaf", stump: "star", ball: "star" }[id];
+    const count = { puddle: 7, bush: 5, stump: 2, ball: 1 }[id];
+    for (let index = 0; index < count; index += 1) {
+      const fx = document.createElement("i");
+      fx.className = `den-fx ${kind}`;
+      if (kind === "star") fx.textContent = id === "stump" ? (index ? "✶" : "!") : "✦";
+      fx.style.left = `${box.left - room.left + box.width * (.2 + Math.random() * .6)}px`;
+      fx.style.top = `${box.top - room.top + box.height * .2}px`;
+      fx.style.setProperty("--fx-x", `${Math.round(-26 + Math.random() * 52)}px`);
+      fx.style.setProperty("--fx-y", `${Math.round(-18 - Math.random() * 30)}px`);
+      fx.style.setProperty("--fx-r", `${Math.round(-90 + Math.random() * 180)}deg`);
+      scene.appendChild(fx);
+      setTimeout(() => fx.remove(), 900);
+    }
   }
 
   // ===== AUTONOMOUS PET LIFE + RANDOM STORY EVENTS =====
@@ -4385,6 +4544,7 @@
     const previousBest=Math.max(0,Number(state.scores?.[mode])||0);
     const rewardScore=Number.isFinite(Number(report.rewardScore)) ? Number(report.rewardScore) : score;
     const gains=Training.convert(def, { score: rewardScore, reason: endReason, inputs: Math.max(1, board.playerInputs||0) });
+    const firstPatch=!state.home.trained.includes(mode);
     mutate((pet,whole)=>{
       whole.meta.totalGames+=1;
       Home.recordTraining(whole.home, mode);
@@ -4427,7 +4587,11 @@
     if(score>previousBest){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
     const gainsLine=trainingGainsLine(gains);
     rememberHomeReturn("training", def.name, gains.embers);
-    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${mode} ${rare?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${subtitle}${newBest}<h2>${score} POINTS</h2><p class="big-line">${escapeHTML(voice.line)}</p>${arcadeResultGrid(report.stats)}${treasureCopy}${rareCopy}<p class="training-gains" data-training-gains>${escapeHTML(gainsLine)}</p><p class="result-home-progress">${escapeHTML(homeTargetCopy())}</p><div class="modal-buttons"><button class="primary" data-training-home>TAKE IT HOME</button><button data-training-continue>ANOTHER DRILL</button><button data-replay-game="${mode}">RUN IT BACK</button></div></div>`, { onClose: () => changeView("home") });
+    // What this drill means at home: a patch for the board, and the next room.
+    const next=Home.next(state.home);
+    const patch=`<div class="result-patch" style="--c:${DRILL_PATCH[mode]||"#cfc4a2"}"><i aria-hidden="true"></i><div><small>${firstPatch?"NEW PATCH":"ANOTHER STITCH"}</small><b>${firstPatch?`${escapeHTML(arcadeName(mode))} goes on the board at home.`:`${state.home.trained.length}/10 drills on the board at home.`}</b></div></div>`;
+    const meter=`<span class="result-home-meter" aria-hidden="true"><i style="width:${clamp(state.wallet.embers/(next?.cost||Home.HORIZON.cost)*100)}%"></i></span>`;
+    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${mode} ${rare?"rare-result":""}"><div class="modal-art result-art">${petMarkup({extraClass:"result-rizo",context:"card"})}<span class="result-badge">${art}</span></div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${subtitle}${newBest}<h2>${score} POINTS</h2><p class="big-line">${escapeHTML(voice.line)}</p>${arcadeResultGrid(report.stats)}${treasureCopy}${rareCopy}<p class="training-gains" data-training-gains>${escapeHTML(gainsLine)}</p>${patch}<p class="result-home-progress">${escapeHTML(homeTargetCopy())}</p>${meter}<div class="modal-buttons"><button class="primary" data-training-home>TAKE IT HOME</button><button data-training-continue>ANOTHER DRILL</button><button data-replay-game="${mode}">RUN IT BACK</button></div></div>`, { onClose: () => changeView("home") });
     advanceTutorial("play");
     if(gains.performance>=1 && (endReason!=="death" || score>previousBest)) celebrate();
   }
@@ -6215,6 +6379,7 @@ Streak: ${state.player.streak}`;
       onExit: (modeId, summary, { destination } = {}) => {
         activeMusicOverride = null; syncMusic(true);
         if (modeId === "dungeon") rememberHomeReturn("dungeon", "RIZO DUNGEON");
+        playDoorway("return");
         changeView("home");
         recordModeEvent(modeId, { kind: "returnedToHub", boundaryId: "hub", campaignId: "", tone: "protected", interruption: "none" });
         flushCarePresentations();
@@ -6272,8 +6437,23 @@ Streak: ${state.player.streak}`;
     if (def.carePolicy === "foreground-hold") processElapsedTime();
     const blocked = modeEntryBlocker(def);
     if (blocked) { toast(`${blocked} • ${def.name}`); sfx("no"); return false; }
+    playDoorway("leave", def.name);
     try { return Modes.launch(modeId, {}); }
     catch (error) { console.warn(`Rizo could not open ${modeId}`, error); toast("THAT GAME COULD NOT OPEN • YOUR SAVE IS SAFE"); return false; }
+  }
+  // Leaving home and coming back are a doorway, not a cut. Presentation only:
+  // the mode launches (or the Den returns) immediately underneath it.
+  function playDoorway(direction, name = "") {
+    if (reducedMotionActive()) return;
+    document.querySelectorAll(".go-doorway").forEach(node => node.remove());
+    const door = document.createElement("div");
+    door.className = `go-doorway ${direction}`;
+    door.setAttribute("aria-hidden", "true");
+    door.innerHTML = direction === "leave"
+      ? `<i class="doorway-light"></i><b>${escapeHTML(state.pet.name)} IS HEADING OUT</b><small>${escapeHTML(String(name).toUpperCase())}</small>`
+      : `<i class="doorway-light"></i><b>HOME</b>`;
+    document.body.appendChild(door);
+    setTimeout(() => door.remove(), direction === "leave" ? 1100 : 800);
   }
   // Shelf cards for modes: [data-mode="<id>"] buttons and [data-mode-best] cells.
   function renderModeShelf() {
