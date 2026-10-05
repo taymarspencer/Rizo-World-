@@ -22,6 +22,7 @@ and both mode contracts retain their existing identities. Dungeon still contains
 The Threshold, and Mending Rows / Nell Chapter 1; navigation does not migrate or rewrite its content.
 
 See [Home / Train / Go](docs/current/HOME-TRAIN-GO.md) for the product mapping, prices, and preservation evidence.
+See [Home, Alive](docs/current/HOME-ALIVE.md) for the Den's tier identities, light stacking, physical play, and ceremonies (`home-alive.css`).
 
 ---
 
@@ -389,6 +390,7 @@ Every delivery that changes a runtime file:
 | `tests/dungeon-core.test.js` | `node` | Dungeon rules: profile caps, movement/collision, Flare/Tuck/Kindle timing, buffering and priority, the Draftling, death/rest, pause holds, slice validation and repair. |
 | `tests/home-core.test.js` | `node` | Home purchases, bounded everyday rewards, normalization, variety, and placement. |
 | `tests/browser-home-world.py` | `python3` | Real phone Home → Training → Go loop; spatial continuity; saved room changes; failed purchases; actual v22/threshold-v3 migration and cross-mode returns. |
+| `tests/browser-home-alive.py` | `python3` | The Den as a place: tier architecture and light, light below Rizo, toys within reach, sleeping in a tappable bed, tap zones, build ceremony across redraws, arrival, Training patch, Go doorway, reduced motion, 320–430 px. |
 | `tests/browser-dungeon.py` | `python3` | The Dungeon through the real hub over HTTP: the page lock, the opening beat by beat, the Threshold story (SIT and GO, help, gift, homecoming, an interrupted beat), real pet, keyboard/touch/mouse, combat/death/rest, lifecycle holds, care policy, reload/import, identity, the QA completion fixture (receipts, failed primary/backup), force update, save-blocked tab, isolation, newer-hub save, v21 and Gate 1 migrations, Defense under the shelf refresh. |
 | `tests/browser-*.py`, `static-defense-audit.py`, `worker-j-integration-risk-audit.py` | `python3` | Inherited browser and static suites. |
 

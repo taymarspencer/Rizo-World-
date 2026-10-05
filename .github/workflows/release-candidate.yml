@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           status=0
-          for suite in browser-home-world browser-dungeon save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
+          for suite in browser-home-world browser-home-alive browser-dungeon save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
             if ! python "tests/$suite.py" 2>&1 | tee "$RUNNER_TEMP/rizo-qa/$suite.log"; then
               status=1
             fi

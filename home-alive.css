@@ -342,9 +342,10 @@ body.rizo-handmade #trainingLibrary .game-card.drill-done h2:after{content:" ✓
 #trainingLibrary>summary,.training-records>summary{border-bottom:1px dashed #3b4541}
 
 /* Result: Rizo did this. What it means at home is right there. */
-.arcade-result .result-art{position:relative;width:96px;height:96px;margin:0 0 4px;display:grid;place-items:center;font-size:0}
+#modalOverlay .arcade-result .modal-art.result-art{position:relative;width:96px!important;height:96px!important;margin:0 0 8px;display:block;font-size:0;border:0!important;background:none!important;box-shadow:none!important;filter:none}
 .result-rizo{position:relative!important;inset:auto!important;width:96px!important;height:96px!important}
-.result-art .result-badge{position:absolute;right:-8px;bottom:2px;z-index:13;font-size:24px;line-height:1;filter:drop-shadow(1px 2px 0 rgba(0,0,0,.5))}
+.result-art .result-badge{position:absolute;right:-14px;bottom:0;z-index:13;font-size:24px;line-height:1;filter:drop-shadow(1px 2px 0 rgba(0,0,0,.5))}
+#modalOverlay .arcade-end-death .result-art .result-rizo{filter:saturate(.45) brightness(.85)}
 .result-patch{display:flex;gap:10px;align-items:center;margin:10px 0 4px;padding:8px 10px;background:#1a2420;border:1px dashed #50624f}
 .result-patch i{flex:none;width:18px;height:18px;background:var(--c);outline:2px dashed rgba(30,18,10,.55);outline-offset:-4px;box-shadow:0 0 0 2px #2b2018}
 .result-patch small{display:block;font:900 8px/1.4 "JetBrains Mono",monospace;letter-spacing:.14em;color:#e9e1b4}
