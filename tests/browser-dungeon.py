@@ -556,7 +556,9 @@ with sync_playwright() as p:
     check("5.2: a first Flare makes them flinch (“Yo—”); a later one: “It's hot! It's hot!”", "Yo—" in b1 and "It's hot! It's hot!" in b2, str((b1, b2)))
     for _ in range(40):
         hold(page, "s", 120)
-        if op(page).get("grabbed"): break
+        # The room tick detects the grab; the next scene tick removes control.
+        # Observe the complete handoff, rather than its one-frame intermediate.
+        if op(page).get("grabbed") and page.evaluate(ST)["ui"] == "scene": break
     st = page.evaluate(ST)
     check("he cannot get away: the hands have him within 6 s", st["opening"].get("grabbed") is True and st["ui"] == "scene", str(st["opening"].get("hands")))
     page.wait_for_timeout(300)
@@ -859,8 +861,14 @@ console.log(JSON.stringify(Save.createEnvelope({state:v.state,modes:{dungeon:{sc
     st = to_room(page, "sack", step=500)
     check("without any input the abduction still happens (the hands come to him)", st["sim"]["roomId"] == "sack")
     page.wait_for_timeout(300)
-    jump(page, 4100); page.wait_for_timeout(100); jump(page, 11500); page.wait_for_timeout(150)
-    check("6.2: without a push he is not freed early", page.evaluate(ST)["sim"]["roomId"] == "sack")
+    jump(page, 4100)
+    page.wait_for_function("RizoRuntimeQA.dungeonStateForQA().opening.limitedAt != null")
+    # Anchor the pre-timeout observation to the actual limited-control beat.
+    # Room polling plus wall time can otherwise cross 12 s on a busy runner.
+    st = page.evaluate("""()=>{const s=RizoRuntimeQA.dungeonStateForQA();
+      RizoRuntimeQA.dungeonSceneTimeForQA(Math.max(0,11000-(s.sceneTime-s.opening.limitedAt)));
+      return RizoRuntimeQA.dungeonStateForQA();}""")
+    check("6.2: without a push he is not freed early", st["sim"]["roomId"] == "sack" and not st["opening"].get("freedAt"), str(st["opening"]))
     st = to_room(page, "van", step=300, limit=30)
     check("…but at 12 s the sack lets him go anyway", st["sim"]["roomId"] == "van")
     for _ in range(400):

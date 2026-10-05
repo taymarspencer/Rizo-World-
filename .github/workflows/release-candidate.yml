@@ -17,7 +17,7 @@ jobs:
   verify:
     name: Current release suites
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out the candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,8 +68,12 @@ jobs:
         shell: bash
         run: |
           status=0
-          for suite in browser-home-world browser-dungeon save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
-            if ! python "tests/$suite.py" 2>&1 | tee "$RUNNER_TEMP/rizo-qa/$suite.log"; then
+          for suite in browser-home-world browser-dungeon browser-dungeon-controls browser-dungeon-cohesion save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
+            extra_args=()
+            if [[ "$suite" == browser-dungeon-cohesion ]]; then
+              extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-cohesion")
+            fi
+            if ! python "tests/$suite.py" "${extra_args[@]}" 2>&1 | tee "$RUNNER_TEMP/rizo-qa/$suite.log"; then
               status=1
             fi
           done

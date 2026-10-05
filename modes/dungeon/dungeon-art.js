@@ -725,7 +725,7 @@
   const NELL_ARMS = {
     // [near arm points], [far arm points] relative to the shoulder line (y ≈ -60).
     work: [[6, -60, 12, -48, 17, -42], [-4, -60, 4, -48, 11, -43]],
-    support: [[6, -60, 10, -72, 9, -86], [-4, -60, -2, -74, 1, -86]],
+    support: [[6, -60, 12, -48, 9, -40], [-4, -60, -2, -50, 1, -40]],
     lift: [[6, -60, 9, -74, 7, -90], [-4, -60, -3, -76, -1, -90]],
     clear: [[6, -60, 14, -46, 22, -36], [-4, -60, 2, -48, 6, -40]],
     point: [[6, -60, 16, -64, 26, -70], [-4, -60, -6, -48, -4, -38]],
@@ -762,7 +762,16 @@
     const far = arms[1].map((value, index) => (index >= 2 && index % 2 === 0 && state === "walk" ? value + swing : value));
     limb(ctx, far, P.service[0], 4.2, P.skin[0]);
     // Holding the weight up: a bar of the load across her hands.
-    if (state === "support" || state === "lift") { const by = state === "lift" ? -92 : -88; box(ctx, -10, by - 2, 30, 4, P.wood[2], { ink: 1.1, amp: 0.1, seed: 80 }); rect(ctx, P.wood[3], -9, by - 1.6, 28, 1); }
+    if (state === "support" || state === "lift") { const by = state === "lift" ? -92 : -42; box(ctx, -10, by - 2, 30, 4, P.wood[2], { ink: 1.1, amp: 0.1, seed: 80 }); rect(ctx, P.wood[3], -9, by - 1.6, 28, 1); }
+    if (state === "work" || state === "fix") {
+      // Quiet work has an object: the same service cloth, a repaired seam and
+      // one needle. She holds it at her hands instead of gesturing at nothing.
+      const cy = state === "fix" ? -60 : -48;
+      box(ctx, 8, cy, 14, 10, P.paper[2], { ink: 0.8, amp: 0.3, seed: 79 });
+      stitches(ctx, 10, cy + 5, 20, cy + 5, P.a.maroon, 2.5, 1, 0.6);
+      const lift = state === "work" ? Math.sin(t / 400) * 1.2 : 0;
+      line(ctx, 16, cy + 3 + lift, 20, cy - 2 + lift, P.metal[3], 0.8);
+    }
     // Coat: hip-length, square shoulders, a lighter patch sewn on the hip.
     shape(ctx, [-10, -62, 9, -62, 12, -28, -12, -27], P.service[2], { ink: CH, seed: 84, amp: CA });
     shape(ctx, [-10, -60, -3, -61, -5, -28, -12, -27], P.service[1], { ink: false, seed: 85, amp: CA });
