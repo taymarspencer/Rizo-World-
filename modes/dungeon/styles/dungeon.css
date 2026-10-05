@@ -89,7 +89,7 @@
 .dungeon-card-actions button.danger{background:#3a1712;color:#ffc2a8}
 /* Testing and starting over: present, findable, never competing with RESUME. */
 .dungeon-card-tools{display:grid;padding-top:8px;border-top:1px dashed rgba(233,223,199,.22)}
-.dungeon-card-tools button.quiet{min-height:40px;padding:0 10px;border:1px solid rgba(233,223,199,.28);border-radius:0;background:transparent;color:#b9b09c;font:800 12px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;cursor:pointer}
+.dungeon-card-tools button.quiet{min-height:44px;padding:0 10px;border:1px solid rgba(233,223,199,.28);border-radius:0;background:transparent;color:#b9b09c;font:800 12px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;cursor:pointer}
 .dungeon-card-tools button.quiet:disabled{opacity:.4;cursor:default}
 .dungeon-card-tools button:focus-visible,.dungeon-card-actions button:focus-visible{outline:3px solid var(--warm);outline-offset:2px}
 /* Menu cards (pause, restart) on a short screen: tighter, and side by side when

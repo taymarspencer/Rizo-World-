@@ -68,13 +68,16 @@ jobs:
         shell: bash
         run: |
           status=0
-          for suite in browser-home-world browser-home-alive browser-dungeon browser-dungeon-controls browser-dungeon-cohesion browser-dungeon-depth save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
+          for suite in browser-home-world browser-home-alive browser-dungeon browser-dungeon-controls browser-dungeon-cohesion browser-dungeon-depth browser-dungeon-gamefeel save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
             extra_args=()
             if [[ "$suite" == browser-dungeon-cohesion ]]; then
               extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-cohesion")
             fi
             if [[ "$suite" == browser-dungeon-depth ]]; then
               extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-depth")
+            fi
+            if [[ "$suite" == browser-dungeon-gamefeel ]]; then
+              extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-gamefeel")
             fi
             if ! python "tests/$suite.py" "${extra_args[@]}" 2>&1 | tee "$RUNNER_TEMP/rizo-qa/$suite.log"; then
               status=1
