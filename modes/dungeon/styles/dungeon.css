@@ -304,6 +304,10 @@ html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-lock
 .dungeon-pose.pose-held{--sx:.88;--sy:1.1;animation:dungeonShiver .1s linear infinite;translate:0 -5px}
 .dungeon-pose.pose-loosen{--sx:1.06;--sy:.95;animation:dungeonLoosen 2.4s ease-in-out}
 .dungeon-pose.pose-watch{animation:dungeonLookBack 2.4s steps(1,end);--lean:-4deg}
+/* Noticing something: a small lift toward it. Staring back: held still, no breath. */
+.dungeon-pose.pose-notice{animation:dungeonNotice .7s ease-out}
+.dungeon-pose.pose-stare{--sx:.94;--sy:1.05;--lean:-3deg;animation:none}
+@keyframes dungeonNotice{35%{translate:0 -2px;scale:.97 1.05}100%{translate:0 0;scale:1 1}}
 .dungeon-pose.in-sack,.dungeon-pose.is-gone{opacity:0;animation:none!important}
 @keyframes dungeonPullIn{from{scale:1.05 1.05}to{scale:1 1}}
 @keyframes dungeonSlip{0%{translate:0 0}40%{translate:0 -5px;transform:scaleX(var(--face)) rotate(-14deg)}100%{translate:0 -3px;transform:scaleX(var(--face)) rotate(-6deg) scale(.96,1)}}

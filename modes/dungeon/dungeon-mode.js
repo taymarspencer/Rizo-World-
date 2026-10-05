@@ -277,6 +277,7 @@
         else if (kind === "road") { a.noise?.(0.2, 0.0055); a.tone?.(41, 0.24, "sine", 0.006); }
         else if (kind === "heart") { a.tone?.(46, 0.11, "sine", 0.02); a.tone?.(44, 0.1, "sine", 0.014, 0.19); }
         else if (kind === "curious") a.tone?.(740, 0.07, "sine", 0.008, 0, 160);
+        else if (kind === "draft") { a.noise?.(0.9, 0.0035); a.tone?.(330, 0.9, "sine", 0.0028, 0.1, 40); }
         else if (kind === "relief") { a.noise?.(0.45, 0.005); a.tone?.(392, 0.5, "sine", 0.009, 0.05, -60); }
         // Nell: three warm notes, the first time she makes room for him and when she gives.
         else if (kind === "nell") { a.tone?.(523, 0.5, "triangle", 0.011); a.tone?.(659, 0.55, "triangle", 0.01, 0.24); a.tone?.(587, 0.8, "triangle", 0.009, 0.5); }
@@ -1096,6 +1097,7 @@
       if (room.smallestAt != null && !room.smallestDone) k *= 0.5;
       if (room.loosenAt != null && sceneTime - room.loosenAt < 2600) k *= 1 + 0.18 * Math.sin(Math.PI * clamp((sceneTime - room.loosenAt) / 2600, 0, 1));
       k *= moodScale();
+      if (room.firstLookAt != null && sceneTime - room.firstLookAt < 1500) k *= 0.78 + 0.22 * easeOut((sceneTime - room.firstLookAt) / 1500);
       // Below, a threat close by pulls it in a little; so does running low.
       if (!geo().world) {
         k *= 1 - 0.1 * MOOD.danger;
@@ -1105,6 +1107,65 @@
     }
     // He has no words for it; his flame says it. Fear pulls it small and
     // unsteady, relief lets it swell once, warmth (someone kind, a hearth) lifts it.
+    // He turns to look at a point (presentation; only while nothing is being aimed).
+    function faceToward(x, y) {
+      if (!sim || sim.player.act) return;
+      const dx = x - sim.player.x, dy = y - sim.player.y, d = Math.max(1, Math.hypot(dx, dy));
+      sim.player.fx = dx / d; sim.player.fy = dy / d;
+    }
+    // ---- Direction without a map. He notices things (a turn, a catch of light,
+    // a small sound). Stand still long enough and the room points for him:
+    // air moving from the way on, or a glint on the thing that needs him.
+    // Presentation only; nothing here is saved or changes what is open.
+    const noticed = new Set();
+    const BECKON_STILL_MS = 8000, BECKON_EVERY_MS = 15000;
+    function quietMoment() {
+      return !geo().world && ui === "play" && !scene && sim.phase === "play" && !Core.encounterActive(sim) && !thoughtNow() && MOOD.danger < 0.1;
+    }
+    function noticeTick(time) {
+      if (!quietMoment()) return;
+      const g = geo(), p = sim.player;
+      if (room.arrivedAt == null) room.arrivedAt = time;
+      if (time - room.arrivedAt < 900 || time - (room.noticeAt || 0) < 1600) return;
+      const reach = (46 + p.flame * 8) * lightScaleNow() * 0.9, walls = Core.geoOf(sim);
+      let best = null;
+      for (const item of Core.interactables(sim)) {
+        const key = `${g.id}:${item.id}`, d = Math.hypot(item.x - p.x, item.y - p.y);
+        if (noticed.has(key) || d > reach || !Core.lineOfSight(walls, p.x, p.y, item.x, item.y)) continue;
+        if (!best || d < best.d) best = { key, x: item.x, y: item.y, d };
+      }
+      if (!best) return;
+      noticed.add(best.key); room.noticeAt = time;
+      view.addEffect("glint", best.x, best.y - 6, 1);
+      sound("curious");
+      if (!p.moving) { faceToward(best.x, best.y); if (!poseOverride) setPose("notice", 700); }
+    }
+    // Where the way on is, read from what is already done.
+    function wayOn() {
+      const g = geo();
+      const exit = id => { const e = (g.exits || []).find(item => item.id === id); return e ? { x: e.x + e.w / 2, y: e.y + e.h / 2, kind: "air" } : null; };
+      const rested = data.checkpoint?.hearthId === "threshold-hearth";
+      switch (g.id) {
+        case "slip": return room.thoughtArmed ? null : exit("slip-to-clatter");
+        case "clatter": return exit("clatter-to-hem");
+        case "hem": return !fact("latchFreed") ? { x: 150, y: 218, kind: "thing" } : !rested ? exit("hem-to-hearth") : exit("hem-to-queue");
+        case "hearth": return !rested ? { x: g.hearth.x, y: g.hearth.y, kind: "thing" } : fact("shortcutOpen") ? exit("hearth-to-queue") : exit("hearth-to-hem");
+        case "queue": return exit("queue-to-porter");
+        case "porter": return fact("porterDown") ? exit("porter-to-rows") : null;
+        default: return null;
+      }
+    }
+    function beckonTick() {
+      if (!quietMoment() || stillFor < BECKON_STILL_MS || sceneTime - (room.beckonAt ?? -Infinity) < BECKON_EVERY_MS) return;
+      const way = wayOn();
+      if (!way) return;
+      room.beckonAt = sceneTime;
+      const p = sim.player;
+      faceToward(way.x, way.y);
+      if (!poseOverride) setPose("notice", 700);
+      if (way.kind === "air") { view.addDraft?.(way.x, way.y, p.x, p.y); sound("draft"); }
+      else { view.addEffect("glint", way.x, way.y - 6, 1); sound("curious"); }
+    }
     function flameMood(kind, ms) { room.mood = { kind, at: sceneTime, ms: ms || 1600 }; }
     function relief() {
       flameMood("relief", 1900);
@@ -1251,13 +1312,13 @@
         S.control(true),
         // Committed at once: coming back here never replays the arrival.
         S.call(() => commitBeat("rows:arrived")),
-        talk([{ hold: 600 }, ...(fact("sharedRest") ? L.rowsLatchHelloSat : L.rowsLatchHello), { hold: 500 }, ...L.rowsDispute,
+        talk([{ pose: "look-up", ms: 1400 }, { call: () => flameMood("warm", 3200) }, { hold: 1300 }, ...(fact("sharedRest") ? L.rowsLatchHelloSat : L.rowsLatchHello), { hold: 500 }, ...L.rowsDispute,
           // He takes the packet out; the strap lifts. Give that change room.
           { call: () => { const latch = npcs.get("latch"); if (latch) latch.state = "unloaded"; room.unloaded = sceneTime; } }, { hold: 1400 },
           ...L.rowsMend, { call: () => { nellState("work"); setTransient("ledgeReady", true); } }]),
         S.until(() => room.near),
         // He comes close: she clears the dry patch for him before anything else.
-        S.call(() => { nellState("clear"); room.dryPatch = sceneTime; }),
+        S.call(() => { nellState("clear"); room.dryPatch = sceneTime; sound("nell"); flameMood("warm", 2600); }),
         talk([...L.rowsDry, { hold: 400 }, ...L.rowsGoingUp]),
         S.until(() => room.ledgeDone || sceneTime - room.dryPatch > 14000),
         S.call(() => { if (!room.ledgeDone) { setTransient("ledgeReady", false); nellState("work"); sound("clunk"); } }),
@@ -1335,7 +1396,7 @@
         const outcome = commitData(next => { next.story.choices["rows-meal"] = value; next.world.durableRoomFlags.rowsPressOpen = true; addBeat(next, "rows:meal"); });
         if (outcome.status === "failed") renderSaveFailedPanel("moment");
         const after = value === "sit"
-          ? [S.call(() => { room.seatFrom = { x: sim.player.x, y: sim.player.y }; room.seatAt = sceneTime; room.seatTarget = { x: 150, y: 196 }; }), S.until(() => seatWalk()), S.pose("settle", 3200), S.call(() => duck(3200, 0.3)), S.wait(3200), S.say(L.rowsCrunchy), S.wait(800), S.control(true), talk([...L.rowsPressNext]), S.call(() => departMeal())]
+          ? [S.call(() => { room.seatFrom = { x: sim.player.x, y: sim.player.y }; room.seatAt = sceneTime; room.seatTarget = { x: 150, y: 196 }; }), S.until(() => seatWalk()), S.pose("settle", 3200), S.call(() => { duck(3200, 0.3); sound("nell"); flameMood("warm", 3200); }), S.wait(3200), S.say(L.rowsCrunchy), S.wait(800), S.control(true), talk([...L.rowsPressNext]), S.call(() => departMeal())]
           : [S.control(true), talk([...L.rowsPressNext, ...L.rowsTakeEdge]), S.call(() => departMeal())];
         current.steps.push(...after);
       };
@@ -1702,11 +1763,11 @@
               weighted(L.vanPhone[0], 1.4), ...L.vanPhone.slice(1), { call: () => setPose("tremble", 4000) }, { hold: 4000 },
               // It goes dark. In the silence he looks at the one who's scared: they are afraid too.
               { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 1200 },
-              { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("watch", 1800); } }, { hold: 1800 },
+              { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("stare", 1800); } }, { hold: 1800 },
               weighted(L.vanLost[0], 1.3), ...L.vanLost.slice(1),
               // The capped one's only words. Everyone turns to him. He looks back. Rain only.
               { call: () => vanHush("rain") }, { hold: 400 },
-              weighted(L.vanListening[0], 1.4), { call: () => { vanStare(true); setPose("watch", 3000); flameMood("fear", 3000); } }, { hold: 3000 },
+              weighted(L.vanListening[0], 1.4), { call: () => { vanStare(true); setPose("stare", 3000); flameMood("fear", 3000); } }, { hold: 3000 },
               { call: () => vanStare(false) }
             ]),
             S.call(() => { vanHush(null); setTransient("vanDoorLoose", true); room.doorLoose = true; sound("door"); room.shake = sceneTime; room.looseAt = sceneTime; }),
@@ -1880,9 +1941,7 @@
     // Rizo turns to someone (or, with null, back toward the whole cabin).
     function vanFaceToward(id) {
       const actor = id ? npcs.get(id) : { x: 110, y: 60 };
-      if (!actor || !sim) return;
-      const dx = actor.x - sim.player.x, dy = actor.y - sim.player.y, d = Math.max(1, Math.hypot(dx, dy));
-      sim.player.fx = dx / d; sim.player.fy = dy / d;
+      if (actor) faceToward(actor.x, actor.y);
     }
     // Still, he watches whoever is talking. Moving, he looks where he goes.
     function vanGaze() {
@@ -1986,7 +2045,12 @@
         S.wait(350),
         S.say(stranger ? L.latchRescueStranger : L.latchRescue),
         S.call(() => clearResume()),
-        S.move("latch", 300, 116, 1400, false),
+        S.move("latch", 276, 120, 1100),
+        // At the edge of the dark he stops and looks back once. Then the hearth.
+        S.call(() => { const latch = npcs.get("latch"); if (latch) latch.face = -1; faceToward(276, 112); }),
+        S.wait(800),
+        S.call(() => { const latch = npcs.get("latch"); if (latch) latch.face = 1; }),
+        S.move("latch", 304, 116, 500, false),
         S.wait(600)
       ], { onDone: () => { npcs.delete("latch"); } });
     }
@@ -2114,7 +2178,7 @@
       if (!npcs.has("latch")) npc("latch", "latch", 22, 142, { face: 1 });
       runScene("knot-gift", [
         // The held quiet after the Porter, before anything is given.
-        S.call(() => duck(2400, 0.08)),
+        S.call(() => { duck(2400, 0.08); setMusic(SILENT_TRACK); flameMood("relief", 2600); }),
         S.wait(1800),
         S.move("latch", clamp(sim.player.x - 22, 50, 300), clamp(sim.player.y, 50, 220), 1100),
         S.say(L.gift),
@@ -2122,7 +2186,7 @@
         S.pose("settle", 1200),
         S.wait(1000),
         S.say(L.departure),
-        S.call(() => { clearResume(); sim.flags = simFlags(); room.shake = sceneTime; sound("door"); })
+        S.call(() => { clearResume(); sim.flags = simFlags(); room.shake = sceneTime; sound("door"); setMusic(ROWS_FAR_TRACK); })
       ]);
     }
 
@@ -2192,12 +2256,14 @@
     function onExit(event) {
       if (event.to === "home") { homecoming(); return; }
       const context = sim.roomId === "drain" && event.to === "roadside" ? "back" : "walk";
+      const first = !Content.isOpening(event.to) && !data.world.visitedRooms.includes(event.to);
       runScene(`walk:${event.to}`, [S.fade(1, 140), S.call(() => {
         goToRoom(event.to, event.anchor, { context });
+        if (first) room.firstLookAt = sceneTime;
         // onEnterRoom may replace this scene with the destination's own scene.
         // The reveal belongs to the handoff, not an old scene's cancelled next
         // step. It therefore continues even when Nell starts talking at once.
-        sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: reducedMotion() ? 100 : 240 };
+        sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: reducedMotion() ? 100 : first ? 480 : 240 };
       }), S.wait(reducedMotion() ? 100 : 240)]);
     }
     function registerHearth(hearthId) {
@@ -2362,6 +2428,8 @@
       }
       MOOD.danger += (danger - MOOD.danger) * clamp(dt / (danger > MOOD.danger ? 260 : 900), 0, 1);
       if (MOOD.danger < 0.01) MOOD.danger = 0;
+      noticeTick(time);
+      beckonTick();
       const porterEnemy = g.id === "porter" ? sim.enemies.find(enemy => enemy.kind === "porter") : null;
       if (porterEnemy && (porterEnemy.state === "reposition" || porterEnemy.state === "charge") && time - thudAt > (porterEnemy.state === "charge" ? 140 : 380)) { thudAt = time; sound("thud"); }
       stillFor = p.moving ? 0 : stillFor + dt;
@@ -2647,13 +2715,16 @@
         petId: pet?.id || null,
         actorMarkup: view?.el.pose.innerHTML.length || 0,
         dialogue: dialogueState ? { index: dialogueState.index, shown: dialogueState.shown, lines: dialogueState.lines.length, speaker: dialogueState.lines[dialogueState.index].speaker, expr: dialogueState.lines[dialogueState.index].expr, text: dialogueState.lines[dialogueState.index].text } : null,
-        barks: barks.map(entry => ({ id: entry.id, text: entry.text })),
+        barks: barks.map(entry => ({ id: entry.id, text: entry.text, quiet: Boolean(entry.quiet) })),
+        depth: { mood: room.mood && sceneTime - room.mood.at <= room.mood.ms ? room.mood.kind : null, danger: Math.round(MOOD.danger * 100) / 100, hush: room.hush ?? null, noticed: [...noticed], beckonAt: room.beckonAt ?? null, firstLookAt: room.firstLookAt ?? null, still: stillFor, facing: sim ? { x: sim.player.fx, y: sim.player.fy } : null, actors: [...npcs.values()].filter(actor => actor.visible).map(actor => ({ id: actor.id, state: actor.state, face: actor.face })) },
         sceneTime, silent: sceneTime < silentUntil, fade: sceneFade.value, impactAt: room.impactAt ?? null,
         music: musicId, transient: { ...transient }, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
         opening: openingQA(),
         log: [...qaLog]
       }),
       qaTeleport(x, y) { if (!sim) return false; sim.player.x = x; sim.player.y = y; prev = { x, y }; return true; },
+      // QA only: as if he had been standing still this long already.
+      qaStill(ms) { stillFor = Math.max(stillFor, ms); return stillFor; },
       qaAdvance(ms, stepInput = {}) {
         if (!sim) return [];
         const all = [];
@@ -2754,6 +2825,7 @@
       dungeonGotoForQA: (roomId, anchorId, flags) => need().qaGoto(roomId, anchorId, flags),
       dungeonSkipSceneForQA: () => need().qaSkipScene(),
       dungeonSceneTimeForQA: ms => need().qaSceneTime(ms),
+      dungeonStillForQA: ms => need().qaStill(ms),
       dungeonCommitForQA: request => need().qaCommit(request),
       dungeonEnemyForQA: (id, patch) => need().qaEnemy(id, patch),
       dungeonCompleteFixtureForQA: options => need().qaCompleteFixture(options),
