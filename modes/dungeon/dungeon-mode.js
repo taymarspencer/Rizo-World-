@@ -144,34 +144,48 @@
     pose: (name, ms) => ({ type: "pose", name, ms }),
     fade: (to, ms) => ({ type: "fade", to, ms }),
     control: on => ({ type: "control", on }),
-    choice: (key, options) => ({ type: "choice", key, options }),
+    // `line`: the line that asks it, kept on screen while the choice waits.
+    choice: (key, options, line = null) => ({ type: "choice", key, options, line }),
     bark: (id, line, ms = 1900) => ({ type: "bark", id, line, ms })
   };
 
   // The page around the handheld must not scroll, rubber-band, zoom or
   // select text while the Dungeon is open. Everything here is undone on stop.
+  // A text field (none is in the Dungeon today) always keeps its own selection.
+  const TEXT_FIELDS = "input, textarea, select, [contenteditable]";
+  // selectstart is fired at the Text node, which has no closest(): look from its element.
+  const elementOf = node => (node && node.nodeType !== 1 ? node.parentElement || null : node);
+  const inTextField = node => Boolean(elementOf(node)?.closest?.(TEXT_FIELDS));
   function createPageLock(stageRoot) {
     const doc = root.document;
     const html = doc.documentElement, body = doc.body;
     const listeners = [];
     const listen = (target, type, handler, options) => { target.addEventListener(type, handler, options); listeners.push(() => target.removeEventListener(type, handler, options)); };
-    const insideStage = event => Boolean(event.target?.closest?.(".minigame-overlay"));
     const scroll = { x: root.scrollX || 0, y: root.scrollY || 0 };
+    const clearSelection = () => { try { root.getSelection?.()?.removeAllRanges?.(); } catch (error) {} };
     html.classList.add("dungeon-locked");
     body.classList.add("dungeon-locked");
-    try { root.getSelection?.()?.removeAllRanges?.(); } catch (error) {}
+    clearSelection();
     // iOS rubber-bands the page on any unhandled touchmove. Oversized cards
     // use the view's bounded pointer drag; native page scrolling stays locked.
     listen(doc, "touchmove", event => { if (event.cancelable) event.preventDefault(); }, { passive: false });
     listen(doc, "gesturestart", event => event.preventDefault(), { passive: false });
-    listen(doc, "selectstart", event => { if (insideStage(event) || event.target === body || event.target === doc) event.preventDefault(); });
+    listen(doc, "selectstart", event => { if (!inTextField(event.target)) event.preventDefault(); });
+    // If the OS still makes a selection, it goes at once, and its edit menu
+    // (Copy, Look Up, the link item) with it. The selection is drawn
+    // transparent in the stage, so otherwise the menu floats over the HUD.
+    listen(doc, "selectionchange", () => {
+      const selection = root.getSelection?.();
+      if (selection?.rangeCount && !selection.isCollapsed && !inTextField(selection.anchorNode)) clearSelection();
+    });
+    listen(doc, "contextmenu", event => { if (!inTextField(event.target)) event.preventDefault(); });
     listen(stageRoot, "dblclick", event => event.preventDefault());
     listen(stageRoot, "wheel", event => { if (event.cancelable) event.preventDefault(); }, { passive: false });
     return function release() {
       while (listeners.length) listeners.pop()();
       html.classList.remove("dungeon-locked");
       body.classList.remove("dungeon-locked");
-      try { root.getSelection?.()?.removeAllRanges?.(); } catch (error) {}
+      clearSelection();
       try { root.scrollTo(scroll.x, scroll.y); } catch (error) {}
     };
   }
@@ -376,9 +390,12 @@
       input?.clear("panel");
       pending = { primary: false, secondary: false };
     }
-    function card({ kicker = "THE THRESHOLD", title, body = "", actions = "", fine = "" }) {
-      return `<div class="dungeon-card"><small>${esc(kicker)}</small><h3>${esc(title)}</h3>${body ? `<p>${body}</p>` : ""}<div class="dungeon-card-actions">${actions}</div>${fine ? `<p class="dungeon-fine">${fine}</p>` : ""}</div>`;
+    // `menu`: a card the player opens mid-play (pause, restart); it tightens on short screens.
+    function card({ kicker = "THE THRESHOLD", title, body = "", actions = "", fine = "", tools = "", menu = false }) {
+      return `<div class="dungeon-card${menu ? " is-menu" : ""}"><small>${esc(kicker)}</small><h3>${esc(title)}</h3>${body ? `<p>${body}</p>` : ""}<div class="dungeon-card-actions">${actions}</div>${fine ? `<p class="dungeon-fine">${fine}</p>` : ""}${tools ? `<div class="dungeon-card-tools">${tools}</div>` : ""}</div>`;
     }
+    // Under the card, away from RESUME: a fresh start of the story, always asked first.
+    const restartTool = disabled => `<button type="button" class="quiet" data-dungeon-action="restart-ask" ${disabled ? "disabled" : ""}>RESTART DUNGEON</button>`;
     function renderPausePanel() {
       const external = Core.externalHolds(holds);
       const waiting = external.includes("ad") ? "Waiting for the break to finish." : external.includes("save-blocked") ? "This tab stopped saving. Load the newest save to continue." : "";
@@ -388,8 +405,74 @@
         title: "PAUSED",
         body: esc(`${waiting || updateNote || perf || `${pet?.name || "Your Rizo"} waits. Nothing moves until you resume.`}${unsaved && !updateNote ? " The last moment isn't saved yet; GO HOME tries again." : ""}`),
         actions: `<button type="button" class="primary" data-dungeon-action="resume" ${external.length ? "disabled" : ""}>RESUME</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
-        fine: esc(Core.belowReached(data) ? "GO HOME saves the journey here. You'll come back to this spot." : "GO HOME saves. The night picks up from here next time.")
+        fine: esc(Core.belowReached(data) ? "GO HOME saves the journey here. You'll come back to this spot." : "GO HOME saves. The night picks up from here next time."),
+        tools: restartTool(external.length > 0),
+        menu: true
       }));
+    }
+    // A finished proof journey (the homecoming) can go on through the door, or start over.
+    function reachedHomeCard() {
+      return card({ kicker: "THE THRESHOLD", title: "THIS JOURNEY REACHED HOME", body: `${esc(data.campaign.petName)} already came home from The Threshold. Past the Porter, a door that was shut is open now.`, actions: `<button type="button" class="primary" data-dungeon-action="onward">GO THROUGH THE DOOR</button><button type="button" data-dungeon-action="leave">GO HOME</button>`, tools: restartTool(false) });
+    }
+    // ---- RESTART DUNGEON: asked, then committed, then begun. Keeping the
+    // journey is the first (focused) answer, so a stray Enter never restarts.
+    let restartBack = null;
+    function askRestart(back) {
+      restartBack = back;
+      const name = esc(pet?.name || data?.campaign?.petName || "Your Rizo");
+      openPanel("restart", card({
+        kicker: "RESTART DUNGEON",
+        title: "START OVER FROM THE CAR?",
+        body: `${name}'s journey goes back to the very beginning. Every room, choice and meeting starts fresh.`,
+        actions: `<button type="button" class="primary" data-dungeon-action="restart-cancel">KEEP MY JOURNEY</button><button type="button" class="danger" data-dungeon-action="restart">RESTART DUNGEON</button>`,
+        fine: esc(`${pet?.name || "Your Rizo"}, Home, training, Defense, Embers, the wardrobe and your settings stay exactly as they are.`),
+        menu: true
+      }));
+    }
+    function cancelRestart() {
+      const back = restartBack;
+      restartBack = null;
+      if (back) back(); else closePanel();
+    }
+    function restartJourney() {
+      if (exitState || !data?.campaign || !pet || data.campaign.petId !== pet.id) return;
+      const fresh = Core.restartSlice(data, { pet, id: campaignId() });
+      if (!fresh) return;
+      const before = { data, dirty, unsaved };
+      const outcome = commit(fresh);
+      if (outcome.status !== "committed") {
+        // Refused: the journey stays exactly where it was.
+        data = before.data; dirty = before.dirty; unsaved = before.unsaved;
+        if (sim) sim.flags = simFlags();
+        const blocked = outcome.status === "blocked";
+        openPanel("restart-failed", card({
+          kicker: blocked ? "SAVE PROTECTED" : "NOT SAVED",
+          title: "COULDN'T RESTART",
+          body: esc(blocked ? "Another tab or the app has newer progress, so this tab stopped saving. Your journey is unchanged." : "Your browser storage refused the save. Your journey is unchanged."),
+          actions: `<button type="button" class="primary" data-dungeon-action="restart-cancel">BACK</button>`,
+          menu: true
+        }));
+        return;
+      }
+      // Nothing of the old night follows him into the new one.
+      restartBack = null;
+      scene = null; dialogueState = null; choiceState = null;
+      view.dialogue(null); view.choice(null); view.banner(""); bannerUntil = 0; pendingBanner = "";
+      panelKind = ""; view.panel(null);
+      holds = Core.holdsPlayerResume(holds);
+      ui = "play";
+      sim = null;
+      noticed.clear();
+      cue = { moved: false, flare: false, tuck: false, noticed: false };
+      deaths = 0; pendingGift = null; poseOverride = null; silentUntil = 0; stillFor = 0; facingLeft = false; lastMove = { x: 0, y: 0 };
+      sceneFade = { value: 1, from: 1, to: 1, start: sceneTime, ms: 0 };
+      input.clear("restart");
+      pending = { primary: false, secondary: false };
+      acc = 0; lastFrame = now();
+      refreshPet();
+      enterSim(Content.START_ROOM, Content.ROOMS[Content.START_ROOM].entryAnchor, Core.T.FLAME_MAX);
+      onEnterRoom(Content.START_ROOM, "new");
+      log({ restart: data.campaign.id });
     }
     function renderSaveFailedPanel(context) {
       const blocked = lastOutcome?.status === "blocked";
@@ -442,17 +525,19 @@
     }
 
     // ===== CHOICE (D-pad + Primary, or tap) =====
-    function openChoice(options, onPick) {
-      choiceState = { options, index: 0, onPick, lastDir: 0 };
+    // The question stays with its answers: the line that asked it (if any)
+    // is shown above the buttons, so a choice never floats without context.
+    function openChoice(options, onPick, line = null) {
+      choiceState = { options, index: 0, onPick, lastDir: 0, line: line ? lineOf(line) : null };
       ui = "choice";
       input.clear("choice");
       pending = { primary: false, secondary: false };
-      view.choice(options, 0);
+      view.choice(options, 0, choiceState.line);
     }
     function moveChoice(dir) {
       if (!choiceState) return;
       choiceState.index = (choiceState.index + dir + choiceState.options.length) % choiceState.options.length;
-      view.choice(choiceState.options, choiceState.index);
+      view.choice(choiceState.options, choiceState.index, choiceState.line);
       sound("ui");
     }
     function pickChoice(index = choiceState?.index) {
@@ -509,7 +594,7 @@
             if (step.on && ui === "scene") { ui = "play"; pending = { primary: false, secondary: false }; }
             else if (!step.on && ui === "play") { ui = "scene"; input.clear("scene"); pending = { primary: false, secondary: false }; }
             break;
-          case "choice": current.waiting = "choice"; openChoice(step.options, value => { if (scene === current) { current.choice = value; step.onPick?.(value); current.waiting = null; advanceScene(); } }); break;
+          case "choice": current.waiting = "choice"; openChoice(step.options, value => { if (scene === current) { current.choice = value; step.onPick?.(value); current.waiting = null; advanceScene(); } }, step.line); break;
           case "bark": bark(step.id, step.line, step.ms); break;
           default: break;
         }
@@ -1439,7 +1524,7 @@
         S.call(() => { setTransient("chalkOut", false); nellState("work"); if (!room.chalkFound) sound("breath"); }),
         S.wait(1200),
         S.say(L.rowsWrapOffer),
-        S.choice("rows-wrap", [{ label: "WEAR IT", value: "worn" }, { label: "FOLDED", value: "folded" }, { label: "LEAVE IT", value: "peg" }])
+        S.choice("rows-wrap", [{ label: "WEAR IT", value: "worn" }, { label: "FOLDED", value: "folded" }, { label: "LEAVE IT", value: "peg" }], L.rowsWrapOffer[L.rowsWrapOffer.length - 1])
       ]);
       room.enteredAt = sceneTime;
       const current = scene;
@@ -2070,7 +2155,7 @@
       if (geo().id !== "hearth" || !fact("latchFreed") || fact("seatChosen") || scene) return;
       runScene("hearth-seat", [
         S.say(L.seatOffer),
-        S.choice("hearth-seat", [{ label: "SIT", value: "sit" }, { label: "GO", value: "go" }]),
+        S.choice("hearth-seat", [{ label: "SIT", value: "sit" }, { label: "GO", value: "go" }], L.seatOffer[0]),
         S.call(() => {})
       ]);
       // The choice is committed before either reaction is shown.
@@ -2094,12 +2179,18 @@
       };
     }
     // SIT: the Rizo crosses to the bench beside Latch (presentation, then settles).
+    // He walks there at about his own pace, so a seat across the room is a
+    // few steps, not a glide; he faces where he is going, then the seat.
     function seatWalk() {
       const target = room.seatTarget || geo().anchors["hearth-seat"];
-      const k = clamp((sceneTime - room.seatAt) / 700, 0, 1);
-      sim.player.x = room.seatFrom.x + (target.x - room.seatFrom.x) * k;
-      sim.player.y = room.seatFrom.y + (target.y - room.seatFrom.y) * k;
-      sim.player.fx = -1; sim.player.fy = 0;
+      const dx = target.x - room.seatFrom.x, dy = target.y - room.seatFrom.y;
+      const ms = Math.max(700, (Math.hypot(dx, dy) / 90) * 1000);
+      const k = clamp((sceneTime - room.seatAt) / ms, 0, 1);
+      sim.player.x = room.seatFrom.x + dx * k;
+      sim.player.y = room.seatFrom.y + dy * k;
+      sim.player.moving = k < 1 && Math.hypot(dx, dy) > 4;
+      if (sim.player.moving && Math.abs(dx) > 2) { sim.player.fx = Math.sign(dx); sim.player.fy = 0; }
+      else { sim.player.fx = -1; sim.player.fy = 0; }
       prev = { x: sim.player.x, y: sim.player.y };
       return k >= 1;
     }
@@ -2325,7 +2416,15 @@
       showBanner(target.resumeKind === "hearth" ? (deaths === 1 ? L.firstDown : L.rested) : L.downNoHearth);
       if (outcome.status === "failed") renderSaveFailedPanel("moment");
     }
-    function showBanner(text) { view.banner(text); bannerUntil = now() + 2400; }
+    // A banner is never spent under something being read: one raised as a
+    // line or a choice opens (the hearth knowing him as Latch speaks) waits
+    // for it to close, then has its full time. Scene beats show it at once.
+    let pendingBanner = "";
+    function showBanner(text) { pendingBanner = text || ""; }
+    function bannerTick(time) {
+      if (pendingBanner && ui !== "dialogue" && ui !== "choice" && ui !== "panel" && !holds.length) { view.banner(pendingBanner); bannerUntil = time + 2400; pendingBanner = ""; }
+      if (bannerUntil && time > bannerUntil) { view.banner(""); bannerUntil = 0; }
+    }
 
     // ===== THE LOOP =====
     function frame(time) {
@@ -2344,6 +2443,8 @@
       const playHadInput = ui === "play" && holds.length === 0;
       if (edges.systemPressed) {
         if (ui === "panel" && panelKind === "pause") playerResume();
+        // MENU from the restart question is "keep my journey".
+        else if (panelKind === "restart" || panelKind === "restart-failed") cancelRestart();
         else if (ui === "play" || ui === "dialogue" || ui === "scene" || ui === "choice") { addHold("manual"); renderPausePanel(); }
       }
       if (holds.length === 0 && !exitState) {
@@ -2491,7 +2592,7 @@
       // While a thought is up nothing else speaks over it, not even a prompt.
       view.showPrompt(target, target ? `◆ ${target.prompt}` : null);
       view.setActionLabel(target ? target.prompt : ui === "dialogue" ? "NEXT" : ui === "choice" ? "PICK" : g.world ? "FLAME" : "FLARE");
-      if (bannerUntil && time > bannerUntil) { view.banner(""); bannerUntil = 0; }
+      bannerTick(time);
       // Control hints are physical and brief: keys wake, nothing explains.
       if (!g.world && cue.noticed && Core.encounterActive(sim) && (!cue.flare || !cue.tuck)) view.showCue(`<span class="${cue.flare ? "done" : ""}"><i class="cue-primary"></i>FLARE <kbd>Z</kbd></span><span class="${cue.tuck ? "done" : ""}"><i class="cue-secondary"></i>TUCK <kbd>X</kbd></span>`);
       else view.showCue(null);
@@ -2598,7 +2699,7 @@
           sim = Core.createSim({ roomId: "slip" });
           ui = "blocked";
           view.setShell("locked");
-          view.panel(card({ kicker: "THE THRESHOLD", title: "THIS JOURNEY REACHED HOME", body: `${esc(data.campaign.petName)} already came home from The Threshold. Past the Porter, a door that was shut is open now.`, actions: `<button type="button" class="primary" data-dungeon-action="onward">GO THROUGH THE DOOR</button><button type="button" data-dungeon-action="leave">GO HOME</button>` }));
+          view.panel(reachedHomeCard());
         } else resumeJourney(result.status === "migrated");
       }
       if (sim && !prev.x) prev = { x: sim.player.x, y: sim.player.y };
@@ -2647,6 +2748,12 @@
       else if (action === "stay") closePanel();
       else if (action === "onward" && ui === "blocked" && data?.proofComplete) { view.panel(null); sim = null; ui = "play"; resumeJourney(false); }
       else if (action === "home") goHome();
+      else if (action === "restart-ask") {
+        if (panelKind === "pause" && !Core.externalHolds(holds).length) askRestart(renderPausePanel);
+        else if (ui === "blocked" && data?.proofComplete && panelKind === "") askRestart(() => { panelKind = ""; view.panel(reachedHomeCard()); });
+      }
+      else if (action === "restart-cancel") cancelRestart();
+      else if (action === "restart" && panelKind === "restart") restartJourney();
       else if (action === "leave") beginExit("leave", "");
       else if (action === "home-anyway") beginExit("quit-unsaved", "LAST CONFIRMED SAVE KEPT");
       else if (action === "retry-save") {
@@ -2718,7 +2825,7 @@
       qaState: () => ({
         ui, panelKind, holds: [...holds], unsaved, shell, lastOutcome: lastOutcome ? { ...lastOutcome } : null,
         scene: scene ? { id: scene.id, waiting: scene.waiting, control: scene.control } : null,
-        choice: choiceState ? { index: choiceState.index, options: choiceState.options.map(option => option.value) } : null,
+        choice: choiceState ? { index: choiceState.index, options: choiceState.options.map(option => option.value), line: choiceState.line?.text || null } : null,
         settings: { ...settings },
         npcs: [...npcs.values()].map(actor => ({ id: actor.id, x: Math.round(actor.x), y: Math.round(actor.y), visible: actor.visible, state: actor.state })),
         pose: poseOverride?.name || null,

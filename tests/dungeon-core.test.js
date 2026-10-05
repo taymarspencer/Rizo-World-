@@ -758,4 +758,54 @@ test("Rows choices are allowlisted with their exact values; anything else is dro
   assert.deepStrictEqual(D.normalizeSlice(data).data.story.facts, { rowsLatchHelped: true, rowsChalk: true }, "no friendship score exists to be saved");
 });
 
+// ---------- RESTART DUNGEON ----------
+// A journey deep in the Rows: every kind of story state the slice can hold.
+function deepJourney() {
+  const data = D.newCampaign({ pet, id: "threshold-old111" });
+  data.settings = { assist: true, textSpeed: "instant" };
+  data.campaign.status = "complete";
+  data.world = { visitedRooms: ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth", "queue", "porter", "receiving", "drytable"], openedShortcuts: ["hearth-queue"], durableRoomFlags: { latchFreed: true, shortcutOpen: true, porterDown: true }, defeatedEncounters: ["night-porter"] };
+  data.story = { facts: { jamInspected: true, hearthArrived: true, sharedRest: true, rowsLatchHelped: true }, choices: { "hearth-seat": "sit", "rows-meal": "sit", "rows-wrap": "worn" }, committedSceneBeats: ["opening:left", "opening:taken", "opening:fell", "opening:below", "thought:home", "latch-rescue:freed", "knot-gift:granted"], resumeScene: { id: "knot-gift", beatId: "lines" } };
+  data.npcs.latch = { state: "gifted", locationAnchor: "porter-latch", evidence: ["rescue", "help"] };
+  data.inventory.knownLocalItems = ["chalk"];
+  data.checkpoint = { hearthId: "rows-stove", roomId: "drytable", spawnAnchorId: "stove-side" };
+  data.continuation = { roomId: "drytable", safeAnchorId: "stove-side", roomEntryFlame: 3, resumeKind: "hearth" };
+  data.journal.discoveredEntryIds = ["home-sign"];
+  data.pendingRewards = [{ receiptId: "threshold-old111:threshold-complete", entitlements: ["first-knot", "shared-hearth"] }];
+  data.proofComplete = true;
+  return data;
+}
+test("restart: the story starts over from the car with a new campaign for the same Rizo", () => {
+  const before = deepJourney();
+  const out = D.restartSlice(clone(before), { pet, id: "threshold-new222" });
+  const fresh = D.newCampaign({ pet, id: "threshold-new222" });
+  assert.strictEqual(out.campaign.id, "threshold-new222", "a new campaign id: a new receipt can be earned again");
+  assert.strictEqual(out.campaign.petId, "PET-1");
+  assert.strictEqual(out.campaign.status, "active");
+  for (const key of ["world", "story", "npcs", "inventory", "checkpoint", "continuation", "journal", "proofComplete", "storyComplete", "legProfile"]) assert.deepStrictEqual(out[key], fresh[key], key);
+  assert.deepStrictEqual(out.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
+  assert.strictEqual(D.belowReached(out), false);
+  assert.strictEqual(D.summary(out).bestLabel, "OUTSIDE");
+  assert.strictEqual(D.summary(out).badge, null);
+});
+test("restart: the player's Dungeon settings and an unconfirmed reward are kept", () => {
+  const out = D.restartSlice(deepJourney(), { pet, id: "threshold-new222" });
+  assert.deepStrictEqual(out.settings, { assist: true, textSpeed: "instant" });
+  assert.deepStrictEqual(out.pendingRewards, [{ receiptId: "threshold-old111:threshold-complete", entitlements: ["first-knot", "shared-hearth"] }]);
+});
+test("restart: the result is a valid threshold-v3 slice that reloads unchanged", () => {
+  const out = D.restartSlice(deepJourney(), { pet, id: "threshold-new222" });
+  const reloaded = D.normalizeSlice(clone(out));
+  assert.strictEqual(reloaded.status, "ok");
+  assert.deepStrictEqual(reloaded.data, out);
+});
+test("restart: an empty or older-revision slice restarts; one from another build is never dropped", () => {
+  assert.strictEqual(D.restartSlice({}, { pet, id: "threshold-new222" }).continuation.roomId, "car");
+  const v2 = deepJourney(); v2.campaign.contentRevision = "threshold-v2";
+  assert.strictEqual(D.restartSlice(v2, { pet, id: "threshold-new222" }).campaign.contentRevision, "threshold-v3");
+  const other = deepJourney(); other.campaign.contentRevision = "threshold-v9";
+  assert.strictEqual(D.restartSlice(other, { pet, id: "threshold-new222" }), null);
+  assert.throws(() => D.restartSlice(deepJourney(), { pet, id: "nope" }));
+});
+
 console.log(`\n${passed}/${total} dungeon core checks passed`);

@@ -809,6 +809,21 @@
     const migrated = notes.includes("migrated-from-gate1") || notes.includes("migrated-from-v1");
     return { status: migrated ? "migrated" : notes.length ? "repaired" : "ok", data: out, notes };
   }
+  // RESTART DUNGEON: the same keeper and Rizo, the story from the car again.
+  // Everything the journey learned is dropped (rooms, flags, facts, choices,
+  // beats, Latch, hearths, the journal's finds such as HOME ↑, completion).
+  // The player's own Dungeon settings stay, and a reward the hub has not yet
+  // confirmed stays owed under its own receipt. Nothing outside the slice
+  // (the pet, Home, wallet, wardrobe, receipts, story marks) is touched.
+  // A slice this build cannot read is never restarted: it is not ours to drop.
+  function restartSlice(raw, { pet, id }) {
+    const current = normalizeSlice(raw);
+    if (current.status === "unsupported") return null;
+    const out = newCampaign({ pet, id });
+    out.settings = { ...current.data.settings };
+    out.pendingRewards = plain(current.data.pendingRewards || []);
+    return out;
+  }
   const flagsOf = data => ({ ...(data?.world?.durableRoomFlags || {}), ...(data?.story?.facts || {}) });
   const belowReached = data => (data?.story?.committedSceneBeats || []).includes("opening:below");
   // Where a death returns the Rizo: the registered hearth, else where he landed.
@@ -880,6 +895,7 @@
     externalHolds,
     SETTINGS_DEFAULTS,
     newCampaign,
+    restartSlice,
     normalizeSlice,
     safeReturn,
     summary

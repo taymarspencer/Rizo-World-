@@ -35,6 +35,12 @@
     every finger and key. Story code reads held movement, so a held thumb is
     never counted again on its own.
   - A tap on the dialogue box with a finger or pen is the NEXT key.
+  - A touch on the game is the game's. iOS runs its own long-press and
+    multi-tap text gestures (selection, the loupe, the edit menu and its
+    link item, image lift) on any touch the page does not cancel, and
+    preventDefault on pointerdown does not cancel them; only touchstart
+    does. Held and hammered D-pad thumbs are exactly those gestures. Panel
+    and choice buttons keep their native touch: they answer to click.
 */
 (function initRizoDungeonInput(root, factory) {
   const api = factory();
@@ -58,6 +64,8 @@
   const DROP_CLEARS = new Set(["blur", "hidden", "pagehide", "pageshow", "orientation", "resize", "resume", "stop", "exit"]);
   const PAD_DEAD_IN = 0.22, PAD_DEAD_OUT = 0.15, PAD_STICKY_DEG = 9;
   const TEXT_FIELDS = "input, textarea, select, [contenteditable='true']";
+  // Where a touch keeps the browser's own behaviour (click, focus, links).
+  const NATIVE_TOUCH = ".dungeon-panel, .dungeon-choice, a[href], input, textarea, select, [contenteditable]";
 
   function actionForKey(event) {
     const byCode = KEY_ACTIONS[String(event.code || "").toLowerCase()];
@@ -235,6 +243,11 @@
       release(`mouse:${event.button}`);
     }
     function onContextMenu(event) { event.preventDefault(); }
+    // Pointer handlers above still run; this only stops the OS gestures.
+    function onTouchStart(event) {
+      if (!event.cancelable || event.target?.closest?.(NATIVE_TOUCH)) return;
+      event.preventDefault();
+    }
 
     // ---- window-level safety nets: a release is honoured wherever it lands
     function onWindowPointerEnd(event) {
@@ -283,6 +296,7 @@
       listen(screen, "pointerdown", onScreenDown);
       for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) listen(screen, type, onScreenUp);
       listen(device, "contextmenu", onContextMenu);
+      listen(device, "touchstart", onTouchStart, { passive: false });
     }
     function unbind() {
       while (listeners.length) listeners.pop()();

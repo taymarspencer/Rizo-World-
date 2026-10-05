@@ -804,11 +804,16 @@
       if (el.lineText.textContent !== text) el.lineText.textContent = text;
       el.more.textContent = done ? "▼" : "";
     }
-    function choice(options, selected = 0) {
-      if (!options) { el.choice.hidden = true; el.choice.innerHTML = ""; return; }
+    // `line` ({ speaker, text }): the question, kept above its answers.
+    function choice(options, selected = 0, line = null) {
+      if (!options) { el.choice.hidden = true; el.choice.innerHTML = ""; el.choice.classList.remove("has-line"); el.choice.setAttribute("aria-label", "Choose"); return; }
       el.choice.hidden = false;
       el.choice.style.setProperty("--choices", options.length);
-      el.choice.innerHTML = options.map((option, index) => `<button type="button" class="${index === selected ? "is-selected" : ""}" data-choice-index="${index}" aria-pressed="${index === selected}">${esc(option.label)}</button>`).join("");
+      const who = line?.speaker ? Content.SPEAKERS[line.speaker] : null;
+      const asked = line ? `<p class="dungeon-choice-line">${who ? `<b>${esc(who.name)}</b>` : ""}${esc(line.text)}</p>` : "";
+      el.choice.classList.toggle("has-line", Boolean(line));
+      el.choice.setAttribute("aria-label", line ? `${who ? `${who.name}: ` : ""}${line.text}` : "Choose");
+      el.choice.innerHTML = asked + options.map((option, index) => `<button type="button" class="${index === selected ? "is-selected" : ""}" data-choice-index="${index}" aria-pressed="${index === selected}">${esc(option.label)}</button>`).join("");
     }
     function panel(markup) {
       cardDrag = null;
