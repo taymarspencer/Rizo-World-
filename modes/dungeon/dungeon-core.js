@@ -777,7 +777,7 @@
       },
       story: {
         facts: boolMap(data.story?.facts, knownFlag),
-        choices: isObject(data.story?.choices) ? Object.fromEntries(Object.entries(data.story.choices).filter(([key, value]) => key === "hearth-seat" && (value === "sit" || value === "go"))) : {},
+        choices: isObject(data.story?.choices) ? Object.fromEntries(Object.entries(data.story.choices).filter(([key, value]) => (C.CHOICES?.[key] || []).includes(value))) : {},
         committedSceneBeats: uniqueKnown(data.story?.committedSceneBeats, value => BEAT_TOKEN.test(value), 64),
         resumeScene: isObject(data.story?.resumeScene) && typeof data.story.resumeScene.id === "string" && typeof data.story.resumeScene.beatId === "string" && BEAT_TOKEN.test(data.story.resumeScene.id) ? { id: data.story.resumeScene.id.slice(0, 32), beatId: data.story.resumeScene.beatId.slice(0, 32) } : null
       },
@@ -826,11 +826,14 @@
     if (result.status === "empty") return { ...base, bestLabel: "NEW", badge: null, journey: null };
     if (result.status === "unsupported") return { ...base, bestLabel: "SAVED", badge: null, journey: null };
     const below = data.world.visitedRooms.filter(id => C.ROOM_IDS.includes(id)).length;
-    const complete = data.campaign.status === "complete" || data.proofComplete === true;
+    const rows = data.world.visitedRooms.filter(id => (C.ROWS_ROOMS || []).includes(id)).length;
+    // A proof journey that walked home is complete. In the campaign edition the
+    // Porter's door leads on, so the First Knot alone no longer means "home".
+    const complete = data.campaign.status === "complete";
     return {
       ...base,
-      bestLabel: complete ? "HOME" : below ? `ROOM ${below}/${C.ROOM_IDS.length}` : "OUTSIDE",
-      badge: complete ? { text: "KNOT", title: "Came home from The Threshold" } : data.checkpoint.hearthId ? { text: "HEARTH", title: "A hearth remembers this Rizo" } : null,
+      bestLabel: rows ? `ROWS ${rows}/${C.ROWS_ROOMS.length}` : complete ? "HOME" : below ? `ROOM ${below}/${C.ROOM_IDS.length}` : "OUTSIDE",
+      badge: complete || data.proofComplete === true ? { text: "KNOT", title: complete ? "Came home from The Threshold" : "Carries Latch's First Knot" } : data.checkpoint.hearthId ? { text: "HEARTH", title: "A hearth remembers this Rizo" } : null,
       journey: { petId: data.campaign.petId, petName: data.campaign.petName, status: data.campaign.status, complete }
     };
   }

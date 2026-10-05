@@ -53,17 +53,35 @@
     return out;
   };
 
-  const CONTENT_REVISION = "threshold-v2";
+  const CONTENT_REVISION = "threshold-v3";
   // Revisions this build knows how to carry forward (see dungeon-core normalizeSlice):
   // a Gate 1 review campaign restarts at the opening; an RC2 (threshold-v1)
   // journey keeps everything and only leaves the deleted curb for the car.
   const LEGACY_REVISIONS = ["threshold-gate1"];
-  const CARRIED_REVISIONS = ["threshold-v1"];
+  // threshold-v2 → v3 only adds rooms and facts (Mending Rows); nothing moves.
+  const CARRIED_REVISIONS = ["threshold-v1", "threshold-v2"];
   const CAMPAIGN_KIND = "proof";
   const CHAPTER_ID = "threshold";
   const OPENING_ROOMS = ["car", "sack", "van", "roadside", "drain"];
   const ROOM_IDS = ["slip", "clatter", "hem", "hearth", "queue", "porter"];
-  const BUILT_ROOMS = [...OPENING_ROOMS, ...ROOM_IDS];
+  // Chapter 1 (v0.2 "Mending Rows", condensed): the campaign edition goes on
+  // past the Porter (owner decision N-12 / P-01).
+  const ROWS_ROOMS = ["receiving", "drytable", "hangrow", "lowrun", "eyelet", "traypass", "press", "upper", "stair", "windowgate"];
+  const BUILT_ROOMS = [...OPENING_ROOMS, ...ROOM_IDS, ...ROWS_ROOMS];
+  const wallSet = (w, h, t, gaps) => {
+    // Like walls(), but any side may have several gaps: gaps.n = [[x0, x1], …].
+    const out = [];
+    const side = (name, length, list, make) => {
+      let at = 0;
+      for (const [a, b] of [...(list || [])].sort((m, n) => m[0] - n[0])) { if (a > at) out.push(make(at, a - at)); at = b; }
+      if (at < length) out.push(make(at, length - at));
+    };
+    side("n", w, gaps.n, (a, l) => ({ id: `wall-n-${a}`, x: a, y: 0, w: l, h: t, kind: "wall" }));
+    side("s", w, gaps.s, (a, l) => ({ id: `wall-s-${a}`, x: a, y: h - t, w: l, h: t, kind: "wall" }));
+    side("w", h, gaps.w, (a, l) => ({ id: `wall-w-${a}`, x: 0, y: a, w: t, h: l, kind: "wall" }));
+    side("e", h, gaps.e, (a, l) => ({ id: `wall-e-${a}`, x: w - t, y: a, w: t, h: l, kind: "wall" }));
+    return out;
+  };
 
   const ROOMS = {
     // ===== THE OPENING (outside; the handheld is not locked yet) =====
@@ -322,9 +340,231 @@
       zones: [{ id: "porter-start", x: 40, y: 16, w: 280, h: 196 }],
       exits: [
         { id: "porter-to-queue", x: 160, y: 250, w: 40, h: 10, to: "queue", anchor: "queue-north" },
-        { id: "porter-to-home", x: 160, y: 0, w: 40, h: 8, to: "home", anchor: "", openWhen: "porterDown" }
+        // The campaign edition goes on: the Porter's door opens into the Mending Rows' receiving floor.
+        { id: "porter-to-rows", x: 160, y: 0, w: 40, h: 8, to: "receiving", anchor: "receiving-entry", openWhen: "porterDown" }
       ],
       encounters: [{ id: "night-porter", kind: "porter", x: 180, y: 78, durable: true }]
+    },
+
+    // ===== CHAPTER 1 — MENDING ROWS (condensed from v0.2 §6) =====
+    // A service floor where garments and loads are mended. Nell keeps the
+    // work going; the dry route up runs through it.
+    receiving: {
+      id: "receiving", name: "RECEIVING", w: 320, h: 260, theme: "below",
+      solids: [
+        ...wallSet(320, 260, 20, { s: [[140, 180]], e: [[100, 140]] }),
+        { id: "ledge", x: 110, y: 20, w: 150, h: 30, kind: "ledge" },
+        { id: "recv-crate", x: 30, y: 30, w: 40, h: 30, kind: "crate" }
+      ],
+      anchors: { "receiving-entry": { x: 160, y: 222 }, "receiving-east": { x: 278, y: 120 } },
+      entryAnchor: "receiving-entry",
+      props: [
+        { id: "packet", kind: "inspect", x: 186, y: 58, r: 7, prompt: "LOOK", lines: ["A delivery packet, wet at one corner. The crease stays in it even unfolded."] },
+        { id: "ledge-catch", kind: "warm", x: 236, y: 58, r: 7, prompt: "WARM", when: { rowsLatchHelped: false, ledgeReady: true } }
+      ],
+      zones: [{ id: "receiving-near", x: 20, y: 60, w: 280, h: 120 }],
+      exits: [
+        { id: "receiving-to-porter", x: 140, y: 250, w: 40, h: 10, to: "porter", anchor: "porter-home" },
+        { id: "receiving-to-table", x: 308, y: 100, w: 12, h: 40, to: "drytable", anchor: "drytable-west" }
+      ],
+      encounters: []
+    },
+    drytable: {
+      id: "drytable", name: "THE DRY TABLE", w: 320, h: 340, theme: "below",
+      solids: [
+        ...wallSet(320, 340, 20, { n: [[60, 100], [240, 280]], w: [[150, 190]], e: [[60, 100], [230, 270]] }),
+        { id: "rows-door", x: 60, y: 0, w: 40, h: 20, kind: "door", openWhen: "rowsCatch" },
+        { id: "drying-load", x: 240, y: 0, w: 40, h: 24, kind: "load", openWhen: "rowsOnward" },
+        { id: "stair-catch", x: 300, y: 60, w: 20, h: 40, kind: "door", openWhen: "rowsStair" },
+        { id: "bench", x: 120, y: 120, w: 100, h: 44, kind: "bench" }
+      ],
+      anchors: { "drytable-west": { x: 40, y: 170 }, "drytable-north": { x: 80, y: 46 }, "drytable-stove": { x: 240, y: 214 }, "drytable-east": { x: 280, y: 250 }, "drytable-stair": { x: 276, y: 80 }, "drytable-onward": { x: 260, y: 48 } },
+      entryAnchor: "drytable-west",
+      // The table's stove: a dry place to come back to (a checkpoint like the Shared Hearth).
+      hearth: { id: "rows-stove", x: 262, y: 176, r: 10, spawnAnchorId: "drytable-stove", banner: "A DRY PLACE TO COME BACK TO" },
+      props: [
+        { id: "route-card", kind: "inspect", x: 150, y: 30, r: 8, prompt: "LOOK", lines: ["A route card, pinned crooked. The dry way goes up through the rows."] },
+        { id: "drying-load-look", kind: "door", x: 260, y: 32, r: 10, prompt: "LOOK", lines: ["Wet sheets hung right across the doorway. Somebody will have to move them."], when: { rowsOnward: false } },
+        { id: "work-catch", kind: "warm", x: 200, y: 172, r: 7, prompt: "WARM", when: { rowsCatch: false, catchReady: true } },
+        { id: "low-board", kind: "warm", x: 150, y: 174, r: 8, prompt: "WARM", when: { boardReady: true } },
+        { id: "chalk", kind: "inspect", x: 196, y: 172, r: 6, prompt: "LOOK", lines: [], when: { chalkOut: true } },
+        { id: "second-portion", kind: "inspect", x: 110, y: 176, r: 7, prompt: "LOOK", lines: ["Two portions on the carrier. Nobody takes the second."], when: { mealOut: true } },
+        { id: "wrap-peg", kind: "inspect", x: 40, y: 290, r: 8, prompt: "LOOK", lines: ["The wrap, on the low peg. Dry."], when: { wrapOnPeg: true } }
+      ],
+      zones: [{ id: "route-pull", x: 120, y: 20, w: 180, h: 60 }],
+      exits: [
+        { id: "table-to-receiving", x: 0, y: 150, w: 12, h: 40, to: "receiving", anchor: "receiving-east" },
+        { id: "table-to-rows", x: 60, y: 0, w: 40, h: 10, to: "hangrow", anchor: "hangrow-entry", openWhen: "rowsCatch" },
+        { id: "table-to-window", x: 240, y: 0, w: 40, h: 10, to: "windowgate", anchor: "gate-entry", openWhen: "rowsOnward" },
+        { id: "table-to-stair", x: 308, y: 60, w: 12, h: 40, to: "stair", anchor: "stair-bottom", openWhen: "rowsStair" },
+        { id: "table-to-tray", x: 308, y: 230, w: 12, h: 40, to: "traypass", anchor: "tray-west" }
+      ],
+      encounters: []
+    },
+    hangrow: {
+      id: "hangrow", name: "HANGING ROW", w: 320, h: 460, theme: "below",
+      solids: [
+        ...wallSet(320, 460, 20, { s: [[60, 100]], e: [[40, 80]] }),
+        { id: "low-hatch", x: 300, y: 40, w: 20, h: 40, kind: "hatch", openWhen: "rowsLowRoute" },
+        { id: "balcony", x: 20, y: 20, w: 50, h: 34, kind: "balcony" },
+        { id: "frame-a", x: 130, y: 330, w: 70, h: 8, kind: "frame" },
+        { id: "frame-b", x: 200, y: 230, w: 80, h: 8, kind: "frame" },
+        { id: "frame-c", x: 40, y: 200, w: 70, h: 8, kind: "frame" },
+        { id: "frame-d", x: 150, y: 130, w: 60, h: 8, kind: "frame" }
+      ],
+      anchors: { "hangrow-entry": { x: 80, y: 430 }, "hangrow-east": { x: 282, y: 60 } },
+      entryAnchor: "hangrow-entry",
+      props: [
+        { id: "low-catch", kind: "warm", x: 278, y: 92, r: 7, prompt: "WARM", when: { rowsLowRoute: false, lowReady: true } },
+        { id: "sheets", kind: "inspect", x: 230, y: 380, r: 9, prompt: "LOOK", lines: ["Sheets drying in rows. Somebody counted them; the chalk tally is on the post."] }
+      ],
+      zones: [{ id: "split", x: 190, y: 20, w: 110, h: 100 }, { id: "row-north", x: 20, y: 20, w: 280, h: 190 }],
+      exits: [
+        { id: "rows-to-table", x: 60, y: 450, w: 40, h: 10, to: "drytable", anchor: "drytable-north" },
+        { id: "rows-to-lowrun", x: 308, y: 40, w: 12, h: 40, to: "lowrun", anchor: "lowrun-west", openWhen: "rowsLowRoute" }
+      ],
+      encounters: [{ id: "row-draftling", kind: "draftling", x: 222, y: 290 }]
+    },
+    lowrun: {
+      id: "lowrun", name: "THE LOW RUN", w: 320, h: 240, theme: "below",
+      solids: [
+        ...wallSet(320, 240, 20, { w: [[40, 80]], e: [[170, 210]] }),
+        { id: "block-a", x: 90, y: 20, w: 30, h: 110, kind: "block" },
+        { id: "block-b", x: 170, y: 110, w: 30, h: 110, kind: "block" },
+        { id: "block-c", x: 250, y: 20, w: 26, h: 112, kind: "block" }
+      ],
+      anchors: { "lowrun-west": { x: 36, y: 60 }, "lowrun-east": { x: 284, y: 190 } },
+      entryAnchor: "lowrun-west",
+      props: [{ id: "warm-pipe", kind: "inspect", x: 140, y: 214, r: 8, prompt: "LOOK", lines: ["A pipe under the boards, warm all the way along. Somebody keeps a fire going."] }],
+      zones: [],
+      exits: [
+        { id: "lowrun-to-rows", x: 0, y: 40, w: 12, h: 40, to: "hangrow", anchor: "hangrow-east" },
+        { id: "lowrun-to-eyelet", x: 308, y: 170, w: 12, h: 40, to: "eyelet", anchor: "eyelet-low" }
+      ],
+      encounters: [{ id: "low-needle", kind: "needle", x: 220, y: 200 }]
+    },
+    eyelet: {
+      id: "eyelet", name: "EYELET LANDING", w: 320, h: 280, theme: "below",
+      solids: [
+        ...wallSet(320, 280, 20, { w: [[60, 100], [210, 250]], n: [[140, 180]] }),
+        { id: "grille", x: 0, y: 60, w: 20, h: 40, kind: "grille", openWhen: "rowsGrille" },
+        { id: "press-door", x: 140, y: 0, w: 40, h: 20, kind: "door", openWhen: "rowsPressOpen" },
+        // A channel between the low exit and the landing; the short board crosses it.
+        { id: "channel-w", x: 20, y: 170, w: 38, h: 26, kind: "channel" },
+        { id: "channel-e", x: 94, y: 170, w: 206, h: 26, kind: "channel" }
+      ],
+      anchors: { "eyelet-low": { x: 36, y: 230 }, "eyelet-west": { x: 36, y: 80 }, "eyelet-north": { x: 160, y: 40 } },
+      entryAnchor: "eyelet-low",
+      props: [
+        { id: "eyelet-plate", kind: "inspect", x: 112, y: 152, r: 7, prompt: "LOOK", lines: ["A square eyelet plate. Its edge is worn bright where cloth catches."] },
+        { id: "grille-catch", kind: "warm", x: 36, y: 116, r: 7, prompt: "WARM", when: { rowsGrille: false, grilleReady: true } }
+      ],
+      zones: [{ id: "eyelet-landing", x: 20, y: 20, w: 280, h: 146 }],
+      exits: [
+        { id: "eyelet-to-lowrun", x: 0, y: 210, w: 12, h: 40, to: "lowrun", anchor: "lowrun-east" },
+        { id: "eyelet-to-tray", x: 0, y: 60, w: 10, h: 40, to: "traypass", anchor: "tray-east", openWhen: "rowsGrille" },
+        { id: "eyelet-to-press", x: 140, y: 0, w: 40, h: 10, to: "press", anchor: "press-entry", openWhen: "rowsPressOpen" }
+      ],
+      encounters: []
+    },
+    traypass: {
+      id: "traypass", name: "TRAY PASSAGE", w: 320, h: 200, theme: "below",
+      solids: [
+        ...wallSet(320, 200, 20, { w: [[80, 120]], e: [[80, 120]] }),
+        { id: "tray-grille", x: 300, y: 80, w: 20, h: 40, kind: "grille", openWhen: "rowsGrille" },
+        { id: "tray-shelf", x: 60, y: 20, w: 200, h: 26, kind: "shelf" }
+      ],
+      anchors: { "tray-west": { x: 40, y: 100 }, "tray-east": { x: 280, y: 100 } },
+      entryAnchor: "tray-west",
+      props: [{ id: "bent-wheel", kind: "inspect", x: 220, y: 150, r: 7, prompt: "LOOK", lines: ["A tray wheel, bent. Somebody has been carrying this the hard way."] }],
+      zones: [],
+      exits: [
+        { id: "tray-to-table", x: 0, y: 80, w: 12, h: 40, to: "drytable", anchor: "drytable-east" },
+        { id: "tray-to-eyelet", x: 308, y: 80, w: 12, h: 40, to: "eyelet", anchor: "eyelet-west", openWhen: "rowsGrille" }
+      ],
+      encounters: []
+    },
+    press: {
+      id: "press", name: "PRESS HOUSE", w: 320, h: 480, theme: "below",
+      solids: [
+        ...wallSet(320, 480, 20, { s: [[140, 180]], n: [[140, 180]] }),
+        { id: "shutter", x: 140, y: 0, w: 40, h: 22, kind: "shutter", openWhen: "rowsShutter" },
+        // The drying recess in the west wall (open in front, never latched) and the east cover.
+        { id: "recess-n", x: 20, y: 290, w: 44, h: 10, kind: "wall" },
+        { id: "recess-s", x: 20, y: 342, w: 44, h: 10, kind: "wall" },
+        { id: "east-cover", x: 236, y: 300, w: 44, h: 24, kind: "crate" },
+        { id: "frame-post", x: 290, y: 236, w: 10, h: 36, kind: "post" }
+      ],
+      anchors: { "press-entry": { x: 160, y: 446 }, "press-north": { x: 160, y: 44 } },
+      entryAnchor: "press-entry",
+      // The carriage's worn track: an empty job, back and forth across the room.
+      track: { y: 250, x0: 46, x1: 274, half: 16 },
+      props: [
+        { id: "brake-release", kind: "warm", x: 284, y: 210, r: 7, prompt: "WARM", when: { rowsPressStop: true, rowsBrake: false, brakeReady: true } },
+        { id: "shutter-release", kind: "warm", x: 196, y: 40, r: 7, prompt: "WARM", when: { rowsBrake: true, rowsShutter: false, shutterReady: true } },
+        { id: "low-release", kind: "inspect", x: 42, y: 330, r: 6, prompt: "LOOK", lines: ["A low release lever by the recess. It opens from outside."] },
+        { id: "work-card", kind: "inspect", x: 100, y: 34, r: 7, prompt: "LOOK", lines: ["A procedure card: brake, stop, test, then the shutter. Somebody wrote 'TEST TWICE' and crossed out 'TWICE'."] }
+      ],
+      zones: [{ id: "press-screen", x: 20, y: 300, w: 280, h: 160 }, { id: "press-lane", x: 20, y: 200, w: 280, h: 100 }, { id: "press-north", x: 20, y: 20, w: 280, h: 170 }],
+      exits: [
+        { id: "press-to-eyelet", x: 140, y: 470, w: 40, h: 10, to: "eyelet", anchor: "eyelet-north" },
+        { id: "press-to-upper", x: 140, y: 0, w: 40, h: 10, to: "upper", anchor: "upper-entry", openWhen: "rowsShutter" }
+      ],
+      encounters: [{ id: "press-needle", kind: "needle", x: 70, y: 110 }]
+    },
+    upper: {
+      id: "upper", name: "UPPER LANDING", w: 320, h: 240, theme: "below",
+      solids: [
+        ...wallSet(320, 240, 20, { s: [[140, 180]], w: [[100, 140]] }),
+        { id: "upper-catch", x: 0, y: 100, w: 20, h: 40, kind: "door", openWhen: "rowsStair" }
+      ],
+      anchors: { "upper-entry": { x: 160, y: 210 }, "upper-west": { x: 40, y: 120 } },
+      entryAnchor: "upper-entry",
+      props: [
+        { id: "service-window", kind: "inspect", x: 290, y: 110, r: 9, prompt: "LOOK", lines: ["Through the high window: a long hall of service windows. Most are lit. A few say CLOSED."] },
+        { id: "scratched-arrow", kind: "inspect", x: 288, y: 158, r: 6, prompt: "LOOK", lines: ["Another arrow, scratched into the sill with a key. Up."] },
+        { id: "upper-card", kind: "inspect", x: 90, y: 30, r: 7, prompt: "LOOK", lines: ["A route card. Its arrow goes down the stair, past the table, through the doorway the sheets were hiding."] }
+      ],
+      zones: [],
+      exits: [
+        { id: "upper-to-press", x: 140, y: 230, w: 40, h: 10, to: "press", anchor: "press-north" },
+        { id: "upper-to-stair", x: 0, y: 100, w: 10, h: 40, to: "stair", anchor: "stair-top", openWhen: "rowsStair" }
+      ],
+      encounters: []
+    },
+    stair: {
+      id: "stair", name: "RETURN STAIR", w: 240, h: 320, theme: "below",
+      solids: [
+        ...wallSet(240, 320, 20, { e: [[30, 70]], w: [[260, 300]] }),
+        { id: "landing-a", x: 20, y: 104, w: 150, h: 14, kind: "rail" },
+        { id: "landing-b", x: 70, y: 196, w: 150, h: 14, kind: "rail" }
+      ],
+      anchors: { "stair-top": { x: 204, y: 50 }, "stair-bottom": { x: 36, y: 280 } },
+      entryAnchor: "stair-top",
+      props: [{ id: "meal-mark", kind: "inspect", x: 120, y: 160, r: 7, prompt: "LOOK", lines: ["A chalk mark on the step: a bowl, and an arrow toward the table."] }],
+      zones: [],
+      exits: [
+        { id: "stair-to-upper", x: 228, y: 30, w: 12, h: 40, to: "upper", anchor: "upper-west" },
+        { id: "stair-to-table", x: 0, y: 260, w: 12, h: 40, to: "drytable", anchor: "drytable-stair" }
+      ],
+      encounters: []
+    },
+    windowgate: {
+      id: "windowgate", name: "WINDOW HALL", w: 320, h: 300, theme: "below",
+      solids: [
+        ...wallSet(320, 300, 20, { s: [[140, 180]] }),
+        { id: "counter", x: 100, y: 20, w: 120, h: 34, kind: "counter" },
+        { id: "gate-bench", x: 30, y: 130, w: 54, h: 14, kind: "bench" }
+      ],
+      anchors: { "gate-entry": { x: 160, y: 270 } },
+      entryAnchor: "gate-entry",
+      props: [
+        { id: "closed-window", kind: "inspect", x: 160, y: 62, r: 9, prompt: "LOOK", lines: ["CLOSED. Under it, in older writing: BACK SOON."] },
+        { id: "far-windows", kind: "inspect", x: 284, y: 120, r: 8, prompt: "LOOK", lines: ["The hall goes on past this window. More counters, more lamps, all the way along."] }
+      ],
+      zones: [{ id: "gate-window", x: 90, y: 54, w: 140, h: 70 }],
+      exits: [{ id: "gate-to-table", x: 140, y: 290, w: 40, h: 10, to: "drytable", anchor: "drytable-onward" }],
+      encounters: []
     }
   };
 
@@ -346,7 +586,9 @@
     latch: { name: "LATCH", portrait: "latch" },
     "hood-tall": { name: "TALL HOOD", portrait: "hood-tall" },
     "hood-small": { name: "SMALL HOOD", portrait: "hood-small" },
-    driver: { name: "DRIVER", portrait: "driver" }
+    driver: { name: "DRIVER", portrait: "driver" },
+    nell: { name: "NELL", portrait: "nell" },
+    orr: { name: "ORR", portrait: "orr" }
   };
 
   // ===== LINES =====
@@ -387,6 +629,62 @@
     vanPhone: [L("hood-small", "neutral", "…It's him."), L("driver", "neutral", "Don't."), L("hood-small", "neutral", "If I don't pick up—"), L("hood-tall", "neutral", "Then don't pick up.")],
     vanLost: [L("hood-small", "neutral", "You know what happened to the last dude who lost one."), L("hood-tall", "neutral", "Shut up."), L("hood-small", "neutral", "I'm just saying."), L("hood-tall", "neutral", "I said shut the f—")],
     vanListening: [L("hood-cap", "neutral", "Both of you. It's listening.")],
+    // ===== MENDING ROWS (v0.2 §10 drafts, condensed; functional lines added in the same voices) =====
+    // Receiving: Latch got here first, by a door that still does doors.
+    rowsLatchHello: [L("latch", "procedural", "You're through. Good. I'm mid-delivery.")],
+    rowsLatchHelloSat: [L("latch", "soft", "You're through. The chair survived, by the way.")],
+    rowsDispute: [L("latch", "procedural", "It needs to be bigger."), L("nell", "measuring", "It needs to be empty."), L("latch", "dry", "That would interfere with delivery.")],
+    rowsMend: [L("nell", "work", "There. Now I can mend it.")],
+    rowsDry: [L("nell", "work", "This bit's dry.")],
+    rowsGoingUp: [L("latch", "procedural", "Nell. He's going up."), L("nell", "listening", "Through the work room, then. Let me finish this.")],
+    rowsLedgeHelp: [L("nell", "work", "Thanks. Now it lowers."), L("latch", "dry", "That counts as assistance. I'll note it.")],
+    rowsLatchGoes: [L("latch", "procedural", "Next stop. The rows are hers.")],
+    // The Dry Table: a misunderstanding, a rough corner, a small job.
+    rowsWarmRoom: [L("nell", "work", "Warm room's here.")],
+    rowsFurtherUp: [L("nell", "listening", "Oh. Further up."), L("nell", "work", "The dry way's through the rows. Rail's stuck.")],
+    rowsCorner: [L("nell", "measuring", "That corner's taking bites.")],
+    rowsCatchAsk: [L("nell", "work", "Low catch. Warm it. I've got the weight.")],
+    rowsHolds: [L("nell", "work", "Holds.")],
+    rowsDrySide: [L("nell", "work", "Dry side.")],
+    rowsLowAsk: [L("nell", "work", "Low catch again. I'll hold the bar.")],
+    rowsEyeletPromise: [L("nell", "work", "Eyelet landing. Other end of this row.")],
+    // Eyelet: somebody at the other end.
+    rowsThereYouAre: [L("nell", "work", "There you are."), L("nell", "work", "Mind the eyelet. It catches cloth.")],
+    rowsThatOne: [L("nell", "amused", "Yes. That one.")],
+    rowsHatch: [L("orr", "irritated", "That hatch was built for one portion. I carry two."), L("nell", "work", "Grille's got a low catch. He can reach it.")],
+    rowsTable: [L("orr", "serving", "Table, then. Food wants sitting down.")],
+    // The meal: Nell loses a small argument.
+    rowsMeal: [L("nell", "irritated", "Not on the cleared bit."), L("orr", "serving", "It's food. It wants the reachable bit."), L("nell", "work", "I just cleared it."), L("orr", "irritated", "Then move the chalk."), L("nell", "work", "Fine.")],
+    rowsCrunchy: [L("nell", "amused", "Where's the other crunchy edge?"), L("orr", "serving", "On what you just ate.")],
+    rowsPressNext: [L("nell", "work", "Press house next. Its door sticks.")],
+    rowsTakeEdge: [L("orr", "serving", "Take the edge at least.")],
+    // Press House: an opening stays an opening; an empty job stopped together.
+    rowsWaitItOut: [L("nell", "work", "Carriage. Wait it out.")],
+    rowsClear: [L("nell", "work", "Clear.")],
+    rowsEmptyJob: [L("nell", "work", "It's running an empty job. Something's pulling it.")],
+    rowsGotStop: [L("nell", "work", "Got the stop.")],
+    rowsBrakeAsk: [L("nell", "work", "Brake's low on your side. Warm it. I'll change the stop.")],
+    rowsTest: [L("nell", "work", "One test. Stay off the track.")],
+    rowsParked: [L("nell", "work", "Parked.")],
+    rowsShutterAsk: [L("nell", "work", "Shutter catch. Warm it, then go under. I'll lift.")],
+    rowsUnder: [L("nell", "work", "Go on. I'm right behind.")],
+    // Upper landing: the table appointment.
+    rowsStairHere: [L("nell", "work", "Stair's here. It comes out by the table.")],
+    rowsAtTheTable: [L("nell", "work", "I'll be at the table.")],
+    // The table remembers your height.
+    rowsSameEnd: [L("nell", "work", "Same end?"), L("nell", "work", "That edge. I've got the heavy bit.")],
+    rowsChalk: [L("nell", "tired", "Where's my chalk?")],
+    rowsChalkFound: [L("nell", "amused", "Ah. I was keeping it warm.")],
+    rowsWrapOffer: [L("nell", "work", "Next hall's draughty. This keeps it off your back."), L("nell", "measuring", "Wear it, or take it folded.")],
+    rowsWrapWorn: [L("nell", "work", "Hold still. Strap's twisting."), L("nell", "amused", "Ugly seam. Good seam.")],
+    rowsWrapFolded: [L("nell", "work", "Clasp on top. Easier to find.")],
+    rowsWrapPeg: [L("nell", "work", "Low peg. It'll stay dry.")],
+    rowsOnward: [L("nell", "work", "Counter's through there. I'm going that way.")],
+    // Window Hall: the staffed side of CLOSED.
+    rowsClosed: [L("nell", "tired", "Closed. They'll open.")],
+    rowsStayNear: [L("nell", "work", "Stay where I can see you. They call in order.")],
+    rowsLatchAgainHelped: [L("latch", "procedural", "Packet arrived dry. Your catch held."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
+    rowsLatchAgain: [L("latch", "dry", "You two opened the rows. It shows."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
     latchApproach: [L("latch", "startled", "NO OPEN FLAMES."), L("latch", "dry", "Sorry. Sign's older than the door.")],
     latchJam: [L("latch", "procedural", "Latch is frozen. Name's Latch. Different problem.")],
     latchRescue: [L("latch", "startled", "Oh."), L("latch", "dry", "That was the useful kind."), L("latch", "procedural", "You're going up? Hearth first.")],
@@ -431,16 +729,24 @@
     LINES,
     ACKS,
     START_ROOM: "car",
+    ROWS_ROOMS,
     BELOW_START: "slip",
     // Durable flags a campaign may hold (world.durableRoomFlags / story.facts).
     // callerConnected (v0.3): Rizo touched the ringing phone and the call
     // connected. Its consequence is deliberately undecided; it only persists.
-    FLAGS: ["latchFreed", "jamInspected", "sharedRest", "seatChosen", "bowlSeen", "shortcutOpen", "porterHelp", "alcoveOpen", "porterDown", "beforePorterSaid", "hearthArrived", "callerConnected"],
+    FLAGS: ["latchFreed", "jamInspected", "sharedRest", "seatChosen", "bowlSeen", "shortcutOpen", "porterHelp", "alcoveOpen", "porterDown", "beforePorterSaid", "hearthArrived", "callerConnected",
+      // Mending Rows: work that stays done (routes), and two small remembered kindnesses.
+      "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLatchHelped", "rowsChalk"],
+    // Durable room work lives in world.durableRoomFlags; the rest in story.facts.
+    ROOM_FLAGS: ["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown", "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward"],
+    // Story choices and their allowed values (the save keeps nothing else).
+    CHOICES: { "hearth-seat": ["sit", "go"], "rows-meal": ["sit", "go"], "rows-wrap": ["worn", "folded", "peg"] },
     // The caller's symbol is an owner/art decision. Until it exists, the phone
     // shows a neutral placeholder under this internal name, nowhere else.
     CALLER_SYMBOL: "CALLER_SYMBOL",
     knownRoom: id => BUILT_ROOMS.includes(id),
     isOpening: id => OPENING_ROOMS.includes(id),
+    isRows: id => ROWS_ROOMS.includes(id),
     knownAnchor: (roomId, anchorId) => Boolean(ROOMS[roomId]?.anchors?.[anchorId]),
     knownHearth: id => Object.values(ROOMS).some(room => room.hearth?.id === id),
     knownEncounter: id => Object.values(ROOMS).some(room => room.encounters.some(item => item.id === id)),

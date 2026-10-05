@@ -193,10 +193,17 @@
     rect(ctx, P.a.denim, -5, -34, 4, 32); rect(ctx, P.a.denim, 1, -34, 4, 32);
     shape(ctx, [-11, -76, 10, -76, 13, -32, -13, -31], P.wood[2], { ink: 1.6, seed: 11, amp: 0.3 });
     shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
-    // Back turned (at the counter), the head is only hair.
-    oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[1], true, 1.4);
+    // Back turned (at the counter), the head is only hair. Never a face: facing out, it stays in shadow.
+    oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[0], true, 1.4);
     oval(ctx, 0, -90, 6.4, 3.6, P.inkSoft);
+    if (!o.back) { ctx.globalAlpha = 0.6; oval(ctx, 0, -85, 6, 4, P.ink); ctx.globalAlpha = 1; }
     if (o.back) { shape(ctx, [10, -74, 18, -62, 15, -60, 8, -70], P.wood[2], { ink: 1.1, amp: 0.2 }); }
+    // Checking on the car: one hand up, a small wave.
+    if (o.wave) {
+      const w = Math.sin((o.t || 0) / 140) * 4;
+      shape(ctx, [8, -72, 13, -74, 16 + w * 0.3, -96, 11 + w * 0.3, -97], P.wood[2], { ink: 1.2, amp: 0.2 });
+      oval(ctx, 14 + w, -101, 3.4, 3.6, P.skin[1], true, 1.1);
+    }
     ctx.restore();
   }
   function carDynamic(ctx, geo, s) {
@@ -210,7 +217,7 @@
     const you = room.youCounter ? { x: 296, visible: true, back: true } : room.you;
     if (you?.visible) {
       const window = you.x < 150 ? [30, 22, 112, 66] : [214, 22, 116, 66];
-      A.clip(ctx, window[0] + 1, window[1] + 1, window[2] - 2, window[3] - 2, () => youInside(ctx, you.x, 92, { back: you.back }));
+      A.clip(ctx, window[0] + 1, window[1] + 1, window[2] - 2, window[3] - 2, () => youInside(ctx, you.x, 92, { back: you.back, wave: you.wave, t: s.reduced ? 0 : t }));
     }
     ctx.save();
     ctx.globalAlpha = 0.35 * flicker; ctx.font = "900 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center";
@@ -232,6 +239,15 @@
       }
     }
     if ((room.fog || 0) > 0.02) alpha(ctx, room.fog * 0.45, () => { oval(ctx, room.fogX || p.x, 190, 16, 7, P.paper[3]); oval(ctx, (room.fogX || p.x) - 4, 191, 9, 4, P.paper[3]); });
+    // YOU's blue umbrella, leaning by the driver's door until YOU takes it.
+    if (!room.youOut) {
+      ctx.save(); ctx.translate(141, 288); ctx.rotate(-0.12);
+      box(ctx, -2.6, -34, 5.2, 34, P.a.umbrella, { ink: 1.2, amp: 0.2 });
+      rect(ctx, P.a.umbrellaLight, -1.6, -32, 1.4, 28);
+      line(ctx, 0, -34, 0, -40, P.ink, 1.2);
+      ctx.strokeStyle = P.ink; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(2.6, 2, 2.6, Math.PI, 0, true); ctx.stroke();
+      ctx.restore();
+    }
     // The driver's door open (YOU going), the passenger door forced (them).
     if (room.driverDoor) { rect(ctx, P.ink, 124, 206, 14, 60); ctx.save(); ctx.translate(124, 206); ctx.rotate(-0.85); box(ctx, -16, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); ctx.restore(); }
     if (room.passengerDoor) {
@@ -298,8 +314,15 @@
     glow.addColorStop(0, "rgba(255,186,96,.95)"); glow.addColorStop(0.45, "rgba(196,104,44,.55)"); glow.addColorStop(1, "rgba(40,20,10,0)");
     // The cloth: a pillowcase drawn tight around him, the open end twisted shut above.
     const pts = [bx - 22, by + 14, bx - 24 - burst * 3 * Math.abs(dir.x), by - 10, bx - 14, by - 28, bx - 4, by - 34, bx + 4, by - 34, bx + 14, by - 28, bx + 24 + burst * 3 * Math.abs(dir.x), by - 10, bx + 22, by + 14];
-    shape(ctx, pts, "#2a1a10", { ink: 1.4, amp: 0.6, seed: 801 });
+    shape(ctx, pts, "#3b2717", { ink: 1.6, amp: 0.6, seed: 801 });
+    ctx.save(); ctx.globalCompositeOperation = "screen";
     ctx.fillStyle = glow; ctx.beginPath(); ctx.ellipse(bx, by - 6, 24, 24, 0, 0, TAU); ctx.fill();
+    // His shape pressing the cloth from inside: a flame's outline, brighter.
+    ctx.fillStyle = "rgba(255,214,140,.55)";
+    ctx.beginPath(); ctx.moveTo(bx - 9, by + 8); ctx.quadraticCurveTo(bx - 11, by - 8, bx - 1, by - 22 - burst * 4); ctx.quadraticCurveTo(bx + 11, by - 8, bx + 9, by + 8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // Folds catching the light at the edges.
+    ctx.globalAlpha = 0.5; line(ctx, bx - 18, by - 14, bx - 13, by + 10, P.paper[1], 1, 5, 0.6); line(ctx, bx + 17, by - 12, bx + 12, by + 10, P.paper[1], 1, 6, 0.6); ctx.globalAlpha = 1;
     ctx.globalAlpha = 0.3; ctx.strokeStyle = P.ink; ctx.lineWidth = 0.6;
     for (let d = -24; d <= 24; d += 3) { ctx.beginPath(); ctx.moveTo(bx + d, by - 34); ctx.lineTo(bx + d, by + 14); ctx.stroke(); }
     ctx.globalAlpha = 0.6; stitches(ctx, bx - 20, by + 12, bx + 20, by + 12, P.paper[1], 4, 1.6, 0.7);
@@ -678,7 +701,7 @@
         box(c, cx + 2, cy - 14, 5, 4, P.metal[1], { ink: 0.8, amp: 0.1 });
         break;
       }
-      default: if (!s.openWhen && !s.when) rect(c, P.below[0], s.x, s.y, s.w, s.h);
+      default: if (SOLIDS[s.kind]) SOLIDS[s.kind](c, s, geo); else if (!s.openWhen && !s.when) rect(c, P.below[0], s.x, s.y, s.w, s.h);
     }
   }
 
@@ -840,6 +863,343 @@
     }
   };
 
+  const SOLIDS = {};
+  // ===================== THE MENDING ROWS =====================
+  // Work rooms: cloth, boards, drying frames, a kept stove. Everything here is
+  // being mended or about to be, and someone has written down how.
+  const ROWS_FACE = { upper: P.plaster, lower: P.service, dado: 0.5, edge: P.plaster[3] };
+  Object.assign(FACE, {
+    receiving: { upper: P.plaster, lower: P.wood, dado: 0.5, edge: P.plaster[3] },
+    drytable: { upper: [P.plaster[1], P.plaster[2], P.plaster[3], P.paper[1]], lower: P.service, dado: 0.48, edge: P.paper[1] },
+    hangrow: ROWS_FACE, lowrun: { upper: P.below, lower: P.wood, dado: 0.7, edge: P.wood[3] }, eyelet: ROWS_FACE, traypass: ROWS_FACE,
+    press: { upper: P.plaster, lower: P.metal, dado: 0.45, edge: P.plaster[3] }, upper: ROWS_FACE, stair: ROWS_FACE,
+    windowgate: { upper: [P.below[1], P.a.maroon, P.a.maroonLight, P.paper[1]], lower: P.wood, dado: 0.55, edge: P.wood[3] }
+  });
+  // A hanging sheet: a rail, a cloth falling toward us, a damp darker hem.
+  function sheet(c, x, y, w, h, seed, color = P.paper[2]) {
+    shape(c, [x, y, x + w, y, x + w - 1, y + h - 2, x + w * 0.66, y + h, x + w * 0.33, y + h - 1.5, x + 1, y + h], color, { ink: 1, seed, amp: 0.6 });
+    alpha(c, 0.5, () => rect(c, P.paper[0], x + 1.5, y + h - 4, w - 3, 3));
+    for (let k = 1; k < 3; k += 1) line(c, x + (w * k) / 3, y + 2, x + (w * k) / 3 + 0.6, y + h - 3, P.paper[1], 0.6, seed + k, 0.3);
+  }
+  function workBench(c, s, cloth = true) {
+    drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2 + 2, 4);
+    box(c, s.x, s.y, s.w, s.h, P.wood[2], { ink: 1.4, amp: 0.3, seed: s.x });
+    rect(c, P.wood[3], s.x + 1, s.y + 1, s.w - 2, 3);
+    rect(c, P.wood[1], s.x + 1, s.y + s.h - 6, s.w - 2, 5);
+    for (const x of [s.x + 3, s.x + s.w - 6]) rect(c, P.wood[1], x, s.y + s.h, 3, 4);
+    if (!cloth) return;
+    // Mending on the table: a folded length, a pincushion, spools, shears.
+    box(c, s.x + 8, s.y + 6, s.w * 0.4, s.h * 0.45, P.paper[2], { ink: 1, amp: 0.5, seed: s.y });
+    stitches(c, s.x + 10, s.y + 6 + s.h * 0.22, s.x + 6 + s.w * 0.4, s.y + 6 + s.h * 0.22, P.a.maroon, 2.6, 1, 0.6);
+    oval(c, s.x + s.w * 0.62, s.y + 12, 4, 3, P.a.red, true, 0.9);
+    for (const [dx, color] of [[0.74, P.a.mustard], [0.8, P.service[3]], [0.86, P.a.umbrella]]) { box(c, s.x + s.w * dx, s.y + 7, 4, 6, color, { ink: 0.8, amp: 0.1 }); rect(c, P.wood[3], s.x + s.w * dx, s.y + 6, 4, 1.2); }
+    line(c, s.x + s.w * 0.6, s.y + s.h * 0.62, s.x + s.w * 0.72, s.y + s.h * 0.5, P.metal[3], 1.4, 2, 0.1);
+    line(c, s.x + s.w * 0.6, s.y + s.h * 0.5, s.x + s.w * 0.72, s.y + s.h * 0.62, P.metal[3], 1.4, 3, 0.1);
+  }
+  Object.assign(SOLIDS, {
+    ledge(c, s) {
+      // The receiving ledge: a sorting shelf at chest height, wet where the packet sat.
+      workBench(c, s, false);
+      alpha(c, 0.4, () => worn(c, s.x + 76, s.y + 16, 10, 4, P.wet[2], 0.8));
+      label(c, "RECEIVING", s.x + s.w / 2, s.y + s.h - 1.5, { size: 5, color: P.paper[2] });
+    },
+    bench(c, s) { workBench(c, s, s.w > 70); },
+    frame(c, s) {
+      // A drying frame: two posts and a rail, sheets hanging off it toward us.
+      for (const x of [s.x, s.x + s.w - 4]) { drop(c, x + 2, s.y + s.h + 1, 4, 2); box(c, x, s.y - 30, 4, 30 + s.h, P.wood[2], { ink: 1.1, amp: 0.1 }); }
+      box(c, s.x - 2, s.y - 32, s.w + 4, 4, P.wood[3], { ink: 1.1, amp: 0.1 });
+      const random = rng(`frame${s.id}`);
+      for (let x = s.x + 4; x < s.x + s.w - 10; x += 16) sheet(c, x, s.y - 28, 14, 18 + random() * 8, x + s.y, random() < 0.2 ? P.service[3] : random() < 0.4 ? P.paper[1] : P.paper[2]);
+    },
+    block(c, s) {
+      // Stacked boards in the low run: cut, numbered, waiting.
+      drop(c, s.x + s.w / 2, s.y + s.h + 1, s.w / 2 + 2, 3);
+      for (let y = s.y, index = 0; y < s.y + s.h; y += 10, index += 1) { box(c, s.x + (index % 2) * 2, y, s.w - 2, 10, index % 3 ? P.wood[2] : P.wood[1], { ink: 1, amp: 0.2, seed: y }); rect(c, P.wood[3], s.x + (index % 2) * 2 + 1, y + 1, s.w - 4, 1.2); }
+      label(c, String(s.id.slice(-1)).toUpperCase(), s.x + s.w / 2, s.y + 12, { size: 5, color: P.paper[2] });
+    },
+    channel(c, s) {
+      // The run-off channel: dark water moving slowly under the landing.
+      rect(c, P.ink, s.x, s.y, s.w, s.h);
+      rect(c, P.wet[0], s.x, s.y + 3, s.w, s.h - 3);
+      for (let x = s.x + 4; x < s.x + s.w - 6; x += 18) rect(c, P.wet[1], x, s.y + 8 + (x % 3) * 3, 8, 1);
+      rect(c, P.metal[1], s.x, s.y - 2, s.w, 2); rect(c, P.metal[1], s.x, s.y + s.h, s.w, 2);
+    },
+    balcony(c, s) {
+      // Her look-out over the row: boards, a rail, a stool.
+      drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 4);
+      box(c, s.x, s.y, s.w, s.h, P.wood[2], { ink: 1.3, amp: 0.2 });
+      for (let x = s.x + 3; x < s.x + s.w - 2; x += 6) rect(c, P.wood[1], x, s.y + s.h - 8, 1.6, 8);
+      rect(c, P.wood[3], s.x, s.y + s.h - 10, s.w, 2);
+      box(c, s.x + 30, s.y + 6, 10, 8, P.service[1], { ink: 0.9, amp: 0.2 });
+    },
+    counter(c, s) {
+      // The service counter, and its window: CLOSED, and under it in older writing, BACK SOON.
+      drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 4);
+      box(c, s.x, s.y, s.w, s.h, P.wood[2], { ink: 1.4, amp: 0.2 });
+      rect(c, P.wood[3], s.x + 1, s.y + s.h - 12, s.w - 2, 3);
+      box(c, s.x + s.w / 2 - 26, s.y + 2, 52, 18, P.ink, { ink: 1.2, amp: 0.1 });
+      rect(c, P.metal[1], s.x + s.w / 2 - 24, s.y + 4, 48, 14);
+      for (let y = s.y + 5; y < s.y + 18; y += 2.6) rect(c, P.metal[0], s.x + s.w / 2 - 24, y, 48, 0.8);
+      box(c, s.x + s.w / 2 - 15, s.y + 7, 30, 8, P.paper[3], { ink: 0.8, amp: 0.1 });
+      label(c, "CLOSED", s.x + s.w / 2, s.y + 13.4, { size: 5.4, color: P.a.red, weight: 900 });
+      alpha(c, 0.75, () => label(c, "back soon", s.x + s.w / 2, s.y + s.h - 3, { size: 4.2, color: P.paper[1], jitter: 0.8 }));
+      // A bell on the counter.
+      oval(c, s.x + s.w - 14, s.y + s.h - 5, 4, 2.4, P.a.brass, true, 1); oval(c, s.x + s.w - 14, s.y + s.h - 8, 1, 1, P.a.brassLight);
+    },
+    rail(c, s) {
+      // A stair landing: steps behind, a rail along the edge.
+      box(c, s.x, s.y, s.w, s.h, P.wood[1], { ink: 1.2, amp: 0.1 });
+      rect(c, P.wood[3], s.x, s.y, s.w, 2);
+      for (let x = s.x + 4; x < s.x + s.w - 2; x += 8) rect(c, P.wood[2], x, s.y - 12, 1.8, 12);
+      box(c, s.x, s.y - 14, s.w, 3, P.wood[3], { ink: 1, amp: 0.1 });
+    }
+  });
+  // Warm catches: an iron catch, rimed, that a little heat will turn.
+  function warmCatch(c, prop, t) {
+    const pulse = 0.5 + 0.5 * Math.sin(t / 260);
+    alpha(c, 0.35 + 0.35 * pulse, () => oval(c, prop.x, prop.y, 9, 6, P.ember[2]));
+    box(c, prop.x - 5, prop.y - 4, 10, 8, P.metal[2], { ink: 1.2, amp: 0.1 });
+    rect(c, P.metal[3], prop.x - 4, prop.y - 3, 8, 1.4);
+    for (let index = 0; index < 3; index += 1) shape(c, [prop.x - 4 + index * 3.4, prop.y - 4, prop.x - 3 + index * 3.4, prop.y - 7, prop.x - 2 + index * 3.4, prop.y - 4], "#e8f2ff", { ink: 0.4, amp: 0.05 });
+    rivet(c, prop.x, prop.y + 1, 1);
+  }
+  const ROWS_DECOR = {
+    receiving: {
+      floor(c, geo) {
+        A.concrete(c, 0, 0, geo.w, geo.h, "receiving", { tone: [P.below[1], P.below[2], P.below[3], P.plaster[2]], joint: 40 });
+        // Wet prints from the Porter's door to the ledge: Latch, arriving first.
+        alpha(c, 0.4, () => { for (let k = 0; k < 9; k += 1) worn(c, 174 + (k % 2) * 6, 236 - k * 18, 3, 2, P.wet[2], 0.9); });
+        // A trolley with a bad wheel, a sack of offcuts.
+        box(c, 40, 190, 34, 18, P.metal[1], { ink: 1.1, amp: 0.2 }); for (const x of [44, 68]) oval(c, x, 210, 3, 3, P.ink); 
+        shape(c, [270, 200, 290, 196, 296, 222, 268, 226], P.paper[1], { ink: 1.1, amp: 0.6 }); tape(c, 282, 204, 10, 0.2, 3);
+      },
+      walls(c) {
+        // The delivery chute in the north wall, a bell-pull beside it.
+        box(c, 272, 2, 26, 16, P.service[1], { ink: 1.2, amp: 0.3 }); rect(c, P.ink, 276, 7, 18, 9);
+        line(c, 266, 4, 266, 20, P.wood[3], 1); oval(c, 266, 21, 1.8, 2.4, P.a.brass, true, 0.8);
+        label(c, "ROWS", 50, 14, { size: 7, color: P.paper[2], weight: 900 });
+        label(c, "← DRY TABLE", 290, 94, { size: 4.6, color: P.paper[1] });
+      }
+    },
+    drytable: {
+      floor(c, geo) {
+        A.planks(c, 0, 0, geo.w, geo.h, "drytable", { board: 12 });
+        // A dry patch, swept and chalk-ringed, around the table.
+        alpha(c, 0.55, () => oval(c, 170, 160, 94, 50, P.wood[3]));
+        alpha(c, 0.8, () => { c.save(); c.setLineDash([3, 3]); c.strokeStyle = P.paper[3]; c.lineWidth = 0.9; c.beginPath(); c.ellipse(170, 160, 96, 52, 0, 0, TAU); c.stroke(); c.restore(); });
+        // Chalk notes on the boards: measurements, an arrow north, "DRY".
+        alpha(c, 0.7, () => { label(c, "DRY", 70, 236, { size: 6, color: P.paper[3], jitter: 1 }); label(c, "41 / 38 / 52", 210, 226, { size: 4.2, color: P.paper[2], jitter: 0.8 }); line(c, 80, 80, 80, 54, P.paper[3], 0.9, 2, 0.3); line(c, 80, 54, 76, 60, P.paper[3], 0.9); line(c, 80, 54, 84, 60, P.paper[3], 0.9); });
+        // A rag rug by the stove.
+        box(c, 228, 196, 56, 30, P.a.maroon, { ink: 1.1, amp: 0.6 }); for (let y = 200; y < 224; y += 5) line(c, 230, y, 282, y, P.a.maroonLight, 0.8, y, 0.3);
+      },
+      walls(c) {
+        // The route card, pinned crooked; a row of pegs on the west wall (one low).
+        c.save(); c.translate(150, 6); c.rotate(-0.06); box(c, -14, 0, 28, 14, P.paper[3], { ink: 0.9, amp: 0.2 }); line(c, -10, 10, 0, 4, P.a.red, 0.9); line(c, 0, 4, 10, 8, P.a.red, 0.9); oval(c, 0, 1, 1.2, 1.2, P.a.brass); c.restore();
+        for (const [y, low] of [[236, 0], [262, 0], [290, 1]]) { rect(c, P.wood[3], 18, y, 6, 2.4); if (low) label(c, "low", 30, y + 6, { size: 3.6, color: P.paper[2] }); }
+        label(c, "STAIR", 300, 56, { size: 4.2, color: P.paper[1], angle: -Math.PI / 2 });
+      }
+    },
+    hangrow: {
+      floor(c, geo) {
+        A.planks(c, 0, 0, geo.w, geo.h, "hangrow", { board: 14, tone: [P.below[1], P.wood[1], P.wood[1], P.wood[2]] });
+        // Drip lines under the frames.
+        alpha(c, 0.35, () => { for (const [x, y, w] of [[130, 342, 70], [200, 242, 80], [40, 212, 70], [150, 142, 60]]) rect(c, P.wet[1], x, y, w, 4); });
+        // The tally post.
+        box(c, 270, 360, 6, 40, P.wood[2], { ink: 1, amp: 0.1 }); alpha(c, 0.9, () => { for (let k = 0; k < 4; k += 1) line(c, 271 + k * 1.2, 366, 271 + k * 1.2, 372, P.paper[3], 0.6); line(c, 270, 371, 276, 367, P.paper[3], 0.6); });
+      },
+      walls(c) {
+        label(c, "HANGING ROW", 200, 12, { size: 5, color: P.paper[2] });
+        label(c, "LOW →", 284, 32, { size: 4.2, color: P.paper[1] });
+      }
+    },
+    lowrun: {
+      floor(c, geo) {
+        A.planks(c, 0, 0, geo.w, geo.h, "lowrun", { board: 10, tone: [P.below[0], P.below[2], P.wood[1], P.wood[2]] });
+        // The warm pipe under the boards: a line of heat showing through the gaps.
+        rect(c, P.ember[0], 20, 212, 280, 5); alpha(c, 0.5, () => rect(c, P.ember[1], 20, 213, 280, 2));
+        for (let x = 30; x < 300; x += 26) rect(c, P.metal[1], x, 210, 3, 9);
+      },
+      walls() {}
+    },
+    eyelet: {
+      floor(c, geo) {
+        A.tiles(c, 0, 0, geo.w, geo.h, "eyelet", { size: 20, colors: ["#1f2724", "#243029"], grout: "#121815" });
+        // The short board across the channel, chalk-marked at each end.
+        drop(c, 76, 198, 22, 3);
+        box(c, 56, 166, 40, 34, P.wood[2], { ink: 1.2, amp: 0.3 }); for (let y = 172; y < 198; y += 7) rect(c, P.wood[1], 57, y, 38, 1);
+        alpha(c, 0.8, () => { rect(c, P.paper[3], 60, 168, 6, 1); rect(c, P.paper[3], 86, 196, 6, 1); });
+        // The eyelet plate, set into the floor.
+        box(c, 104, 144, 16, 16, P.metal[2], { ink: 1.1, amp: 0.1 }); oval(c, 112, 152, 4.6, 4.6, P.ink); oval(c, 112, 152, 4.6, 4.6, null, true, 1); alpha(c, 0.8, () => oval(c, 110, 150, 3, 1.4, P.metal[3]));
+      },
+      walls(c) {
+        label(c, "EYELET", 230, 12, { size: 5, color: P.paper[2] });
+        label(c, "PRESS ↑", 120, 12, { size: 4.2, color: P.paper[1] });
+      }
+    },
+    traypass: {
+      floor(c, geo) {
+        A.tiles(c, 0, 0, geo.w, geo.h, "traypass", { size: 16, colors: [P.below[2], P.below[3]] });
+        // Wheel ruts, and where one wheel dragged.
+        alpha(c, 0.4, () => { rect(c, P.below[0], 20, 92, 280, 2); rect(c, P.below[0], 20, 108, 280, 2); for (let x = 150; x < 230; x += 6) rect(c, P.below[0], x, 112 + (x % 4), 3, 1); });
+        // The bent wheel.
+        oval(c, 220, 150, 6, 6, null, true, 1.2); line(c, 214, 150, 226, 148, P.metal[2], 1.2); line(c, 220, 144, 219, 156, P.metal[2], 1.2);
+      },
+      walls(c) { label(c, "TRAYS", 160, 12, { size: 5, color: P.paper[2] }); }
+    },
+    press: {
+      floor(c, geo) {
+        A.concrete(c, 0, 0, geo.w, geo.h, "press", { tone: [P.below[1], P.below[2], P.below[3], P.plaster[2]], joint: 48 });
+        // The worn track: two rails across the room and the stripes painted beside them.
+        const track = geo.track;
+        alpha(c, 0.5, () => { for (let x = track.x0 - 20; x < track.x1 + 20; x += 14) shape(c, [x, track.y - track.half - 6, x + 7, track.y - track.half - 6, x + 3, track.y - track.half - 2, x - 4, track.y - track.half - 2], P.a.mustard, { ink: false, amp: 0.2 }); });
+        rect(c, P.below[0], track.x0 - 26, track.y - track.half, track.x1 - track.x0 + 52, track.half * 2);
+        for (const dy of [-8, 8]) { rect(c, P.metal[1], track.x0 - 26, track.y + dy - 1, track.x1 - track.x0 + 52, 2.4); rect(c, P.metal[3], track.x0 - 26, track.y + dy - 1, track.x1 - track.x0 + 52, 0.8); }
+        for (let x = track.x0 - 20; x < track.x1 + 24; x += 12) rect(c, P.wood[1], x, track.y - 11, 4, 22);
+        // The drying recess: a warm cloth-lined nook in the west wall, open at the front.
+        rect(c, P.wood[1], 20, 300, 44, 42); box(c, 22, 304, 30, 34, P.paper[1], { ink: 0.9, amp: 0.5 });
+        stitches(c, 24, 320, 50, 320, P.a.maroon, 3, 1, 0.6);
+        // Folded work on the press bed.
+        box(c, 126, 404, 48, 16, P.paper[0], { ink: 1.1, amp: 0.4 }); rect(c, P.paper[1], 127, 405, 46, 2); stitches(c, 130, 412, 170, 412, P.inkSoft, 3, 1, 0.5);
+      },
+      walls(c) {
+        // The procedure card.
+        box(c, 88, 4, 24, 14, P.paper[3], { ink: 0.9, amp: 0.2 }); for (let y = 8; y < 16; y += 2.4) line(c, 91, y, 108, y, P.ink, 0.5, y, 0.2); line(c, 96, 15, 106, 13, P.a.red, 0.8);
+        label(c, "PRESS HOUSE", 250, 12, { size: 5, color: P.paper[2] });
+      }
+    },
+    upper: {
+      floor(c, geo) {
+        A.planks(c, 0, 0, geo.w, geo.h, "upper", { board: 12 });
+        alpha(c, 0.4, () => { for (let k = 0; k < 6; k += 1) worn(c, 160 + k * 18, 200 - k * 14, 6, 3, P.wood[3], 0.8); });
+      },
+      walls(c, geo) {
+        // The high window in the east wall: a long hall of service windows, far off, most of them lit.
+        box(c, 296, 80, 24, 60, P.ink, { ink: 1.2, amp: 0.1 });
+        rect(c, P.night[1], 298, 82, 20, 56);
+        for (let k = 0; k < 7; k += 1) { const y = 86 + k * 7.4, lit = k !== 2 && k !== 5; rect(c, lit ? P.sodium[2] : P.metal[1], 300 + k * 0.6, y, 14 - k * 1.4, 3.4); }
+        rect(c, P.wood[3], 294, 140, 26, 4);
+        // Another arrow scratched into the sill with a key. Up.
+        line(c, 288, 164, 288, 152, P.paper[2], 0.8, 1, 0.4); line(c, 288, 152, 285, 156, P.paper[2], 0.8); line(c, 288, 152, 291, 156, P.paper[2], 0.8);
+        box(c, 80, 4, 22, 14, P.paper[3], { ink: 0.9, amp: 0.2 }); line(c, 84, 8, 98, 14, P.a.red, 0.8);
+      }
+    },
+    stair: {
+      floor(c, geo) {
+        // Steps down from the top landing to the table: bands, each a little darker.
+        for (let y = 20, index = 0; y < geo.h - 20; y += 12, index += 1) { rect(c, index % 2 ? P.wood[1] : P.wood[2], 20, y, geo.w - 40, 12); rect(c, P.wood[3], 20, y, geo.w - 40, 1); rect(c, P.wood[0], 20, y + 10.6, geo.w - 40, 1.4); }
+        // The meal mark: a bowl and an arrow, chalked on a step.
+        alpha(c, 0.85, () => { c.strokeStyle = P.paper[3]; c.lineWidth = 0.9; c.beginPath(); c.arc(116, 156, 5, 0, Math.PI); c.stroke(); line(c, 110, 156, 122, 156, P.paper[3], 0.9); line(c, 126, 160, 136, 166, P.paper[3], 0.9); line(c, 136, 166, 131, 166, P.paper[3], 0.9); });
+      },
+      walls() {}
+    },
+    windowgate: {
+      floor(c, geo) {
+        A.tiles(c, 0, 0, geo.w, geo.h, "windowgate", { size: 24, check: true, colors: ["#2a2620", "#332e26"], grout: "#1a1713" });
+        // A waiting line painted on the floor, and a mat in front of the counter.
+        alpha(c, 0.5, () => { rect(c, P.a.mustard, 110, 128, 100, 2); label(c, "PLEASE WAIT", 160, 140, { size: 6, color: P.a.mustard, weight: 900 }); });
+        box(c, 128, 60, 64, 22, P.service[1], { ink: 1, amp: 0.4 });
+      },
+      walls(c) {
+        // The hall goes on east: more counters, more lamps, all the way along.
+        for (let k = 0; k < 4; k += 1) { const y = 30 + k * 60; box(c, 300, y, 20, 26, P.ink, { ink: 1, amp: 0.1 }); rect(c, k === 1 ? P.metal[1] : P.sodium[1], 302, y + 3, 16, 18); }
+        label(c, "WINDOW HALL", 60, 12, { size: 5, color: P.paper[2] });
+        // A clock that is right.
+        oval(c, 260, 9, 5, 5, P.paper[3], true, 1); line(c, 260, 9, 260, 5.6, P.ink, 0.8); line(c, 260, 9, 262.4, 10.4, P.ink, 0.8);
+      }
+    }
+  };
+  Object.assign(ROOMS, ROWS_DECOR);
+
+  // Live pieces of the Rows: what she moves, what runs, what is left out.
+  function rowsDynamicSolid(ctx, s, sim, t) {
+    const open = !present(s, sim.flags);
+    if (s.kind === "load") {
+      // Wet sheets on a rail right across the doorway; moved aside, they hang bunched at one end.
+      box(ctx, s.x - 4, s.y + 2, s.w + 8, 3, P.wood[3], { ink: 1, amp: 0.1 });
+      if (open) { sheet(ctx, s.x + s.w - 6, s.y + 4, 8, 22, 7, P.paper[1]); return true; }
+      for (let x = s.x; x < s.x + s.w; x += 10) sheet(ctx, x, s.y + 4, 11, 24 + ((x * 7) % 5), x, x % 20 ? P.paper[2] : P.paper[1]);
+      return true;
+    }
+    if (s.kind === "shutter") {
+      if (open) { box(ctx, s.x, s.y, s.w, 6, P.metal[1], { ink: 1.1, amp: 0.1 }); for (let x = s.x + 2; x < s.x + s.w; x += 4) rect(ctx, P.metal[0], x, s.y + 1, 1, 4); return true; }
+      box(ctx, s.x, s.y, s.w, s.h, P.metal[2], { ink: 1.4, amp: 0.1 });
+      for (let y = s.y + 3; y < s.y + s.h - 1; y += 3) rect(ctx, P.metal[1], s.x + 1, y, s.w - 2, 1);
+      rect(ctx, P.a.mustard, s.x + 2, s.y + s.h - 4, s.w - 4, 2);
+      return true;
+    }
+    if (s.kind === "grille") {
+      if (open) {
+        // Swung back against the wall, its low catch warm.
+        for (let k = 0; k < 4; k += 1) rect(ctx, P.metal[1], s.x + 2 + k * 2, s.y - 4, 1.2, 10);
+        return true;
+      }
+      rect(ctx, P.ink, s.x, s.y, s.w, s.h);
+      for (let y = s.y + 3; y < s.y + s.h; y += 6) box(ctx, s.x, y, s.w, 2.2, P.metal[2], { ink: 0.8, amp: 0.1 });
+      for (let x = s.x + 3; x < s.x + s.w; x += 6) rect(ctx, P.metal[1], x, s.y, 1.6, s.h);
+      return true;
+    }
+    return false;
+  }
+  function rowsDynamic(ctx, geo, s) {
+    const sim = s.sim, t = s.reduced ? 0 : s.time, room = s.extras.room || {};
+    for (const prop of geo.props) {
+      if (!present(prop, sim.flags)) continue;
+      if (prop.kind === "warm" && prop.id !== "latch-jam") warmCatch(ctx, prop, t);
+      else if (prop.id === "packet") { ctx.save(); ctx.translate(prop.x, prop.y - 6); ctx.rotate(0.08); box(ctx, -7, -4, 14, 8, P.paper[1], { ink: 1, amp: 0.3 }); line(ctx, -7, 0, 7, 0, P.a.red, 0.7); rect(ctx, P.a.stamp, 3, -3, 3, 3); ctx.restore(); }
+      else if (prop.id === "chalk") { drop(ctx, prop.x, prop.y + 1, 4, 1.2); box(ctx, prop.x - 4, prop.y - 1.5, 8, 3, P.paper[3], { ink: 0.8, amp: 0.1 }); }
+      else if (prop.id === "second-portion") {
+        box(ctx, prop.x - 18, prop.y - 6, 36, 6, P.metal[2], { ink: 1.1, amp: 0.1 });
+        for (const dx of [-8, 8]) { oval(ctx, prop.x + dx, prop.y - 7, 6, 2.6, P.paper[3], true, 0.9); oval(ctx, prop.x + dx, prop.y - 8, 3.6, 1.4, P.ember[1]); }
+        if (!s.reduced) for (let index = 0; index < 2; index += 1) { const k = ((s.time / 1500) + index * 0.5) % 1; alpha(ctx, 0.45 * (1 - k), () => oval(ctx, prop.x + (index ? 8 : -8), prop.y - 12 - k * 12, 2 + k * 2, 1.4 + k, P.paper[2])); }
+      } else if (prop.id === "wrap-peg") {
+        // The wrap on the low peg, dry.
+        shape(ctx, [prop.x - 6, prop.y - 14, prop.x + 6, prop.y - 14, prop.x + 8, prop.y + 2, prop.x - 8, prop.y + 2], P.service[2], { ink: 1.1, amp: 0.3 });
+        stitches(ctx, prop.x - 6, prop.y - 6, prop.x + 6, prop.y - 6, P.paper[2], 2.4, 1, 0.6); oval(ctx, prop.x + 4, prop.y - 11, 1.6, 1.6, P.a.brass, true, 0.6);
+      }
+    }
+    if (geo.id === "drytable" && room.board) {
+      // The low board she set at his height, and the lamp angled down to it.
+      drop(ctx, 150, 192, 18, 3);
+      box(ctx, 132, 176, 36, 10, P.wood[3], { ink: 1.1, amp: 0.2 }); rect(ctx, P.paper[3], 134, 178, 8, 1);
+      line(ctx, 172, 120, 160, 102, P.metal[2], 1.4, 1, 0); shape(ctx, [154, 100, 166, 98, 168, 106, 156, 108], P.service[2], { ink: 1, amp: 0.1 });
+    }
+    if (geo.id === "press" && room.carriage) {
+      // The carriage: a heavy press frame on four wheels, riding the track.
+      const x = room.carriage.x, y = geo.track.y;
+      drop(ctx, x, y + 12, 26, 5, 0.5);
+      for (const dx of [-16, 16]) for (const dy of [-8, 8]) oval(ctx, x + dx, y + dy + 3, 3.4, 3.4, P.ink);
+      box(ctx, x - 22, y - 14, 44, 24, P.metal[1], { ink: 1.5, amp: 0.1 });
+      rect(ctx, P.metal[3], x - 21, y - 13, 42, 2.4);
+      box(ctx, x - 18, y - 30, 36, 18, P.metal[2], { ink: 1.3, amp: 0.1 });
+      for (let k = 0; k < 4; k += 1) rect(ctx, P.metal[1], x - 15 + k * 9, y - 28, 2, 14);
+      rect(ctx, P.a.mustard, x - 22, y + 6, 44, 2.6);
+      if (room.carriage.moving && !s.reduced) alpha(ctx, 0.5, () => { for (const dx of [-26, 26]) rect(ctx, P.paper[2], x + dx, y - 2 + Math.sin(s.time / 60) * 2, 1.4, 1.4); });
+    }
+    if (geo.id === "press" && room.screen) {
+      // The canvas screen she braces between him and the pass.
+      box(ctx, 66, 268, 60, 26, P.paper[2], { ink: 1.3, amp: 0.4 });
+      for (const x of [66, 124]) box(ctx, x - 1, 262, 4, 34, P.wood[2], { ink: 1, amp: 0.1 });
+      stitches(ctx, 70, 280, 120, 280, P.paper[0], 3, 1, 0.6);
+    }
+  }
+  function rowsLights(geo, s, list) {
+    const room = s.extras.room || {};
+    const lamps = {
+      receiving: [[185, 40, 120, 0.75, 0.6], [285, 20, 80, 0.5, 0.5], [160, 220, 90, 0.35, 0.3]],
+      hangrow: [[60, 40, 110, 0.6, 0.5], [230, 250, 120, 0.4, 0.3], [140, 410, 90, 0.35, 0.3]],
+      lowrun: [[160, 214, 130, 0.45, 0.9]],
+      eyelet: [[160, 40, 110, 0.6, 0.5], [112, 152, 50, 0.3, 0.2]],
+      traypass: [[160, 30, 120, 0.5, 0.4]],
+      press: [[160, 30, 120, 0.55, 0.4], [42, 320, 50, 0.45, 0.8], [160, 400, 100, 0.35, 0.3]],
+      upper: [[296, 110, 120, 0.75, 0.6], [160, 200, 80, 0.3, 0.3]],
+      stair: [[120, 60, 110, 0.5, 0.4], [60, 270, 80, 0.4, 0.5]],
+      windowgate: [[160, 40, 140, 0.85, 0.7], [310, 100, 80, 0.5, 0.6], [310, 220, 80, 0.5, 0.6], [57, 136, 60, 0.35, 0.6]]
+    }[geo.id] || [];
+    for (const [x, y, r, strength, warm] of lamps) list.push({ x, y, r, strength, warm });
+    if (geo.id === "drytable" && room.board) list.push({ x: 156, y: 150, r: 60, strength: 0.5, warm: 0.8 });
+    if (geo.id === "press" && room.carriage) list.push({ x: room.carriage.x, y: geo.track.y - 20, r: 40, strength: 0.25, warm: 0.2 });
+  }
+
   function belowStatic(c, geo, m) {
     rect(c, P.void, -m.mx, -m.my, geo.w + m.mx * 2, geo.h + m.my * 2);
     const decor = ROOMS[geo.id] || {}, style = FACE[geo.id] || FACE.clatter;
@@ -852,6 +1212,7 @@
 
   // Doors, gates and hatches change with the story, so they are live.
   function dynamicSolid(ctx, s, sim, t, geo) {
+    if (rowsDynamicSolid(ctx, s, sim, t)) return;
     const open = !present(s, sim.flags);
     if (s.kind === "door") {
       if (open) { rect(ctx, P.ink, s.x, s.y, s.w, s.h); alpha(ctx, 0.5, () => rect(ctx, P.below[2], s.x + 2, s.y + 2, s.w - 4, s.h - 4)); return; }
@@ -918,6 +1279,7 @@
       const n = 40 + Math.floor((s.time || 0) / 9000) % 50;
       ctx.save(); ctx.font = "900 9px ui-monospace, Menlo, monospace"; ctx.textAlign = "center"; ctx.fillStyle = P.ember[2]; ctx.fillText(String(n).padStart(3, "0"), 160, 0.6); ctx.restore();
     }
+    rowsDynamic(ctx, geo, s);
     if (geo.id === "slip" && !s.reduced) {
       const k = (s.time / 1100) % 1; rect(ctx, P.wet[3], 262, 190 + k * 8, 0.9, 2);
     }
@@ -972,6 +1334,8 @@
       if (sim.flags?.porterDown) list.push({ x: 180, y: 20, r: 170, strength: 1.1, warm: 0.9 });
       if (sim.flags?.alcoveOpen) list.push({ x: 24, y: 142, r: 50, strength: 0.8, warm: 0.7 });
     }
+    rowsLights(geo, s, list);
+    if (geo.id === "lowrun") ambient = { color: [8, 5, 4], alpha: 0.66 };
     return { ambient, list };
   }
 

@@ -238,6 +238,10 @@
         else if (kind === "connect") a.tone?.(1320, 0.03, "sine", 0.006);
         else if (kind === "breath") a.noise?.(0.5, 0.004);
         else if (kind === "slip") { a.noise?.(0.25, 0.014); a.tone?.(140, 0.2, "triangle", 0.01, 0, -60); }
+        // The Rows: work sounds.
+        else if (kind === "scrape") { a.noise?.(0.18, 0.016); a.tone?.(140, 0.16, "sawtooth", 0.006, 0, -30); }
+        else if (kind === "plate") { a.tone?.(1180, 0.06, "triangle", 0.012); a.tone?.(880, 0.08, "triangle", 0.01, 0.07); }
+        else if (kind === "carriage") { a.noise?.(0.5, 0.014); a.tone?.(74, 0.5, "square", 0.01, 0, 10); a.haptic?.(10); }
         else if (kind === "wind") { a.noise?.(1.6, 0.012); a.tone?.(70, 1.6, "sine", 0.008, 0, -30); }
       } catch (error) {}
     };
@@ -519,6 +523,8 @@
           actor.walking = k < 1;
           if (k >= 1) actor.moveMs = 0;
         } else actor.walking = false;
+        // Someone who walks out of the room is gone once they reach the door.
+        if (actor.leaveAt && sceneTime >= actor.leaveAt) actor.visible = false;
         if (actor.state === "chase" && sim && sceneTime >= (actor.flinchUntil || 0)) {
           const dx = sim.player.x - actor.x, dy = sim.player.y - actor.y, distance = Math.hypot(dx, dy);
           const speed = actor.speed || 30;
@@ -563,6 +569,7 @@
       const logic = ROOM_LOGIC[roomId];
       const track = logic?.music ? logic.music(context) : Content.isOpening(roomId) ? STREET_TRACK : DUNGEON_TRACK;
       if (track) setMusic(track);
+      syncWear();
       const enter = logic?.enter;
       if (enter) enter(context);
       showResumeAck();
@@ -660,7 +667,7 @@
           const seat = npcs.get("you-seat");
           if (seat) seat.visible = false;
           setTransient("youGone", true);
-          room.driverDoor = false; room.rainLoud = false; room.shake = sceneTime; room.thunkAt = sceneTime;
+          room.driverDoor = false; room.rainLoud = false; room.shake = sceneTime; room.thunkAt = sceneTime; room.youOut = true;
           sound("thunk");
           npc("keeper", "keeper", 108, 238, { face: -1 });
           sim.player.fx = -1; sim.player.fy = -0.4;
@@ -679,8 +686,11 @@
     }
     // ---- 3 Waiting. Nothing happens. Curiosity keeps it normal longer, never shorter.
     // YOU drifts between the aisles: in sight about 70% of the time.
+    // Twice, if he has not come to the glass, YOU looks out at the car and waves (YOU checks on him; YOU knows nothing else).
+    const youWaves = t => (t >= 20000 && t < 22600) || (t >= 45000 && t < 47600);
     function storeYou(t) {
       const k = (t / 1000) % 20;
+      if (youWaves(t)) return { x: 52 + ((k % 20) < 7 ? (k / 7) * 76 : 40), visible: true, wave: true };
       if (k < 7) return { x: 50 + (k / 7) * 78, visible: true };
       if (k < 9) return { x: 150, visible: false };
       if (k < 16) return { x: 234 + ((k - 9) / 7) * 62, visible: true };
@@ -690,6 +700,7 @@
       room.phase = "waiting";
       room.waitStart = sceneTime; room.seenYou = false; room.seenFor = 0; room.domeOut = false; room.cartDone = false; room.youWasVisible = null;
       setTransient("youGone", true);
+      room.youOut = true;
       if (resumed) { dome(1, 1); room.dome = 1; sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: 600 }; }
       runScene("opening:waiting", [
         S.control(true),
@@ -800,7 +811,9 @@
       for (const actor of npcs.values()) if (actor.stateUntil && sceneTime > actor.stateUntil) { actor.state = "idle"; actor.stateUntil = 0; }
       if (room.waitStart != null) {
         const t = sceneTime - room.waitStart, store = storeYou(t), atGlass = inZone("dash");
-        room.you = { x: store.x, visible: store.visible };
+        room.you = { x: store.x, visible: store.visible, wave: Boolean(store.wave) && !room.seenYou };
+        if (room.phase === "waiting" && room.you.wave && !room.waveSeen && ui === "play") { room.waveSeen = sceneTime; setPose(atGlass ? "hop" : "look-up", 1400); }
+        if (!room.you.wave) room.waveSeen = 0;
         if (room.phase === "waiting") {
           // At the glass when YOU goes out of sight: pressed close; back in sight: he eases.
           if (room.youWasVisible !== null && store.visible !== room.youWasVisible && atGlass && ui === "play") setPose(store.visible ? "settle" : "press-glass", store.visible ? 800 : 2400);
@@ -1045,6 +1058,477 @@
       return t < BEAT.WAKE_DARK_MS ? 0 : 0.12 + 0.88 * easeOut((t - BEAT.WAKE_DARK_MS) / BEAT.WAKE_GROW_MS);
     }
 
+    // ===== CHAPTER 1 — MENDING ROWS (v0.2 §4–§12, condensed) =====
+    // Nell is a person with her own work: she walks ahead to safe places,
+    // supports loads while Rizo warms what she can't reach, keeps the
+    // appointments she names, and leaves every exit open. Routes open
+    // because work is done, never because of how much she is liked.
+    const done = beat => beats().includes(beat);
+    const choice = key => data?.story?.choices?.[key] || null;
+    function setRoomFlag(name) {
+      const outcome = commitData(next => { next.world.durableRoomFlags[name] = true; });
+      if (outcome.status === "failed") renderSaveFailedPanel("moment");
+    }
+    function setFactNow(name) {
+      const outcome = commitData(next => { next.story.facts[name] = true; });
+      if (outcome.status === "failed") renderSaveFailedPanel("moment");
+    }
+    function nell(x, y, extra = {}) { return npc("nell", "nell", x, y, { face: -1, state: "work", barkLift: 86, ...extra }); }
+    function nellState(state) { const actor = npcs.get("nell"); if (actor) actor.state = state; }
+    function leave(id, x, y, ms) { walk(id, x, y, ms); const actor = npcs.get(id); if (actor) actor.leaveAt = sceneTime + ms; }
+    // Two soft taps on a checked join: a small sound, nothing more.
+    function taps() { sound("tap"); }
+    const ROWS_TRACK = Object.freeze({ id: "dungeon-rows", tempo: 820, lead: [64, null, null, 67, null, null, null, null, 62, null, null, null, 64, null, null, null], bass: [40, null, null, null, 43, null, null, null], wave: "triangle" });
+    // The wrap, worn, shows on him in every room afterwards.
+    function syncWear() { view.setWear?.(choice("rows-wrap") === "worn" ? "wrap" : null); }
+
+    // A Kindle on a warm prop: the jammed latch, or Rows work.
+    function warmTarget(id) {
+      if (id === "latch-jam") { rescueLatch(); return; }
+      const handler = ROWS_WARM[id];
+      if (handler) handler();
+    }
+    const ROWS_WARM = {
+      // Receiving: optional. The work lowers sooner, and Latch notices.
+      "ledge-catch"() {
+        setFactNow("rowsLatchHelped");
+        setTransient("ledgeReady", false);
+        sound("clunk"); taps();
+        nellState("work");
+        room.ledgeDone = sceneTime;
+        bark("nell", L.rowsLedgeHelp[0], 1800);
+        room.latchLine = sceneTime + 1900;
+      },
+      // The Dry Table's work support: the first small job that holds.
+      "work-catch"() {
+        setTransient("catchReady", false);
+        sound("clunk");
+        runScene("rows:catch", [
+          S.call(() => { nellState("work"); taps(); }),
+          S.wait(600),
+          S.call(() => { setRoomFlag("rowsCatch"); bark("nell", L.rowsHolds[0], 1600); room.shake = sceneTime; }),
+          S.wait(1400),
+          S.call(() => leave("nell", 80, 30, 1600))
+        ], { control: true });
+      },
+      // Hanging Row: the low catch at the split; then she takes the high path.
+      "low-catch"() {
+        setTransient("lowReady", false);
+        sound("clunk");
+        const outcome = commitData(next => { next.world.durableRoomFlags.rowsLowRoute = true; addBeat(next, "rows:split"); });
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
+        runScene("rows:split", [
+          S.call(() => { taps(); nellState("point"); }),
+          talk([...L.rowsEyeletPromise]),
+          S.call(() => { nellState("walk"); walk("nell", 120, 40, 1500); }),
+          S.wait(1500),
+          S.call(() => leave("nell", 44, 26, 900))
+        ], { control: true });
+      },
+      // Eyelet: the grille's low catch, so Orr's too-big tray can go through.
+      "grille-catch"() {
+        setTransient("grilleReady", false);
+        sound("clunk");
+        const outcome = commitData(next => { next.world.durableRoomFlags.rowsGrille = true; addBeat(next, "rows:orr"); });
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
+        room.shake = sceneTime;
+        runScene("rows:grille", [
+          S.wait(500),
+          talk([...L.rowsTable]),
+          S.call(() => { leave("orr", 10, 80, 2200); walk("nell", 60, 100, 1200); nellState("walk"); }),
+          S.wait(1300),
+          S.call(() => leave("nell", 10, 80, 900))
+        ], { control: true });
+      },
+      // Press House stage 2: the brake, low on his side.
+      "brake-release"() {
+        setTransient("brakeReady", false);
+        sound("clunk");
+        setRoomFlag("rowsBrake");
+        pressTest();
+      },
+      // The shutter: warm it, go under; she lifts.
+      "shutter-release"() {
+        setTransient("shutterReady", false);
+        sound("clunk");
+        setRoomFlag("rowsShutter");
+        room.shake = sceneTime; room.shutterAt = sceneTime;
+        nellState("lift");
+        bark("nell", L.rowsUnder[0], 2000);
+      },
+      // The table remembers his height: the same end of the same job.
+      "low-board"() {
+        setTransient("boardReady", false);
+        commitBeat("rows:job");
+        taps();
+        room.jobDone = sceneTime;
+      }
+    };
+
+    // ---- Receiving: Latch got here first; the delivery that would not fit.
+    function receivingEnter() {
+      if (done("rows:arrived")) return;
+      npc("latch", "latch", 250, 86, { face: -1 });
+      nell(150, 78, { face: 1, state: "support" });
+      runScene("rows:arrival", [
+        S.fade(0, 400),
+        S.control(true),
+        // Committed at once: coming back here never replays the arrival.
+        S.call(() => commitBeat("rows:arrived")),
+        talk([{ hold: 600 }, ...(fact("sharedRest") ? L.rowsLatchHelloSat : L.rowsLatchHello), { hold: 500 }, ...L.rowsDispute,
+          // He takes the packet out; the strap lifts. Give that change room.
+          { call: () => { const latch = npcs.get("latch"); if (latch) latch.state = "unloaded"; room.unloaded = sceneTime; } }, { hold: 1400 },
+          ...L.rowsMend, { call: () => { nellState("work"); setTransient("ledgeReady", true); } }]),
+        S.until(() => room.near),
+        // He comes close: she clears the dry patch for him before anything else.
+        S.call(() => { nellState("clear"); room.dryPatch = sceneTime; }),
+        talk([...L.rowsDry, { hold: 400 }, ...L.rowsGoingUp]),
+        S.until(() => room.ledgeDone || sceneTime - room.dryPatch > 14000),
+        S.call(() => { if (!room.ledgeDone) { setTransient("ledgeReady", false); nellState("work"); sound("clunk"); } }),
+        S.wait(room.ledgeDone ? 400 : 200),
+        S.until(() => !room.latchLine || sceneTime >= room.latchLine),
+        S.call(() => { if (fact("rowsLatchHelped")) bark("latch", L.rowsLedgeHelp[1], 2200); }),
+        S.wait(fact("rowsLatchHelped") ? 2300 : 300),
+        talk([...L.rowsLatchGoes]),
+        S.call(() => { leave("latch", 160, 250, 2400); nellState("walk"); leave("nell", 316, 120, 2600); })
+      ], { control: true });
+    }
+
+    // ---- The Dry Table: where she works, and where she keeps her appointments.
+    function drytableEnter() {
+      syncTableExtras();
+      if (!done("rows:met")) { tableMeeting(); return; }
+      if (!fact("rowsCatch")) { nell(206, 150, { state: "support", face: -1 }); setTransient("catchReady", true); return; }
+      if (fact("rowsGrille") && !done("rows:meal")) { tableMeal(); return; }
+      if (done("rows:upper") && !done("rows:wrap")) { tableReturn(); return; }
+      // Interrupted after the wrap: the sheets are already moved for him.
+      if (done("rows:wrap") && !fact("rowsOnward")) setRoomFlag("rowsOnward");
+    }
+    function syncTableExtras() {
+      // The prepared low board and the angled lamp stay once she has set them.
+      room.board = done("rows:upper");
+      setTransient("wrapOnPeg", choice("rows-wrap") === "peg");
+    }
+    function tableMeeting() {
+      nell(36, 170, { face: 1, state: "walk" });
+      room.meetAt = sceneTime;
+      runScene("rows:table", [
+        S.control(true),
+        S.call(() => walk("nell", 168, 104, 1800)),
+        S.wait(1900),
+        S.call(() => { nellState("point"); }),
+        // She thinks he wants the warm room. He looks further up.
+        talk([...L.rowsWarmRoom]),
+        S.until(() => {
+          if (!room.lookedUp && sceneTime - room.meetAt > 12000 && ui === "play") { room.lookedUp = true; setPose("look-up", 1600); }
+          return room.routeLooked || (room.lookedUp && sceneTime - room.meetAt > 13600);
+        }),
+        S.call(() => { nellState("listen"); }),
+        S.say(L.rowsFurtherUp),
+        S.call(() => { nellState("fix"); sound("scrape"); room.cornerAt = sceneTime; }),
+        S.wait(700),
+        talk([...L.rowsCorner]),
+        S.call(() => { commitBeat("rows:met"); walk("nell", 206, 150, 900); }),
+        S.wait(950),
+        S.call(() => { nellState("support"); setTransient("catchReady", true); }),
+        talk([...L.rowsCatchAsk])
+      ], { control: true });
+    }
+    function tableMeal() {
+      nell(168, 104, { face: -1, state: "work" });
+      npc("orr", "orr", 104, 150, { face: 1, state: "tray", barkLift: 80 });
+      setTransient("mealOut", true);
+      runScene("rows:meal", [
+        S.fade(0, 300),
+        S.control(true),
+        S.until(() => Math.hypot(sim.player.x - 150, sim.player.y - 200) < 110 || sceneTime - room.enteredAt > 4000),
+        S.say(L.rowsMeal),
+        S.call(() => { nellState("eat"); sound("plate"); }),
+        S.wait(500),
+        S.choice("rows-meal", [{ label: "SIT", value: "sit" }, { label: "GO", value: "go" }])
+      ]);
+      room.enteredAt = sceneTime;
+      const current = scene;
+      current.steps.find(step => step.type === "choice").onPick = value => {
+        // Committed before either is shown. Neither changes what is open to him.
+        const outcome = commitData(next => { next.story.choices["rows-meal"] = value; next.world.durableRoomFlags.rowsPressOpen = true; addBeat(next, "rows:meal"); });
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
+        const after = value === "sit"
+          ? [S.call(() => { room.seatFrom = { x: sim.player.x, y: sim.player.y }; room.seatAt = sceneTime; room.seatTarget = { x: 150, y: 196 }; }), S.until(() => seatWalk()), S.pose("settle", 3200), S.call(() => duck(3200, 0.3)), S.wait(3200), S.say(L.rowsCrunchy), S.wait(800), S.control(true), talk([...L.rowsPressNext]), S.call(() => departMeal())]
+          : [S.control(true), talk([...L.rowsPressNext, ...L.rowsTakeEdge]), S.call(() => departMeal())];
+        current.steps.push(...after);
+      };
+    }
+    function departMeal() {
+      setTransient("mealOut", false);
+      nellState("walk");
+      leave("nell", 316, 250, 2600);
+      const orr = npcs.get("orr"); if (orr) orr.state = "carry";
+      leave("orr", 4, 170, 3200);
+    }
+    function tableReturn() {
+      room.board = true;
+      nell(176, 104, { face: -1, state: "work" });
+      // She kept the appointment: committed the moment he finds her here.
+      if (!done("rows:return")) commitBeat("rows:return");
+      runScene("rows:return", [
+        S.fade(0, 300),
+        S.control(true),
+        talk([L.rowsSameEnd[0]]),
+        S.until(() => Math.hypot(sim.player.x - 150, sim.player.y - 186) < 44 || sceneTime - room.enteredAt > 12000),
+        S.call(() => { if (Math.hypot(sim.player.x - 150, sim.player.y - 186) < 44) { setTransient("boardReady", true); bark("nell", L.rowsSameEnd[1], 2200); } room.boardAt = sceneTime; }),
+        // He can take the little job, or not; she finishes it either way.
+        S.until(() => room.jobDone || sceneTime - room.boardAt > 10000),
+        S.call(() => { setTransient("boardReady", false); if (!room.jobDone) taps(); }),
+        S.wait(900),
+        S.call(() => { nellState("tired"); bark("nell", L.rowsChalk[0], 1800); setTransient("chalkOut", true); room.chalkAt = sceneTime; }),
+        S.until(() => room.chalkFound || sceneTime - room.chalkAt > 8000),
+        S.call(() => { setTransient("chalkOut", false); nellState("work"); if (!room.chalkFound) sound("breath"); }),
+        S.wait(1200),
+        S.say(L.rowsWrapOffer),
+        S.choice("rows-wrap", [{ label: "WEAR IT", value: "worn" }, { label: "FOLDED", value: "folded" }, { label: "LEAVE IT", value: "peg" }])
+      ]);
+      room.enteredAt = sceneTime;
+      const current = scene;
+      current.steps.find(step => step.type === "choice").onPick = value => {
+        const outcome = commitData(next => { next.story.choices["rows-wrap"] = value; addBeat(next, "rows:wrap"); });
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
+        const lines = value === "worn" ? L.rowsWrapWorn : value === "folded" ? L.rowsWrapFolded : L.rowsWrapPeg;
+        current.steps.push(
+          S.call(() => { nellState(value === "worn" ? "fit" : "work"); if (value === "worn") { taps(); syncWear(); } setTransient("wrapOnPeg", value === "peg"); }),
+          S.say(lines),
+          S.call(() => { nellState("walk"); }),
+          S.control(true),
+          talk([...L.rowsOnward]),
+          // She moves the wet sheets off the doorway on her way: the way on opens because she's going too.
+          S.call(() => { walk("nell", 260, 40, 1600); }),
+          S.wait(1650),
+          S.call(() => { nellState("lift"); sound("cloth"); setRoomFlag("rowsOnward"); }),
+          S.wait(700),
+          S.call(() => { nellState("walk"); leave("nell", 260, 4, 900); })
+        );
+      };
+    }
+
+    // ---- Hanging Row: walking beside her; a draft in the sheets; different-sized routes.
+    function hangrowEnter() {
+      if (done("rows:split")) return;
+      nell(60, 404, { face: -1, state: "walk" });
+      room.nellStage = "entry";
+      runScene("rows:hangrow", [
+        S.control(true),
+        S.until(() => sim.player.y < 400 || sceneTime - room.enteredAt > 2500),
+        S.call(() => { walk("nell", 40, 262, 2600); room.nellStage = "refuge"; }),
+        S.until(() => rowDraftSettled() || inZone("row-north")),
+        S.call(() => { nellState("walk"); walk("nell", 50, 120, 1500); }),
+        S.wait(1500),
+        S.call(() => walk("nell", 252, 104, 2000)),
+        S.wait(2050),
+        S.call(() => { nellState("support"); setTransient("lowReady", true); room.nellStage = "split"; }),
+        talk([...L.rowsLowAsk])
+      ], { control: true });
+      room.enteredAt = sceneTime;
+    }
+    const rowDraftSettled = () => !sim.enemies.some(enemy => enemy.id === "row-draftling" && enemy.state !== "gone");
+
+    // ---- Eyelet: somebody at the other end; a tray bigger than its hatch.
+    function eyeletEnter() {
+      if (!done("rows:split")) return;
+      if (!done("rows:eyelet")) {
+        nell(132, 122, { face: -1, state: "work" });
+        runScene("rows:eyelet", [
+          S.control(true),
+          S.until(() => inZone("eyelet-landing")),
+          S.call(() => { nellState("clear"); commitBeat("rows:eyelet"); }),
+          S.say(L.rowsThereYouAre),
+          S.call(() => nellState("work")),
+          S.wait(1600),
+          S.call(() => orrArrives())
+        ], { control: true });
+        return;
+      }
+      if (!fact("rowsGrille")) { nell(70, 104, { face: -1, state: "support" }); npc("orr", "orr", 120, 96, { face: -1, state: "tray", barkLift: 80 }); setTransient("grilleReady", true); }
+    }
+    function orrArrives() {
+      npc("orr", "orr", 304, 96, { face: -1, state: "tray", barkLift: 80 });
+      walk("orr", 120, 96, 2600);
+      runScene("rows:hatch", [
+        S.control(true),
+        S.wait(2700),
+        talk([L.rowsHatch[0], { call: () => { walk("nell", 70, 104, 1400); nellState("walk"); } }, { hold: 600 }, L.rowsHatch[1], { call: () => { nellState("support"); setTransient("grilleReady", true); } }])
+      ], { control: true });
+    }
+
+    // ---- Press House: an opening stays an opening; an empty job stopped together.
+    function pressEnter() {
+      if (!done("rows:meal")) return;
+      const track = Content.ROOMS.press.track;
+      room.carriage = { x: fact("rowsBrake") ? track.x1 : track.x0, dir: 1, moving: false, pauseUntil: 0, speed: 88 };
+      if (fact("rowsShutter")) return;
+      if (!done("rows:screen")) {
+        nell(96, 306, { face: 1, state: "brace" });
+        room.screen = true;
+        runScene("rows:screen", [
+          S.control(true),
+          S.until(() => inZone("press-screen") && sim.player.y < 430),
+          talk([...L.rowsWaitItOut]),
+          S.wait(800),
+          // One authored pass, with the screen braced and the recess open (never latched).
+          S.call(() => { room.carriage.moving = true; room.carriage.once = true; sound("carriage"); }),
+          S.until(() => !room.carriage.moving),
+          S.call(() => { room.screen = false; nellState("work"); commitBeat("rows:screen"); }),
+          talk([...L.rowsClear]),
+          S.call(() => { walk("nell", 34, 300, 1200); startEmptyJob(); }),
+          talk([{ hold: 600 }, ...L.rowsEmptyJob])
+        ], { control: true });
+        return;
+      }
+      if (!fact("rowsPressStop")) { nell(34, 300, { face: 1, state: "work" }); startEmptyJob(); return; }
+      if (!fact("rowsBrake")) { nell(60, 214, { face: 1, state: "support" }); setTransient("brakeReady", true); return; }
+      nell(150, 70, { face: 1, state: "support" }); setTransient("shutterReady", true);
+    }
+    function startEmptyJob() {
+      room.jobRunning = true;
+      room.carriage.moving = true; room.carriage.once = false;
+    }
+    function pressStop() {
+      if (fact("rowsPressStop")) return;
+      room.jobRunning = false;
+      room.stopping = true;
+      setRoomFlag("rowsPressStop");
+      runScene("rows:stop", [
+        S.call(() => { walk("nell", 60, 214, 1200); nellState("walk"); }),
+        S.until(() => !room.carriage.moving),
+        S.call(() => { nellState("support"); sound("clunk"); room.shake = sceneTime; }),
+        talk([...L.rowsGotStop, { hold: 300 }, ...L.rowsBrakeAsk]),
+        S.call(() => setTransient("brakeReady", true))
+      ], { control: true });
+    }
+    function pressTest() {
+      runScene("rows:test", [
+        S.control(true),
+        talk([...L.rowsTest]),
+        // One test: the empty frame rides to its parked place. It waits for him to be off the track.
+        S.until(() => !onTrack()),
+        S.call(() => { room.carriage.target = Content.ROOMS.press.track.x1; room.carriage.moving = true; room.carriage.once = true; room.carriage.speed = 46; sound("carriage"); }),
+        S.until(() => !room.carriage.moving),
+        S.call(() => { room.parked = sceneTime; sound("clunk"); }),
+        S.wait(900),
+        talk([...L.rowsParked]),
+        S.call(() => { walk("nell", 150, 70, 1800); nellState("walk"); }),
+        S.wait(1850),
+        S.call(() => { nellState("support"); setTransient("shutterReady", true); }),
+        talk([...L.rowsShutterAsk])
+      ], { control: true });
+    }
+    function onTrack() {
+      const track = Content.ROOMS.press.track;
+      return Math.abs(sim.player.y - track.y) < track.half + sim.player.r;
+    }
+    function pressTick(dt) {
+      const c = room.carriage;
+      if (!c) return;
+      const track = Content.ROOMS.press.track;
+      if (c.moving && ui === "play" && sceneTime >= c.pauseUntil) {
+        const goal = c.target ?? (c.dir > 0 ? track.x1 : track.x0);
+        const step = (Math.min(dt, 100) / 1000) * c.speed * Math.sign(goal - c.x);
+        c.x = Math.abs(goal - c.x) <= Math.abs(step) ? goal : c.x + step;
+        if (c.x === goal) {
+          if (c.once || room.stopping) { c.moving = false; c.target = null; room.stopping = false; }
+          else { c.dir = -c.dir; c.pauseUntil = sceneTime + 700; sound("carriage"); }
+        }
+        // Caught on the track: knocked clear, never hurt.
+        const p = sim.player;
+        if (Math.abs(p.x - c.x) < 22 && onTrack() && sceneTime - (room.bumpAt || 0) > 600) {
+          room.bumpAt = sceneTime;
+          nudge(0, p.y < track.y ? -(p.y - (track.y - track.half - p.r - 6)) : (track.y + track.half + p.r + 6) - p.y);
+          setPose("recoil", 600); sound("bump"); room.shake = sceneTime;
+        }
+      }
+      // Stage 1 ends when the pull is gone.
+      if (room.jobRunning && !sim.enemies.some(enemy => enemy.id === "press-needle" && enemy.state !== "gone")) pressStop();
+    }
+
+    // ---- Upper Landing: the high window, and the table appointment.
+    function upperEnter() {
+      if (done("rows:upper")) return;
+      nell(160, 232, { face: -1, state: "walk" });
+      runScene("rows:upper", [
+        S.control(true),
+        S.wait(900),
+        S.call(() => walk("nell", 60, 120, 2200)),
+        S.wait(2300),
+        S.call(() => { nellState("support"); sound("clunk"); setRoomFlag("rowsStair"); }),
+        talk([...L.rowsStairHere, { hold: 500 }, ...L.rowsAtTheTable]),
+        S.call(() => { commitBeat("rows:upper"); nellState("walk"); leave("nell", 8, 120, 1000); })
+      ], { control: true });
+    }
+
+    // ---- Window Hall: the staffed side of CLOSED. As far as the road goes, for now.
+    function windowgateEnter() {
+      if (!done("rows:boundary")) {
+        nell(140, 76, { face: 1, state: "work" });
+        runScene("rows:closed", [
+          S.control(true),
+          S.wait(800),
+          S.call(() => sound("chime")),
+          S.wait(1600),
+          talk([...L.rowsClosed]),
+          S.call(() => { walk("nell", 62, 124, 2000); nellState("walk"); }),
+          S.wait(2100),
+          S.call(() => { nellState("sit"); npc("latch", "latch", 304, 210, { face: -1 }); walk("latch", 236, 150, 2600); }),
+          S.wait(2700),
+          talk([...(fact("rowsLatchHelped") ? L.rowsLatchAgainHelped : L.rowsLatchAgain)]),
+          S.call(() => { leave("latch", 304, 120, 2400); room.latchGone = sceneTime; }),
+          S.until(() => inZone("gate-window") || sceneTime - room.enteredAt > 26000),
+          S.call(() => boundary())
+        ], { control: true });
+        room.enteredAt = sceneTime;
+        return;
+      }
+      nell(62, 124, { face: 1, state: "sit" });
+    }
+    function boundary() {
+      if (!done("rows:boundary")) commitBeat("rows:boundary");
+      openPanel("boundary", card({
+        kicker: "MENDING ROWS",
+        title: "WINDOW HALL IS NEXT",
+        body: esc("The window says BACK SOON. Nell sits down to wait, and leaves him the dry end of the bench. Somebody behind that counter is going to open it."),
+        actions: `<button type="button" class="primary" data-dungeon-action="stay">STAY A WHILE</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
+        fine: esc("End of what's built so far. The journey is saved here, and picks up at this window when the next part opens.")
+      }));
+    }
+
+    const ROWS_LOGIC = {
+      receiving: { music: () => ROWS_TRACK, enter: receivingEnter, tick() { if (!room.near && inZone("receiving-near")) room.near = true; } },
+      drytable: {
+        music: () => ROWS_TRACK,
+        enter: drytableEnter,
+        tick() { if (!room.routeLooked && inZone("route-pull")) room.routeLooked = true; }
+      },
+      hangrow: {
+        music: () => ROWS_TRACK,
+        enter: hangrowEnter,
+        tick() {
+          const draft = sim.enemies.find(enemy => enemy.id === "row-draftling");
+          if (draft?.aware && !room.drySaid && npcs.has("nell")) { room.drySaid = true; bark("nell", L.rowsDrySide[0], 1600); }
+        }
+      },
+      lowrun: { music: () => ROWS_TRACK, enter() { if (!done("rows:eyelet")) setPose("look-back", 900); } },
+      eyelet: { music: () => ROWS_TRACK, enter: eyeletEnter },
+      traypass: { music: () => ROWS_TRACK, enter() {} },
+      press: { music: () => ROWS_TRACK, enter: pressEnter, tick: pressTick },
+      upper: { music: () => ROWS_TRACK, enter: upperEnter },
+      stair: { music: () => ROWS_TRACK, enter() {} },
+      windowgate: {
+        music: () => ROWS_TRACK,
+        enter: windowgateEnter,
+        // The first time he drifts toward the rest of the hall, she keeps him close. Kindly.
+        tick() { if (!room.farSaid && npcs.has("nell") && sim.player.x > 248 && (room.latchGone || done("rows:boundary"))) { room.farSaid = true; bark("nell", L.rowsStayNear[0], 2600); } }
+      }
+    };
+
+
     // The opening and every Threshold room, by stable id.
     const ROOM_LOGIC = {
       // ---- Scenes 1–5: the parked car, "Be good.", waiting, headlights, taken
@@ -1276,6 +1760,7 @@
         }
       }
     };
+    Object.assign(ROOM_LOGIC, ROWS_LOGIC);
     // The bump that teaches Tuck: a readable line, a pulsing key, no harm.
     function vanBump() {
       room.cargoCount += 1;
@@ -1343,6 +1828,8 @@
       if (kind === "bowl") return coldBowl();
       if (kind === "lever") return pullLever();
       if (id === "bowl-road") setPose("approach-stop", 1100);
+      // Her chalk, under the board where it rolled: he finds it, she gets it back.
+      if (id === "chalk") { room.chalkFound = true; setTransient("chalkOut", false); setFactNow("rowsChalk"); sound("tap"); nellState("work"); bark("nell", L.rowsChalkFound[0], 2400); return; }
       openDialogue(prop.lines);
     }
     function talkToLatch() {
@@ -1375,7 +1862,7 @@
     }
     function hearthArrival() {
       if (data.checkpoint.hearthId !== geo().hearth.id) registerHearth(geo().hearth.id);
-      if (!fact("latchFreed") || fact("seatChosen") || scene) return;
+      if (geo().id !== "hearth" || !fact("latchFreed") || fact("seatChosen") || scene) return;
       runScene("hearth-seat", [
         S.say(L.seatOffer),
         S.choice("hearth-seat", [{ label: "SIT", value: "sit" }, { label: "GO", value: "go" }]),
@@ -1403,7 +1890,7 @@
     }
     // SIT: the Rizo crosses to the bench beside Latch (presentation, then settles).
     function seatWalk() {
-      const target = geo().anchors["hearth-seat"];
+      const target = room.seatTarget || geo().anchors["hearth-seat"];
       const k = clamp((sceneTime - room.seatAt) / 700, 0, 1);
       sim.player.x = room.seatFrom.x + (target.x - room.seatFrom.x) * k;
       sim.player.y = room.seatFrom.y + (target.y - room.seatFrom.y) * k;
@@ -1519,6 +2006,8 @@
           case "deflect": { sound("deflect"); const enemy = sim.enemies.find(item => item.id === event.id); if (enemy) view.addEffect("deflect", enemy.x, enemy.y + 8, 1); break; }
           case "calmed":
             sound("calmed");
+            // In the Rows a settled pull stays settled across reloads.
+            if (Content.isRows(sim.roomId) && Content.knownEncounter(event.id) && !data.world.defeatedEncounters.includes(event.id)) commitData(next => { if (!next.world.defeatedEncounters.includes(event.id)) next.world.defeatedEncounters.push(event.id); });
             try { host.event("encounterResolved", { boundaryId: event.id, campaignId: data.campaign.id, tone: "quiet", interruption: "none" }); } catch (error) {}
             break;
           case "hurt": sound("hurt"); view.setFlame(sim.player.flame, Core.T.FLAME_MAX); room.hurtAt = sceneTime; break;
@@ -1536,7 +2025,7 @@
           case "porter-down": sound("calmed"); porterDown(); break;
           case "kindle-start": sound("kindle"); break;
           case "kindle-cancel": break;
-          case "kindled": if (event.targetKind === "warm") rescueLatch(); else restAtHearth(event.hearthId); break;
+          case "kindled": if (event.targetKind === "warm") warmTarget(event.targetId); else restAtHearth(event.hearthId); break;
           case "hearth-near": if (data.checkpoint.hearthId !== event.hearthId) registerHearth(event.hearthId); break;
           case "zone": onZone(event.id); break;
           case "exit": onExit(event); break;
@@ -1585,7 +2074,7 @@
         addBeat(next, "hearth-arrival:registered");
         setContinuation(next, sim.roomId, hearth.spawnAnchorId, Core.T.FLAME_MAX, "hearth");
       });
-      if (outcome.status === "committed") { showBanner(L.hearthKnows); try { host.event("checkpointRest", { boundaryId: hearthId, campaignId: data.campaign.id, tone: "protected", interruption: "none" }); } catch (error) {} }
+      if (outcome.status === "committed") { showBanner(hearth.banner || L.hearthKnows); try { host.event("checkpointRest", { boundaryId: hearthId, campaignId: data.campaign.id, tone: "protected", interruption: "none" }); } catch (error) {} }
       else if (outcome.status === "failed") renderSaveFailedPanel("moment");
     }
     function restAtHearth(hearthId) {
@@ -1802,7 +2291,9 @@
     // Where a saved journey resumes. Opening rooms restart their own scene.
     function resumeJourney(fromMigration) {
       let cont = data.continuation;
-      if (data.proofComplete && data.campaign.status === "homecoming-ready") cont = { roomId: "porter", safeAnchorId: "porter-entry", roomEntryFlame: Core.T.FLAME_MAX };
+      // A proof save parked at the Porter's homecoming (or one that came home and
+      // chose to go on) picks up in the Porter's room, where the door is open.
+      if (data.proofComplete && (data.campaign.status === "homecoming-ready" || data.campaign.status === "complete") && !Content.isRows(cont.roomId)) cont = { roomId: "porter", safeAnchorId: "porter-entry", roomEntryFlame: Core.T.FLAME_MAX };
       const opening = Content.isOpening(cont.roomId);
       // Opening rooms resume at the last committed beat's own start: nothing
       // committed replays, and nobody resumes in a room that no longer exists.
@@ -1867,12 +2358,13 @@
         settings = { ...settings, ...data.settings };
         const problem = bindingProblem();
         if (problem) { sim = Core.createSim({ roomId: "slip" }); ui = "blocked"; view.setShell("locked"); view.panel(problem); }
-        else if (data.proofComplete && data.campaign.status === "complete") {
+        else if (data.proofComplete && data.campaign.status === "complete" && !Content.isRows(data.continuation.roomId)) {
+          // The homecoming stays true. The campaign edition opens the Porter's door, so it can go on from there.
           retryPendingRewards();
           sim = Core.createSim({ roomId: "slip" });
           ui = "blocked";
           view.setShell("locked");
-          view.panel(card({ kicker: "THE THRESHOLD", title: "THIS JOURNEY REACHED HOME", body: `${esc(data.campaign.petName)} already came home from this journey. Replays come later.`, actions: `<button type="button" class="primary" data-dungeon-action="leave">GO HOME</button>` }));
+          view.panel(card({ kicker: "THE THRESHOLD", title: "THIS JOURNEY REACHED HOME", body: `${esc(data.campaign.petName)} already came home from The Threshold. Past the Porter, a door that was shut is open now.`, actions: `<button type="button" class="primary" data-dungeon-action="onward">GO THROUGH THE DOOR</button><button type="button" data-dungeon-action="leave">GO HOME</button>` }));
         } else resumeJourney(result.status === "migrated");
       }
       if (sim && !prev.x) prev = { x: sim.player.x, y: sim.player.y };
@@ -1918,6 +2410,8 @@
       if (!action) return;
       sound("ui");
       if (action === "resume") playerResume();
+      else if (action === "stay") closePanel();
+      else if (action === "onward" && ui === "blocked" && data?.proofComplete) { view.panel(null); sim = null; ui = "play"; resumeJourney(false); }
       else if (action === "home") goHome();
       else if (action === "leave") beginExit("leave", "");
       else if (action === "home-anyway") beginExit("quit-unsaved", "LAST CONFIRMED SAVE KEPT");
@@ -2029,7 +2523,7 @@
         poseOverride = null;
         commitData(next => {
           for (const [key, value] of Object.entries(setFlags)) {
-            if (["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown"].includes(key)) next.world.durableRoomFlags[key] = value; else next.story.facts[key] = value;
+            if (Content.ROOM_FLAGS.includes(key)) next.world.durableRoomFlags[key] = value; else next.story.facts[key] = value;
           }
           if (!Content.isOpening(roomId)) addBeat(next, "opening:below");
         });
@@ -2086,7 +2580,12 @@
         else try { host.event("chapterComplete", { boundaryId: "threshold-complete", campaignId: next.campaign.id, tone: "protected", interruption: "none" }); } catch (error) {}
         return outcome;
       },
-      qaRetryPending: () => retryPendingRewards()
+      qaRetryPending: () => retryPendingRewards(),
+      // A proof journey that walked home under the proof edition (QA only): status complete, parked at the Porter.
+      qaProofHome() {
+        if (!host.debug || !data?.proofComplete) return null;
+        return commitData(next => { next.campaign.status = "complete"; addBeat(next, "homecoming:complete"); setContinuation(next, "porter", "porter-entry", Core.T.FLAME_MAX, "room-entry"); });
+      }
     };
     return api;
   }
@@ -2105,6 +2604,7 @@
       dungeonEnemyForQA: (id, patch) => need().qaEnemy(id, patch),
       dungeonCompleteFixtureForQA: options => need().qaCompleteFixture(options),
       dungeonRetryPendingForQA: () => need().qaRetryPending(),
+      dungeonProofHomeForQA: () => need().qaProofHome(),
       dungeonSummaryForQA: () => Modes.summary(MODE_ID)
     };
   }
