@@ -460,7 +460,16 @@ not YOU; the lonely walk past a bowl that is not his) → `drain` (shelter, then
 below; two slips) → the fall, and the handheld locks on impact → `slip` (he wakes in the dark; one thought,
 "home?"; HOME ↑ is found by his own light) → `clatter` (Draftling) → `hem` (Latch, trapped by a frozen latch; warm it) → `hearth`
 (checkpoint, SIT / GO, the cold bowl) → `queue` (Draftling + Needle; a lever opens the hearth shortcut) →
-`porter` (the Night Porter; Latch opens the alcove at half health; the First Knot) → home, to the real Den.
+`porter` (the Night Porter; Latch opens the alcove at half health; the First Knot) → through the Porter's
+door into **Chapter 1, the Mending Rows** (content revision `threshold-v3`; v0.2 MR-S01..S13, condensed):
+`receiving` (Latch got there first; Nell; optional ledge help, remembered as `rowsLatchHelped`) → `drytable`
+(Nell's work table and stove, a second checkpoint `rows-stove`; the first job that holds) → `hangrow` (walking
+beside her; a split by size) → `lowrun` → `eyelet` (the kept appointment; Orr's too-big tray and the grille) →
+`traypass` → `drytable` (the meal: SIT / GO, `rows-meal`) → `press` (screen pass, the empty job stopped,
+brake, one test, shutter) → `upper` (the high window; another key-scratched arrow) → `stair` → `drytable` (the
+table appointment kept; the chalk; the wrap, `rows-wrap`: worn / folded / peg, and worn shows on the Rizo) →
+`windowgate` (CLOSED / BACK SOON; Latch remembers; the boundary card "WINDOW HALL IS NEXT"). Every Rows route
+opens through work (room flags `rows*`), never through affection; Nell walks ahead and keeps appointments.
 
 - **Teaching by situation.** No tutorial screens: movement is taught in the parked car, Primary by looking at
   safe things, Flare by a frightened little flame (the hoods only flinch: it is not a fight), Tuck by the
@@ -494,15 +503,18 @@ below; two slips) → the fall, and the handheld locks on impact → `slip` (he 
 last committed opening beat (`opening:left`, `opening:taken`, `opening:fell`, `opening:searched`,
 `opening:phone`, `opening:below`), so no committed beat replays;
   the Porter resumes at its pre-fight anchor (at full HP; help, once committed, keeps the alcove open).
-- **Homecoming**: walking out of the Porter's open door commits `status: "complete"` and exits with
-  `destination: "home", homecoming: true`; the Hub shows one small familiar gesture (shake) and nothing else.
-  A pet with the shared-hearth mark rarely settles quietly in the Den.
+- **Homecoming**: under the proof edition, walking out of the Porter's open door committed `status: "complete"`
+  and went home. In the campaign edition (v3) that door leads into the Rows instead; `homecoming()` is kept for
+  saves that already completed. A completed proof stays complete (the summary still says HOME) and its panel
+  offers GO THROUGH THE DOOR, which resumes at the Porter with the door open; once it enters the Rows it
+  resumes there.
 
-Its slice (`schema: 1`, content revision `threshold-v2`, about 2 KB):
+Its slice (`schema: 1`, content revision `threshold-v3`, about 2 KB; v3 adds Rows room flags, two choices
+`rows-meal` and `rows-wrap`, and the facts `rowsLatchHelped`/`rowsChalk`, all allowlisted):
 
 ```json
 { "settings": { "assist": false, "textSpeed": "normal" },
-  "campaign": { "id": "threshold-…", "kind": "proof", "contentRevision": "threshold-v2", "petId": "…", "petName": "MOSSY", "status": "active", "chapterId": "threshold" },
+  "campaign": { "id": "threshold-…", "kind": "proof", "contentRevision": "threshold-v3", "petId": "…", "petName": "MOSSY", "status": "active", "chapterId": "threshold" },
   "world": { "visitedRooms": ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth"], "openedShortcuts": ["hearth-queue"], "durableRoomFlags": { "latchFreed": true, "shortcutOpen": true }, "defeatedEncounters": [] },
   "story": { "facts": { "jamInspected": true, "hearthArrived": true, "seatChosen": true, "sharedRest": true, "beforePorterSaid": true, "bowlSeen": true }, "choices": { "hearth-seat": "sit" },
              "committedSceneBeats": ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home", "latch-rescue:freed", "hearth-arrival:registered", "hearth-seat:sit", "cold-bowl:seen", "queue-lever:pulled"], "resumeScene": null },
@@ -520,8 +532,10 @@ checkpoint is dropped. An RC2 journey (`threshold-v1`) is carried forward withou
 and only the deleted `curb` becomes the `car` that replaced it (in `visitedRooms` and in a continuation); every
 committed beat stays, so nobody replays the abduction or is left in a room that no longer exists. The one new
 opening fact is `callerConnected` (the phone call connected; its consequence is deliberately undecided). The
-gap is never persisted. Any other unknown revision is preserved untouched.
+gap is never persisted. A `threshold-v2` journey is carried into v3 unchanged (v3 only adds rooms, flags and
+choices). Any other unknown revision is preserved untouched.
 
 **QA hooks** (QA builds only): `dungeonGotoForQA(room, anchor, flags)`, `dungeonSkipSceneForQA()`,
 `dungeonSceneTimeForQA(ms)`, `dungeonEnemyForQA(id, patch)`, `dungeonAdvanceForQA(ms, input)`,
-`dungeonCompleteFixtureForQA()` and the commit/receipt probes from Gate 1.
+`dungeonCompleteFixtureForQA()`, `dungeonProofHomeForQA()` (marks a completed proof save as home) and the
+commit/receipt probes from Gate 1.
