@@ -122,8 +122,8 @@
     html.classList.add("dungeon-locked");
     body.classList.add("dungeon-locked");
     try { root.getSelection?.()?.removeAllRanges?.(); } catch (error) {}
-    // iOS rubber-bands the page on any unhandled touchmove; nothing in the
-    // stage scrolls, so every touchmove while the Dungeon is open is ours.
+    // iOS rubber-bands the page on any unhandled touchmove. Oversized cards
+    // use the view's bounded pointer drag; native page scrolling stays locked.
     listen(doc, "touchmove", event => { if (event.cancelable) event.preventDefault(); }, { passive: false });
     listen(doc, "gesturestart", event => event.preventDefault(), { passive: false });
     listen(doc, "selectstart", event => { if (insideStage(event) || event.target === body || event.target === doc) event.preventDefault(); });
@@ -1215,6 +1215,9 @@
       if (done("rows:wrap") && !fact("rowsOnward")) setRoomFlag("rowsOnward");
     }
     function syncTableExtras() {
+      // Her corner repair precedes the warmed catch. Keep that care visible
+      // even if he resumes between the meeting and his first job.
+      if (done("rows:met")) room.cornerAt = 0;
       // The prepared low board and the angled lamp stay once she has set them.
       room.board = done("rows:upper");
       setTransient("wrapOnPeg", choice("rows-wrap") === "peg");
