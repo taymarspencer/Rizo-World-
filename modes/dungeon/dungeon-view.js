@@ -39,7 +39,9 @@
   // CALLER_SYMBOL: PLACEHOLDER ONLY. The real glyph is an owner/art decision
   // (narrative package v0.3 §3.6). This deliberately neutral dashed frame is
   // not a letter, face, mark or the Rizo blue; replace this one function.
-  const callerSymbol = () => `<svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-placeholder="true" viewBox="0 0 40 40" aria-hidden="true"><rect x="9" y="9" width="22" height="22" rx="2" fill="none" stroke="#c9c4b8" stroke-width="2.4" stroke-dasharray="4 3"/></svg>`;
+  // On a phone lying in the rain it is seen through water on the glass, so the
+  // placeholder reads as a real screen, not a missing image.
+  const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-placeholder="true" viewBox="0 0 40 40" aria-hidden="true"><rect x="10" y="10" width="20" height="20" rx="4" fill="#d9d4c6"/></svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
   function deviceMarkup() {
@@ -124,7 +126,22 @@
     function setPet(snapshot) {
       actorUnits = ACTOR_UNITS * (STAGE_SCALE[snapshot?.stage] || 1);
       el.pose.innerHTML = snapshot ? host.petMarkup(snapshot, { context: "dungeon", extraClass: "dungeon-rizo", label: `${snapshot.name}` }) : "";
+      if (wearNode) el.pose.appendChild(wearNode);
       sizeActor();
+    }
+    // Something he chose to wear (the Rows wrap) rides on the Rizo in every room.
+    let wearNode = null;
+    function setWear(name) {
+      if ((wearNode?.dataset.wear || null) === (name || null)) return;
+      wearNode?.remove();
+      wearNode = null;
+      if (!name) return;
+      wearNode = document.createElement("i");
+      wearNode.className = `dungeon-wear dungeon-wear-${name}`;
+      wearNode.dataset.wear = name;
+      wearNode.setAttribute("aria-hidden", "true");
+      wearNode.innerHTML = '<b class="dungeon-wear-strap"></b><b class="dungeon-wear-clasp"></b>';
+      el.pose.appendChild(wearNode);
     }
     function sizeActor() {
       const size = Math.round(actorUnits * metrics.scale);
@@ -221,6 +238,8 @@
           break;
         }
         case "latch": Art.latch(ctx, actor.x, actor.y, o); break;
+        case "nell": Art.nell(ctx, actor.x, actor.y, o); break;
+        case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
         default: break;
       }
     }
@@ -708,7 +727,7 @@
     function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
-    return { el, layout, setPet, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, toScreen, metrics, camera, destroy, esc };
+    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, toScreen, metrics, camera, destroy, esc };
   }
 
   return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });
