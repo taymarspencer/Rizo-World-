@@ -1251,7 +1251,7 @@
     }
     function tableMeal() {
       nell(168, 104, { face: -1, state: "work" });
-      npc("orr", "orr", 104, 150, { face: 1, state: "tray", barkLift: 80 });
+      npc("orr", "orr", 104, 150, { face: 1, state: "tray", barkLift: 86 });
       setTransient("mealOut", true);
       runScene("rows:meal", [
         S.fade(0, 300),
@@ -1362,10 +1362,10 @@
         ], { control: true });
         return;
       }
-      if (!fact("rowsGrille")) { nell(70, 104, { face: -1, state: "support" }); npc("orr", "orr", 120, 96, { face: -1, state: "tray", barkLift: 80 }); setTransient("grilleReady", true); }
+      if (!fact("rowsGrille")) { nell(70, 104, { face: -1, state: "support" }); npc("orr", "orr", 120, 96, { face: -1, state: "tray", barkLift: 86 }); setTransient("grilleReady", true); }
     }
     function orrArrives() {
-      npc("orr", "orr", 304, 96, { face: -1, state: "tray", barkLift: 80 });
+      npc("orr", "orr", 304, 96, { face: -1, state: "tray", barkLift: 86 });
       walk("orr", 120, 96, 2600);
       runScene("rows:hatch", [
         S.control(true),
