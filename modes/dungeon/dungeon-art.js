@@ -1130,21 +1130,42 @@ ${eyes}${mouth}
 <rect x="44" y="22" width="10" height="3.2" fill="${P.paper[3]}" ${ink} stroke-width="1.2" transform="rotate(-18 49 23.6)"/>
 </g>`);
   }
-  // Orr's bust: flat cap, round face, towel on the shoulder.
+  // Orr portrait: low patched cap, long nose, dropped towel shoulder.
+  // Three reads: matter-of-fact service, irritation, and dry humor.
   function orrPortrait(expr) {
-    const ground = expr === "irritated" ? ["#1a120c", "#2c1c12", "#3c2618"] : ["#1a140c", "#2e2214", "#433019"];
-    const eyes = expr === "irritated" ? `<path d="M22 31 l7 1.6 M43 31 l-7 1.6" stroke="${P.ink}" stroke-width="2.4"/><circle cx="26" cy="35" r="1.8" fill="${P.ink}"/><circle cx="39" cy="35" r="1.8" fill="${P.ink}"/>` : `<path d="M23 35 q3 -2.6 6 0 M36 35 q3 -2.6 6 0" stroke="${P.ink}" stroke-width="2.3" fill="none"/>`;
-    const mouth = expr === "irritated" ? `<path d="M28 44 h9" stroke="${P.ink}" stroke-width="2.2"/>` : `<path d="M28 43 q4.5 3 9 0" stroke="${P.ink}" stroke-width="2" fill="none"/>`;
+    const irritated = expr === "irritated", dry = expr === "dry";
+    const ground = irritated
+      ? ["#1a120c", "#2c1c12", "#3c2618"]
+      : dry ? ["#15130f", "#252019", "#342a20"]
+      : ["#18130d", "#292016", "#3b2d1d"];
+    const eyes = irritated
+      ? `<path d="M21 31 l8 2 M43 30 l-7 2.2" stroke="${P.ink}" stroke-width="2.5"/><circle cx="26.5" cy="35" r="1.7" fill="${P.ink}"/><circle cx="39" cy="34.5" r="1.7" fill="${P.ink}"/>`
+      : dry
+        ? `<path d="M22 34 h7 M36 33 q3 -2 6 0" stroke="${P.ink}" stroke-width="2.3" fill="none"/><circle cx="26" cy="35.2" r="1.3" fill="${P.ink}"/>`
+        : `<path d="M22 34 q3 -1.6 6 0 M36 34 q3 -1.6 6 0" stroke="${P.ink}" stroke-width="2.2" fill="none"/>`;
+    const mouth = irritated
+      ? `<path d="M28 44.5 h9" stroke="${P.ink}" stroke-width="2.2"/>`
+      : dry
+        ? `<path d="M28 43.5 q5 1.2 9 -1" stroke="${P.ink}" stroke-width="2" fill="none"/>`
+        : `<path d="M29 43.5 q4 .8 8 -.4" stroke="${P.ink}" stroke-width="2" fill="none"/>`;
     return svg(`${disc(...ground)}
-<path d="M2 64 L5 53 Q10 46 22 45 L44 45 Q56 46 60 53 L62 64 Z" fill="${P.a.mustard}" ${ink}/>
-<path d="M18 64 L20 50 L46 50 L48 64 Z" fill="${P.paper[2]}" ${ink} stroke-width="1.8"/>
-<path d="M44 44 L56 46 L58 64 L48 64 Z" fill="${P.paper[3]}" ${ink} stroke-width="1.8"/><path d="M47 50 l10 1 M48 55 l10 1 M48 60 l10 1" stroke="${P.a.red}" stroke-width="1.8"/>
-<circle cx="32.5" cy="33" r="14.5" fill="${P.skin[0]}" ${ink}/>
-${eyes}${mouth}
-<path d="M20 41 Q32 50 45 41" stroke="${P.wood[0]}" stroke-width="2.6" fill="none"/>
-<path d="M17 27 Q17 14 32 13 Q47 14 48 25 L48 27 Z" fill="${P.cloth[2]}" ${ink}/>
-<path d="M36 25 L58 24 Q60 27 56 29 L36 29 Z" fill="${P.cloth[1]}" ${ink} stroke-width="1.8"/>
-<path d="M22 18 Q32 14 43 18" stroke="${P.cloth[3]}" stroke-width="2" fill="none"/>`);
+<path d="M2 64 L5 53 Q10 47 20 45 L43 45 Q55 46 60 53 L62 64 Z" fill="${P.a.mustard}" ${ink}/>
+<path d="M8 64 L11 49 L22 46 L20 64 Z" fill="${P.wood[2]}" opacity=".9"/>
+<path d="M18 64 L20 49 L45 49 L48 64 Z" fill="${P.paper[1]}" ${ink} stroke-width="1.8"/>
+<path d="M23 54 L42 54" stroke="${P.wood[0]}" stroke-width="2.2"/>
+<path d="M45 44 L57 47 L56 64 L48 64 Z" fill="${P.paper[3]}" ${ink} stroke-width="1.8"/>
+<path d="M48 51 l8 .8 M48.5 56 l7.5 .8 M49 61 l7 .7" stroke="${P.a.red}" stroke-width="1.8"/>
+<path d="M20 30 Q20 20 25 16 Q32 11 41 15 Q47 20 46 31 L44 39 Q40 46 31 47 Q23 45 20 39 Z" fill="${P.skin[0]}" ${ink}/>
+<path d="M20 35 Q17 35 18 31 Q19 28 22 30" fill="${P.skin[0]}" ${ink} stroke-width="1.6"/>
+${eyes}
+<path d="M32 35 l2 4 l-2 1" stroke="${P.inkSoft}" stroke-width="1.6" fill="none"/>
+${mouth}
+<path d="M23 41 q4 5 11 5 q6 0 10 -5" stroke="${P.wood[0]}" stroke-width="1.5" fill="none"/>
+<path d="M18 27 Q18 15 30 12 Q40 10 47 17 L48 25 Z" fill="${P.cloth[2]}" ${ink}/>
+<path d="M22 16 Q31 13 42 17" stroke="${P.cloth[3]}" stroke-width="2" fill="none"/>
+<rect x="25" y="13" width="7" height="4" fill="${P.paper[0]}" ${ink} stroke-width="1"/>
+<path d="M35 24 L58 23 Q61 26 56 29 L35 29 Z" fill="${P.cloth[1]}" ${ink} stroke-width="1.8"/>
+<path d="M12 57 q-1 5 1 7 M15 56 q-1 5 1 8" stroke="${P.metal[2]}" stroke-width="1.4"/>`);
   }
   const PORTRAITS = Object.freeze({
     // YOU: the person who left. Never a face: the umbrella, a scarf, the night.
@@ -1162,7 +1183,7 @@ ${eyes}${mouth}
 <path d="M9 31 v3 M57 31 v4" stroke="#8fa6b8" stroke-width="1.4"/>`)
     }),
     nell: Object.freeze({ work: nellPortrait("work"), measuring: nellPortrait("measuring"), listening: nellPortrait("listening"), amused: nellPortrait("amused"), irritated: nellPortrait("irritated"), tired: nellPortrait("tired") }),
-    orr: Object.freeze({ serving: orrPortrait("serving"), irritated: orrPortrait("irritated") }),
+    orr: Object.freeze({ serving: orrPortrait("serving"), irritated: orrPortrait("irritated"), dry: orrPortrait("dry") }),
     latch: Object.freeze({ procedural: latchPortrait("procedural"), startled: latchPortrait("startled"), dry: latchPortrait("dry"), soft: latchPortrait("soft"), urgent: latchPortrait("urgent") }),
     // TALL HOOD: droopy hood, lazy eyes in the mask's slot, strings uneven.
     "hood-tall": Object.freeze({
