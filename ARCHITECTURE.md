@@ -487,6 +487,8 @@ opens through work (room flags `rows*`), never through affection; Nell walks ahe
 - **Dialogue** is DOM with a speaker portrait (`SPEAKERS` / `PORTRAITS[speaker][expression]`, authored inline SVG
   from `dungeon-art.js`; any entry may become `{ src }` without touching story code). Latch has procedural,
   startled, dry, soft and urgent. Narration has no portrait. NPCs in play speak in bubbles over their heads.
+  A choice keeps the line that asked it (`S.choice(key, options, line)`) above its answers; a banner raised
+  while a line or choice is open waits for it to close, then has its full time.
 - **How it looks** is decided once, in `dungeon-art.js` (read its header before drawing anything): one ink colour,
   2–3 flat value bands, key light from above, flat contact shadows, darkness cut by stepped light pools (warm
   light tints, cold light only reveals), seeded wobble that never boils, a fixed scale (Rizo 28u, Latch 38u,
@@ -495,9 +497,18 @@ opens through work (room flags `rows*`), never through affection; Nell walks ahe
   built from its palette and helpers. The player's Rizo is never painted: it stays the hub's `petMarkup()` in
   the DOM, staged by CSS poses (lean, step, breathe, Flare gather/release, Tuck curl, hit jolt).
 - **The page lock.** While open, the Dungeon adds `dungeon-locked` to `<html>`/`<body>` (no overflow, fixed
-  body, no selection or callout), cancels `touchmove`, `gesturestart`, `selectstart`, `wheel` and double-tap in
-  the stage, and removes all of it on stop, restoring the scroll position. A `start()` that throws stops
-  itself first, so a failed launch never leaves the Hub locked. Nothing changes in the Hub otherwise.
+  body, no selection or callout, the root element included; images cannot be dragged), cancels `touchmove`,
+  `gesturestart`, `selectstart` (fired at the Text node, so it is resolved from its parent element),
+  `contextmenu`, `wheel` and double-tap in the stage, clears at once any selection that still appears, and
+  removes all of it on stop, restoring the scroll position. A text field would keep its own selection (the
+  Dungeon has none). A `start()` that throws stops itself first, so a failed launch never leaves the Hub
+  locked. Nothing changes in the Hub otherwise.
+- **Touches are the game's.** iOS runs its own long-press and multi-tap text gestures (selection, the loupe,
+  the edit menu with its link item, image lift) on any touch the page does not cancel, and `preventDefault()`
+  on `pointerdown` does not cancel them; only `touchstart` does. The input binds a non-passive `touchstart` on
+  the device that cancels every touch on the pad, keys, screen, HUD and dialogue box; the pointer handlers
+  still run. Panel and choice buttons (and any link or field) keep their native touch, because they answer to
+  `click`.
 - **The real pet** (unchanged from Gate 1): the campaign binds `host.pet().id`; House swaps and released pets
   are explained, never rebound. The Rizo on screen is `host.petMarkup(snapshot, { context: "dungeon" })`.
 - **Saving**: every room entry commits the safe continuation; story beats, hearths, deaths, the lever and the
@@ -536,6 +547,21 @@ committed beat stays, so nobody replays the abduction or is left in a room that 
 opening fact is `callerConnected` (the phone call connected; its consequence is deliberately undecided). The
 gap is never persisted. A `threshold-v2` journey is carried into v3 unchanged (v3 only adds rooms, flags and
 choices). Any other unknown revision is preserved untouched.
+
+**RESTART DUNGEON.** MENU (and the "reached home" panel of a completed proof) offers RESTART DUNGEON, set
+apart below RESUME/GO HOME and disabled while an external hold (a break, a blocked save) is in force. It asks
+first; KEEP MY JOURNEY is the focused answer and MENU also backs out. Confirmed, `Core.restartSlice(data,
+{ pet, id })` builds a fresh campaign for the same Rizo under a new campaign id: `world`, `story`, `npcs`,
+`inventory`, `checkpoint`, `continuation`, `journal` (HOME ↑ included), `legProfile`, `campaign.status`,
+`proofComplete` and `storyComplete` all start over. It keeps the player's Dungeon `settings` and any
+`pendingRewards` the hub has not yet confirmed (retried under their own receipts). The fresh slice is
+committed through `host.commit()` **before** anything in memory changes; a blocked or failed commit leaves
+the journey exactly as it was and says so. Once committed, the instance drops the old night (scene, line,
+choice, sim with its cleared/defeated enemies, notices, banners, holds that the player can release) and
+begins the opening in the car. Nothing outside the slice is touched: the pet, Home, wallet, training,
+Defense, wardrobe (the First Knot stays), story marks and `modeReceipts` (the old receipt stays, so the new
+campaign's own receipt can be earned again; grants are idempotent). A slice from another build is never
+restarted.
 
 **QA hooks** (QA builds only): `dungeonGotoForQA(room, anchor, flags)`, `dungeonSkipSceneForQA()`,
 `dungeonSceneTimeForQA(ms)`, `dungeonEnemyForQA(id, patch)`, `dungeonAdvanceForQA(ms, input)`,

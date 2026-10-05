@@ -86,6 +86,28 @@
 .dungeon-card-actions button{min-height:46px;border:2px solid #000;border-radius:0;background:#2a2723;color:#f4ecd8;font:900 15px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;box-shadow:2px 2px 0 #000;cursor:pointer}
 .dungeon-card-actions button.primary{background:var(--mark);color:#0c0e12}
 .dungeon-card-actions button:disabled{opacity:.45;cursor:default}
+.dungeon-card-actions button.danger{background:#3a1712;color:#ffc2a8}
+/* Testing and starting over: present, findable, never competing with RESUME. */
+.dungeon-card-tools{display:grid;padding-top:8px;border-top:1px dashed rgba(233,223,199,.22)}
+.dungeon-card-tools button.quiet{min-height:44px;padding:0 10px;border:1px solid rgba(233,223,199,.28);border-radius:0;background:transparent;color:#b9b09c;font:800 12px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;cursor:pointer}
+.dungeon-card-tools button.quiet:disabled{opacity:.4;cursor:default}
+.dungeon-card-tools button:focus-visible,.dungeon-card-actions button:focus-visible{outline:3px solid var(--warm);outline-offset:2px}
+/* Menu cards (pause, restart) on a short screen: tighter, and side by side when
+   there is width, so RESTART DUNGEON is not pushed below the screen's edge.
+   Taller cards (the chapter's boundary) keep their own size and scroll. */
+.dungeon-panel{container:dungeon-panel/size}
+@container dungeon-panel (max-height:440px){
+  .dungeon-card.is-menu{gap:7px;padding:12px}
+  .dungeon-card.is-menu h3{font-size:20px}
+  .dungeon-card.is-menu p{font-size:13px;line-height:1.35}
+  .dungeon-card.is-menu .dungeon-fine{font-size:11px}
+  .dungeon-card.is-menu .dungeon-card-actions{gap:6px}
+  .dungeon-card.is-menu .dungeon-card-tools{padding-top:6px}
+}
+@container dungeon-panel (max-height:440px) and (min-width:400px){
+  .dungeon-card.is-menu{width:min(100%,440px)}
+  .dungeon-card.is-menu .dungeon-card-actions{grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+}
 
 /* ---- the control deck: every key is drawn from the one action state */
 .dungeon-deck{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:4px 10px 6px;min-height:0}
@@ -173,7 +195,9 @@
    These classes are added on start and removed on stop by dungeon-mode.js. */
 html.dungeon-locked,html.dungeon-locked body{overflow:hidden!important;overscroll-behavior:none!important;height:100%!important}
 html.dungeon-locked body{position:fixed!important;inset:0!important;width:100%!important;touch-action:none}
-html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-locked .minigame-overlay *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent}
+html.dungeon-locked,html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-locked .minigame-overlay *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent}
+/* A held thumb near the Rizo or a portrait must not lift an image (iOS drag) either. */
+html.dungeon-locked .minigame-overlay img,html.dungeon-locked .minigame-overlay svg{-webkit-user-drag:none}
 .minigame-overlay.dungeon-active{touch-action:none;overscroll-behavior:none}
 .minigame-overlay.dungeon-active ::selection{background:transparent}
 
@@ -219,6 +243,9 @@ html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-lock
 .dungeon-choice[hidden]{display:none!important}
 .dungeon-choice button{min-width:0;min-height:48px;padding:7px 4px;border:2px solid #000;background:#2a2723;color:#f4ecd8;font:900 16px/1.15 Inter,system-ui,sans-serif;letter-spacing:.06em;box-shadow:3px 3px 0 #000;cursor:pointer}
 .dungeon-choice button.is-selected{background:var(--mark);color:#0c0e12;transform:translateY(-2px)}
+/* The line that asked, kept with its answers (it is read already: no typing, no ▼). */
+.dungeon-choice-line{grid-column:1/-1;margin:0 0 2px;padding:8px 12px 9px;background:#0c0b0a;border:2px solid var(--mark);border-radius:4px;box-shadow:3px 3px 0 #000;font:600 15px/1.35 Inter,system-ui,sans-serif;color:#f4ecd8;text-align:left;pointer-events:none}
+.dungeon-choice-line b{display:block;margin-bottom:4px;font:900 12px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;color:var(--warm)}
 
 /* ===== SPEECH BUBBLES OVER NPCs ===== */
 .dungeon-barks{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}

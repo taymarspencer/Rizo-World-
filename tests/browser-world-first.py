@@ -79,7 +79,7 @@ with sync_playwright() as p:
         page.locator('.primary-link').first.focus()
         check(f'{width}px keyboard Play has visible focus',page.locator('.primary-link').first.evaluate('e=>e===document.activeElement&&parseFloat(getComputedStyle(e).outlineWidth)>=2'))
         page.keyboard.press('Enter');ready(page)
-        check(f'{width}px keyboard Play enters the existing game at /play',page.url==origin+'/play' and page.evaluate('RizoBoot.expected')=='v94-alive')
+        check(f'{width}px keyboard Play enters the existing game at /play',page.url==origin+'/play' and page.evaluate('RizoBoot.expected')=='v95-dungeon-depth')
         pet=seed(page);page.reload();ready(page)
         check(f'{width}px direct Play refresh retains the signed pet',page.evaluate('RizoRuntimeQA.snapshot().pet.id')==pet and page.locator('link[rel=canonical]').get_attribute('href')=='https://rizo.world/play')
         page.goto(origin+'/');page.goto(origin+'/play');ready(page)
@@ -116,13 +116,13 @@ with sync_playwright() as p:
     # wait_for_function polls synchronous truthiness; a Promise would appear
     # ready before caches.keys() completes. Await the actual activation state.
     keys=page.evaluate('''async()=>{const until=Date.now()+30000;while(Date.now()<until){
-      const k=await caches.keys();if(k.includes("rizo-game-v94-alive")&&!k.includes("rizo-game-v92-release-candidate-1"))return k;
+      const k=await caches.keys();if(k.includes("rizo-game-v95-dungeon-depth")&&!k.includes("rizo-game-v92-release-candidate-1"))return k;
       await new Promise(resolve=>setTimeout(resolve,100));}return await caches.keys()}''')
-    check('complete RC2 takes over and retires the old game-root cache','rizo-game-v94-alive' in keys and 'rizo-game-v92-release-candidate-1' not in keys,str(keys))
+    check('complete RC2 takes over and retires the old game-root cache','rizo-game-v95-dungeon-depth' in keys and 'rizo-game-v92-release-candidate-1' not in keys,str(keys))
     page.goto(origin+'/')
     check('upgraded / is World, never the cached RC1 game',page.locator('.world-intro').count()==1 and page.evaluate('typeof RizoRuntimeQA==="undefined"'))
     page.goto(origin+'/play?source=pwa');ready(page)
-    check('upgraded PWA start enters RC2 with existing pet and save keys',page.evaluate('RizoBoot.expected')=='v94-alive' and page.evaluate('RizoRuntimeQA.snapshot().pet.id')==pet and page.evaluate('JSON.parse(localStorage.getItem("rizo-save-v2")).state.pet.name')=='ROUTE KEEP')
+    check('upgraded PWA start enters RC2 with existing pet and save keys',page.evaluate('RizoBoot.expected')=='v95-dungeon-depth' and page.evaluate('RizoRuntimeQA.snapshot().pet.id')==pet and page.evaluate('JSON.parse(localStorage.getItem("rizo-save-v2")).state.pet.name')=='ROUTE KEEP')
     manifest=ctx.request.get(origin+'/manifest.webmanifest').json()
     check('PWA identity and root scope stay stable; start deliberately opens Play',manifest['id']=='./' and manifest['scope']=='./' and manifest['start_url']=='./play?source=pwa')
     ctx.unroute('**/*',local_only)
@@ -130,7 +130,7 @@ with sync_playwright() as p:
     for route,world in [('/?entry=cold-world',True),('/play?source=pwa',False),('/index.html?source=pwa',False),('/play/',False),('/world.html',True)]:
         response=page.goto(origin+route)
         if not world:ready(page)
-        check('offline '+route+' serves the intended current shell',response.status==200 and response.from_service_worker and (page.locator('.world-intro').count()==1 if world else page.evaluate('RizoBoot.expected')=='v94-alive'))
+        check('offline '+route+' serves the intended current shell',response.status==200 and response.from_service_worker and (page.locator('.world-intro').count()==1 if world else page.evaluate('RizoBoot.expected')=='v95-dungeon-depth'))
     response=page.goto(origin+'/about?entry=cold-policy')
     check('offline public policy query uses its own cached page',response.status==200 and 'little face behind' in ' '.join(page.locator('h1').inner_text().lower().split()))
     for route in ['/unknown/deep/','/unknown/index.html','/ads.txt']:

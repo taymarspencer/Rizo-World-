@@ -349,4 +349,21 @@ test("bind blurs a focused text field so the keys work; unbind clears and remove
   assert.strictEqual(globalThis.window.listeners.length, 0);
 });
 
+test("a touch on the game is cancelled at touchstart (no OS text gestures); panel, choice, links and fields keep theirs", () => {
+  const w = world();
+  const bound = w.device.listeners.find(item => item.type === "touchstart");
+  assert.ok(bound, "the device listens for touchstart");
+  const native = new Set([".dungeon-panel", ".dungeon-choice", "a[href]", "input", "textarea", "select", "[contenteditable]"]);
+  const node = inside => ({ closest: selector => (selector.split(",").map(part => part.trim()).some(part => part === inside && native.has(part)) ? {} : null) });
+  const touch = (target, extra = {}) => w.fire(w.device, "touchstart", { target, cancelable: true, ...extra });
+  for (const where of ["dpad arm", "key", "screen", "hud", ".dungeon-dialogue"]) assert.strictEqual(touch(node(where)).defaultPrevented, true, `${where} is the game's`);
+  for (const where of [".dungeon-panel", ".dungeon-choice", "a[href]", "input"]) assert.strictEqual(touch(node(where)).defaultPrevented, false, `${where} keeps its native touch`);
+  assert.strictEqual(touch(node("screen"), { cancelable: false }).defaultPrevented, false, "an uncancelable touch is left alone");
+  // The pad still steers: cancelling the touch never stops the pointer handlers.
+  w.down(1, 40, 0);
+  assert.deepStrictEqual(vec(w.read()), [1, 0]);
+  w.input.unbind();
+  assert.strictEqual(w.device.listeners.filter(item => item.type === "touchstart").length, 0);
+});
+
 console.log(`\n${passed}/${total} dungeon input checks passed`);
