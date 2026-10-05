@@ -1293,7 +1293,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     ctx, page, errors = boot(browser, seed={})
     page.evaluate(SETUP); launch(page); skip(page)
     rgo(page, "porter", "porter-entry", {"porterDown": True, "latchFreed": True, "sharedRest": True, "seatChosen": True}); skip(page)
-    tp(page, 180, 30); page.keyboard.down("w"); page.wait_for_timeout(600); page.keyboard.up("w"); page.wait_for_timeout(500)
+    tp(page, 180, 30); page.keyboard.down("w"); page.wait_for_timeout(900); page.keyboard.up("w"); page.wait_for_timeout(700)
     st = page.evaluate(ST)
     check("Rows: the Porter's open door walks into Receiving; Latch got there first, Nell is mending", st["sim"]["roomId"] == "receiving" and {"latch", "nell"} <= {n["id"] for n in st["npcs"]} and "rows:arrived" in rbeats(), str((st["sim"]["roomId"], st["npcs"])))
     seen = []
@@ -1313,7 +1313,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     prompt = warm(page, 200, 186)
     st = drive(page, lambda st: st["scene"] is None and st["sim"]["flags"].get("rowsCatch"))
     check("Rows: the first small job holds (“Holds.”) and opens the door north", "WARM" in prompt and rflags().get("rowsCatch") is True, prompt)
-    tp(page, 252, 196); page.wait_for_timeout(300)
+    tp(page, 252, 196); page.wait_for_timeout(700)
     check("Rows: the table's stove is a dry place to come back to (a checkpoint)", page.evaluate(STORED)["slice"]["checkpoint"]["hearthId"] == "rows-stove", str(page.evaluate(STORED)["slice"]["checkpoint"]))
     page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(300)
     check("Rows: reload at the table resumes there; the meeting never replays", st["sim"]["roomId"] == "drytable" and st["scene"] is None and st["sim"]["flags"].get("rowsCatch"), str((st["sim"]["roomId"], st["scene"])))
@@ -1373,7 +1373,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     page.reload(); page.wait_for_timeout(1300); st = launch(page)
     wear = page.evaluate("Boolean(document.querySelector('.dungeon-pose .dungeon-wear-wrap'))")
     check("Rows: after a reload he is still wearing it", wear and st["sim"]["roomId"] == "drytable", str((wear, st["sim"]["roomId"])))
-    tp(page, 260, 30); page.keyboard.down("w"); page.wait_for_timeout(600); page.keyboard.up("w"); page.wait_for_timeout(500)
+    tp(page, 260, 30); page.keyboard.down("w"); page.wait_for_timeout(900); page.keyboard.up("w"); page.wait_for_timeout(700)
     st = page.evaluate(ST)
     check("Rows: through the doorway the sheets hid: Window Hall", st["sim"]["roomId"] == "windowgate", st["sim"]["roomId"])
     seen = []
