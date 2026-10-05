@@ -134,11 +134,11 @@ with sync_playwright() as p:
     lonely.goto(URL); lonely.wait_for_timeout(300)
     lonely.evaluate("(saved)=>{localStorage.clear();localStorage.setItem('rizo-save-v2',saved)}", page.evaluate("()=>localStorage.getItem('rizo-save-v2')"))
     lonely.reload(); lonely.wait_for_timeout(1200)
-    alone = lonely.evaluate("""()=>{RizoRuntimeQA.setViewForQA('arcade');RizoRuntimeQA.saveForQA();const e=JSON.parse(localStorage.getItem('rizo-save-v2'));
+    alone = lonely.evaluate("""()=>{RizoRuntimeQA.setViewForQA('go');RizoRuntimeQA.saveForQA();const e=JSON.parse(localStorage.getItem('rizo-save-v2'));
       return {modes:RizoModes.list().length,button:document.querySelector('[data-mode=defense]')?.textContent,pet:Boolean(document.querySelector('#petTapTarget')),defense:e.modes.defense,signed:RizoSaveCore.verifyEnvelope(e)}}""")
     kept = page.evaluate("()=>JSON.parse(localStorage.getItem('rizo-save-v2')).modes.defense")
     record("the hub boots with no mode files at all", alone["modes"] == 0 and alone["pet"] and not lonely_errors, "; ".join(lonely_errors[:2]))
-    record("a missing mode shows as unavailable instead of breaking the shelf", alone["button"] == "UNAVAILABLE", str(alone["button"]))
+    record("a missing mode shows as unavailable instead of breaking Go", alone["button"] == "UNAVAILABLE", str(alone["button"]))
     record("a missing mode's slice is saved back untouched", alone["defense"] == kept and alone["signed"], str(alone["defense"])[:160])
     ctx2.close()
     browser.close()

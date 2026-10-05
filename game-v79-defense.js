@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v92-release-candidate-2";
+  const RIZO_RUNTIME_BUILD = "v93-home-train-go";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
@@ -45,7 +45,10 @@
   // State version 20: Rizo Defense's records, settings and school moved out of
   // the hub state into the Defense save slice (see modeInbox in normalizeState).
   // State version 21: Ember Beat's song bag moved to state.trainingMemory.
-  const VERSION = 22;
+  // State version 23: shared home expansion and each pet's Den placement.
+  const VERSION = 23;
+  const Home = globalThis.RizoHome;
+  if (!Home) throw new Error("RizoHome failed to load before the hub.");
   // Raw (unsigned) saves are trusted only if they predate save signing (v66,
   // state version 18). Bumping VERSION must never widen that trust.
   const RAW_SAVE_TRUST_BELOW = 19;
@@ -97,6 +100,7 @@
     root.style.setProperty("--rizo-vv-scale", String(view.scale));
     root.dataset.rizoOrientation = view.width > view.height ? "landscape" : "portrait";
     if (trainingRun) trainingRun.lastFrame = performance.now();
+    if (state?.pet && currentView === "home") syncDenPosition();
     return view;
   }
 
@@ -610,6 +614,11 @@
   let releaseRegistration = null;
   let lastOfflineSummary = null;
   let activePetBehavior = null;
+  let denBehaviorTimer = null;
+  let denBehaviorSequence = 0;
+  const denReactions = new Map();
+  let denPlayActive = false;
+  let trainingFocus = "all";
   let petBehaviorTimer = null;
   let worldEventOpen = false;
   let activeMusicOverride = null;
@@ -691,6 +700,7 @@
       alignment: 0,
       careProfile: { kind: 0, wild: 0, balanced: 0, foods: {}, games: {} },
       storyMarks: [],
+      denPosition: Home.position(),
       form: "balanced",
       formHistory: [],
       generation: 1,
@@ -726,7 +736,7 @@
     const choices = [
       { type: "tap", title: "TAP YOUR RIZO 25 TIMES", target: 25, reward: 30 },
       { type: "feed", title: "SERVE 2 QUESTIONABLE MEALS", target: 2, reward: 35 },
-      { type: "play", title: "FINISH 1 ARCADE RUN", target: 1, reward: 40 },
+      { type: "play", title: "FINISH 1 TRAINING RUN", target: 1, reward: 40 },
       { type: "clean", title: "CLEAN YOUR RIZO ONCE", target: 1, reward: 30 },
       { type: "train", title: "FINISH 1 POWER TAPE OR EMBER FORGE RUN", target: 1, reward: 45 },
       { type: "walk", title: "TAKE RIZO ON 1 RAIN WALK", target: 1, reward: 45 }
@@ -791,6 +801,7 @@
         keeperGuideSeen: false
       },
       wallet: { embers: 100, shards: 0 },
+      home: Home.normalize(),
       pet: null,
       inventory: {
         accessories: ["none"],
@@ -840,6 +851,7 @@
       ...raw,
       player: { ...fresh.player, ...(raw.player && typeof raw.player === "object" ? raw.player : {}) },
       wallet: { ...fresh.wallet, ...(raw.wallet && typeof raw.wallet === "object" ? raw.wallet : {}) },
+      home: Home.normalize(raw.home, raw),
       inventory: { ...fresh.inventory, ...sourceInventory },
       scores: { ...fresh.scores, ...(raw.scores && typeof raw.scores === "object" ? raw.scores : {}) },
       treasures: raw.treasures && typeof raw.treasures === "object" && !Array.isArray(raw.treasures) ? raw.treasures : {},
@@ -903,6 +915,7 @@
               housePet.skills[skill.id] = clamp(Number.isFinite(parsedHouseSkill) ? parsedHouseSkill : (skill.id === "power" ? Math.max(houseStageSeed, housePet.strength || 0) : houseStageSeed), 0, housePet.genes[skill.id]);
             }
             housePet.storyMarks = normalizeStoryMarks(housePet.storyMarks);
+            housePet.denPosition = Home.position(housePet.denPosition);
             housePet.alive = housePet.alive !== false;
             housePet.sleeping = Boolean(housePet.sleeping);
             housePet.sick = Boolean(housePet.sick);
@@ -1076,6 +1089,7 @@
     pet.lifeMemory.lastArcadeMode = /^[a-z][a-z0-9-]{1,31}$/.test(String(pet.lifeMemory.lastArcadeMode || "")) ? pet.lifeMemory.lastArcadeMode : "";
     pet.lifeMemory.lastGreetingDate = /^\d{4}-\d{2}-\d{2}$/.test(String(pet.lifeMemory.lastGreetingDate || "")) ? String(pet.lifeMemory.lastGreetingDate) : "";
     pet.storyMarks = normalizeStoryMarks(pet.storyMarks);
+    pet.denPosition = Home.position(pet.denPosition);
     pet.form = EVOLUTION_FORMS[pet.form] ? pet.form : determineEvolutionForm(pet, merged);
     pet.formHistory = Array.isArray(pet.formHistory) ? pet.formHistory.slice(-10) : [];
     pet.generation = Math.max(1, Math.floor(Number(pet.generation) || 1));
@@ -1750,7 +1764,7 @@
       low: overrides.low ?? (!isEgg && Math.min(source.hunger, source.mood, source.energy, source.hygiene) < 18),
       grime: overrides.grime ?? careVisual.grime,
       washing: overrides.washing ?? careVisual.washing,
-      behavior: overrides.behavior ?? (source === state.pet ? activePetBehavior || (arcadeAfterglow ? "afterglow" : "") : ""),
+      behavior: overrides.behavior ?? (source === state.pet && context === "den" ? activePetBehavior || (arcadeAfterglow ? "afterglow" : "") : ""),
       name: overrides.name || source.name
     };
   }
@@ -1919,7 +1933,8 @@
     if (accessory) renderWearableToNode(accessory, visual);
     if (actor) {
       ensurePetGrimeLayer(actor);
-      actor.className = petActorClassNames(visual, actor.dataset.baseClass || "pet-actor");
+      const reactions = actor === el.petActor ? [...denReactions.keys()].join(" ") : "";
+      actor.className = `${petActorClassNames(visual, actor.dataset.baseClass || "pet-actor")} ${reactions}`.trim();
       applyVisualVariables(actor, visual);
     }
   }
@@ -2038,7 +2053,7 @@
     return [
       { id:"hatch", title:"HATCH YOUR FIRST RIZO", done:(state.meta.totalHatched || 0) > 0 || state.pet.stage !== "egg", status:(state.meta.totalHatched || 0) > 0 || state.pet.stage !== "egg" ? "DONE" : `${Math.floor(state.pet.hatch || 0)}%`, hint:"Tap the egg until the little weirdo comes out." },
       { id:"basics", title:"FINISH KEEPER BASICS", done:basicsDone, status:basicsDone ? "DONE" : `${Math.min(5, (state.player.tutorialStep || 0) + 1)}/5`, hint:"Feed, play, clean, sleep, and open the Journal once." },
-      { id:"arcade", title:"CLEAR AN ARCADE RUN", done:clearedArcade, status:clearedArcade ? "DONE" : `${state.meta.totalGames || 0}/1`, hint:"Any finished game counts toward your Keeper path." },
+      { id:"arcade", title:"TRAIN TOGETHER", done:clearedArcade, status:clearedArcade ? "DONE" : `${state.meta.totalGames || 0}/1`, hint:"Any finished game counts toward your Keeper path." },
       { id:"house", title:`UNLOCK RIZO HOUSE`, done:houseIsUnlocked(), status:houseIsUnlocked() ? "DONE" : `LV ${currentLevel}/${HOUSE_UNLOCK_LEVEL}`, hint:"Raise your main Rizo and finish the basics to open the spare room." },
       { id:"adopt", title:"ADOPT A SECOND RIZO", done:(state.farm?.roster?.length || 0) > 0, status:(state.farm?.roster?.length || 0) > 0 ? "DONE" : `${state.farm?.roster?.length || 0}/1`, hint:"Once the House opens, buy or discover another resident." },
       { id:"defense", title:"SURVIVE TO DEFENSE WAVE 10", done:defenseBest >= 10, status:defenseBest >= 10 ? "DONE" : `WAVE ${defenseBest}/10`, hint:"Your first milestone proves the roster system is really alive." },
@@ -2062,6 +2077,8 @@
     if ((globalThis.RizoModes?.summary?.("defense")?.milestones || []).includes(10)) trophies.push({ id:"gate", icon:"◉", color:"#ff5c6c", name:"GATE BADGE", copy:"Wave 10 survived in Rizo Defense." });
     if (state.pet.stage === "legend" || hasSeenUnlockScene("legacy-ready") || (state.meta.rebirths || 0) > 0) trophies.push({ id:"mature", icon:"♛", color:"#ffd45a", name:"MATURE MARK", copy:"You raised a Rizo all the way to Mature." });
     if ((state.meta.rebirths || 0) > 0) trophies.push({ id:"legacy", icon:"↻", color:"#ff68bd", name:"LEGACY RELIC", copy:"This timeline already created a Legacy Egg." });
+    if (state.home.trained.length) trophies.push({ id:"training", icon:"★", color:"#ffd45a", name:"TRAINING PATCH", copy:"Small games, real growth." });
+    if (state.inventory.accessories.includes("first-knot")) trophies.push({ id:"knot", icon:"⌁", color:"#ffb77f", name:"FIRST KNOT", copy:"Latch's knot came back with you." });
     return trophies;
   }
 
@@ -2184,7 +2201,8 @@
       renderSeason();
     } else if (currentView === "arcade") {
       renderArcade();
-      renderExpedition();
+    } else if (currentView === "go") {
+      renderGo();
     } else if (currentView === "closet") {
       renderCloset();
     } else if (currentView === "journal") {
@@ -2207,6 +2225,213 @@
     setTimeout(maybePromptBackup, 160);
   }
 
+  // ===== HOME / TRAIN / GO =====
+  // Placement is owned by the pet and painted on a separate DOM parent.
+  // Reactions, stage scale, clothing and care animation cannot write it.
+  function syncDenPosition() {
+    const placement = $("#denPlacement");
+    if (!placement) return;
+    const p = state.pet.denPosition;
+    const actor = state.pet.stage === "egg" ? el.eggActor : el.petActor;
+    const roomWidth = el.habitatScene.clientWidth;
+    if (roomWidth) placement.style.setProperty("--den-edge", `${Math.min(roomWidth / 2, actor.getBoundingClientRect().width / 2 + 6)}px`);
+    placement.style.setProperty("--den-x", `${p.x}%`);
+    placement.style.setProperty("--den-y", `${p.y}%`);
+    // Switching residents / loading a save changes location without a stale walk.
+    if (placement.dataset.pet !== state.pet.id) {
+      placement.classList.add("den-arriving");
+      placement.dataset.pet = state.pet.id;
+      requestAnimationFrame(() => placement.classList.remove("den-arriving"));
+    }
+  }
+
+  function moveDenTo(x, y = 0) {
+    state.pet.denPosition = Home.position({ x, y });
+    syncDenPosition();
+    saveState();
+  }
+
+  function startDenBehavior(behavior, duration = 1800, line = "", destination = null) {
+    const sequence = ++denBehaviorSequence, petId = state.pet.id;
+    clearTimeout(denBehaviorTimer);
+    activePetBehavior = behavior;
+    if (destination) moveDenTo(destination.x, destination.y);
+    renderHome();
+    if (line) say(line, Math.min(duration + 500, 3200));
+    denBehaviorTimer = setTimeout(() => {
+      if (sequence !== denBehaviorSequence || state.pet.id !== petId) return;
+      activePetBehavior = null;
+      if (currentView === "home") renderHome();
+    }, duration);
+  }
+
+  function resetDenPresentation() {
+    ++denBehaviorSequence;
+    clearTimeout(denBehaviorTimer);
+    activePetBehavior = null;
+    for (const timer of denReactions.values()) clearTimeout(timer);
+    denReactions.clear();
+    endDenPlay();
+  }
+
+  let denToyDrag = null;
+  let denToyClickBlockedUntil = 0;
+  function beginDenToyDrag(event) {
+    const object = event.target.closest("[data-garden-toy='ball']");
+    if (!object || currentView !== "home" || isUILocked() || state.pet.stage === "egg" || state.pet.sleeping || state.pet.resting || event.button > 0) return;
+    denToyDrag = { node: object, petId: state.pet.id, pointer: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    try { object.setPointerCapture(event.pointerId); } catch (error) {}
+  }
+  function moveDenToyDrag(event) {
+    const drag = denToyDrag;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    const dx = clamp(event.clientX - drag.x, -100, 160), dy = clamp(event.clientY - drag.y, -55, 30);
+    drag.moved ||= Math.hypot(dx, dy) > 8;
+    drag.node.classList.toggle("toy-dragging", drag.moved);
+    drag.node.style.setProperty("--toy-drag-x", `${dx}px`);
+    drag.node.style.setProperty("--toy-drag-y", `${dy}px`);
+  }
+  function endDenToyDrag(event, cancelled = false) {
+    const drag = denToyDrag;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    denToyDrag = null;
+    drag.node.classList.remove("toy-dragging");
+    drag.node.style.removeProperty("--toy-drag-x"); drag.node.style.removeProperty("--toy-drag-y");
+    try { drag.node.releasePointerCapture(event.pointerId); } catch (error) {}
+    if (cancelled || !drag.moved || currentView !== "home" || isUILocked() || state.pet.id !== drag.petId) return;
+    denToyClickBlockedUntil = now() + 400;
+    const rect = el.habitatScene.getBoundingClientRect();
+    useGardenToy("ball", { x: (event.clientX - rect.left) / rect.width * 100, y: 1 });
+  }
+
+  function endDenPlay() {
+    denPlayActive = false;
+    if (denToyDrag) endDenToyDrag({pointerId:denToyDrag.pointer}, true);
+    el.habitatScene?.classList.remove("den-playing");
+    const tray = $("#denPlayTray");
+    if (tray) tray.hidden = true;
+    $("[data-action='play']")?.setAttribute("aria-expanded", "false");
+  }
+
+  function everydayHomeReward(kind, id) {
+    const embers = Home.everyday(state.home, kind, id, dateKey());
+    state.wallet.embers = SaveCore.clampInteger(state.wallet.embers + embers, 0, CORE_LIMITS.MAX_WALLET_EMBERS, state.wallet.embers);
+    return embers;
+  }
+
+  function rememberHomeReturn(source, name, embers = 0) {
+    state.home.lastReturn = { source, name, embers, at: now() };
+    saveState();
+  }
+
+  function homeTargetCopy() {
+    const next = Home.next(state.home);
+    return next ? `${formatNumber(Math.min(state.wallet.embers, next.cost))} / ${formatNumber(next.cost)} Embers toward ${next.name}` : `${formatNumber(state.wallet.embers)} / ${formatNumber(Home.HORIZON.cost)} Embers. Orbit is a distant plan.`;
+  }
+
+  function renderHomeGrowth() {
+    const h = state.home, next = Home.next(h), tier = Home.TIERS[h.tier];
+    el.habitatScene.dataset.homeTier = String(h.tier);
+    const bed = $("#denBed");
+    if (bed) {
+      bed.disabled = state.pet.stage === "egg" || state.pet.resting;
+      bed.setAttribute("aria-label", state.pet.sleeping ? "Wake Rizo in his bed" : "Let Rizo rest in his bed");
+      bed.classList.toggle("occupied", state.pet.sleeping);
+    }
+    const goal = $("#homeGoal");
+    if (goal) {
+      goal.querySelector("small").textContent = `${tier.name} / ${h.tier + 1}`;
+      goal.querySelector("b").textContent = next ? `NEXT: ${next.name}` : "NEXT DREAM: ORBIT";
+      goal.querySelector("span").textContent = next ? `R ${formatNumber(state.wallet.embers)} / ${formatNumber(next.cost)}` : `R ${formatNumber(state.wallet.embers)} / 1M · FUTURE`;
+      goal.querySelector("i").style.width = `${clamp(state.wallet.embers / (next?.cost || Home.HORIZON.cost) * 100)}%`;
+      goal.classList.toggle("ready", Boolean(next && state.wallet.embers >= next.cost));
+      goal.setAttribute("aria-label", `${tier.name}. ${homeTargetCopy()}. Open home plans.`);
+    }
+    const ret = $("#homeReturn");
+    if (ret) {
+      const last = h.lastReturn;
+      ret.hidden = !last;
+      if (last) ret.textContent = `${last.name} → HOME${last.embers ? ` · +R ${formatNumber(last.embers)}` : ""}`;
+    }
+    // The hub reads mode summaries/earned entitlements, never rewrites a slice.
+    const hearth = Object.values(state.modeReceipts?.dungeon || {}).some(receipt => receipt.entitlements.includes("shared-hearth")) || [...(state.pet.storyMarks || []), ...(state.farm?.roster || []).flatMap(p => p.storyMarks || [])].some(mark => mark.id === "shared-hearth" && mark.mode === "dungeon");
+    $("#denHearthMemory")?.toggleAttribute("hidden", !hearth);
+    $("#denKnotMemory")?.toggleAttribute("hidden", !state.inventory.accessories.includes("first-knot"));
+    const trainingPatch = $("#denTrainingMemory");
+    if (trainingPatch) {
+      trainingPatch.hidden = !h.trained.length;
+      trainingPatch.textContent = `★ ${h.trained.length}/10`;
+      trainingPatch.setAttribute("aria-label", `Training patch: ${h.trained.length} different drills played`);
+    }
+    const defensePatch = $("#denDefenseMemory"), defense = globalThis.RizoModes?.summary?.("defense");
+    if (defensePatch) {
+      defensePatch.hidden = !defense?.best;
+      defensePatch.textContent = `W${defense?.best || 0}`;
+      defensePatch.setAttribute("aria-label", `Defense pennant: best wave ${defense?.best || 0}`);
+    }
+  }
+
+  function openHomePlans() {
+    const h = state.home, next = Home.next(h);
+    openSheet("OUR HOME", "MAKE ROOM FOR MORE", `
+      <div class="home-plan-scene" data-plan-tier="${h.tier}" aria-hidden="true"><i></i><b>⌂</b><span>${escapeHTML(Home.TIERS[h.tier].name)}</span></div>
+      <p class="home-plan-copy">Embers from care, play, training, and journeys build the place we come back to.</p>
+      <ol class="home-plan-tiers">${Home.TIERS.map((tier, i) => `<li class="${i <= h.tier ? "built" : i === h.tier + 1 ? "next" : "later"}"><span>${i <= h.tier ? "✓" : `0${i + 1}`}</span><div><b>${tier.name}</b><p>${tier.detail}</p></div><small>${i <= h.tier ? "HOME" : `R ${formatNumber(tier.cost)}`}</small></li>`).join("")}</ol>
+      ${next ? `<button class="home-build-button" type="button" data-home-upgrade="${next.id}" ${state.wallet.embers < next.cost ? "disabled" : ""}>${state.wallet.embers < next.cost ? `${formatNumber(next.cost - state.wallet.embers)} MORE EMBERS` : `BUILD ${next.name} · R ${formatNumber(next.cost)}`}</button>` : `<p class="home-plan-copy">The rooftop is yours. Keep growing Rizo, filling the shelf, and dreaming bigger.</p>`}
+      <div class="home-horizon"><span>✧</span><div><b>${Home.HORIZON.name}</b><p>R ${formatNumber(Home.HORIZON.cost)} · A distant plan. No purchase yet.</p></div></div>`);
+  }
+
+  function buildHome(id) {
+    if (saveBlocked || stateConflictsWithStorage()) { if (!saveBlocked) blockSaving("conflict"); return false; }
+    const result = Home.purchase(state.home, state.wallet.embers, id, now());
+    if (!result.ok) { toast(result.reason === "embers" ? "SAVE A FEW MORE EMBERS" : "THAT HOME ISN'T THE NEXT STEP"); return false; }
+    const previous = { home: state.home, embers: state.wallet.embers, lastActive: state.player.lastActive };
+    clearTimeout(saveTimer); saveTimer = null;
+    state.home = result.home; state.wallet.embers = result.embers; state.player.lastActive = now();
+    const outcome = persistStateNow();
+    if (outcome.status !== "committed") {
+      state.home = previous.home; state.wallet.embers = previous.embers; state.player.lastActive = previous.lastActive;
+      renderAll(); return false;
+    }
+    closeSheet(); changeView("home"); renderAll();
+    addMemory("A BIGGER HOME", `${state.pet.name} has a ${Home.TIERS[state.home.tier].name}. We built this together.`, "⌂");
+    saveState(); sfx("reward");
+    el.habitatScene.classList.add("home-built");
+    setTimeout(() => el.habitatScene.classList.remove("home-built"), 1400);
+    setLifeBehavior("proud", 1600, ["", "LEAVE THE LIGHT ON.", "ROOM FOR MY BAD IDEAS.", "THIS SKY IS MINE NOW."][state.home.tier]);
+    return true;
+  }
+
+  function renderTrainingFocus() {
+    const games = Training.list().filter(def => Home.DRILLS.includes(def.id));
+    const matching = games.filter(def => trainingFocus === "all" || (def.trains[trainingFocus] || 0) > 0);
+    const affordable = matching.filter(def => state.pet.energy >= def.energy);
+    const pool = affordable.length ? affordable : matching;
+    const game = pool.find(def => !state.home.trained.includes(def.id)) || pool.find(def => def.id !== state.pet.lifeMemory?.lastArcadeMode) || pool[0];
+    for (const card of $$("#trainingLibrary .game-card")) {
+      const def = Training.get(card.querySelector("[data-minigame]")?.dataset.minigame);
+      card.hidden = !matching.includes(def);
+    }
+    $$("[data-training-focus]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.trainingFocus === trainingFocus)));
+    const host = $("#trainingFeatured");
+    if (host && game) {
+      host.innerHTML = `<div class="training-companion">${petMarkup({ extraClass: "training-rizo", context: "card" })}</div><div class="training-pick"><small>${state.home.trained.includes(game.id) ? "ANOTHER ROUND?" : "TRY SOMETHING NEW"}</small><h2>${game.name}</h2><p>${SKILLS.filter(skill => game.trains[skill.id] > 0).map(skill => skill.name).join(" + ")} · ${game.duration}s · ${game.energy} energy</p><button data-minigame="${game.id}" type="button">TRAIN TOGETHER</button></div>`;
+    }
+    const line = $("#trainingHomeGoal");
+    if (line) line.textContent = homeTargetCopy();
+  }
+
+  function renderGo() {
+    renderModeShelf(); renderExpedition();
+    const dungeon = globalThis.RizoModes?.summary?.("dungeon"), savedDefense = modeRunStore("defense").read();
+    const dungeonButton = $("#viewGo [data-mode='dungeon']"), defenseButton = $("#viewGo [data-mode='defense']");
+    if (dungeonButton && !dungeonButton.classList.contains("game-blocked")) dungeonButton.textContent = dungeon?.journey && !dungeon.journey.complete ? "CONTINUE JOURNEY" : dungeon?.journey?.complete ? "VISIT AGAIN" : "GO WITH RIZO";
+    if (defenseButton && !defenseButton.classList.contains("game-blocked")) defenseButton.textContent = savedDefense ? "RETURN TO THE FIELD" : "GO DEFEND";
+    const dungeonNote = $("#dungeonDeparture"), defenseNote = $("#defenseDeparture");
+    if (dungeonNote) dungeonNote.textContent = dungeon?.journey ? `${dungeon.journey.petName}'s journey · ${dungeon.bestLabel} · Progress saved` : "The opening + Mending Rows. Your journey saves as you go.";
+    if (defenseNote) defenseNote.textContent = savedDefense ? "A run is waiting. Resume it in the field." : "Take your raised Rizo and roster. Bring Embers and training home.";
+  }
+
   function renderHome() {
     const pet = state.pet;
     const variant = currentVariant();
@@ -2214,6 +2439,7 @@
     const mood = moodInfo();
 
     el.habitatScene.className = `habitat-scene ${ROOMS.find(room => room.id === pet.room)?.className || "theme-rain"}`;
+    el.habitatScene.classList.toggle("den-playing", denPlayActive);
     el.moodChip.querySelector("i").style.background = mood.color;
     el.moodChip.querySelector("span").textContent = mood.label;
     applyLivingMood();
@@ -2256,7 +2482,7 @@
     $$("[data-need]").forEach(button => {
       const need = button.dataset.need;
       button.disabled = isEgg || !pet.alive || (pet.sleeping && need !== "energy");
-      const labels = { hunger: "Open food menu", mood: "Open play menu", energy: pet.sleeping ? "Wake Rizo" : "Rest and recharge", hygiene: "Clean Rizo" };
+      const labels = { hunger: "Open food menu", mood: "Play with Rizo in the Den", energy: pet.sleeping ? "Wake Rizo" : "Rest and recharge", hygiene: "Clean Rizo" };
       button.setAttribute("aria-label", `${labels[need]}. Current ${need}: ${Math.floor(pet[need])}`);
       button.title = labels[need];
     });
@@ -2289,6 +2515,8 @@
     renderGardenVisitor();
     renderGardenGrowth();
     renderHabitatShelf();
+    renderHomeGrowth();
+    syncDenPosition();
     const latest = state.memories[0];
     el.memoryTitle.textContent = latest?.title || "THE EGG IN THE RAIN";
     el.memoryText.textContent = latest?.text || "You found something impossible under a tree and decided that was somehow your problem now.";
@@ -2382,13 +2610,13 @@
         +`<span class="meta-energy${affordable?"":" short"}"><small>ENERGY</small><b>${game.energy}</b></span>`
         +`<span class="meta-length"><small>RUN</small><b>${arcadeRunLength(mode)}</b></span>`;
     }
-    renderModeShelf();
+    renderTrainingFocus();
     $$('[data-minigame]').forEach(button => {
       const mode = button.dataset.minigame, game = trainingGame(mode);
       if (!game) { button.classList.add("game-blocked"); button.textContent = "UNAVAILABLE"; return; }
       const need = game.energy;
       const blocked = state.pet.stage === "egg" || state.pet.resting || state.pet.sleeping || state.pet.energy < need;
-      const base = game.button || "PLAY";
+      const base = button.closest("#trainingFeatured") ? "TRAIN TOGETHER" : game.button || "PLAY";
       button.classList.toggle("game-blocked", blocked);
       button.textContent = state.pet.stage === "egg" ? "HATCH FIRST" : state.pet.resting ? "RECOVERING" : state.pet.sleeping ? "WAKE RIZO" : state.pet.energy < need ? `NEED ${need} ENERGY` : base;
       button.title = blocked ? "Tap for the exact reason this run cannot start yet." : `Start ${game.name}.`;
@@ -2584,7 +2812,7 @@
       "Tap the egg until it hatches. The four need meters stay protected during its first twelve hours.",
       "Name your Rizo. After that, the Keeper Guide explains what happens when needs are ignored.",
       "Tap FEED, then drag a snack onto Rizo. Full, energy, clean, and happy keep falling while you are away.",
-      "Finish one Arcade game. Games build XP and bond, but exhausted or sick Rizos cannot play.",
+      "Train together: choose a short game, earn Embers, then bring them home. Go is for bigger journeys.",
       "Open the Journal to see health, growth, memories, and save tools. Rizo House unlocks at Level 4."
     ];
     const targets = [el.petTapTarget, null, document.querySelector('[data-action="feed"]'), document.querySelector('[data-nav="arcade"]'), document.querySelector('[data-nav="journal"]')];
@@ -2606,9 +2834,11 @@
 
   function changeView(view) {
     clearToasts();
+    closeSheet();
+    if (view !== "home") endDenPlay();
     currentView = view;
     $$(".view").forEach(section => section.classList.toggle("active", section.dataset.view === view));
-    $$("[data-nav]").forEach(button => { const active = button.dataset.nav === view; button.classList.toggle("active", active); button.setAttribute("aria-current", active ? "page" : "false"); });
+    $$("[data-nav]").forEach(button => { const active = button.dataset.nav === view || (button.closest(".bottom-nav") && button.dataset.nav === "home" && ["farm", "closet", "journal"].includes(view)); button.classList.toggle("active", active); button.setAttribute("aria-current", active ? "page" : "false"); });
     window.scrollTo({ top: 0, behavior: state.settings.reducedMotion ? "auto" : "smooth" });
     renderSharedUI();
     renderCurrentView();
@@ -2750,18 +2980,19 @@
   }
 
   function openPlaySheet() {
-    openSheet("QUICK QUEUE", "PICK A CABINET", `
-      <article class="sheet-card"><div class="sheet-card-icon">♥</div><div><h3>HEAD PAT</h3><p>Quick affection. +7 happy and +2 bond.</p></div><button data-head-pat>PAT</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">×</div><div><h3>POWER TAPE</h3><p>Coach calls the strike. Match JAB, BODY, or HOOK to the timing window, hold through feints, and earn Overdrive.</p></div><button data-sheet-game="power">TRAIN</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">★</div><div><h3>SPARK STASH</h3><p>Build an unbanked spark stash, choose when to cash it, and lose the risky pile if a Shadow catches your greed.</p></div><button data-sheet-game="spark">CHASE</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">⌁</div><div><h3>FOREST LUNCH</h3><p>Pack Rizo's exact lunch ticket lane by lane. Every second plate triggers a frantic Picnic Panic decision burst.</p></div><button data-sheet-game="forage">FORAGE</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">↗</div><div><h3>RIZO COURIER</h3><p>Run the rooftops, grab a parcel, then survive two clean clears to actually deliver it before you crash.</p></div><button data-sheet-game="rush">RUN</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">☂</div><div><h3>RIZO WALK</h3><p>Explore branching forest routes, weather, strange finds, and permanent treasures.</p></div><button data-sheet-game="walk">WALK</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">♫</div><div><h3>EMBER BEAT</h3><p>Match four lanes, chase Perfect timing, and unlock harder songs while Rizo builds Speed.</p></div><button data-sheet-game="rhythm">PLAY</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">▦</div><div><h3>LOST SIGNAL</h3><p>Memorize a pirate transmission while the signal mutates: reverse, opposite, rotate, then stacked corruption rules.</p></div><button data-sheet-game="memory">REMEMBER</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">⌁</div><div><h3>SKYBOUND</h3><p>Ride shifting wind and deliberately thread gate centers to charge Thermal Bursts that change the flight physics.</p></div><button data-sheet-game="glide">FLY</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">✦</div><div><h3>EMBER FORGE</h3><p>Break authored Rizo-mark walls, protect your angle, and hunt CORE blocks that collapse nearby forge pieces.</p></div><button data-sheet-game="breaker">BREAK</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">⌗</div><div><h3>RIZO RUNAWAY</h3><p>Route through the maze, bait three Shadow behaviors, then reverse the hunt with Prism Seeds.</p></div><button data-sheet-game="maze">RUN</button></article>`);
+    if (!canCare()) return;
+    closeSheet();
+    if (currentView !== "home") changeView("home");
+    denPlayActive = !denPlayActive;
+    el.habitatScene.classList.toggle("den-playing", denPlayActive);
+    const tray = $("#denPlayTray");
+    if (tray) tray.hidden = !denPlayActive;
+    $("[data-action='play']")?.setAttribute("aria-expanded", String(denPlayActive));
+    if (denPlayActive) {
+      el.habitatScene.scrollIntoView({ block: "start", behavior: reducedMotionActive() ? "auto" : "smooth" });
+      startDenBehavior("stretch", 850, "WHAT ARE WE PLAYING?");
+      $("[data-garden-toy='ball']")?.focus({ preventScroll: true });
+    }
   }
 
   function openMoreCareSheet() {
@@ -2924,6 +3155,7 @@
       whole.meta.totalCareActions += 1;
       earnHeat(5,false);
       progressQuest("feed");
+      everydayHomeReward("care", "feed");
     });
     closeSheet();
     const favoriteRepeat = previousServings >= 2 && state.pet.careProfile.foods[food.id] >= previousServings + 1;
@@ -2947,7 +3179,7 @@
     if (100 - state.pet.hygiene < CLEAN_ACTION_MIN_RESTORE) { toast("RIZO IS ALREADY CLEAN"); return; }
     const hygieneBefore = state.pet.hygiene;
     const wasFilthy = hygieneBefore < 18;
-    const washUntil = now() + 900;
+    const washUntil = now() + 900, washingPetId = state.pet.id;
     const cooldownReady = now() - (Number(state.pet.lastCleanRewardAt) || 0) >= CLEAN_REWARD_COOLDOWN;
     mutate((pet, whole) => {
       const restored = Math.min(40, 100 - pet.hygiene);
@@ -2962,6 +3194,7 @@
         whole.meta.totalCareActions += 1;
         earnHeat(5, false);
         pet.lastCleanRewardAt = now();
+        everydayHomeReward("care", "clean");
       } else {
         pet.mood = clamp(pet.mood + 1);
       }
@@ -2981,7 +3214,7 @@
     setLifeBehavior("scrub", 900, "YOU MISSED A SPOT. GOOD.");
     setTimeout(() => {
       const memory = lifeMemory();
-      if (memory.washUntil !== washUntil || now() < washUntil) return;
+      if (state.pet.id !== washingPetId || memory.washUntil !== washUntil || now() < washUntil) return;
       memory.washUntil = 0;
       memory.washFromHygiene = state.pet.hygiene;
       saveState();
@@ -2989,7 +3222,7 @@
       if (currentView === "home") renderHome();
       setTimeout(() => {
         const latest = lifeMemory();
-        if (currentView === "home" && now() - (Number(latest.lastBathAt) || 0) >= 7000) renderHome();
+        if (state.pet.id === washingPetId && currentView === "home" && now() - (Number(latest.lastBathAt) || 0) >= 7000) renderHome();
       }, 6200);
     }, 920);
     sfx("clean");
@@ -3007,9 +3240,11 @@
       gainSkill("luck", .2, { silent: true });
       whole.meta.totalCareActions += 1;
       earnHeat(3,false);
+      everydayHomeReward("care", "pat");
     });
     closeSheet();
     effect("hearts");
+    animatePet("happy-jump", 600);
     say("OKAY. ONE MORE.");
   }
 
@@ -3020,6 +3255,7 @@
       p.sleeping = !p.sleeping;
       if (p.sleeping) { p.mood = clamp(p.mood + 2); shiftAlignment(1, "rest"); gainSkill("stamina", .25, { silent: true }); }
     });
+    if (state.pet.sleeping) moveDenTo(72, 0);
     if (state.pet.sleeping) say("DO NOT LET THE APP DIE WHILE I'M OUT.");
     else setLifeBehavior("wake-grump", 1200, "I WAS DREAMING ABOUT INVENTORY.");
     sfx(state.pet.sleeping ? "sleep" : "wake");
@@ -3035,7 +3271,7 @@
     else if (pet.hygiene < 20) line = "THE SMELL IS PART OF THE BRAND NOW.";
     else if (pet.mood < 20) line = "I'M NOT MAD. I'M DEVELOPING LORE.";
     else line = TALK_LINES[Math.floor(Math.random() * TALK_LINES.length)];
-    mutate(p => { p.mood = clamp(p.mood + 3); p.bond = clamp(p.bond + .8); p.xp += 1; shiftAlignment(1, "talk"); gainSkill("instinct", .15, { silent: true }); });
+    mutate(p => { p.mood = clamp(p.mood + 3); p.bond = clamp(p.bond + .8); p.xp += 1; shiftAlignment(1, "talk"); gainSkill("instinct", .15, { silent: true }); everydayHomeReward("care", "talk"); });
     closeSheet();
     say(line, 3400);
     sfx("talk");
@@ -3051,6 +3287,7 @@
   }
 
   function tapPet(event) {
+    if (isUILocked() || currentView !== "home") return;
     const pet = state.pet;
     if (!pet.alive) return;
     if (pet.stage === "egg") {
@@ -3424,10 +3661,11 @@
     openSheet("RAISING PATH", "AGE + AFFINITY", `<section class="growth-sheet"><div class="growth-sheet-hero"><span style="--align:${align.color}">${align.icon}</span><div><small>${align.name} ALIGNMENT • GENERATION ${pet.generation || 1}</small><h3>${form.name}</h3><p>${form.copy}</p></div></div><div class="aptitude-list">${SKILLS.map(skill=>aptitudeHTML(skill,pet)).join("")}</div><div class="raising-influences"><span><b>FAVORITE FOOD</b>${escapeHTML(influence.foodName)}</span><span><b>FAVORITE GAME</b>${escapeHTML(influence.gameName)}</span><span><b>FAVORITE TOY</b>${escapeHTML(influence.favoriteToy)}</span><span><b>PERSONALITY</b>${escapeHTML(pet.personality)}</span></div><div class="sheet-note">CARE SHAPES THE RESULT. Power Tap raises Power. Rizo Rush raises Speed. Spark Catch and Forage raise Instinct. Walks and rest raise Stamina. Treasure raises Luck.</div>${seed?`<div class="bond-seed-mini"><b>♡ BOND EGG STORED</b><span>${escapeHTML(seed.name)} • ${escapeHTML(seed.variantName || seed.variant)}</span><small>The next Legacy Egg blends both families' bounded genetic caps.</small></div>`:""}<button class="wide-button" data-rebirth-info>${canRebirth()?"CREATE LEGACY EGG":"VIEW REBIRTH PATH"}</button></section>`);
   }
 
-  function useGardenToy(id) {
+  function useGardenToy(id, destination = null) {
     if (!canCare()) return;
     const cooldown = 12000;
-    if (now() - (state.garden.lastToyAt || 0) < cooldown) { toast("RIZO IS STILL PLAYING"); return; }
+    if (activePetBehavior && now() - (state.garden.lastToyAt || 0) < 1600) { say("ONE THING AT A TIME."); return; }
+    const credited = now() - (state.garden.lastToyAt || 0) >= cooldown;
     const toys = {
       ball: { skill:"speed", gain:1.1, mood:7, energy:-4, align:0, behavior:"ball", line:"I CALL NEXT GOAL." },
       stump: { skill:"power", gain:1.0, mood:3, energy:-6, align:-1, behavior:"stretch", line:"THIS STUMP KNOWS WHAT IT DID." },
@@ -3435,13 +3673,24 @@
       bush: { skill:"instinct", gain:.9, mood:5, hunger:5, align:2, behavior:"window", line:"THE BUSH HAD LORE." }
     };
     const toy = toys[id]; if (!toy) return;
+    if (state.pet.energy < Math.abs(toy.energy)) { say("A LITTLE REST FIRST."); return; }
     mutate((pet, whole)=>{
-      gainSkill(toy.skill,toy.gain,{silent:true});
-      pet.mood=clamp(pet.mood+(toy.mood||0)); pet.energy=clamp(pet.energy+(toy.energy||0)); pet.hygiene=clamp(pet.hygiene+(toy.hygiene||0)); pet.hunger=clamp(pet.hunger+(toy.hunger||0)); pet.xp+=4; pet.bond=clamp(pet.bond+1.2); shiftAlignment(toy.align||0,`toy:${id}`);
-      whole.garden.lastToyAt=now(); whole.garden.toyUses[id]=(whole.garden.toyUses[id]||0)+1; whole.garden.favoriteToy=Object.entries(whole.garden.toyUses).sort((a,b)=>b[1]-a[1])[0]?.[0]||id;
+      if (credited) {
+        gainSkill(toy.skill,toy.gain,{silent:true});
+        pet.mood=clamp(pet.mood+(toy.mood||0)); pet.energy=clamp(pet.energy+(toy.energy||0)); pet.hygiene=clamp(pet.hygiene+(toy.hygiene||0)); pet.hunger=clamp(pet.hunger+(toy.hunger||0)); pet.xp+=4; pet.bond=clamp(pet.bond+1.2); shiftAlignment(toy.align||0,`toy:${id}`);
+        everydayHomeReward("play", id);
+        whole.garden.lastToyAt=now();
+      }
+      whole.garden.toyUses[id]=(whole.garden.toyUses[id]||0)+1;
+      whole.garden.favoriteToy=Object.entries(whole.garden.toyUses).sort((a,b)=>b[1]-a[1])[0]?.[0]||id;
     });
-    activePetBehavior=toy.behavior; renderHome(); setTimeout(()=>{activePetBehavior=null;if(currentView==="home")renderHome();},1800);
-    say(toy.line,2200); sfx(id==="puddle"?"sick":"spark"); sensoryBurst(id==="puddle"?"💧":"✦",currentVariant().color,8);
+    const places = { ball: {x:32,y:1}, stump: {x:72,y:0}, puddle: {x:50,y:2}, bush: {x:27,y:7} };
+    const uses = state.garden.toyUses[id], lines = { ball:["I CALL NEXT GOAL.","AGAIN. SAME BALL.","YOU SAW THAT, RIGHT?"], stump:["THIS STUMP KNOWS WHAT IT DID.","STILL GOT IT."], puddle:["I REGRET NOTHING.","THE FLOOR NEEDED WATER."], bush:["THE BUSH HAD LORE.","CHECKED. STILL A BUSH."] };
+    startDenBehavior(toy.behavior, 1800, lines[id][(uses - 1) % lines[id].length], destination || places[id]);
+    const object = $(`[data-garden-toy="${id}"]`);
+    object?.classList.remove("toy-in-play"); void object?.offsetWidth; object?.classList.add("toy-in-play");
+    setTimeout(() => object?.classList.remove("toy-in-play"), 1800);
+    sfx(id==="puddle"?"sick":"spark"); sensoryBurst(id==="puddle"?"💧":"✦",currentVariant().color,8);
   }
 
   // ===== AUTONOMOUS PET LIFE + RANDOM STORY EVENTS =====
@@ -3458,8 +3707,7 @@
     };
     const behaviors = personalityPools[state.pet.personality] || ["wander-left","wander-right","hide","window","ball","dance","zoomies","stretch"];
     const behavior = behaviors[Math.floor(Math.random() * behaviors.length)];
-    activePetBehavior = behavior;
-    renderHome();
+    const destinations = { "wander-left": {x:30,y:0}, "wander-right": {x:70,y:0}, hide: {x:73,y:3}, window: {x:31,y:7}, ball: {x:32,y:1}, zoomies: {x:state.pet.denPosition.x < 50 ? 70 : 30,y:1} };
     const lines = {
       hide: ["YOU CANNOT SEE ME.","I HAVE LEFT THE ESTABLISHMENT."],
       window: ["THE RAIN IS SAYING SOMETHING.","OUTSIDE LOOKS EXPENSIVE."],
@@ -3474,13 +3722,8 @@
     if (behavior === "dance") sfx("dance");
     if (behavior === "zoomies") sfx("rush", 6);
     const duration = behavior === "hide" ? 4300 : behavior === "zoomies" ? 2600 : 3400;
-    setTimeout(() => {
-      if (activePetBehavior === behavior) {
-        activePetBehavior = null;
-        if (currentView === "home") renderHome();
-      }
-      schedulePetBehavior();
-    }, duration);
+    startDenBehavior(behavior, duration, "", destinations[behavior]);
+    schedulePetBehavior(duration + 8000 + Math.random() * 12000);
   }
 
 
@@ -3526,14 +3769,8 @@
 
   function setLifeBehavior(behavior, duration = 1800, line = "") {
     if (!state?.pet?.alive || state.pet.stage === "egg" || state.pet.sleeping || currentView !== "home" || isUILocked()) return;
-    const memory = lifeMemory();
-    memory.lifeBehaviorUntil = now() + duration;
-    activePetBehavior = behavior;
-    renderHome();
-    if (line) say(line, Math.min(duration + 500, 3200));
-    setTimeout(() => {
-      if (activePetBehavior === behavior && memory.lifeBehaviorUntil <= now()) { activePetBehavior = null; if (currentView === "home") renderHome(); }
-    }, duration);
+    lifeMemory().lifeBehaviorUntil = now() + duration;
+    startDenBehavior(behavior, duration, line);
   }
 
   function spawnLifeMoment(forceBrand = false) {
@@ -3590,7 +3827,7 @@
 
   function trackRizoAttention(event) {
     lastLifeInputAt = now();
-    if (!el.petActor || currentView !== "home" || state.settings.reducedMotion) return;
+    if (!el.petActor || currentView !== "home" || reducedMotionActive()) return;
     cancelAnimationFrame(gazeFrame);
     gazeFrame = requestAnimationFrame(() => {
       const rect = el.petActor.getBoundingClientRect();
@@ -3890,6 +4127,7 @@
     const energyNeeded = def.energy;
     if (state.pet.energy < energyNeeded) { toast(`NEED ${energyNeeded} ENERGY • RIZO HAS ${Math.floor(state.pet.energy)}`); sfx("no"); return false; }
     clearToasts();
+    endDenPlay();
     closeSheet();
     mini = { ...idleRunBoard(), active: true, mode, lives: def.lives, maxLives: def.lives };
     trainingRun = { def, epoch: now(), startedAt: performance.now(), frozenTotal: 0, freezeAt: 0, pauseSources: {}, jobs: new Map(), jobSeq: 0,
@@ -4131,7 +4369,7 @@
     // Walking away from a run that never got going is a non-event.
     if(quit && !qualified) return;
     if(!qualified){
-      showModal(`<div class="modal-card arcade-result minigame-result-${mode} arcade-no-credit"><div class="modal-art">${arcadeArt(mode)}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))}</small><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${mode}">TRY AGAIN</button></div></div>`);
+      showModal(`<div class="modal-card arcade-result minigame-result-${mode} arcade-no-credit"><div class="modal-art">${arcadeArt(mode)}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))}</small><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>CHOOSE A DRILL</button><button data-training-home>GO HOME</button><button data-replay-game="${mode}">TRY AGAIN</button></div></div>`);
       return;
     }
     applyTrainingResult(def, board, score, endReason, report);
@@ -4149,6 +4387,7 @@
     const gains=Training.convert(def, { score: rewardScore, reason: endReason, inputs: Math.max(1, board.playerInputs||0) });
     mutate((pet,whole)=>{
       whole.meta.totalGames+=1;
+      Home.recordTraining(whole.home, mode);
       pet.careProfile.games[mode]=(pet.careProfile.games[mode]||0)+1;
       state.scores[mode]=Math.max(state.scores[mode]||0,score);
       for(const [skill,amount] of Object.entries(gains.skills)){
@@ -4187,7 +4426,8 @@
     const newBest=score>previousBest?`<div class="arcade-best-banner"><i aria-hidden="true">★</i><div><small>NEW PERSONAL BEST</small><b>${formatNumber(score)}</b><em>PREVIOUS ${formatNumber(previousBest)}</em></div></div>`:"";
     if(score>previousBest){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
     const gainsLine=trainingGainsLine(gains);
-    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${mode} ${rare?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${subtitle}${newBest}<h2>${score} POINTS</h2><p class="big-line">${escapeHTML(voice.line)}</p>${arcadeResultGrid(report.stats)}${treasureCopy}${rareCopy}<p class="training-gains" data-training-gains>${escapeHTML(gainsLine)}</p><p>The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${mode}">RUN IT BACK</button></div></div>`);
+    rememberHomeReturn("training", def.name, gains.embers);
+    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${mode} ${rare?"rare-result":""}"><div class="modal-art">${art}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${subtitle}${newBest}<h2>${score} POINTS</h2><p class="big-line">${escapeHTML(voice.line)}</p>${arcadeResultGrid(report.stats)}${treasureCopy}${rareCopy}<p class="training-gains" data-training-gains>${escapeHTML(gainsLine)}</p><p class="result-home-progress">${escapeHTML(homeTargetCopy())}</p><div class="modal-buttons"><button class="primary" data-training-home>TAKE IT HOME</button><button data-training-continue>ANOTHER DRILL</button><button data-replay-game="${mode}">RUN IT BACK</button></div></div>`, { onClose: () => changeView("home") });
     advanceTutorial("play");
     if(gains.performance>=1 && (endReason!=="death" || score>previousBest)) celebrate();
   }
@@ -4379,8 +4619,16 @@
     sfx("reward");celebrate();sensoryBurst("✦","#9eff75",24);
   }
 
-  function animatePet(className, duration=600) {
-    el.petActor.classList.remove(className); void el.petActor.offsetWidth; el.petActor.classList.add(className); setTimeout(()=>el.petActor.classList.remove(className),duration);
+  function animatePet(className, duration = 600) {
+    clearTimeout(denReactions.get(className));
+    const actor = el.petActor, petId = state.pet.id;
+    actor.classList.remove(className); void actor.offsetWidth; actor.classList.add(className);
+    const timer = setTimeout(() => {
+      if (denReactions.get(className) !== timer) return;
+      denReactions.delete(className);
+      if (state.pet.id === petId) actor.classList.remove(className);
+    }, duration);
+    denReactions.set(className, timer);
   }
 
   function sensoryBurst(symbol="✦", color="#16c8ff", count=10, event=null) {
@@ -4499,6 +4747,7 @@
     next.alignment = clamp((old.alignment || 0) * .16 + (seed?.alignment || 0) * .08, -22, 22);
     next.careProfile.inheritedFrom = seed ? [old.name, seed.name] : [old.name];
 
+    resetDenPresentation();
     state.pet = next;
     state.meta.rebirths = (state.meta.rebirths || 0) + 1;
     if (seed) state.meta.bondEggs = (state.meta.bondEggs || 0) + 1;
@@ -4528,6 +4777,7 @@
     const cost = costs[type];
     if (state.wallet.embers < cost) { toast("YOU CANNOT FINANCE AN EGG"); return; }
     state.wallet.embers -= cost;
+    resetDenPresentation();
     state.pet = createPet({ lucky: type === "lucky" || type === "prism", shame: type === "shame" });
     if (type === "prism") state.pet.hiddenVariant = rollVariant(true,false,Math.max(30,state.meta.pity||0)).id;
     state.meta.nextPetNumber += 1;
@@ -4909,7 +5159,7 @@
     try{const data=decodeGardenCode(raw);if(data?.app!=="RIZO LIFE"||!data.state)throw new Error("bad recovery");const decoded=decodeStatePayload(data);if(decoded.status==="future"){toast("THAT KEEPER CODE IS FROM A NEWER RIZO.GAME • UPDATE FIRST");return;}if(decoded.status==="invalid")throw new Error("bad recovery");if(decoded.status==="sanitized")recordSaveValidationWarning("keeper-code-sanitized",{});showKeeperRecoveryPreview(decoded.state,decoded.status==="verified"?"VERIFIED KEEPER SAVE":"SANITIZED KEEPER SAVE",data.v||"?",decoded.modes);}catch(error){window.__pendingKeeperRecovery=null;toast("THAT KEEPER CODE IS INVALID OR INCOMPLETE");sfx("no");}
   }
   function previewPreRecoveryBackup(){const decoded=readPreRecoveryDecoded();if(!decoded){toast("NO PREVIOUS TIMELINE IS STORED");sfx("no");return;}showKeeperRecoveryPreview(decoded.state,"DEVICE BACKUP",decoded.state.version||VERSION,decoded.modes);}
-  function applyKeeperRecovery(){const recovered=window.__pendingKeeperRecovery;if(!recovered)return;try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}clearModeRuns();state=recovered;modeSlices=pendingRecoveryModes||{};pendingRecoveryModes={};window.__pendingKeeperRecovery=null;prepareModeSlices();saveState(true);closeModal();changeView("home");renderAll();toast("KEEPER TIMELINE RESTORED");sfx("legendary");celebrate();}
+  function applyKeeperRecovery(){const recovered=window.__pendingKeeperRecovery;if(!recovered)return;try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}clearModeRuns();resetDenPresentation();state=recovered;modeSlices=pendingRecoveryModes||{};pendingRecoveryModes={};window.__pendingKeeperRecovery=null;prepareModeSlices();saveState(true);closeModal();changeView("home");renderAll();toast("KEEPER TIMELINE RESTORED");sfx("legendary");celebrate();}
 
   function exportSave() {
     const savedAt=now(),payload = JSON.stringify({...buildStateEnvelope(state,savedAt),version:VERSION,exportedAt:savedAt}, null, 2);
@@ -4939,6 +5189,7 @@
       // The timeline being replaced stays restorable from Keeper Recovery.
       try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}
       clearModeRuns();
+      resetDenPresentation();
       state = decoded.state;
       modeSlices = decoded.modes || {};
       prepareModeSlices();
@@ -5109,6 +5360,7 @@ Streak: ${state.player.streak}`;
     if (mini.active || worldEventOpen || el.bottomSheet?.classList.contains("show")) return;
     if (state.pet.stage === "egg") { toast("HATCH YOUR EGG BEFORE SWAPPING"); return; }
     if (!state.pet.alive) { toast("REVIVE YOUR CURRENT RIZO FIRST"); return; }
+    resetDenPresentation();
     const outgoing = state.pet;
     outgoing.homeRoom = target.homeRoom;
     state.farm.roster.splice(rosterIndex, 1, outgoing);
@@ -5217,7 +5469,8 @@ Streak: ${state.player.streak}`;
     // click. Suppress that one ghost click so it cannot activate whatever button
     // was underneath the food tray (room nav, growth info, etc.). Keyboard clicks
     // still use the normal data-food-drag path because no pointer block is set.
-    if (now() < feedClickBlockedUntil) {
+    if (event.detail > 0 && now() < feedClickBlockedUntil) {
+      feedClickBlockedUntil = 0;
       event.preventDefault();
       event.stopImmediatePropagation?.();
       return;
@@ -5226,6 +5479,15 @@ Streak: ${state.player.streak}`;
     if(event.target.closest("[data-update-later]")){document.getElementById("rizoUpdateBar")?.setAttribute("hidden","");return;}
     if(event.target.closest("[data-update-now], [data-refresh-latest]")){forceReleaseRefresh();return;}
 
+    if (event.target.closest("[data-open-home-plans]")) { openHomePlans(); return; }
+    const build = event.target.closest("[data-home-upgrade]")?.dataset.homeUpgrade;
+    if (build) { buildHome(build); return; }
+    if (event.target.closest("[data-den-play-done]")) { endDenPlay(); return; }
+    if (event.target.closest("[data-den-bed]")) { endDenPlay(); toggleSleep(); return; }
+    if (event.target.closest("[data-training-home]")) { closeModal(); changeView("home"); return; }
+    if (event.target.closest("[data-training-continue]")) { closeModal(); changeView("arcade"); return; }
+    const focus = event.target.closest("[data-training-focus]")?.dataset.trainingFocus;
+    if (focus) { trainingFocus = focus; renderArcade(); return; }
     const nav = event.target.closest("[data-nav]")?.dataset.nav;
     if (nav) { changeView(nav); return; }
 
@@ -5306,7 +5568,7 @@ Streak: ${state.player.streak}`;
     if (event.target.closest("[data-clear-bond-seed]")) { clearBondSeed(); return; }
     if (event.target.closest("[data-visitor-interact]")) { say(`${state.social.currentVisitor?.name || "THE VISITOR"}: ${["YOUR GARDEN IS NICE.","DO YOU HAVE SNACKS?","I HEARD ABOUT THE RAIN.","OUR GENETICS ARE NONE OF YOUR BUSINESS."][Math.floor(Math.random()*4)]}`,2800); sfx("talk"); return; }
     const gardenToy = event.target.closest("[data-garden-toy]")?.dataset.gardenToy;
-    if (gardenToy) { useGardenToy(gardenToy); return; }
+    if (gardenToy) { if (now() >= denToyClickBlockedUntil) useGardenToy(gardenToy); return; }
 
     const houseRoom = event.target.closest("[data-house-room]")?.dataset.houseRoom;
     if (houseRoom !== undefined && houseRoom !== "") { selectHouseRoom(Number(houseRoom)); return; }
@@ -5540,6 +5802,10 @@ Streak: ${state.player.streak}`;
       renderAll();
     });
     el.petTapTarget.addEventListener("pointerdown", tapPet);
+    el.petTapTarget.addEventListener("click", event => { if (event.detail === 0) tapPet(event); });
+    // A fresh press is intentional. Only the previous feeding release owns
+    // the suppressed follow-up click; it cannot swallow the next care action.
+    document.addEventListener("pointerdown", () => { feedClickBlockedUntil = 0; }, { capture:true, passive:true });
     document.addEventListener("pointermove", trackRizoAttention, { passive:true });
     document.addEventListener("pointerdown", () => { lastLifeInputAt = now(); scheduleIdleLife(); }, { passive:true });
     el.dailyGiftButton.addEventListener("click", showDailyGift);
@@ -5557,6 +5823,10 @@ Streak: ${state.player.streak}`;
       handleMiniInput(event);
     });
     el.miniArena.addEventListener("pointermove", handleMiniMove, { passive: true });
+    document.addEventListener("pointerdown", beginDenToyDrag);
+    document.addEventListener("pointermove", moveDenToyDrag, { passive: true });
+    document.addEventListener("pointerup", event => endDenToyDrag(event));
+    document.addEventListener("pointercancel", event => endDenToyDrag(event, true));
     document.addEventListener("pointerdown", beginFoodDrag);
     document.addEventListener("pointermove", moveFoodDrag, { passive: true });
     document.addEventListener("pointerup", event => { endFoodDrag(event); handleMiniRelease(event); });
@@ -5726,6 +5996,7 @@ Streak: ${state.player.streak}`;
       activePet.mood = clamp(activePet.mood + award.active.mood);
       if (award.run) {
         whole.meta.totalGames += 1;
+        if (modeId === "defense") { whole.home.activity.defense = Math.min(100000000, whole.home.activity.defense + 1); rememberHomeReturn("defense", "RIZO DEFENSE", applied.embers); }
         progressQuest("play");
         if (award.embers > 0) { const memory = lifeMemory(); memory.arcadeAfterglowUntil = now() + 16000; memory.lastArcadeMode = modeId; }
       }
@@ -5943,7 +6214,8 @@ Streak: ${state.player.streak}`;
       sessionEnd: endModeSession,
       onExit: (modeId, summary, { destination } = {}) => {
         activeMusicOverride = null; syncMusic(true);
-        if (destination === "home") changeView("home"); else renderAll();
+        if (modeId === "dungeon") rememberHomeReturn("dungeon", "RIZO DUNGEON");
+        changeView("home");
         recordModeEvent(modeId, { kind: "returnedToHub", boundaryId: "hub", campaignId: "", tone: "protected", interruption: "none" });
         flushCarePresentations();
         // A proof homecoming gets one small familiar gesture in the Den, nothing more.
@@ -6037,7 +6309,7 @@ Streak: ${state.player.streak}`;
       const affordable = (state.pet?.energy ?? 0) >= (def.entry?.energy || 0);
       const bestTitle = summary?.unit === "wave" ? "BEST WAVE" : summary?.unit === "journey" ? "JOURNEY" : "BEST";
       const entryCell = summary?.entryLabel ? `<span class="meta-energy"><small>ENTRY</small><b>${escapeHTML(summary.entryLabel)}</b></span>` : `<span class="meta-energy${affordable ? "" : " short"}"><small>ENERGY</small><b>${def.entry?.energy || 0}</b></span>`;
-      const lengthCell = `<span class="meta-length"><small>${summary?.lengthLabel ? "LENGTH" : "RUN"}</small><b>${escapeHTML(summary?.lengthLabel || "ENDLESS")}</b></span>`;
+      const lengthCell = summary?.unit === "journey" ? `<span class="meta-length"><small>PACE</small><b>SAVED STORY</b></span>` : `<span class="meta-length"><small>${summary?.lengthLabel ? "LENGTH" : "RUN"}</small><b>${escapeHTML(summary?.lengthLabel || "ENDLESS")}</b></span>`;
       meta.innerHTML = `<span class="meta-best"><small>${bestTitle}</small><b>${escapeHTML(summary?.bestLabel || "—")}</b></span>${entryCell}${lengthCell}`;
     }
   }
@@ -6135,6 +6407,7 @@ Streak: ${state.player.streak}`;
     loadForQA(payload = {}) {
       if (globalThis.RizoModes?.active?.()) globalThis.RizoModes.quitActive("qa-load");
       const { qaModes = null, ...hubPayload } = payload || {};
+      resetDenPresentation();
       state = normalizeState(hubPayload);
       modeSlices = qaModes && typeof qaModes === "object" ? SaveCore.normalizeModes(SaveCore.plainJSON(qaModes)) : {};
       for (const modeId of Object.keys(state.modeInbox || {})) delete modeSlices[modeId];
@@ -6155,7 +6428,10 @@ Streak: ${state.player.streak}`;
     startMiniGame,
     finishMiniGame,
     renderAll,
-    setBehaviorForQA(behavior = "") { activePetBehavior = behavior; if(currentView === "home") renderHome(); return el.petActor.className; },
+    setBehaviorForQA(behavior = "") { startDenBehavior(behavior); return el.petActor.className; },
+    homeForQA: () => ({view:currentView,home:SaveCore.plainJSON(state.home),position:{...state.pet.denPosition},reactions:[...denReactions.keys()]}),
+    moveDenForQA: moveDenTo,
+    buildHomeForQA: buildHome,
     markupForQA(context = "cutscene", accessory = state.pet.accessory) { return petMarkup({context,overrides:{accessory}}); },
     miniSnapshot: () => { const jobs=[...(trainingRun?.jobs?.values()||[])]; return {active:Boolean(mini?.active),mode:mini?.mode||null,track:null,voices:0,intervals:jobs.filter(job=>job.period).length,timeouts:jobs.filter(job=>!job.period).length,entities:(mini?.entities||[]).length,...(trainingGame(mini?.mode)?.qaMini?.(mini)||{})}; },
     arcadeAuthoredForQA: () => Object.fromEntries((Training?.list?.()||[]).filter(def=>def.qaAuthored).map(def=>[def.id,def.qaAuthored(mini,runClockNow())])),

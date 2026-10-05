@@ -93,7 +93,7 @@ with sync_playwright() as p:
         check(f'{width}px ordinary care works without ads',page.evaluate('RizoRuntimeQA.snapshot().pet.hunger')>before)
         page.evaluate('RizoRuntimeQA.setViewForQA("farm")'); page.wait_for_timeout(180)
         check(f'{width}px House preserves resident and active Rizo identities',page.evaluate('RizoRuntimeQA.houseSnapshot().residents[0].name')=='LODGER' and page.evaluate('RizoRuntimeQA.snapshot().pet.id')==pet_id and page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'))
-        page.evaluate('RizoRuntimeQA.setViewForQA("arcade")'); page.wait_for_timeout(100)
+        page.evaluate('RizoRuntimeQA.setViewForQA("go")'); page.wait_for_timeout(100)
         page.locator('button[data-mode="dungeon"]').click(); page.wait_for_timeout(600)
         page.evaluate('RizoRuntimeQA.dungeonSkipSceneForQA();RizoRuntimeQA.dungeonGotoForQA("clatter")'); page.wait_for_timeout(250);page.evaluate('RizoRuntimeQA.dungeonSkipSceneForQA()')
         controls=geometry(page,'.dungeon-key,.dungeon-dpad')

@@ -158,14 +158,14 @@ with sync_playwright() as p:
     record("the hub keeps no Defense fields after the move", r["hubDefenseKeys"] == [], str(r["hubDefenseKeys"]))
     record("the v87 save stays byte-identical as the rollback copy", r["v1"] == F["signedV1"])
     record("the in-progress v87 run is handed to the Defense run store", page.evaluate("()=>localStorage.getItem('rizo-mode-run:defense')") == F["checkpoint1h"])
-    page.evaluate("()=>RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(150)
-    shelf = page.evaluate("()=>({best:document.querySelector('[data-mode-best=defense] b')?.textContent,badge:document.querySelector('[data-mode-card=defense] .mode-badge')?.textContent,summary:RizoModes.summary('defense')})")
-    record("the arcade shelf shows the migrated best wave and milestone", shelf["best"] == "W23" and shelf["badge"] == "W10", str(shelf)[:200])
+    page.evaluate("()=>RizoRuntimeQA.setViewForQA('go')"); page.wait_for_timeout(150)
+    shelf = page.evaluate("()=>({best:document.querySelector('[data-mode-meta=defense] .meta-best b')?.textContent,badge:document.querySelector('[data-mode-card=defense] .mode-badge')?.textContent,summary:RizoModes.summary('defense')})")
+    record("the Go destination shows the migrated best wave and milestone", shelf["best"] == "W23" and shelf["badge"] == "W10", str(shelf)[:200])
     record("Defense migration boot has no page errors", not errors, "; ".join(errors[:2]))
     # Phase 3 (state version 21): Ember Beat's song bag moves to the game's own memory.
     # The save then continues through later versions (22: mode receipts/story marks).
-    record("Ember Beat's song bag moves into training memory (state v21, saved at the current v22)",
-           r["stateVersion"] == 22 and r["musicHistory"] is None and r["trainingMemory"] == {"rhythm": {"emberBag": ["frostline", "iron-heart", "puddle-bounce"], "emberLast": "moss-after-dark"}},
+    record("Ember Beat's song bag moves into training memory (state v21, saved at the current v23)",
+           r["stateVersion"] == 23 and r["musicHistory"] is None and r["trainingMemory"] == {"rhythm": {"emberBag": ["frostline", "iron-heart", "puddle-bounce"], "emberLast": "moss-after-dark"}},
            str({k: r[k] for k in ("stateVersion", "musicHistory", "trainingMemory")}))
     # Second boot: the slice is the source of truth; nothing migrates twice.
     page.reload(); page.wait_for_timeout(1300); r2 = page.evaluate(READ)
