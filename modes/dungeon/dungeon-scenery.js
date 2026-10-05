@@ -864,6 +864,113 @@
   };
 
   const SOLIDS = {};
+  // One service building, seen in cutaway. The masonry and supply pipes are
+  // outside the collision floor; they give short rooms depth without promising
+  // another walkable lane. A patched green main survives every district.
+  function serviceSurround(c, geo, m) {
+    if (geo.id === "slip") return; // preserve the shaft's lonely upward vista
+    const face = FACE[geo.id] || FACE.clatter;
+    const depth = Math.min(96, m.my - 4);
+    A.wallFace(c, 0, -depth, geo.w, depth, `back:${geo.id}`, { ...face, brick: true });
+    rect(c, P.below[0], 0, -depth, geo.w, 5);
+    rect(c, P.ink, 0, -4, geo.w, 4);
+    for (const x of [-14, geo.w + 7]) {
+      box(c, x, -depth, 7, geo.h + depth + 22, P.metal[0], { ink: 1.1, amp: 0.1 });
+      rect(c, P.service[1], x + 1, -depth, 3, geo.h + depth + 20);
+      for (let y = -24; y < geo.h + 20; y += 64) {
+        box(c, x - 2, y, 11, 5, P.metal[1], { ink: 0.8, amp: 0.1 });
+        rivet(c, x + 3, y + 2.5, 0.9);
+      }
+      tape(c, x + 3.5, geo.h * 0.6, 12, 0.16, geo.id);
+    }
+    // Lower wall faces and foundations, darker than the playable floor.
+    A.wallFace(c, 0, geo.h + 2, geo.w, 26, `foundation:${geo.id}`, face);
+    rect(c, P.below[0], 0, geo.h + 28, geo.w, 8);
+    alpha(c, 0.28, () => rect(c, P.plaster[1], 6, geo.h + 38, geo.w - 12, 8));
+    // The cutaway has thickness: a supply chase below the kept floor. It is
+    // subordinate to the room, but short passages no longer float in a void.
+    const chase = Math.min(70, m.my - 4);
+    if (chase > 46) {
+      alpha(c, 0.65, () => {
+        A.wallFace(c, 8, geo.h + 36, geo.w - 16, chase - 36, `chase:${geo.id}`, { upper: P.below, lower: P.metal, brick: true });
+        rect(c, P.metal[0], 12, geo.h + 49, geo.w - 24, 8);
+        rect(c, P.service[1], 12, geo.h + 50, geo.w - 24, 2);
+        for (let x = 28; x < geo.w - 24; x += 62) { rect(c, P.metal[1], x, geo.h + 46, 5, 14); rivet(c, x + 2.5, geo.h + 51, 1); }
+        tape(c, geo.w * 0.62, geo.h + 51, 13, -0.12, 53);
+      });
+    }
+    // Shallow mortar repairs and a vent belong to the wall plane. No invented
+    // sigils, no ornamental fantasy architecture, no extra playable doorway.
+    if (depth > 66) {
+      alpha(c, 0.65, () => {
+        box(c, 24, -depth + 16, 30, 16, P.metal[0], { ink: 1, amp: 0.2 });
+        for (let vx = 28; vx < 52; vx += 5) rect(c, P.metal[1], vx, -depth + 19, 1.2, 10);
+        stitches(c, geo.w - 64, -depth + 29, geo.w - 34, -depth + 24, P.plaster[2], 5, 1.5, 0.8);
+      });
+    }
+    for (const x of [0, geo.w - 8]) rect(c, P.inkSoft, x, -depth, 8, geo.h + depth + 36);
+    // A mundane conduit, with the same cloth-bound repair as the drain pipe.
+    rect(c, P.metal[0], 12, -18, geo.w - 24, 5);
+    rect(c, P.metal[1], 12, -18, geo.w - 24, 1.6);
+    tape(c, geo.w * 0.72, -16, 12, -0.12, 52);
+  }
+
+  // [source x/y, radius, strength, warmth]. Each entry has an actual painted
+  // fixture; sources never live only in the light-pass data.
+  const WORK_LIGHTS = Object.freeze({
+    clatter: [[176, 90, 86, 0.5, 0.3]], hem: [[101, 30, 120, 0.75, 0.5]],
+    queue: [[123, 26, 90, 0.65, 0.4]],
+    receiving: [[185, 40, 135, 0.85, 0.7]],
+    drytable: [[172, 106, 145, 0.75, 0.8]],
+    hangrow: [[60, 40, 110, 0.65, 0.5], [230, 250, 125, 0.55, 0.4], [80, 410, 80, 0.4, 0.3]],
+    lowrun: [[58, 52, 95, 0.6, 0.55], [224, 176, 100, 0.55, 0.6]],
+    eyelet: [[136, 126, 120, 0.7, 0.7], [160, 26, 85, 0.45, 0.4]],
+    traypass: [[160, 30, 140, 0.7, 0.55]],
+    press: [[160, 30, 120, 0.55, 0.4], [42, 320, 65, 0.55, 0.8], [160, 400, 105, 0.4, 0.4]],
+    upper: [[70, 32, 95, 0.5, 0.45]],
+    stair: [[190, 44, 100, 0.7, 0.5], [42, 280, 110, 0.75, 0.8]],
+    windowgate: [[160, 12, 135, 0.7, 0.6], [57, 136, 90, 0.5, 0.7]]
+  });
+  function workLamp(c, x, y) {
+    // Hung from a bracket, not a new obstruction on the floor.
+    line(c, x, y - 22, x, y - 7, P.metal[1], 1.8);
+    box(c, x - 8, y - 8, 16, 11, P.service[1], { ink: 1.3, amp: 0.2, seed: x + y });
+    rect(c, P.service[3], x - 7, y - 7, 14, 2);
+    rect(c, P.sodium[2], x - 5, y - 4, 10, 5);
+    for (const dx of [-5, 0, 5]) rect(c, P.ink, x + dx - 0.5, y - 5, 1, 7);
+    rivet(c, x, y - 18, 1.2);
+  }
+  function wearPath(c, points, width = 18, color = P.plaster[2]) {
+    c.save(); c.strokeStyle = color; c.lineWidth = width; c.lineJoin = "round"; c.lineCap = "round"; c.globalAlpha *= 0.3;
+    c.beginPath(); points.forEach(([x, y], index) => index ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); c.restore();
+  }
+
+  // Same frame and scuffed sill at both ends of a connection. Hardware covers
+  // a closed opening; an open one has a continuous floor and a light beyond it.
+  // No wayfinding mark is used for the caller or any unresolved story symbol.
+  function thresholds(c, geo, s) {
+    for (const exit of geo.exits) {
+      const open = present(exit, s.sim.flags);
+      const vertical = exit.h > exit.w;
+      const x = exit.x + exit.w / 2, y = exit.y + exit.h / 2;
+      const west = x < geo.w / 2, north = y < geo.h / 2;
+      const w = vertical ? 24 : exit.w, h = vertical ? exit.h : 24;
+      const tx = vertical ? (west ? 0 : geo.w - 24) : exit.x;
+      const ty = vertical ? exit.y : (north ? 0 : geo.h - 24);
+      alpha(c, open ? 0.7 : 0.3, () => rect(c, P.plaster[2], tx, ty, w, h));
+      if (vertical) {
+        for (const dy of [0, exit.h]) { box(c, tx - 2, exit.y + dy - 2, w + 4, 4, P.service[2], { ink: 1, amp: 0.1 }); rivet(c, tx + (west ? 20 : 4), exit.y + dy, 1); }
+        rect(c, P.paper[1], west ? 19 : geo.w - 21, exit.y + 3, 1.5, exit.h - 6);
+      } else {
+        for (const dx of [0, exit.w]) { box(c, exit.x + dx - 2, ty - 2, 4, h + 4, P.service[2], { ink: 1, amp: 0.1 }); rivet(c, exit.x + dx, ty + (north ? 20 : 4), 1); }
+        rect(c, P.paper[1], exit.x + 3, north ? 19 : geo.h - 21, exit.w - 6, 1.5);
+      }
+      if (open) {
+        // A bounded spill, continuing beyond the sill. No new destination art.
+        alpha(c, 0.18, () => rect(c, P.sodium[2], vertical ? (west ? -20 : geo.w) : exit.x + 4, vertical ? exit.y + 4 : (north ? -20 : geo.h), vertical ? 20 : exit.w - 8, vertical ? exit.h - 8 : 20));
+      }
+    }
+  }
   // ===================== THE MENDING ROWS =====================
   // Work rooms: cloth, boards, drying frames, a kept stove. Everything here is
   // being mended or about to be, and someone has written down how.
@@ -978,7 +1085,7 @@
         box(c, 272, 2, 26, 16, P.service[1], { ink: 1.2, amp: 0.3 }); rect(c, P.ink, 276, 7, 18, 9);
         line(c, 266, 4, 266, 20, P.wood[3], 1); oval(c, 266, 21, 1.8, 2.4, P.a.brass, true, 0.8);
         label(c, "ROWS", 50, 14, { size: 7, color: P.paper[2], weight: 900 });
-        label(c, "← DRY TABLE", 290, 94, { size: 4.6, color: P.paper[1] });
+        label(c, "TABLE →", 268, 92, { size: 7.5, color: P.paper[2] });
       }
     },
     drytable: {
@@ -1009,17 +1116,22 @@
       },
       walls(c) {
         label(c, "HANGING ROW", 200, 12, { size: 5, color: P.paper[2] });
-        label(c, "LOW →", 284, 32, { size: 4.2, color: P.paper[1] });
+        label(c, "LOW →", 278, 31, { size: 7.5, color: P.paper[2] });
       }
     },
     lowrun: {
       floor(c, geo) {
-        A.planks(c, 0, 0, geo.w, geo.h, "lowrun", { board: 10, tone: [P.below[0], P.below[2], P.wood[1], P.wood[2]] });
+        A.planks(c, 0, 0, geo.w, geo.h, "lowrun", { board: 12, tone: [P.wood[0], P.wood[1], P.wood[1], P.wood[2]] });
+        // The walked surface snakes around the *actual* three board stacks.
+        // Pale end-grain belongs to stacks; broad worn boards belong to feet.
+        wearPath(c, [[20, 60], [62, 60], [62, 160], [142, 160], [142, 68], [224, 68], [224, 178], [284, 178], [300, 190]], 26, P.wood[3]);
         // The warm pipe under the boards: a line of heat showing through the gaps.
-        rect(c, P.ember[0], 20, 212, 280, 5); alpha(c, 0.5, () => rect(c, P.ember[1], 20, 213, 280, 2));
+        rect(c, P.metal[0], 20, 212, 280, 7); rect(c, P.ember[1], 20, 213, 280, 2);
         for (let x = 30; x < 300; x += 26) rect(c, P.metal[1], x, 210, 3, 9);
+        // An ordinary insulation patch, pinned open where the warmth escapes.
+        sheet(c, 126, 206, 24, 10, 31, P.service[2]); stitches(c, 128, 209, 148, 209, P.paper[1], 3, 1, 0.8);
       },
-      walls() {}
+      walls(c) { label(c, "LOW RUN", 166, -30, { size: 9, color: P.paper[2] }); }
     },
     eyelet: {
       floor(c, geo) {
@@ -1028,12 +1140,17 @@
         drop(c, 76, 198, 22, 3);
         box(c, 56, 166, 40, 34, P.wood[2], { ink: 1.2, amp: 0.3 }); for (let y = 172; y < 198; y += 7) rect(c, P.wood[1], 57, y, 38, 1);
         alpha(c, 0.8, () => { rect(c, P.paper[3], 60, 168, 6, 1); rect(c, P.paper[3], 86, 196, 6, 1); });
+        // The same low work light and cloth-bound support as her table. Nell
+        // made room here before he arrived; the crossing reads from the exit.
+        wearPath(c, [[36, 230], [76, 216], [76, 154], [136, 126]], 18, P.plaster[3]);
+        box(c, 182, 116, 26, 10, P.service[1], { ink: 1.1, amp: 0.3 });
+        stitches(c, 184, 121, 206, 121, P.paper[1], 3, 1, 0.7);
         // The eyelet plate, set into the floor.
         box(c, 104, 144, 16, 16, P.metal[2], { ink: 1.1, amp: 0.1 }); oval(c, 112, 152, 4.6, 4.6, P.ink); oval(c, 112, 152, 4.6, 4.6, null, true, 1); alpha(c, 0.8, () => oval(c, 110, 150, 3, 1.4, P.metal[3]));
       },
       walls(c) {
         label(c, "EYELET", 230, 12, { size: 5, color: P.paper[2] });
-        label(c, "PRESS ↑", 120, 12, { size: 4.2, color: P.paper[1] });
+        label(c, "PRESS ↑", 119, 12, { size: 7, color: P.paper[2] });
       }
     },
     traypass: {
@@ -1041,10 +1158,11 @@
         A.tiles(c, 0, 0, geo.w, geo.h, "traypass", { size: 16, colors: [P.below[2], P.below[3]] });
         // Wheel ruts, and where one wheel dragged.
         alpha(c, 0.4, () => { rect(c, P.below[0], 20, 92, 280, 2); rect(c, P.below[0], 20, 108, 280, 2); for (let x = 150; x < 230; x += 6) rect(c, P.below[0], x, 112 + (x % 4), 3, 1); });
+        wearPath(c, [[20, 100], [300, 100]], 24);
         // The bent wheel.
         oval(c, 220, 150, 6, 6, null, true, 1.2); line(c, 214, 150, 226, 148, P.metal[2], 1.2); line(c, 220, 144, 219, 156, P.metal[2], 1.2);
       },
-      walls(c) { label(c, "TRAYS", 160, 12, { size: 5, color: P.paper[2] }); }
+      walls(c) { label(c, "TRAYS", 160, -30, { size: 9, color: P.paper[2] }); }
     },
     press: {
       floor(c, geo) {
@@ -1071,6 +1189,8 @@
       floor(c, geo) {
         A.planks(c, 0, 0, geo.w, geo.h, "upper", { board: 12 });
         alpha(c, 0.4, () => { for (let k = 0; k < 6; k += 1) worn(c, 160 + k * 18, 200 - k * 14, 6, 3, P.wood[3], 0.8); });
+        wearPath(c, [[160, 220], [160, 158], [72, 120], [20, 120]], 22, P.wood[3]);
+        box(c, 74, 78, 42, 12, P.paper[1], { ink: 1.1, amp: 0.4 }); stitches(c, 76, 83, 112, 83, P.a.maroon, 3, 1, 0.8);
       },
       walls(c, geo) {
         // The high window in the east wall: a long hall of service windows, far off, most of them lit.
@@ -1085,12 +1205,22 @@
     },
     stair: {
       floor(c, geo) {
-        // Steps down from the top landing to the table: bands, each a little darker.
-        for (let y = 20, index = 0; y < geo.h - 20; y += 12, index += 1) { rect(c, index % 2 ? P.wood[1] : P.wood[2], 20, y, geo.w - 40, 12); rect(c, P.wood[3], 20, y, geo.w - 40, 1); rect(c, P.wood[0], 20, y + 10.6, geo.w - 40, 1.4); }
+        // Three flights around the two real rails: treads run toward the
+        // *open ends*, rather than implying he can walk straight through them.
+        A.planks(c, 20, 20, geo.w - 40, geo.h - 40, "stair", { board: 14 });
+        for (const [x, y, w, h] of [[174, 64, 40, 126], [26, 126, 40, 126]]) {
+          rect(c, P.wood[0], x - 3, y, w + 6, h);
+          for (let sy = y; sy < y + h; sy += 10) { rect(c, P.wood[2], x, sy, w, 8); rect(c, P.wood[3], x, sy, w, 1.7); }
+        }
+        wearPath(c, [[228, 50], [194, 50], [194, 154], [46, 154], [46, 278], [20, 278]], 22, P.wood[3]);
+        // Light from the table rises through the lower doorway; the same rug
+        // thread is caught harmlessly around the worn bottom post.
+        box(c, 24, 260, 50, 30, P.a.maroon, { ink: 1.1, amp: 0.4 });
+        for (let sy = 264; sy < 288; sy += 6) line(c, 27, sy, 70, sy, P.a.maroonLight, 1);
         // The meal mark: a bowl and an arrow, chalked on a step.
         alpha(c, 0.85, () => { c.strokeStyle = P.paper[3]; c.lineWidth = 0.9; c.beginPath(); c.arc(116, 156, 5, 0, Math.PI); c.stroke(); line(c, 110, 156, 122, 156, P.paper[3], 0.9); line(c, 126, 160, 136, 166, P.paper[3], 0.9); line(c, 136, 166, 131, 166, P.paper[3], 0.9); });
       },
-      walls() {}
+      walls(c) { label(c, "TABLE", 58, 246, { size: 8, color: P.paper[2] }); label(c, "RETURN STAIR", 116, -30, { size: 8, color: P.paper[2] }); }
     },
     windowgate: {
       floor(c, geo) {
@@ -1142,9 +1272,25 @@
   }
   function rowsDynamic(ctx, geo, s) {
     const sim = s.sim, t = s.reduced ? 0 : s.time, room = s.extras.room || {};
+    if (geo.id === "receiving" && room.dryPatch != null) {
+      // Her clearing gesture has a visible result at Rizo's height.
+      box(ctx, 184, 98, 44, 26, P.wood[2], { ink: 1, amp: 0.4 });
+      rect(ctx, P.wood[3], 185, 99, 42, 3);
+      sheet(ctx, 206, 100, 18, 14, 23, P.paper[2]);
+    }
+    if (geo.id === "drytable" && (room.cornerAt != null || s.sim.flags.rowsCatch)) {
+      // The rough corner she fixed stays smooth when he walks past it again.
+      tape(ctx, 126, 162, 15, -0.4, 60);
+      stitches(ctx, 121, 160, 133, 164, P.paper[2], 3, 1, 0.7);
+    }
     for (const prop of geo.props) {
       if (!present(prop, sim.flags)) continue;
-      if (prop.kind === "warm" && prop.id !== "latch-jam") warmCatch(ctx, prop, t);
+      if (prop.kind === "warm" && prop.id !== "latch-jam") {
+        // Each reachable catch visibly belongs to a load, door or brake.
+        const end = { "ledge-catch": [236, 42], "work-catch": [200, 158], "low-catch": [306, 66], "grille-catch": [14, 92], "brake-release": [284, 248], "shutter-release": [172, 16], "low-board": [150, 186] }[prop.id];
+        if (end) { line(ctx, prop.x, prop.y, end[0], end[1], P.ink, 4); line(ctx, prop.x, prop.y, end[0], end[1], P.metal[2], 1.6); rivet(ctx, end[0], end[1], 1.4); }
+        warmCatch(ctx, prop, t);
+      }
       else if (prop.id === "packet") { ctx.save(); ctx.translate(prop.x, prop.y - 6); ctx.rotate(0.08); box(ctx, -7, -4, 14, 8, P.paper[1], { ink: 1, amp: 0.3 }); line(ctx, -7, 0, 7, 0, P.a.red, 0.7); rect(ctx, P.a.stamp, 3, -3, 3, 3); ctx.restore(); }
       else if (prop.id === "chalk") { drop(ctx, prop.x, prop.y + 1, 4, 1.2); box(ctx, prop.x - 4, prop.y - 1.5, 8, 3, P.paper[3], { ink: 0.8, amp: 0.1 }); }
       else if (prop.id === "second-portion") {
@@ -1170,10 +1316,20 @@
       for (const dx of [-16, 16]) for (const dy of [-8, 8]) oval(ctx, x + dx, y + dy + 3, 3.4, 3.4, P.ink);
       box(ctx, x - 22, y - 14, 44, 24, P.metal[1], { ink: 1.5, amp: 0.1 });
       rect(ctx, P.metal[3], x - 21, y - 13, 42, 2.4);
+      // The source of its small pool is a lamp fixed to the moving frame.
+      box(ctx, x - 4, y - 22, 8, 6, P.service[1], { ink: 0.9, amp: 0.1 });
+      rect(ctx, P.sodium[2], x - 2, y - 20, 4, 3);
       box(ctx, x - 18, y - 30, 36, 18, P.metal[2], { ink: 1.3, amp: 0.1 });
       for (let k = 0; k < 4; k += 1) rect(ctx, P.metal[1], x - 15 + k * 9, y - 28, 2, 14);
       rect(ctx, P.a.mustard, x - 22, y + 6, 44, 2.6);
       if (room.carriage.moving && !s.reduced) alpha(ctx, 0.5, () => { for (const dx of [-26, 26]) rect(ctx, P.paper[2], x + dx, y - 2 + Math.sin(s.time / 60) * 2, 1.4, 1.4); });
+      // A stopped carriage rests against a tangible stop; the brake being
+      // released changes its handle, rather than only a hidden flag.
+      if (sim.flags.rowsPressStop) {
+        box(ctx, 278, y - 8, 12, 16, P.service[2], { ink: 1.2, amp: 0.1 });
+        line(ctx, 284, 210, 284, 236, sim.flags.rowsBrake ? P.a.brass : P.metal[2], 2);
+        oval(ctx, 284, 210, 3, 3, sim.flags.rowsBrake ? P.a.brassLight : P.metal[3], true, 1);
+      }
     }
     if (geo.id === "press" && room.screen) {
       // The canvas screen she braces between him and the pass.
@@ -1182,20 +1338,28 @@
       stitches(ctx, 70, 280, 120, 280, P.paper[0], 3, 1, 0.6);
     }
   }
+  function belowOver(ctx, geo, s) {
+    const carriage = s.extras.room?.carriage;
+    if (geo.id !== "press" || !carriage) return;
+    const track = geo.track;
+    // A work hazard, not an attack: a mustard direction tab, a stop bar when
+    // parked. The safe space is outside the two actual rail edges.
+    ctx.save(); ctx.strokeStyle = P.a.mustard; ctx.lineWidth = 1.7;
+    if (carriage.moving) {
+      const dir = Math.sign((carriage.target ?? (carriage.dir > 0 ? track.x1 : track.x0)) - carriage.x) || carriage.dir;
+      const x = carriage.x + dir * 28;
+      ctx.beginPath(); ctx.moveTo(x - dir * 5, track.y - 4); ctx.lineTo(x, track.y); ctx.lineTo(x - dir * 5, track.y + 4); ctx.stroke();
+    } else if (s.sim.flags.rowsPressStop) {
+      ctx.beginPath(); ctx.moveTo(carriage.x + 25, track.y - 9); ctx.lineTo(carriage.x + 25, track.y + 9); ctx.stroke();
+    }
+    ctx.restore();
+  }
   function rowsLights(geo, s, list) {
     const room = s.extras.room || {};
-    const lamps = {
-      receiving: [[185, 40, 120, 0.75, 0.6], [285, 20, 80, 0.5, 0.5], [160, 220, 90, 0.35, 0.3]],
-      hangrow: [[60, 40, 110, 0.6, 0.5], [230, 250, 120, 0.4, 0.3], [140, 410, 90, 0.35, 0.3]],
-      lowrun: [[160, 214, 130, 0.45, 0.9]],
-      eyelet: [[160, 40, 110, 0.6, 0.5], [112, 152, 50, 0.3, 0.2]],
-      traypass: [[160, 30, 120, 0.5, 0.4]],
-      press: [[160, 30, 120, 0.55, 0.4], [42, 320, 50, 0.45, 0.8], [160, 400, 100, 0.35, 0.3]],
-      upper: [[296, 110, 120, 0.75, 0.6], [160, 200, 80, 0.3, 0.3]],
-      stair: [[120, 60, 110, 0.5, 0.4], [60, 270, 80, 0.4, 0.5]],
-      windowgate: [[160, 40, 140, 0.85, 0.7], [310, 100, 80, 0.5, 0.6], [310, 220, 80, 0.5, 0.6], [57, 136, 60, 0.35, 0.6]]
-    }[geo.id] || [];
-    for (const [x, y, r, strength, warm] of lamps) list.push({ x, y, r, strength, warm });
+    for (const [x, y, r, strength, warm] of WORK_LIGHTS[geo.id] || []) list.push({ x, y, r, strength, warm });
+    if (geo.id === "lowrun") list.push({ x: 140, y: 214, r: 80, strength: 0.3, warm: 0.8 });
+    if (geo.id === "upper") list.push({ x: 306, y: 110, r: 110, strength: 0.65, warm: 0.5 });
+    if (geo.id === "windowgate") for (const y of [43, 163, 223]) list.push({ x: 310, y, r: 65, strength: 0.5, warm: 0.6 });
     if (geo.id === "drytable" && room.board) list.push({ x: 156, y: 150, r: 60, strength: 0.5, warm: 0.8 });
     if (geo.id === "press" && room.carriage) list.push({ x: room.carriage.x, y: geo.track.y - 20, r: 40, strength: 0.25, warm: 0.2 });
   }
@@ -1204,10 +1368,12 @@
     rect(c, P.void, -m.mx, -m.my, geo.w + m.mx * 2, geo.h + m.my * 2);
     const decor = ROOMS[geo.id] || {}, style = FACE[geo.id] || FACE.clatter;
     decor.beyond?.(c, geo, m);
+    serviceSurround(c, geo, m);
     decor.floor?.(c, geo, m);
     for (const s of geo.solids) if (!s.openWhen && !s.when && s.kind === "wall") solidStatic(c, s, geo, style);
     decor.walls?.(c, geo, m);
     for (const s of geo.solids) if (!s.openWhen && !s.when && s.kind !== "wall") solidStatic(c, s, geo, style);
+    for (const [x, y] of WORK_LIGHTS[geo.id] || []) workLamp(c, x, y);
   }
 
   // Doors, gates and hatches change with the story, so they are live.
@@ -1263,6 +1429,7 @@
   }
   function belowDynamic(ctx, geo, s) {
     const sim = s.sim, t = s.reduced ? 0 : s.time, p = s.pos;
+    thresholds(ctx, geo, s);
     for (const solid of geo.solids) if (solid.openWhen || solid.when) dynamicSolid(ctx, solid, sim, t, geo);
     if (geo.id === "clatter") {
       // Dormant, not dead: pilot lamps on the chute and the pipe wake as he passes.
@@ -1308,7 +1475,7 @@
   }
   function belowLights(geo, s) {
     const sim = s.sim, list = [];
-    let ambient = { color: [10, 7, 5], alpha: 0.5 };
+    let ambient = { color: [10, 7, 5], alpha: 0.43 };
     if (geo.id === "slip") {
       // The Slip is dark: he finds it by his own light. Faint grey far above,
       // where the rain light was; total black while he comes to.
@@ -1317,15 +1484,14 @@
       const waking = room.wakeAt != null && (s.extras.sceneTime || 0) - room.wakeAt < 4000;
       ambient = { color: [4, 3, 3], alpha: waking ? 0.985 : 0.9 };
     }
-    if (geo.id === "hem") list.push({ x: 101, y: 30, r: 120, strength: 0.75, warm: 0.5 });
-    if (geo.id === "clatter") { list.push({ x: 290, y: 40, r: 60, strength: 0.5, warm: 0.4 }); list.push({ x: 176, y: 90, r: 70, strength: 0.35 }); }
-    if (geo.id === "queue") { list.push({ x: 123, y: 26, r: 90, strength: 0.65, warm: 0.4 }); list.push({ x: 160, y: 0, r: 40, strength: 0.4, warm: 0.6 }); }
+    if (geo.id === "clatter") list.push({ x: 290, y: 40, r: 60, strength: 0.5, warm: 0.4 });
+    if (geo.id === "queue") list.push({ x: 160, y: 0, r: 40, strength: 0.4, warm: 0.6 });
     if (geo.hearth) {
       const lit = Boolean(sim.hearthLit), t = s.reduced ? 0 : s.time;
       const breathe = lit ? 1 + Math.sin(t / 180) * 0.025 + Math.sin(t / 67) * 0.015 : 1;
       // The sanctuary: one warm pool around the fire and the bench; the corners stay dark.
       list.push({ x: geo.hearth.x - 10, y: geo.hearth.y + 12, r: (lit ? 150 : 50) * breathe, strength: lit ? 1.2 : 0.4, warm: lit ? 1 : 0.4, flat: 0.62 });
-      ambient = { color: lit ? [14, 7, 4] : [8, 7, 8], alpha: lit ? 0.55 : 0.55 };
+      ambient = { color: lit ? [14, 7, 4] : [8, 7, 8], alpha: lit ? 0.4 : 0.5 };
     }
     if (geo.id === "porter") {
       ambient = { color: [8, 6, 6], alpha: 0.54 };
@@ -1335,7 +1501,7 @@
       if (sim.flags?.alcoveOpen) list.push({ x: 24, y: 142, r: 50, strength: 0.8, warm: 0.7 });
     }
     rowsLights(geo, s, list);
-    if (geo.id === "lowrun") ambient = { color: [8, 5, 4], alpha: 0.66 };
+    if (geo.id === "lowrun") ambient = { color: [8, 5, 4], alpha: 0.48 };
     return { ambient, list };
   }
 
@@ -1346,7 +1512,7 @@
     road: { paintStatic: roadStatic, paintDynamic: roadDynamic, paintOver: roadOver, lights: roadLights },
     drain: { paintStatic: drainStatic, paintDynamic: drainDynamic, lights: drainLights }
   };
-  const BELOW_THEME = { paintStatic: belowStatic, paintDynamic: belowDynamic, lights: belowLights };
+  const BELOW_THEME = { paintStatic: belowStatic, paintDynamic: belowDynamic, paintOver: belowOver, lights: belowLights };
   const themeOf = geo => THEMES[geo.theme] || BELOW_THEME;
 
   return Object.freeze({

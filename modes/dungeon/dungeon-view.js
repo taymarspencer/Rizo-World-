@@ -59,7 +59,7 @@
         <div class="dungeon-prompt" hidden aria-hidden="true"></div>
         <div class="dungeon-cue" hidden aria-hidden="true"></div>
         <div class="dungeon-banner" hidden aria-live="polite"></div>
-        <div class="dungeon-dialogue" data-dungeon-ui hidden role="dialog" aria-live="polite"><div class="dungeon-portrait" aria-hidden="true"></div><div class="dungeon-speech"><b class="dungeon-speaker"></b><p class="dungeon-line"></p></div><span class="dungeon-more" aria-hidden="true"></span></div>
+        <div class="dungeon-dialogue" data-dungeon-ui hidden role="dialog" aria-live="polite"><div class="dungeon-portrait" aria-hidden="true"></div><div class="dungeon-speech"><b class="dungeon-speaker"></b><p class="dungeon-line"><span class="dungeon-line-text"></span></p></div><span class="dungeon-more" aria-hidden="true"></span></div>
         <div class="dungeon-choice" data-dungeon-ui hidden role="group" aria-label="Choose"></div>
         <div class="dungeon-fade" aria-hidden="true"></div>
         <canvas class="dungeon-fallfx" aria-hidden="true"></canvas>
@@ -87,7 +87,7 @@
     const el = {
       device: $(".dungeon-device"), slot: $(".dungeon-slot"), screen: $(".dungeon-screen"), canvas: $(".dungeon-canvas"), actors: $(".dungeon-actors"),
       actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
-      prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), more: $(".dungeon-more"),
+      prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), lineText: $(".dungeon-line-text"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
       fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), dpad: $(".dungeon-dpad"),
       thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"),
@@ -98,7 +98,27 @@
     const camera = { x: 0, y: 0, ready: false };
     const effects = [];
     const barkNodes = new Map();
-    let actorUnits = ACTOR_UNITS, lastFlame = -1, lastDir = "", lastKeys = "", lastPortrait = "";
+    // Only an oversized modal card scrolls. The page and game retain their
+    // touch-action/gesture lock, including on older WebKit phones.
+    let cardDrag = null;
+    el.panel.addEventListener("pointerdown", event => {
+      if (el.panel.scrollHeight <= el.panel.clientHeight + 1 || event.button > 0) return;
+      cardDrag = { id: event.pointerId, y: event.clientY, scroll: el.panel.scrollTop, moved: false };
+    });
+    el.panel.addEventListener("pointermove", event => {
+      if (!cardDrag || cardDrag.id !== event.pointerId) return;
+      const dy = event.clientY - cardDrag.y;
+      if (!cardDrag.moved && Math.abs(dy) < 8) return;
+      if (!cardDrag.moved) { cardDrag.moved = true; try { el.panel.setPointerCapture(event.pointerId); } catch (error) {} }
+      event.preventDefault();
+      el.panel.scrollTop = cardDrag.scroll - dy;
+    });
+    for (const type of ["pointerup", "pointercancel"]) el.panel.addEventListener(type, event => { if (cardDrag?.id === event.pointerId) cardDrag = null; });
+    // Taking capture from the paragraph/button sends a *bubbling* loss from
+    // that child. Only losing the panel's own capture ends its drag.
+    el.panel.addEventListener("lostpointercapture", event => { if (event.target === el.panel && cardDrag?.id === event.pointerId) cardDrag = null; });
+    el.panel.addEventListener("wheel", event => { el.panel.scrollTop += event.deltaY; }, { passive: true });
+    let actorUnits = ACTOR_UNITS, lastFlame = -1, lastDir = "", lastKeys = "", lastPortrait = "", lastLine = "";
 
     // The screen takes the space the device leaves it, within an aspect cap
     // (never taller than ~1.5x its width, never flatter than ~0.56x).
@@ -118,6 +138,7 @@
       el.canvas.style.width = `${cssW}px`;
       el.canvas.style.height = `${cssH}px`;
       camera.ready = false;
+      el.dialogue.dataset.placed = "";
       sizeActor();
       return true;
     }
@@ -527,6 +548,9 @@
       const flame = Math.max(0, p.flame);
       const lightScale = extras.lightScale ?? 1;
       if (lightScale > 0) lit.list.push({ x: pos.x, y: pos.y - 2, r: ((geo.world ? 30 : 46) + flame * 8) * lightScale, strength: geo.world ? 0.75 : 1, warm: geo.world ? 0.3 : 0.6 });
+      // Fire briefly lights what it reaches, using the existing bounded light
+      // pass. A dying flame still shortens the ordinary pool after the action.
+      if (lightScale > 0 && p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active") lit.list.push({ x: pos.x + p.act.fx * 18, y: pos.y + p.act.fy * 18, r: geo.world ? 38 : 64, strength: 0.65, warm: 1 });
       lighting.apply(ctx, view, lit.ambient, lit.list);
       Scenery.paintOver?.(ctx, geo, scene);
       // Waking in the dark: a pinprick of his flame before anything else.
@@ -534,6 +558,7 @@
       if (actorLight > 0 && actorLight < 0.6) { ctx.save(); ctx.globalAlpha = 1 - actorLight; Art.flame(ctx, pos.x, pos.y - 4, 1.4 + actorLight * 4, reducedMotion ? 0 : time); ctx.restore(); }
       setActorLight(actorLight);
       paintTelegraphs(sim, geo);
+      paintFocus(extras.focus);
       paintKindle(sim, geo);
       paintFlare(sim, Boolean(geo.world), time);
       paintEffects(time);
@@ -541,16 +566,40 @@
       const [ax, ay] = toScreen(pos.x + ox, pos.y + oy + Core.T.PLAYER_RADIUS * 0.6);
       const size = actorUnits * metrics.scale;
       el.actor.style.transform = `translate3d(${(ax - size / 2).toFixed(1)}px, ${(ay - size * 0.84).toFixed(1)}px, 0)`;
-      // A line never hides the one it is said to: on a short screen, if the box
-      // would cover him, it sits at the top instead (decided once per line).
+      // Full-line space is reserved before the typewriter starts. Choose the
+      // end of the screen that leaves Rizo and the speaking body most visible.
       if (!el.dialogue.hidden && !el.dialogue.dataset.placed) {
-        const boxTop = metrics.cssH - (el.dialogue.offsetHeight || 72) - 12;
-        el.dialogue.classList.toggle("at-top", ay + size * 0.16 > boxTop);
+        const height = el.dialogue.offsetHeight || 72;
+        const protectedBodies = [{ x: ax - size / 2, y: ay - size * 0.84, w: size, h: size, weight: 3 }];
+        const speaker = (extras.npcs || []).find(actor => actor.id === el.dialogue.dataset.speaker);
+        if (speaker) {
+          const [sx, sy] = toScreen(speaker.x, speaker.y);
+          const h = (Art.HEIGHT[speaker.kind] || 54) * metrics.scale;
+          protectedBodies.push({ x: sx - h * 0.22, y: sy - h, w: h * 0.44, h, weight: 1 });
+        }
+        const cost = y => protectedBodies.reduce((sum, body) => sum + overlap({ x: 8, y, w: metrics.cssW - 16, h: height }, body) * body.weight, 0);
+        el.dialogue.classList.toggle("at-top", cost(30) < cost(metrics.cssH - height - 8));
         el.dialogue.dataset.placed = "1";
       }
-      renderBarks(extras.barks || [], extras.npcs || []);
+      renderBarks(extras.barks || [], extras.npcs || [], { x: ax - size / 2 - 4, y: ay - size * 0.84 - 4, w: size + 8, h: size + 8 });
       renderThought(extras.thought, pos);
     }
+    // Reachable things share a quiet pair of brackets. Fire still has its own
+    // arc and threat telegraphs keep their sharper bands and chevrons.
+    function paintFocus(target) {
+      if (!target) return;
+      const r = Math.max(8, Math.min(14, target.r + 4));
+      ctx.save(); ctx.strokeStyle = P.paper[3]; ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (const side of [-1, 1]) {
+        ctx.moveTo(target.x + side * (r - 3), target.y - r * 0.6);
+        ctx.lineTo(target.x + side * r, target.y - r * 0.6);
+        ctx.lineTo(target.x + side * r, target.y + r * 0.6);
+        ctx.lineTo(target.x + side * (r - 3), target.y + r * 0.6);
+      }
+      ctx.stroke(); ctx.restore();
+    }
+    const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
     // Actor brightness: only waking in the dark changes it.
     let lastActorLight = -1;
     function setActorLight(k) {
@@ -624,8 +673,11 @@
     }
     const time0 = 0;
     // Speech bubbles over NPCs: DOM, 14px, never covering the controls.
-    function renderBarks(list, actors) {
+    function renderBarks(list, actors, rizo) {
+      if (!list.length && !barkNodes.size) return;
       const seen = new Set();
+      const occupied = [rizo];
+      if (!el.dialogue.hidden) { const h = el.dialogue.offsetHeight; occupied.push({ x: 8, y: el.dialogue.classList.contains("at-top") ? 30 : metrics.cssH - h - 8, w: metrics.cssW - 16, h }); }
       for (const item of list) {
         const actor = actors.find(entry => entry.id === item.id);
         if (!actor) continue;
@@ -639,9 +691,20 @@
         let [x, y] = toScreen(actor.x + (actor.barkDx || 0), actor.y - lift);
         const width = node.offsetWidth || 120, height = node.offsetHeight || 30, edge = 8;
         const off = x < 0 || x > metrics.cssW || y < height + 30 || y > metrics.cssH - 10;
-        x = Math.min(metrics.cssW - width / 2 - edge, Math.max(width / 2 + edge, x));
-        y = Math.min(metrics.cssH - edge - 8, Math.max(height + 34, y));
+        // Try the natural head position first, then beside it. Clamp each
+        // candidate; never trade a readable line for hiding the small flame.
+        const candidates = [[x, y], [x + width * 0.55, y], [x - width * 0.55, y], [x, y - height - 12], [x, y + height + lift * metrics.scale + 12]];
+        let best = null;
+        for (const [cx, cy] of candidates) {
+          const bx = Math.min(metrics.cssW - width / 2 - edge, Math.max(width / 2 + edge, cx));
+          const by = Math.min(metrics.cssH - edge - 8, Math.max(height + 34, cy));
+          const bounds = { x: bx - width / 2 - 3, y: by - height - 3, w: width + 6, h: height + 12 };
+          const score = occupied.reduce((sum, rect) => sum + overlap(bounds, rect), 0) * 100 + Math.hypot(bx - x, by - y);
+          if (!best || score < best.score) best = { x: bx, y: by, bounds, score };
+        }
+        x = best.x; y = best.y; occupied.push(best.bounds);
         node.classList.toggle("is-edge", off);
+        node.classList.toggle("is-below", y > toScreen(actor.x, actor.y)[1]);
         node.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -100%)`;
       }
       for (const [id, node] of barkNodes) if (!seen.has(id)) { node.remove(); barkNodes.delete(id); }
@@ -673,7 +736,8 @@
     // A control wakes once: the only kind of tutorial the handheld gives.
     function pulseKey(name) {
       const node = name === "dpad" ? el.dpad : el.keys[name];
-      if (!node || reducedMotion) return;
+      if (!node) return;
+      if (reducedMotion) { node.classList.add("is-hinted"); setTimeout(() => node.classList.remove("is-hinted"), 1600); return; }
       node.classList.remove("is-pulsing");
       void node.offsetWidth;
       node.classList.add("is-pulsing");
@@ -681,17 +745,20 @@
     }
     function showPrompt(target, label) {
       if (!target) { if (!el.prompt.hidden) el.prompt.hidden = true; return; }
-      const [x, y] = toScreen(target.x, target.y - target.r - 6);
+      let [x, y] = toScreen(target.x, target.y - target.r - 6);
       el.prompt.hidden = false;
-      el.prompt.textContent = label;
+      if (el.prompt.textContent !== label) el.prompt.textContent = label;
+      const half = el.prompt.offsetWidth / 2;
+      x = Math.max(half + 8, Math.min(metrics.cssW - half - 8, x));
+      y = Math.max(el.prompt.offsetHeight + 30, Math.min(metrics.cssH - 8, y));
       el.prompt.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -100%)`;
     }
     function showCue(markup) { if (!markup) { if (!el.cue.hidden) { el.cue.hidden = true; el.cue.innerHTML = ""; } return; } if (el.cue.innerHTML !== markup) el.cue.innerHTML = markup; el.cue.hidden = false; }
     function banner(text) { el.banner.textContent = text || ""; el.banner.hidden = !text; }
     // Dialogue: a speaker's portrait (data-driven expression) beside the line.
-    function dialogue(text, { done = false, speaker = null, expr = null } = {}) {
+    function dialogue(text, { done = false, speaker = null, expr = null, fullText = text } = {}) {
       // null, not "": the next line always redraws its portrait (narration hides it).
-      if (text === null) { el.dialogue.hidden = true; el.line.textContent = ""; lastPortrait = null; el.dialogue.dataset.placed = ""; el.dialogue.classList.remove("at-top"); return; }
+      if (text === null) { el.dialogue.hidden = true; el.lineText.textContent = ""; el.line.dataset.fullText = ""; lastPortrait = null; lastLine = ""; el.dialogue.dataset.placed = ""; el.dialogue.classList.remove("at-top"); return; }
       el.dialogue.hidden = false;
       const who = speaker ? Content.SPEAKERS[speaker] : null;
       el.dialogue.classList.toggle("is-narration", !who);
@@ -706,15 +773,19 @@
         el.portrait.hidden = !who;
         el.speaker.textContent = who ? who.name : "";
       }
-      el.line.textContent = text;
+      const lineKey = `${speaker}:${fullText}`;
+      if (lastLine !== lineKey) { lastLine = lineKey; el.line.dataset.fullText = fullText; el.dialogue.dataset.placed = ""; }
+      if (el.lineText.textContent !== text) el.lineText.textContent = text;
       el.more.textContent = done ? "▼" : "";
     }
     function choice(options, selected = 0) {
       if (!options) { el.choice.hidden = true; el.choice.innerHTML = ""; return; }
       el.choice.hidden = false;
+      el.choice.style.setProperty("--choices", options.length);
       el.choice.innerHTML = options.map((option, index) => `<button type="button" class="${index === selected ? "is-selected" : ""}" data-choice-index="${index}" aria-pressed="${index === selected}">${esc(option.label)}</button>`).join("");
     }
     function panel(markup) {
+      cardDrag = null;
       if (!markup) { el.panel.hidden = true; el.panel.innerHTML = ""; el.device.classList.remove("panel-open"); return; }
       el.panel.innerHTML = markup;
       el.panel.hidden = false;

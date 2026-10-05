@@ -430,6 +430,9 @@ with sync_playwright() as p:
     # ================= LEAVING THE DUNGEON GIVES THE PAGE BACK =================
     ph = Phone(browser, (390, 844)); page = ph.page
     page.evaluate(SETUP); page.evaluate("RizoRuntimeQA.setViewForQA('arcade')"); ph.wait(250)
+    # Go's compact shelf may only scroll 48 px. Give the page a known scroll
+    # range so this tests the Dungeon's lock/restore, independent of hub layout.
+    page.evaluate("()=>{const probe=document.createElement('div');probe.style.height='800px';probe.dataset.qaScrollProbe='true';document.body.appendChild(probe)}")
     page.evaluate("window.scrollTo(0,200)"); ph.wait(100); before = page.evaluate("scrollY")
     page.evaluate("document.querySelector('[data-mode=\"dungeon\"]').click()"); ph.wait(900)
     during = page.evaluate("scrollY"); locked = page.evaluate("document.documentElement.classList.contains('dungeon-locked')")
