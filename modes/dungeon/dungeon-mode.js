@@ -61,7 +61,38 @@
   const TALK_GAP_MS = 250;
   const barkMs = text => Math.max(1600, 800 + 300 * String(text || "").split(/\s+/).filter(Boolean).length);
   const DUNGEON_LEAD = [57, null, null, null, null, null, 60, null, 55, null, null, null, null, null, null, null], DUNGEON_BASS = [33, null, null, null, 36, null, null, null];
-  const DUNGEON_TRACK = Object.freeze({ id: "dungeon-below", tempo: 880, lead: DUNGEON_LEAD, bass: DUNGEON_BASS, wave: "sine" });
+  // The emotional state the adaptive tracks read. One Dungeon runs at a time;
+  // the live instance writes it each frame (presentation only, never saved).
+  //   danger 0..1: something below is aware of him, or committing to him.
+  const MOOD = { danger: 0 };
+  // States in which something is about to happen to him.
+  const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep"]);
+  // Danger is restrained: a low pulse under whatever is playing, then a tick
+  // when something commits. It never becomes a different song.
+  function dangerLayer(step, play) {
+    if (MOOD.danger > 0.05 && step % 2 === 1) play(28, 0.34, 0.013 * MOOD.danger, 0, "triangle");
+    if (MOOD.danger > 0.6 && step % 4 === 3) play(52, 0.08, 0.006, 0, "square");
+  }
+  function belowBeat(step, play) {
+    const lead = DUNGEON_LEAD[step % DUNGEON_LEAD.length], bass = DUNGEON_BASS[step % DUNGEON_BASS.length];
+    if (lead != null) play(lead, 0.63, 0.026, 0, "sine");
+    if (bass != null) play(bass, 1.28, 0.018, 0, "triangle");
+    dangerLayer(step, play);
+  }
+  const DUNGEON_TRACK = Object.freeze({ id: "dungeon-below", tempo: 880, lead: DUNGEON_LEAD, bass: DUNGEON_BASS, wave: "sine", beat: belowBeat });
+  // The van: no melody. An engine you feel more than hear, closing in.
+  const VAN_TRACK = Object.freeze({ id: "dungeon-van", tempo: 470, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 2 === 0) play(26, 0.5, step % 8 === 0 ? 0.02 : 0.013, 0, "triangle"); if (step % 8 === 5) play(31, 0.22, 0.008, 0, "sine"); } });
+  // The drain: the first relief. The road's low note, and one warm note answering it.
+  const DRAIN_TRACK = Object.freeze({ id: "dungeon-drain", tempo: 1400, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 16 === 0) play(31, 2.6, 0.016, 0, "sine"); if (step % 16 === 8) play(33, 2.2, 0.012, 0, "sine"); if (step % 16 === 4) play(52, 2.8, 0.009, 0, "triangle"); if (step % 32 === 20) play(56, 2.4, 0.007, 0, "triangle"); } });
+  // The Shared Hearth: the only lullaby below. Slow, close, warm.
+  const HEARTH_LEAD = [60, null, null, 64, null, null, 67, null, 65, null, null, 64, null, null, null, null], HEARTH_BASS = [36, null, null, null, 41, null, null, null];
+  const HEARTH_TRACK = Object.freeze({ id: "dungeon-hearth", tempo: 980, lead: HEARTH_LEAD, bass: HEARTH_BASS, wave: "triangle",
+    beat(step, play) { const lead = HEARTH_LEAD[step % 16], bass = HEARTH_BASS[step % 8]; if (lead != null) play(lead, 0.95, 0.019, 0, "triangle"); if (bass != null) play(bass, 1.7, 0.015, 0, "sine"); } });
+  // The Night Porter's hall: a tolling key-bell and a held breath.
+  const PORTER_TRACK = Object.freeze({ id: "dungeon-porter", tempo: 640, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 8 === 0) play(31, 2.4, 0.022, 0, "triangle"); if (step % 8 === 4) play(30, 1.3, 0.011, 0, "triangle"); if (step % 16 === 10) play(55, 0.5, 0.009, 0, "sine"); dangerLayer(step, play); } });
   // Outside there is almost no music: rain, a hum, one low note now and then.
   const STREET_TRACK = Object.freeze({ id: "dungeon-street", tempo: 1400, lead: [null, null, null, null, null, null, null, null], bass: [31, null, null, null, null, null, null, null, 33, null, null, null, null, null, null, null], wave: "sine" });
   // Designed silence: the mode keeps the music, and plays nothing.
@@ -74,10 +105,7 @@
     id: "dungeon-home", tempo: 880, lead: DUNGEON_LEAD, bass: DUNGEON_BASS, wave: "sine",
     beat(step, play) {
       if (step < HOME_MOTIF.length) { if (HOME_MOTIF[step] != null) play(HOME_MOTIF[step], 1.3, 0.03, 0, "triangle"); if (step === 0) play(40, 3.2, 0.016, 0, "sine"); return; }
-      const index = step - HOME_MOTIF.length;
-      const lead = DUNGEON_LEAD[index % DUNGEON_LEAD.length], bass = DUNGEON_BASS[index % DUNGEON_BASS.length];
-      if (lead != null) play(lead, 0.63, 0.026, 0, "sine");
-      if (bass != null) play(bass, 1.28, 0.018, 0, "triangle");
+      belowBeat(step - HOME_MOTIF.length, play);
     }
   });
   const FAILED = Object.freeze({ status: "failed", rewardApplied: false, duplicateReward: false, backupSynced: false, reason: "error" });
@@ -185,7 +213,8 @@
       if (sceneTime < silentUntil) return;
       const a = host.audio || {};
       try {
-        if (kind === "buzz") { a.tone?.(118, 0.22, "square", 0.012); a.tone?.(118, 0.22, "square", 0.012, 0.3); a.haptic?.(10); return; }
+        // His phone: the buzz, and under it a thin cold half-step that belongs to nobody else.
+        if (kind === "buzz") { a.tone?.(118, 0.22, "square", 0.012); a.tone?.(118, 0.22, "square", 0.012, 0.3); a.tone?.(1568, 0.5, "sine", 0.0045); a.tone?.(1661, 0.5, "sine", 0.0045, 0.05); a.haptic?.(10); return; }
         if (kind === "flare") { a.noise?.(0.07, 0.02); a.tone?.(330, 0.06, "triangle", 0.028, 0, 160); }
         else if (kind === "spark") { a.noise?.(0.05, 0.014); a.tone?.(420, 0.05, "triangle", 0.018, 0, 120); }
         else if (kind === "hit") { a.tone?.(520, 0.05, "square", 0.03, 0, -120); a.haptic?.(12); }
@@ -243,6 +272,14 @@
         else if (kind === "plate") { a.tone?.(1180, 0.06, "triangle", 0.012); a.tone?.(880, 0.08, "triangle", 0.01, 0.07); }
         else if (kind === "carriage") { a.noise?.(0.5, 0.014); a.tone?.(74, 0.5, "square", 0.01, 0, 10); a.haptic?.(10); }
         else if (kind === "wind") { a.noise?.(1.6, 0.012); a.tone?.(70, 1.6, "sine", 0.008, 0, -30); }
+        // The van, and feelings that are not music.
+        else if (kind === "wiper") { a.tone?.(1700, 0.09, "sine", 0.0032, 0, -520); a.noise?.(0.05, 0.0028, 0.05); }
+        else if (kind === "road") { a.noise?.(0.2, 0.0055); a.tone?.(41, 0.24, "sine", 0.006); }
+        else if (kind === "heart") { a.tone?.(46, 0.11, "sine", 0.02); a.tone?.(44, 0.1, "sine", 0.014, 0.19); }
+        else if (kind === "curious") a.tone?.(740, 0.07, "sine", 0.008, 0, 160);
+        else if (kind === "relief") { a.noise?.(0.45, 0.005); a.tone?.(392, 0.5, "sine", 0.009, 0.05, -60); }
+        // Nell: three warm notes, the first time she makes room for him and when she gives.
+        else if (kind === "nell") { a.tone?.(523, 0.5, "triangle", 0.011); a.tone?.(659, 0.55, "triangle", 0.01, 0.24); a.tone?.(587, 0.8, "triangle", 0.009, 0.5); }
       } catch (error) {}
     };
     const duck = (ms, level) => { try { host.audio.duck?.(ms, level); } catch (error) {} };
@@ -498,9 +535,10 @@
           if (item.hold) { state.next += item.hold; continue; }
           if (item.call) { item.call(); continue; }
           if (item.pose) { setPose(item.pose, item.ms); state.next += item.ms || 0; continue; }
-          const ms = barkMs(item.text);
+          // A weighted line stays up longer; a quiet one is set smaller. Neither changes the words.
+          const ms = Math.round(barkMs(item.text) * (item.weight || 1));
           barks = barks.filter(entry => entry.id !== item.speaker);
-          barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true });
+          barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true, quiet: Boolean(item.quiet) });
           state.next += ms + TALK_GAP_MS;
         }
         return state.index >= items.length && state.clock >= state.next;
@@ -555,7 +593,7 @@
       sim.hearthLit = data.checkpoint.hearthId === Core.room(roomId).hearth?.id;
       prev = { x: sim.player.x, y: sim.player.y };
       view.camera.ready = false;
-      npcs = new Map(); barks = []; room = {};
+      npcs = new Map(); barks = []; room = {}; MOOD.danger = 0;
       view.setRoomName(Content.ROOMS[roomId].name);
       view.setFlame(sim.player.flame, Core.T.FLAME_MAX);
     }
@@ -1057,7 +1095,32 @@
       if (room.hurtAt != null && sceneTime - room.hurtAt < 600) k *= 0.62 + 0.38 * ((sceneTime - room.hurtAt) / 600);
       if (room.smallestAt != null && !room.smallestDone) k *= 0.5;
       if (room.loosenAt != null && sceneTime - room.loosenAt < 2600) k *= 1 + 0.18 * Math.sin(Math.PI * clamp((sceneTime - room.loosenAt) / 2600, 0, 1));
+      k *= moodScale();
+      // Below, a threat close by pulls it in a little; so does running low.
+      if (!geo().world) {
+        k *= 1 - 0.1 * MOOD.danger;
+        if (sim.player.flame <= 1 && sim.phase === "play") k *= 0.86 + (reducedMotion() ? 0 : 0.04 * Math.sin(sceneTime / 90));
+      }
       return k;
+    }
+    // He has no words for it; his flame says it. Fear pulls it small and
+    // unsteady, relief lets it swell once, warmth (someone kind, a hearth) lifts it.
+    function flameMood(kind, ms) { room.mood = { kind, at: sceneTime, ms: ms || 1600 }; }
+    function relief() {
+      flameMood("relief", 1900);
+      if (!scene) setPose("loosen", 1300);
+      sound("relief");
+    }
+    function moodScale() {
+      const m = room.mood;
+      if (!m) return 1;
+      const t = sceneTime - m.at;
+      if (t < 0 || t > m.ms) return 1;
+      const env = Math.min(1, t / 260, (m.ms - t) / 520);
+      if (m.kind === "fear") return 1 - env * (0.2 + (reducedMotion() ? 0 : 0.05 * Math.sin(sceneTime / 47) * Math.sin(sceneTime / 113)));
+      if (m.kind === "relief") return 1 + 0.14 * Math.sin(Math.PI * t / m.ms);
+      if (m.kind === "warm") return 1 + 0.08 * env;
+      return 1;
     }
     function actorLightNow() {
       if (room.wakeAt == null) return 1;
@@ -1086,6 +1149,9 @@
     // Two soft taps on a checked join: a small sound, nothing more.
     function taps() { sound("tap"); }
     const ROWS_TRACK = Object.freeze({ id: "dungeon-rows", tempo: 820, lead: [64, null, null, 67, null, null, null, null, 62, null, null, null, 64, null, null, null], bass: [40, null, null, null, 43, null, null, null], wave: "triangle" });
+    // The same tune from the other side of a door: lower, softer, further.
+    const ROWS_FAR_TRACK = Object.freeze({ id: "dungeon-rows-far", tempo: 820, lead: ROWS_TRACK.lead, bass: ROWS_TRACK.bass, wave: "triangle",
+      beat(step, play) { const lead = ROWS_TRACK.lead[step % 16], bass = ROWS_TRACK.bass[step % 8]; if (lead != null) play(lead - 12, 0.6, 0.009, 0, "sine"); if (bass != null) play(bass, 1.2, 0.008, 0, "sine"); } });
     // The wrap, worn, shows on him in every room afterwards.
     function syncWear() { view.setWear?.(choice("rows-wrap") === "worn" ? "wrap" : null); }
 
@@ -1586,6 +1652,9 @@
       },
       // ---- Scene 7: inside the van (Track A), then 8: the gap
       van: {
+        music: () => VAN_TRACK,
+        // He looks at whoever is talking, when he's still: the talk happens TO him.
+        tick() { vanGaze(); },
         enter(context) {
           room.rumble = true;
           npc("driver", "driver-seat", 70, 20, { face: 1, barkDx: 14, barkLift: 20 });
@@ -1601,10 +1670,13 @@
             S.pose(context === "sack" ? "land" : "recoil", context === "sack" ? 600 : 1200),
             S.wait(700),
             S.control(true),
-            // Movement one: idiots doing a job.
+            // A breath before anyone talks: he shakes the sack off and looks around.
+            S.call(() => setPose("shake", 900)),
+            S.wait(1000),
+            // Movement one: idiots doing a job. "Boss" is said once, lightly, and lands.
             talk([
               ...L.vanArgue, { hold: 1000 },
-              ...L.vanTouch, { pose: "look-up", ms: 1500 },
+              weighted(L.vanTouch[0], 1.5), { hold: 300 }, ...L.vanTouch.slice(1), { pose: "look-up", ms: 1500 },
               { call: () => { room.phoneLight = "film"; } }, ...L.vanFilm, { call: () => { room.phoneLight = null; } },
               { hold: 1000 }
             ]),
@@ -1619,14 +1691,25 @@
             talk([
               { hold: 900 },
               ...L.vanCooler, { hold: 1000 },
-              ...L.vanNumber, { hold: 4000 },
-              ...L.vanAsk, { hold: 3000 },
-              { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); } }, { hold: 1200 },
-              ...L.vanPhone, { hold: 4000 },
-              { call: () => { room.phoneLight = null; room.phoneRinging = false; } }, { hold: 3000 },
-              ...L.vanLost, ...L.vanListening, { pose: "look-up", ms: 3000 }
+              ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
+              // Nobody laughs. Wipers only. He feels the joke end before anyone says so.
+              { call: () => { vanHush("wipers"); flameMood("fear", 2800); } }, { hold: 4000 },
+              quietly(L.vanAsk[0]),
+              // Nobody answers. Rain.
+              { call: () => vanHush("rain") }, { hold: 3000 },
+              // His phone: cold light fills the van, and everyone freezes. The ring is his presence.
+              { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); vanHush("phone"); vanFreeze(true); flameMood("fear", 9000); } }, { hold: 1200 },
+              weighted(L.vanPhone[0], 1.4), ...L.vanPhone.slice(1), { call: () => setPose("tremble", 4000) }, { hold: 4000 },
+              // It goes dark. In the silence he looks at the one who's scared: they are afraid too.
+              { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 1200 },
+              { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("watch", 1800); } }, { hold: 1800 },
+              weighted(L.vanLost[0], 1.3), ...L.vanLost.slice(1),
+              // The capped one's only words. Everyone turns to him. He looks back. Rain only.
+              { call: () => vanHush("rain") }, { hold: 400 },
+              weighted(L.vanListening[0], 1.4), { call: () => { vanStare(true); setPose("watch", 3000); flameMood("fear", 3000); } }, { hold: 3000 },
+              { call: () => vanStare(false) }
             ]),
-            S.call(() => { setTransient("vanDoorLoose", true); room.doorLoose = true; sound("door"); room.shake = sceneTime; room.looseAt = sceneTime; }),
+            S.call(() => { vanHush(null); setTransient("vanDoorLoose", true); room.doorLoose = true; sound("door"); room.shake = sceneTime; room.looseAt = sceneTime; }),
             S.until(() => inZone("van-door-zone") || sceneTime - room.looseAt > BEAT.GAP_AUTO_MS),
             // At the gap: black and rushing rain. He leans back; a held push carries him through.
             S.call(() => {
@@ -1699,7 +1782,7 @@
       },
       // ---- Scene 12: shelter, and the drain going back too far
       drain: {
-        music: () => STREET_TRACK,
+        music: () => DRAIN_TRACK,
         enter() {
           room.rain = 0.2; room.mouthFor = 0;
           runScene("opening:shelter", [
@@ -1763,12 +1846,15 @@
         }
       },
       hearth: {
+        music: () => HEARTH_TRACK,
         enter() {
           if (fact("latchFreed") && !fact("porterHelp")) npc("latch", "latch", 130, 196, { face: 1, seated: true });
         }
       },
       queue: { enter() {} },
       porter: {
+        // Before: the hall tolls. After: the Rows, heard faintly through the open door.
+        music: () => (fact("porterDown") ? ROWS_FAR_TRACK : PORTER_TRACK),
         enter() {
           if (fact("porterHelp")) npc("latch", "latch", fact("porterDown") ? 150 : 22, fact("porterDown") ? 60 : 142, { face: 1 });
           if (fact("porterDown") && !data.story.resumeScene) bark("latch", L.departure[0], 2600);
@@ -1776,6 +1862,35 @@
       }
     };
     Object.assign(ROOM_LOGIC, ROWS_LOGIC);
+    // ---- The van's staging (presentation only; the talk itself is unchanged).
+    // A line can be given more time on screen, or said quietly; never reworded.
+    const weighted = (line, weight) => ({ ...line, weight });
+    const quietly = line => ({ ...line, quiet: true, weight: 1.35 });
+    // What's left when the talking stops: null (engine and road), "wipers", "rain", or "phone".
+    function vanHush(level) {
+      room.hush = level;
+      setMusic(level ? SILENT_TRACK : VAN_TRACK);
+      if (level) duck(level === "wipers" ? 4200 : 3200, 0.02);
+    }
+    function vanFreeze(on) { for (const id of ["driver", "hood-tall", "hood-small", "hood-cap"]) { const actor = npcs.get(id); if (actor) actor.state = on ? "freeze" : "idle"; } }
+    function vanStare(on) {
+      for (const id of ["driver", "hood-tall", "hood-small", "hood-cap"]) { const actor = npcs.get(id); if (actor) actor.state = on ? "stare" : "idle"; }
+      if (on) vanFaceToward(null);
+    }
+    // Rizo turns to someone (or, with null, back toward the whole cabin).
+    function vanFaceToward(id) {
+      const actor = id ? npcs.get(id) : { x: 110, y: 60 };
+      if (!actor || !sim) return;
+      const dx = actor.x - sim.player.x, dy = actor.y - sim.player.y, d = Math.max(1, Math.hypot(dx, dy));
+      sim.player.fx = dx / d; sim.player.fy = dy / d;
+    }
+    // Still, he watches whoever is talking. Moving, he looks where he goes.
+    function vanGaze() {
+      if (!sim || ui !== "play" || sim.player.moving || room.doorLoose || stillFor < 500) return;
+      const speaking = barks[barks.length - 1];
+      if (speaking && npcs.has(speaking.id)) vanFaceToward(speaking.id);
+    }
+
     // The bump that teaches Tuck: a readable line, a pulsing key, no harm.
     function vanBump() {
       room.cargoCount += 1;
@@ -2021,6 +2136,8 @@
           case "deflect": { sound("deflect"); const enemy = sim.enemies.find(item => item.id === event.id); if (enemy) view.addEffect("deflect", enemy.x, enemy.y + 8, 1); break; }
           case "calmed":
             sound("calmed");
+            // The last one near him settles: he lets the breath go.
+            if (!sim.enemies.some(enemy => enemy.state !== "gone" && enemy.state !== "settled" && DANGER_STATES.has(enemy.state))) relief();
             // In the Rows a settled pull stays settled across reloads.
             if (Content.isRows(sim.roomId) && Content.knownEncounter(event.id) && !data.world.defeatedEncounters.includes(event.id)) commitData(next => { if (!next.world.defeatedEncounters.includes(event.id)) next.world.defeatedEncounters.push(event.id); });
             try { host.event("encounterResolved", { boundaryId: event.id, campaignId: data.campaign.id, tone: "quiet", interruption: "none" }); } catch (error) {}
@@ -2028,7 +2145,7 @@
           case "hurt": sound("hurt"); view.setFlame(sim.player.flame, Core.T.FLAME_MAX); room.hurtAt = sceneTime; break;
           case "bump": sound("bump"); room.bumped = true; break;
           case "cargo-done": room.cargoResolved = true; room.dodged = room.dodged || event.dodged; break;
-          case "notice": sound("notice"); if (!cue.noticed) view.pulseKey("primary"); cue.noticed = true; break;
+          case "notice": sound("notice"); if (!cue.noticed) view.pulseKey("primary"); cue.noticed = true; if (!poseOverride && !scene) setPose("pull-in", 600); flameMood("fear", 1400); break;
           case "lock": sound("lock"); break;
           case "lunge": case "slide": sound("lunge"); break;
           case "lane": sound("lane"); break;
@@ -2230,6 +2347,21 @@
       if (g.hearth && sim.hearthLit && time - crackleAt > 260 + (Math.sin(time) + 1) * 400) { crackleAt = time; sound("crackle"); }
       // The van phone keeps buzzing until it rings out.
       if (room.phoneRinging && time - room.phoneBuzzAt > 1100) { room.phoneBuzzAt = time; sound("buzz"); }
+      // Inside the van: the road under the floor and the wipers, until somebody
+      // says something that makes the cabin go quiet (then wipers only, then rain only).
+      if (g.theme === "van" && sim.roomId === "van" && sim.phase === "play") {
+        if (!room.hush && time - (room.roadAt || 0) > 420) { room.roadAt = time; sound("road"); }
+        if ((!room.hush || room.hush === "wipers") && time - (room.wiperAt || 0) > 1300) { room.wiperAt = time; sound("wiper"); }
+      }
+      // Below: how close and how ready the nearest threat is. Music and light both listen.
+      let danger = 0;
+      if (!g.world && sim.phase === "play") for (const enemy of sim.enemies) {
+        if (enemy.state === "gone" || enemy.state === "settled") continue;
+        const near = clamp(1 - (Math.hypot(enemy.x - p.x, enemy.y - p.y) - 40) / 150, 0, 1);
+        danger = Math.max(danger, near * (DANGER_STATES.has(enemy.state) ? 1 : enemy.aware ? 0.55 : 0.2));
+      }
+      MOOD.danger += (danger - MOOD.danger) * clamp(dt / (danger > MOOD.danger ? 260 : 900), 0, 1);
+      if (MOOD.danger < 0.01) MOOD.danger = 0;
       const porterEnemy = g.id === "porter" ? sim.enemies.find(enemy => enemy.kind === "porter") : null;
       if (porterEnemy && (porterEnemy.state === "reposition" || porterEnemy.state === "charge") && time - thudAt > (porterEnemy.state === "charge" ? 140 : 380)) { thudAt = time; sound("thud"); }
       stillFor = p.moving ? 0 : stillFor + dt;

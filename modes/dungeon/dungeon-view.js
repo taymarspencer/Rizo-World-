@@ -236,7 +236,7 @@
     }
 
     // ===== ACTORS (Art cutouts; feet at x,y) =====
-    let extrasTime = 0, lastRoom = {};
+    let extrasTime = 0, lastRoom = {}, speaking = new Set();
     const walkBob = (actor, time) => (actor.walking && !reducedMotion ? Math.sin(time / 110) * 2 : 0);
     function paintNpc(actor, time) {
       const t = reducedMotion ? 0 : time;
@@ -247,7 +247,7 @@
         case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
         case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;
         case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
-        case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y); break;
+        case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y, { who: actor.id, talking: speaking.has(actor.id), state: actor.state, face: actor.face || 1, t }); break;
         case "taillights": {
           // Far off they are two red points; braking, they flare.
           const a = Math.max(0, Math.min(1, (actor.y + 160) / 300));
@@ -512,6 +512,7 @@
       if (!geo || !metrics.cssW) return;
       extrasTime = extras.sceneTime || 0;
       lastRoom = extras.room || {};
+      speaking = new Set((extras.barks || []).map(item => item.id));
       const p = sim.player;
       follow(pos.x, pos.y, geo, dt, extras.peek, p.moving ? { x: p.fx || 0, y: p.fy || 0 } : null);
       const shake = extras.shake && !reducedMotion ? extras.shake * 2 : 0;
@@ -685,6 +686,7 @@
         let node = barkNodes.get(item.id);
         if (!node) { node = document.createElement("div"); node.className = "dungeon-bark"; el.barks.appendChild(node); barkNodes.set(item.id, node); }
         if (node.textContent !== item.text) node.textContent = item.text;
+        node.classList.toggle("is-quiet", Boolean(item.quiet));
         // Seated figures (the van) are short; they say where their heads are.
         const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
         // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.

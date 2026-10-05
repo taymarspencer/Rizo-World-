@@ -226,6 +226,9 @@ html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-lock
 .dungeon-bark::after{content:"";position:absolute;left:50%;bottom:-7px;width:10px;height:10px;background:#f4ecd8;border-right:2px solid #0c0e12;border-bottom:2px solid #0c0e12;transform:translateX(-50%) rotate(45deg)}
 .dungeon-bark.is-below::after{top:-7px;bottom:auto;transform:translateX(-50%) rotate(225deg)}
 .dungeon-bark.is-edge::after{display:none}
+/* Said quietly (nobody is meant to hear it): same size, less voice. */
+.dungeon-bark.is-quiet{font-weight:600;font-style:italic;background:#d9d2c0;border-width:1.5px;box-shadow:1px 1px 0 rgba(0,0,0,.45);opacity:.9}
+.dungeon-bark.is-quiet::after{background:#d9d2c0;border-width:1.5px}
 
 /* ===== A CONTROL WAKES ONCE ===== */
 .dungeon-key.is-pulsing{animation:dungeonKeyPulse .5s ease-in-out 3}
