@@ -369,7 +369,7 @@
       const line = dialogueState.lines[dialogueState.index];
       const instant = settings.textSpeed === "instant";
       dialogueState.shown = instant ? line.text.length : Math.min(line.text.length, Math.floor(((time - dialogueState.startAt) / 1000) * TEXT_CPS));
-      view.dialogue(line.text.slice(0, dialogueState.shown), { done: dialogueState.shown >= line.text.length, speaker: line.speaker, expr: line.expr });
+      view.dialogue(line.text.slice(0, dialogueState.shown), { done: dialogueState.shown >= line.text.length, speaker: line.speaker, expr: line.expr, fullText: line.text });
       if (line.speaker && npcs.has(line.speaker)) npcs.get(line.speaker).expr = line.expr;
     }
     // A fresh Primary press reveals the line, another advances it.
@@ -523,6 +523,13 @@
           actor.walking = k < 1;
           if (k >= 1) actor.moveMs = 0;
         } else actor.walking = false;
+        // Work and conversation have a physical subject. Travel follows the
+        // route; listening turns toward Rizo only while he is nearby. Neither
+        // changes the simulation or steals his heading.
+        if (!actor.walking && actor.kind === "nell" && sim && ["listen", "clear", "fit"].includes(actor.state)) {
+          const dx = sim.player.x - actor.x;
+          if (Math.abs(dx) > 8 && Math.hypot(dx, sim.player.y - actor.y) < 110) actor.face = dx < 0 ? -1 : 1;
+        }
         // Someone who walks out of the room is gone once they reach the door.
         if (actor.leaveAt && sceneTime >= actor.leaveAt) actor.visible = false;
         if (actor.state === "chase" && sim && sceneTime >= (actor.flinchUntil || 0)) {
@@ -1108,7 +1115,10 @@
           S.wait(600),
           S.call(() => { setRoomFlag("rowsCatch"); bark("nell", L.rowsHolds[0], 1600); room.shake = sceneTime; }),
           S.wait(1400),
-          S.call(() => leave("nell", 80, 30, 1600))
+          // Round the table's right end before taking the north doorway.
+          S.call(() => { nellState("walk"); walk("nell", 242, 96, 800); }),
+          S.wait(850),
+          S.call(() => leave("nell", 80, 30, 1200))
         ], { control: true });
       },
       // Hanging Row: the low catch at the split; then she takes the high path.
@@ -1167,7 +1177,7 @@
 
     // ---- Receiving: Latch got here first; the delivery that would not fit.
     function receivingEnter() {
-      if (done("rows:arrived")) return;
+      if (done("rows:arrived")) { room.dryPatch = sceneTime; return; }
       npc("latch", "latch", 250, 86, { face: -1 });
       nell(150, 78, { face: 1, state: "support" });
       runScene("rows:arrival", [
@@ -1198,7 +1208,7 @@
     function drytableEnter() {
       syncTableExtras();
       if (!done("rows:met")) { tableMeeting(); return; }
-      if (!fact("rowsCatch")) { nell(206, 150, { state: "support", face: -1 }); setTransient("catchReady", true); return; }
+      if (!fact("rowsCatch")) { nell(238, 174, { state: "support", face: -1 }); setTransient("catchReady", true); return; }
       if (fact("rowsGrille") && !done("rows:meal")) { tableMeal(); return; }
       if (done("rows:upper") && !done("rows:wrap")) { tableReturn(); return; }
       // Interrupted after the wrap: the sheets are already moved for him.
@@ -1228,8 +1238,10 @@
         S.call(() => { nellState("fix"); sound("scrape"); room.cornerAt = sceneTime; }),
         S.wait(700),
         talk([...L.rowsCorner]),
-        S.call(() => { commitBeat("rows:met"); walk("nell", 206, 150, 900); }),
-        S.wait(950),
+        S.call(() => { commitBeat("rows:met"); walk("nell", 242, 104, 600); }),
+        S.wait(650),
+        S.call(() => walk("nell", 238, 174, 600)),
+        S.wait(650),
         S.call(() => { nellState("support"); setTransient("catchReady", true); }),
         talk([...L.rowsCatchAsk])
       ], { control: true });
@@ -2060,7 +2072,13 @@
     function onExit(event) {
       if (event.to === "home") { homecoming(); return; }
       const context = sim.roomId === "drain" && event.to === "roadside" ? "back" : "walk";
-      runScene(`walk:${event.to}`, [S.fade(1, 140), S.call(() => goToRoom(event.to, event.anchor, { context })), S.fade(0, 180)]);
+      runScene(`walk:${event.to}`, [S.fade(1, 140), S.call(() => {
+        goToRoom(event.to, event.anchor, { context });
+        // onEnterRoom may replace this scene with the destination's own scene.
+        // The reveal belongs to the handoff, not an old scene's cancelled next
+        // step. It therefore continues even when Nell starts talking at once.
+        sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: reducedMotion() ? 100 : 240 };
+      }), S.wait(reducedMotion() ? 100 : 240)]);
     }
     function registerHearth(hearthId) {
       if (data.checkpoint.hearthId === hearthId) return;
@@ -2220,6 +2238,8 @@
       const alpha = Math.max(0, Math.min(1, acc / Core.STEP_MS));
       const pos = { x: prev.x + (sim.player.x - prev.x) * alpha, y: prev.y + (sim.player.y - prev.y) * alpha };
       const g = geo();
+      let target = ui === "play" && !thoughtNow() ? Core.focusTarget(sim) : null;
+      if (!target && ui === "play" && phoneNear()) target = { x: room.phone.x, y: room.phone.y, r: 3, prompt: "LOOK" };
       view.render(sim, pos, time, dt / 1000, {
         npcs: [...npcs.values()].filter(actor => actor.visible),
         barks,
@@ -2229,7 +2249,8 @@
         shake: room.shake && sceneTime - room.shake < 260 ? 1 - (sceneTime - room.shake) / 260 : 0,
         lightScale: lightScaleNow(),
         actorLight: actorLightNow(),
-        thought: thoughtNow()
+        thought: thoughtNow(),
+        focus: target
       });
       // The phone's screen up close: only the caller's symbol, and a call timer once connected.
       const phone = sim.roomId === "roadside" ? room.phone : null;
@@ -2253,8 +2274,6 @@
       view.setFade(Math.max(downFade, sceneFade.value));
       // The highlighted thing Primary would use, and the key label that says so.
       // While a thought is up nothing else speaks over it, not even a prompt.
-      let target = ui === "play" && !thoughtNow() ? Core.focusTarget(sim) : null;
-      if (!target && ui === "play" && phoneNear()) target = { x: room.phone.x, y: room.phone.y, r: 3, prompt: "LOOK" };
       view.showPrompt(target, target ? `◆ ${target.prompt}` : null);
       view.setActionLabel(target ? target.prompt : ui === "dialogue" ? "NEXT" : ui === "choice" ? "PICK" : g.world ? "FLAME" : "FLARE");
       if (bannerUntil && time > bannerUntil) { view.banner(""); bannerUntil = 0; }
