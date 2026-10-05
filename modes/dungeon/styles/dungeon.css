@@ -111,6 +111,18 @@
 .dungeon-key-system.is-down,.dungeon-key-system:active{transform:translateX(-50%) translateY(3px)}
 .dungeon-key:focus-visible{outline:3px solid var(--warm);outline-offset:3px}
 
+/* ===== PHONE-NATIVE CONTROLS (controls pass) =====
+   Everything below is about how the handheld is touched, not how it looks. */
+/* Never a pan, pinch or double-tap zoom anywhere inside the open handheld, whatever an element declares. */
+.minigame-overlay.dungeon-active,.minigame-overlay.dungeon-active *{touch-action:none!important}
+/* The page must not re-flow its text when the phone rotates. */
+.dungeon-device{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* Forgiving targets: the drawn control is unchanged, the part of it that answers a thumb is larger. */
+.dungeon-dpad::before{content:"";position:absolute;inset:-14px;border-radius:26px}
+.dungeon-key::before{content:"";position:absolute;inset:-8px;border-radius:inherit}
+/* On a 320 px phone the MENU key and the D-pad's empty corner used to share a patch of screen. */
+@media (max-width:340px){.dungeon-key-system{left:calc(50% + 10px)}}
+
 /* ---- enter / exit: the field rails click into a device (450–650 ms) */
 .dungeon-device[data-phase="enter"] .dungeon-shell{animation:dungeonEnter 560ms cubic-bezier(.2,.9,.25,1) both}
 .dungeon-device[data-phase="exit"] .dungeon-shell{animation:dungeonExit 520ms cubic-bezier(.55,0,.8,.2) both}
