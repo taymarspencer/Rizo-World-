@@ -1,0 +1,403 @@
+{
+  "sourceCommit": "35ddead37c0ed8f08fb4c33d0737cb8ac8fdf24b",
+  "envelope": {
+    "app": "RIZO LIFE",
+    "saveVersion": 2,
+    "stateVersion": 22,
+    "savedAt": 1791174440591,
+    "writeId": "W-78AEBEC254A9",
+    "state": {
+      "version": 22,
+      "introSeen": true,
+      "player": {
+        "keeperId": "KEEPER-6710296F4A87",
+        "createdAt": 1791174440218,
+        "lastActive": 1791174440591,
+        "lastSessionAt": 1791174440218,
+        "totalSessions": 1,
+        "streak": 9,
+        "lastVisitDate": "2026-10-04",
+        "tutorialStep": 5,
+        "tutorialDismissed": true,
+        "keeperGuideSeen": true
+      },
+      "wallet": {
+        "embers": 4321,
+        "shards": 17
+      },
+      "pet": {
+        "id": "PET-E236E243E793",
+        "number": 1,
+        "name": "MOSSY",
+        "stage": "beast",
+        "hiddenVariant": "moss",
+        "variant": "moss",
+        "createdAt": 1791174440218,
+        "bornAt": 1791174440218,
+        "lastTick": 1791174440296,
+        "lifespanDays": 64,
+        "hatch": 0,
+        "xp": 1500.0000069355,
+        "level": 0,
+        "bond": 61.000001733333335,
+        "strength": 0,
+        "skills": {
+          "speed": 0,
+          "power": 0,
+          "instinct": 0,
+          "stamina": 4.623666666666667e-06,
+          "luck": 0
+        },
+        "genes": {
+          "speed": 95,
+          "power": 96,
+          "instinct": 101,
+          "stamina": 94,
+          "luck": 105,
+          "growth": 97
+        },
+        "alignment": 0,
+        "careProfile": {
+          "kind": 0,
+          "wild": 0,
+          "balanced": 0,
+          "foods": {},
+          "games": {}
+        },
+        "storyMarks": [
+          {
+            "id": "shared-hearth",
+            "mode": "dungeon",
+            "at": 1791174440586
+          }
+        ],
+        "form": "balanced",
+        "formHistory": [],
+        "generation": 1,
+        "lineageTrait": null,
+        "lastTrainedSkill": "stamina",
+        "resting": false,
+        "elder": false,
+        "hype": 0,
+        "taps": 0,
+        "personality": "CERTIFIED HATER",
+        "mutation": "normal",
+        "overstimulation": 0,
+        "health": 100,
+        "hunger": 94.999974,
+        "mood": 94.99998743333333,
+        "energy": 94.9999805,
+        "hygiene": 94.9999844,
+        "sleeping": false,
+        "sick": false,
+        "lifeMemory": {
+          "lastGreetingDate": "",
+          "lastSeenAt": 1791174440218,
+          "recentWins": 0,
+          "recentCare": 0,
+          "moodMomentum": 0,
+          "secretStage": 0,
+          "filthSeen": false,
+          "bathIncidentRemembered": false,
+          "favoriteFoodRemembered": false,
+          "washUntil": 0,
+          "washFromHygiene": 100,
+          "lastBathAt": 0,
+          "lastFoodAt": 0,
+          "lastFoodId": "",
+          "arcadeAfterglowUntil": 0,
+          "lastArcadeMode": "",
+          "lifeBehaviorUntil": 0
+        },
+        "alive": true,
+        "deathReason": null,
+        "accessory": "scarf",
+        "room": "space",
+        "shame": false,
+        "graceUntil": null,
+        "lastFreeSnack": 0
+      },
+      "inventory": {
+        "accessories": [
+          "none",
+          "scarf",
+          "first-knot"
+        ],
+        "rooms": [
+          "rain",
+          "space"
+        ],
+        "phoenix": 0,
+        "growth": 0,
+        "care": 0
+      },
+      "collection": {
+        "moss": 1,
+        "ember": 2
+      },
+      "memories": [],
+      "graveyard": [],
+      "legacy": [],
+      "achievements": [],
+      "daily": {
+        "date": "2026-10-04",
+        "type": "clean",
+        "title": "CLEAN YOUR RIZO ONCE",
+        "target": 1,
+        "reward": 30,
+        "progress": 0,
+        "claimed": false,
+        "giftClaimed": false
+      },
+      "scores": {
+        "power": 0,
+        "spark": 0,
+        "forage": 0,
+        "rush": 0,
+        "walk": 0,
+        "rhythm": 72,
+        "memory": 0,
+        "glide": 0,
+        "breaker": 0,
+        "maze": 88
+      },
+      "modeInbox": {},
+      "modeReceipts": {
+        "dungeon": {
+          "threshold-8b4hnjfdx4:threshold-complete": {
+            "petId": "PET-E236E243E793",
+            "entitlements": [
+              "first-knot",
+              "shared-hearth"
+            ],
+            "at": 1791174440586
+          }
+        }
+      },
+      "treasures": {},
+      "worldEvents": {
+        "lastAt": 1791174440218,
+        "count": 0,
+        "seen": [],
+        "lastBadLuckAt": 0,
+        "badLuckCount": 0
+      },
+      "garden": {
+        "toyUses": {},
+        "favoriteToy": null,
+        "lastToyAt": 0,
+        "nextEggVariant": null,
+        "bondSeed": null,
+        "lastPairKeeper": null
+      },
+      "farm": {
+        "roster": [],
+        "unlockedRooms": [
+          0
+        ],
+        "activeRoom": 0,
+        "totalAdoptions": 0,
+        "totalReleased": 0,
+        "lastAdoptionAt": 0,
+        "featureUnlocked": true,
+        "unlockSeen": true,
+        "plots": [],
+        "materials": 0,
+        "totalHarvests": 0,
+        "totalCatches": 0,
+        "lastEncounterAt": 0
+      },
+      "social": {
+        "visitors": [],
+        "currentVisitor": null,
+        "lastVisitRewardDate": null,
+        "pairings": []
+      },
+      "season": {
+        "xp": 0,
+        "level": 1
+      },
+      "expedition": {
+        "active": false,
+        "ready": false,
+        "type": null,
+        "endAt": 0,
+        "result": null
+      },
+      "loreUnlocked": [
+        "keeper"
+      ],
+      "settings": {
+        "sound": false,
+        "soundVolume": 0.85,
+        "music": false,
+        "musicVolume": 0.85,
+        "haptics": true,
+        "reducedMotion": true,
+        "adPreview": false
+      },
+      "trainingMemory": {
+        "rhythm": {
+          "emberBag": [
+            "frostline",
+            "iron-heart"
+          ],
+          "emberLast": "moss-after-dark"
+        }
+      },
+      "meta": {
+        "totalHatched": 1,
+        "totalTaps": 0,
+        "totalCareActions": 0,
+        "totalGames": 140,
+        "totalWalks": 0,
+        "deaths": 0,
+        "recoveries": 0,
+        "rebirths": 0,
+        "bondEggs": 0,
+        "nextPetNumber": 2,
+        "capsules": 0,
+        "pity": 0,
+        "refusals": 0,
+        "overloads": 0,
+        "retroSignal": 0,
+        "shadowFinds": 0,
+        "unlockScenes": [],
+        "backupPrompts": [
+          "first-hatch",
+          "house-unlock"
+        ],
+        "lastBackupAt": 0
+      }
+    },
+    "modes": {
+      "defense": {
+        "schema": 1,
+        "data": {
+          "records": {
+            "best": 23,
+            "maps": {
+              "grove": 23,
+              "ember": 11
+            },
+            "milestones": [
+              10
+            ],
+            "perfectMaps": [],
+            "history": [],
+            "mastery": {},
+            "contracts": []
+          },
+          "settings": {
+            "signatures": true,
+            "autoStart": false,
+            "fx": "auto",
+            "uiScale": "standard",
+            "waveIntel": "simple"
+          },
+          "crew": {
+            "ids": [],
+            "configured": false
+          },
+          "school": {
+            "dismissed": false,
+            "completed": [],
+            "replay": false
+          },
+          "introSeen": false,
+          "mapIntrosSeen": []
+        }
+      },
+      "dungeon": {
+        "schema": 1,
+        "data": {
+          "settings": {
+            "assist": false,
+            "textSpeed": "normal"
+          },
+          "campaign": {
+            "id": "threshold-8b4hnjfdx4",
+            "kind": "proof",
+            "contentRevision": "threshold-v3",
+            "petId": "PET-E236E243E793",
+            "petName": "MOSSY",
+            "status": "active",
+            "chapterId": "threshold"
+          },
+          "world": {
+            "visitedRooms": [
+              "car",
+              "slip",
+              "hearth",
+              "porter",
+              "receiving",
+              "drytable"
+            ],
+            "openedShortcuts": [],
+            "durableRoomFlags": {
+              "porterDown": true
+            },
+            "defeatedEncounters": [
+              "night-porter"
+            ]
+          },
+          "story": {
+            "facts": {
+              "sharedRest": true
+            },
+            "choices": {
+              "hearth-seat": "sit",
+              "rows-meal": "sit",
+              "rows-wrap": "folded"
+            },
+            "committedSceneBeats": [
+              "knot-gift:granted"
+            ],
+            "resumeScene": null
+          },
+          "npcs": {
+            "latch": {
+              "state": "unmet",
+              "locationAnchor": null,
+              "evidence": []
+            }
+          },
+          "inventory": {
+            "knownLocalItems": []
+          },
+          "checkpoint": {
+            "hearthId": null,
+            "roomId": null,
+            "spawnAnchorId": null
+          },
+          "continuation": {
+            "roomId": "drytable",
+            "safeAnchorId": "drytable-west",
+            "roomEntryFlame": 4,
+            "resumeKind": "room-entry"
+          },
+          "legProfile": {
+            "edges": {
+              "speed": 1,
+              "power": 1,
+              "instinct": 1,
+              "stamina": 1
+            },
+            "bondBand": "attached",
+            "cues": {
+              "favoriteFoodId": null,
+              "favoriteGameId": null
+            }
+          },
+          "journal": {
+            "discoveredEntryIds": []
+          },
+          "pendingRewards": [],
+          "proofComplete": true,
+          "storyComplete": false
+        }
+      }
+    },
+    "signature": "s2.daath3"
+  }
+}

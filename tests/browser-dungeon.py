@@ -90,7 +90,7 @@ def boot(browser, seed=None, block_dungeon=False, viewport=(390, 844), wait=1200
     return ctx, page, errors
 
 def launch(page):
-    page.evaluate("RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(250)
+    page.evaluate("RizoRuntimeQA.setViewForQA('go')"); page.wait_for_timeout(250)
     # A real player cannot press the shelf through a hub modal.
     assert not page.evaluate("document.getElementById('modalOverlay').classList.contains('show')"), page.evaluate("document.querySelector('#modalOverlay .modal-card')?.className")
     page.evaluate("document.querySelector('[data-mode=\"dungeon\"]').click()"); page.wait_for_timeout(700)
@@ -119,9 +119,9 @@ with sync_playwright() as p:
     ctx, page, errors = boot(browser, seed={})
     pet_id = page.evaluate(SETUP)
     saved_with_knot_seed = page.evaluate("localStorage.getItem('rizo-save-v2')")
-    page.evaluate("RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(150)
+    page.evaluate("RizoRuntimeQA.setViewForQA('go')"); page.wait_for_timeout(150)
     meta = page.evaluate("document.querySelector('[data-mode-meta=\"dungeon\"]').innerText")
-    check("shelf card describes a free journey, not an ENDLESS energy run", "FREE" in meta and "MIN" in meta and "ENDLESS" not in meta and "ENERGY" not in meta, meta)
+    check("Go describes a free saved story, not an ENDLESS energy run", "FREE" in meta and "SAVED STORY" in meta and "ENDLESS" not in meta and "ENERGY" not in meta, meta)
     before_hunger = page.evaluate("RizoRuntimeQA.snapshot().pet.hunger")
     st = launch(page)
     check("the Dungeon opens from the shelf through RizoModes, in the Keeper's car, shell open", page.evaluate("RizoModes.active()") == "dungeon" and st["sim"]["roomId"] == "car" and st["shell"] == "open", str(st and (st["ui"], st["sim"]["roomId"], st["shell"])))
@@ -333,7 +333,7 @@ with sync_playwright() as p:
     page.evaluate("RizoRuntimeQA.agePetClockForQA(3*3600e3)")
     pet3 = page.evaluate("RizoRuntimeQA.processElapsedForQA()")
     check("ordinary care resumes after exit", pet3["hunger"] < fed[1] - 2, str((fed[1], pet3["hunger"])))
-    meta = page.evaluate("RizoRuntimeQA.setViewForQA('arcade'), document.querySelector('[data-mode-meta=\"dungeon\"]').innerText")
+    meta = page.evaluate("RizoRuntimeQA.setViewForQA('go'), document.querySelector('[data-mode-meta=\"dungeon\"]').innerText")
     check("the shelf shows the journey's progress", re.search(r"ROOM [1-6]/6", meta) is not None, meta)
 
     # Export → import keeps the journey.
@@ -1181,11 +1181,11 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     # ================= DEFENSE REGRESSION: a live run under the Arcade view =================
     ctx, page, errors = boot(browser, seed={})
     page.evaluate(SETUP)
-    page.evaluate("RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(200)
+    page.evaluate("RizoRuntimeQA.setViewForQA('go')"); page.wait_for_timeout(200)
     page.evaluate("RizoRuntimeQA.startMiniGame('defense',{mapId:'grove'})"); page.wait_for_timeout(300)
     page.evaluate("document.querySelector('[data-defense-skip-map-intro]')?.click()"); page.wait_for_timeout(200)
     page.evaluate("RizoRuntimeQA.renderAll()"); page.wait_for_timeout(100)
-    check("a live Defense run survives the Arcade shelf refresh", page.evaluate("RizoModes.active()") == "defense" and page.evaluate("Boolean(document.getElementById('miniArena')?.children.length)") and page.evaluate("document.querySelector('button[data-mode=\"defense\"]').textContent") != "")
+    check("a live Defense run survives the Go refresh", page.evaluate("RizoModes.active()") == "defense" and page.evaluate("Boolean(document.getElementById('miniArena')?.children.length)") and page.evaluate("document.querySelector('button[data-mode=\"defense\"]').textContent") != "")
     ctx.close()
 
     # ================= QA-ONLY COMPLETION FIXTURE (throwaway save) =================
@@ -1445,7 +1445,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
 
     # ================= ISOLATION: no Dungeon scripts =================
     ctx, page, errors = boot(browser, seed={V2: saved_with_knot, V2_BACKUP: saved_with_knot}, block_dungeon=True)
-    iso = page.evaluate("({modes:RizoModes.list().map(m=>m.id),ok:Boolean(window.__RIZO_BUILD__),acc:RizoRuntimeQA.snapshot().pet.accessory,wear:Boolean(document.querySelector('.wearable-first-knot')),button:(RizoRuntimeQA.setViewForQA('arcade'),document.querySelector('[data-mode=\"dungeon\"]').textContent)})")
+    iso = page.evaluate("({modes:RizoModes.list().map(m=>m.id),ok:Boolean(window.__RIZO_BUILD__),acc:RizoRuntimeQA.snapshot().pet.accessory,wear:Boolean(document.querySelector('.wearable-first-knot')),button:(RizoRuntimeQA.setViewForQA('go'),document.querySelector('[data-mode=\"dungeon\"]').textContent)})")
     page.evaluate("RizoRuntimeQA.saveForQA()")
     kept = json.loads(page.evaluate("localStorage.getItem('rizo-save-v2')"))
     check("without Dungeon scripts the hub boots, Defense still registers, the card says UNAVAILABLE", iso["modes"] == ["defense"] and iso["button"] == "UNAVAILABLE" and not [e for e in errors if "dungeon" not in e.lower()], str((iso, errors[:2])))
@@ -1462,7 +1462,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     page = ctx.new_page(); errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(URL); page.wait_for_timeout(1200)
-    page.evaluate(SETUP); page.evaluate("RizoRuntimeQA.setViewForQA('arcade')"); page.wait_for_timeout(250)
+    page.evaluate(SETUP); page.evaluate("RizoRuntimeQA.setViewForQA('go')"); page.wait_for_timeout(250)
     page.evaluate("try{document.querySelector('[data-mode=\"dungeon\"]').click()}catch(e){}"); page.wait_for_timeout(700)
     after = page.evaluate("({active:RizoModes.active(),locked:document.documentElement.classList.contains('dungeon-locked')||document.body.classList.contains('dungeon-locked'),body:getComputedStyle(document.body).position,select:getComputedStyle(document.body).userSelect||getComputedStyle(document.body).webkitUserSelect})")
     check("a Dungeon start that throws releases the page lock (Hub scroll and selection intact)", after["active"] is None and not after["locked"] and after["body"] != "fixed" and after["select"] != "none", str((after, errors[:2])))
@@ -1471,8 +1471,8 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     # ================= SIGNED NEWER-HUB SAVE =================
     future = subprocess.run(["node", "-e", r"""
 const Save=require(process.argv[1]+'/core/rizo-save-core.js');
-const s=JSON.parse(process.argv[2]).state;s.version=23;s.inventory.accessories.push('return-coat');s.pet.accessory='return-coat';
-const env=Save.createEnvelope({state:s,modes:JSON.parse(process.argv[2]).modes,savedAt:Date.now(),writeId:'W-FUTURE',stateVersion:23});
+const s=JSON.parse(process.argv[2]).state;s.version=24;s.inventory.accessories.push('return-coat');s.pet.accessory='return-coat';
+const env=Save.createEnvelope({state:s,modes:JSON.parse(process.argv[2]).modes,savedAt:Date.now(),writeId:'W-FUTURE',stateVersion:24});
 console.log(JSON.stringify(env));""", str(ROOT), saved_with_knot], capture_output=True, text=True, check=True).stdout.strip()
     ctx, page, errors = boot(browser, seed={V2: future, V2_BACKUP: future})
     blocked = page.evaluate("document.querySelector('#rizoSaveBlocked h2')?.textContent||''")
@@ -1488,7 +1488,7 @@ const s=JSON.parse(process.argv[2]).state;s.version=21;delete s.modeReceipts;del
 const env=Save.createEnvelope({state:s,modes:{},savedAt:Date.now()-3600e3,writeId:'W-V21',stateVersion:21});console.log(JSON.stringify(env));""", str(ROOT), saved_with_knot], capture_output=True, text=True, check=True).stdout.strip()
     ctx, page, errors = boot(browser, seed={V2: old, V2_BACKUP: old})
     s = page.evaluate(STORED)
-    check("a version-21 save migrates to 22 with empty receipts and story marks, nothing lost", s["version"] == 22 and s["receipts"] == {} and s["marks"] == [] and s["petName"] == "MOSSY" and s["accessory"] == "scarf", str({k: s[k] for k in ("version", "receipts", "marks", "petName")}))
+    check("a version-21 save migrates to 23 with empty receipts and story marks, nothing lost", s["version"] == 23 and s["receipts"] == {} and s["marks"] == [] and s["petName"] == "MOSSY" and s["accessory"] == "scarf", str({k: s[k] for k in ("version", "receipts", "marks", "petName")}))
     check("migration boots without page errors", not errors, "; ".join(errors[:2]))
     ctx.close()
 

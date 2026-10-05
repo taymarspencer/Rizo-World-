@@ -1,30 +1,27 @@
 # Rizo World architecture
 
-Rizo.game is a static vanilla HTML/CSS/JS PWA. **The pet is the hub.** Training builds the pet, and the pet
-is what the player brings into game modes.
+Rizo World is a static vanilla HTML/CSS/JS PWA. **Home is the center.** The player cares for
+Rizo in his Den, trains through short repeatable games, and takes him into larger authored places.
+Every reward returns through the hub and can help build the home.
 
-```
-                 ┌──────────────────────────── HUB ────────────────────────────┐
-                 │  pet sim · care · House · closet · journal · arcade shelf   │
-                 │  owns the save, the wallet, every pet, petMarkup()          │
-                 └───────▲──────────────────────────────────────────▲──────────┘
-     start(pet) / end(result)                                 host API only
-                         │                                          │
-   ┌─────────────────────┴──────────┐            ┌──────────────────┴─────────────────┐
-   │ TRAINING QUEUE (core/rizo-     │            │ GAME MODES (core/rizo-modes.js)    │
-   │ training.js)                   │            │ Rizo Defense → Dungeon → Scroll    │
-   │ 25–60 s runs that return a     │            │ Fighter. Own folder, own save      │
-   │ score. The hub converts it     │            │ slice. Read pet snapshots, award   │
-   │ into pet growth.               │            │ Embers/XP back, exit to the hub.   │
-   └────────────────────────────────┘            └────────────────────────────────────┘
+```mermaid
+flowchart TD
+  Home["HOME · Den, care, objects, home plans"]
+  Train["TRAIN · ten short games"]
+  Go["GO · Dungeon and Defense"]
+  Hub["Hub · pets, wallet, signed save"]
+  Train -->|score and existing growth| Hub
+  Go -->|rewards and earned keepsakes| Hub
+  Home -->|care and building| Hub
+  Hub -->|visible room and pet growth| Home
 ```
 
-Neither side ever writes the save, the wallet or a pet directly. The hub is the only writer.
+The hub remains the only writer. Training games use `RizoTraining`; destinations use `RizoModes`.
+`core/rizo-home.js` supplies pure home rules, not another economy or save store. The ten training games
+and both mode contracts retain their existing identities. Dungeon still contains the threshold-v3 opening,
+The Threshold, and Mending Rows / Nell Chapter 1; navigation does not migrate or rewrite its content.
 
-> **Status (Dungeon art pass):** both contracts exist, are tested, and carry every game. The ten training games
-> live in `training/<id>.js` and play through the hub's training runner (§4); Rizo Defense runs on the
-> game-mode contract from `modes/defense/` (§8). Rizo Dungeon (§9) runs The Threshold, a complete short
-> proof episode, on the same contract plus the host additions it needs (confirmed commit, receipts, care policy).
+See [Home / Train / Go](docs/current/HOME-TRAIN-GO.md) for the product mapping, prices, and preservation evidence.
 
 ---
 
@@ -39,6 +36,7 @@ Order matters. Each file may use only the files above it.
 | 1b | `monetization.js` | browser | Privacy-deny bootstrap and conditionally initialized SDK. Defaults never fetch it. |
 | 2 | `core/rizo-save-core.js` | **pure** (browser + Node) | Hub limits, the signed save envelope (v1 frozen, v2 current), mode-slice shape. |
 | 3 | `core/rizo-training.js` | **pure** | The training contract: game definitions and score → stat conversion. |
+| 3a | `core/rizo-home.js` | **pure** | Shared home tiers, bounded care/toy bonus receipts, training memories, and pet placement normalization. |
 | 4 | `core/rizo-modes.js` | pure rules + browser host | The game-mode contract: registry, slice migration, award limits, host API. |
 | 5 | `core/rizo-catalog.js` | **pure** | Shared read-only game data every layer may use: the Rizo variants. |
 | 6 | `modes/<id>/…` | browser | One game mode each. Registers with `RizoModes.register`. Today: `modes/defense/defense-core.js` (pure rules), `defense-canvas.js` (canvas presenter), `defense-mode.js` (registration + runtime); `modes/dungeon/dungeon-content.js` (frozen rooms/lines), `dungeon-core.js` (pure rules), `dungeon-input.js` (action state), `dungeon-art.js` (the visual constitution), `dungeon-scenery.js` (each place's art), `dungeon-view.js` (handheld + frame composition), `dungeon-mode.js` (registration + runtime). A mode whose scripts are missing simply does not register; the hub still boots. |
@@ -128,7 +126,7 @@ a trusted legacy migration) wins. Then:
 
 | Change | Do this |
 |---|---|
-| Add or rename a hub state field | Bump `VERSION` (state version), normalise it defensively in `normalizeState()`, add an old-save case to `tests/save-safety.py`. No signature change is needed. State version 22 is the latest example: `modeReceipts` (per-mode reward receipts, never pruned) and `pet.storyMarks` (≤ 16 small positive marks a mode left on a pet), both absent → empty. |
+| Add or rename a hub state field | Bump `VERSION` (state version), normalise it defensively in `normalizeState()`, add an old-save case to `tests/save-safety.py`. No signature change is needed. State version 22 introduced: `modeReceipts` (per-mode reward receipts, never pruned) and `pet.storyMarks` (≤ 16 small positive marks a mode left on a pet), both absent → empty. State version 23 adds shared `home` and per-pet `denPosition`; old saves begin at the shelter, keep their wallet, and remember existing training scores. |
 | Change the envelope layout | Add `saveVersion: 3` in `core/rizo-save-core.js`. Keep the v2 verifier and the v1 block exactly as they are. |
 | Change a mode's data | Bump the mode's `schema` and extend its `migrate()`. The hub never inspects slice contents. |
 | Move hub fields into a mode | List them in `LEGACY_MODE_FIELDS` (hub). `normalizeState()` moves them out of the hub state into `state.modeInbox[<id>]`; the mode's first `migrate(…, 0, legacy)` receives them; the hub clears that inbox entry only after the slice exists. Bump `VERSION`. Defense (state version 20) is the worked example. |
@@ -389,6 +387,8 @@ Every delivery that changes a runtime file:
 | `tests/defense-core.test.js`, `worker-*.test.js`, `service-worker-policy.test.js` | `node` | Defense rules and the service worker. |
 | `tests/mode-host.test.js` | `node` | The host additions: commit/reward validation and outcomes, late callbacks, events, exit destination, care-session hooks, force-update outcome. |
 | `tests/dungeon-core.test.js` | `node` | Dungeon rules: profile caps, movement/collision, Flare/Tuck/Kindle timing, buffering and priority, the Draftling, death/rest, pause holds, slice validation and repair. |
+| `tests/home-core.test.js` | `node` | Home purchases, bounded everyday rewards, normalization, variety, and placement. |
+| `tests/browser-home-world.py` | `python3` | Real phone Home → Training → Go loop; spatial continuity; saved room changes; failed purchases; actual v22/threshold-v3 migration and cross-mode returns. |
 | `tests/browser-dungeon.py` | `python3` | The Dungeon through the real hub over HTTP: the page lock, the opening beat by beat, the Threshold story (SIT and GO, help, gift, homecoming, an interrupted beat), real pet, keyboard/touch/mouse, combat/death/rest, lifecycle holds, care policy, reload/import, identity, the QA completion fixture (receipts, failed primary/backup), force update, save-blocked tab, isolation, newer-hub save, v21 and Gate 1 migrations, Defense under the shelf refresh. |
 | `tests/browser-*.py`, `static-defense-audit.py`, `worker-j-integration-risk-audit.py` | `python3` | Inherited browser and static suites. |
 
