@@ -1,6 +1,6 @@
 # ASTRA visual uphaul
 
-Branch: `feat/astra-adhd-visual-uphaul`  
+Branch: `feat/astra-adhd-visual-uphaul`
 Verified develop starting point: `8c90028286b67b89ccf187ce9f022ead51d53c56`.
 
 ## Required targets
