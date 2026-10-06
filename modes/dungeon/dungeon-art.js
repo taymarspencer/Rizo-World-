@@ -626,37 +626,238 @@
     for (const wx of [-8, 8]) oval(ctx, wx, -1.5, 1.8, 1.8, P.ink);
     ctx.restore();
   }
-  // Silhouettes in the van, seen from behind: the same four people as outside,
-  // each still carrying one mark (the tall hood, the beanie's pom, the cap).
-  // Whoever is talking moves; frozen, nobody does; staring, eyes catch the light.
+  // ===== THE RIDE: the van moving under everyone =====
+  // One road for the scenery, the crew and Rizo, so everything in the van
+  // moves together. surge: + speeding up (bodies sway back, toward the rear
+  // doors), − braking. bend: the road curving (lane lines drift, the tree on
+  // the mirror swings). shiver: the engine in every seat. Still when reduced.
+  function vanRide(t, reduced) {
+    if (reduced || !t) return { surge: 0, bend: 0, drift: 0, shiver: 0 };
+    const surge = Math.sin(t / 3700) * 0.6 + Math.sin(t / 8300 + 2.1) * 0.4;
+    const bend = Math.sin(t / 5100 + 0.7) * 0.7 + Math.sin(t / 12900) * 0.3;
+    return { surge, bend, drift: bend * 8, shiver: Math.sin(t / 29) * 0.22 + Math.sin(t / 47) * 0.16 };
+  }
+
+  // THE CREW IN THE VAN. The four people from outside, sitting where people
+  // sit in a work van with the roof cut away: the DRIVER at the wheel on the
+  // near side, facing the road; the TALL one twisted round in the passenger
+  // seat with his slides on the dash, an arm over the seatback, watching; the
+  // SMALL one on a milk crate and the CAPPED one on the wheel arch, both with
+  // their backs to the far wall, facing the floor where Rizo is. Seat or feet
+  // at x,y. Each keeps the shape that named them outside: hood peak, beanie
+  // and pom, flat backwards cap, and the driver's sunglasses at night.
+  //   o.look     world point the head turns to (speaker, Rizo, the phone)
+  //   o.talking  head and one hand move;  o.quiet  head down, hunched
+  //   o.state    "freeze": nothing moves but the road; "stare": every face on o.look, eyes lit
+  //   o.point    the capped one's arm out at o.look;  o.phone  "film" | "call" (the small one)
+  //   o.ride     vanRide();  o.bump  0..1 just after a pothole
+  const CREW_HEIGHT = Object.freeze({ driver: 62, "hood-tall": 68, "hood-small": 62, "hood-cap": 64 });
+  const CREW_HEAD = Object.freeze({ driver: [-1, -57], "hood-tall": [3, -59], "hood-small": [0, -47], "hood-cap": [0, -47] });
   function seated(ctx, kind, x, y, o = {}) {
-    const t = o.t || 0, still = o.state === "freeze" || o.state === "stare";
-    const nod = still || !t ? 0 : o.talking ? Math.sin(t / 95) * 0.9 + Math.sin(t / 37) * 0.35 : Math.sin(t / 900 + x) * 0.35;
-    const turn = o.talking && !still && t ? Math.sin(t / 260) * 1.2 : 0;
-    const hx = x + 14 + turn, hy = (kind === "driver-seat" ? y - 5 : y - 6) + nod;
-    if (kind === "driver-seat") {
-      oval(ctx, hx, hy, 9, 9, P.cloth[0], true, 1.2);
-      shape(ctx, [hx - 8, hy - 7, hx + 8, hy - 7, hx + 10, hy - 4, hx - 10, hy - 4], P.cloth[1], { ink: 1, amp: 0.2 });
-      box(ctx, x + 2, y + 2, 24, 12, P.cloth[0], { ink: 1.1, amp: 0.3 });
-    } else {
-      const coat = o.who === "hood-small" ? P.a.maroon : o.who === "hood-cap" ? P.a.track : P.cloth[2];
-      oval(ctx, hx, hy, 9.5, 10, coat === P.a.maroon ? P.ink : P.cloth[2], true, 1.2);
-      if (o.who === "hood-small") {
-        // The mustard beanie and its pom.
-        shape(ctx, [hx - 8, hy - 3, hx - 7, hy - 9, hx, hy - 12, hx + 7, hy - 9, hx + 8, hy - 3], P.a.mustard, { ink: 1.1, amp: 0.3 });
-        oval(ctx, hx + 1, hy - 13, 2.2, 2, P.a.mustard, true, 0.9);
-      } else if (o.who === "hood-cap") {
-        // The cap on backwards, its brim at the back of his neck.
-        oval(ctx, hx, hy - 5, 8.6, 5, P.ink, true, 1);
-        rect(ctx, P.ink, hx - 6 * (o.face || 1) - 3, hy - 3, 6, 1.6);
-      } else {
-        // The tall one's hood, its peak drooping forward.
-        shape(ctx, [hx - 6, hy - 9, hx + 6, hy - 9, hx + 9, hy + 4, hx - 9, hy + 4], P.cloth[2], { ink: 1, amp: 0.3 });
-      }
-      box(ctx, x + 2, y + 2, 25, 12, coat, { ink: 1.1, amp: 0.3 });
+    const who = CREW_HEAD[o.who] ? o.who : kind === "driver-seat" ? "driver" : "hood-tall";
+    const t = o.t || 0, state = o.state || "idle";
+    const still = state === "freeze" || state === "stare";
+    const ride = o.ride || { surge: 0, shiver: 0 };
+    const k = {
+      t, state, still, quiet: Boolean(o.quiet) && !still, phone: o.phone || null, point: Boolean(o.point),
+      // Bodies sway with the van; frozen, they hold themselves rigid against it.
+      lean: ride.surge * (still ? 0.6 : 1.8) + (still ? 0 : ride.shiver * 0.3),
+      hop: -(o.bump || 0) * 3.4,
+      talk: o.talking && !still && t ? Math.sin(t / 95) * 0.8 + Math.sin(t / 37) * 0.3 : 0,
+      talking: Boolean(o.talking) && !still,
+      idle: still || !t ? 0 : Math.sin(t / 1100 + x * 0.1) * 0.4
+    };
+    const [hx, hy] = CREW_HEAD[who];
+    const dx = o.look ? o.look.x - (x + hx) : 0, dy = o.look ? o.look.y - (y + hy) : 1, d = Math.hypot(dx, dy) || 1;
+    k.look = { x: dx / d, y: dy / d };
+    ctx.save(); ctx.translate(x, y);
+    if (who === "driver") crewDriver(ctx, k);
+    else if (who === "hood-tall") crewTall(ctx, k);
+    else if (who === "hood-small") crewSmall(ctx, k);
+    else crewCap(ctx, k);
+    ctx.restore();
+  }
+  // Eyes in a mask: whites that read at phone size, pupils toward the look.
+  function crewEyes(ctx, ex, ey, gap, k, o = {}) {
+    const wide = k.state === "stare" || o.wide, r = wide ? 1.9 : 1.55;
+    const px = k.look.x * (wide ? 0.5 : 0.75), py = k.look.y * 0.45;
+    if (k.quiet) { line(ctx, ex - gap - 1.4, ey + 0.4, ex - gap + 1.4, ey + 0.8, P.paper[2], 1); line(ctx, ex + gap - 1.4, ey + 0.8, ex + gap + 1.4, ey + 0.4, P.paper[2], 1); return; }
+    for (const side of [-1, 1]) {
+      oval(ctx, ex + side * gap, ey + (o.crooked ? side * 0.5 : 0), r, r * 0.9, P.paper[3]);
+      oval(ctx, ex + side * gap + px, ey + (o.crooked ? side * 0.5 : 0) + py, wide ? 0.6 : 0.8, wide ? 0.6 : 0.8, P.ink);
     }
-    // Staring at him: two points of light where the eyes would be.
-    if (o.state === "stare") { oval(ctx, hx - 2.4, hy + 1, 1, 0.8, P.paper[3]); oval(ctx, hx + 2.4, hy + 1, 1, 0.8, P.paper[3]); }
+    if (k.state === "stare") { rect(ctx, "#ffffff", ex - gap - 1, ey - 1.2, 0.9, 0.9); rect(ctx, "#ffffff", ex + gap - 1, ey - 1.2, 0.9, 0.9); }
+  }
+  // The small one: puffer jacket, mustard beanie and pom, on a milk crate,
+  // the phone in his hand. Facing the floor (and us).
+  function crewSmall(ctx, k) {
+    // The crate he sits on: faded blue, slotted.
+    box(ctx, -11, -21, 22, 17, P.a.denim, { ink: 1.2, amp: 0.2, seed: 141 });
+    rect(ctx, P.a.umbrellaLight, -10.4, -20.6, 20.8, 1.6);
+    for (const gx of [-6, -1, 4]) rect(ctx, P.ink, gx, -15, 2, 8);
+    // Knees forward, shins down, white trainers.
+    box(ctx, -9.5, -24, 19, 7, P.cloth[1], { ink: 1.1, amp: 0.2, seed: 142 });
+    for (const side of [-1, 1]) {
+      box(ctx, side * 4.6 - 2.7, -16, 5.4, 15, P.cloth[1], { ink: 1.1, amp: 0.2, seed: 143 + side });
+      oval(ctx, side * 4.6, -17, 3.4, 2.6, P.cloth[2], true, 1);
+      oval(ctx, side * 5.2, -1.4, 3.6, 2, P.a.white, true, 1);
+    }
+    const sx = k.lean * 0.5, sy = k.hop * 0.5 + (k.quiet ? 1.6 : 0);
+    ctx.save(); ctx.translate(sx, sy);
+    // Off arm: on his knee, or up and open while he talks.
+    if (k.talking && k.phone !== "call") limb(ctx, [-11, -37, -16, -31, -17, -38 + k.talk * 2], P.a.maroon, 4.4, P.skin[1]);
+    else if (k.phone !== "call") limb(ctx, [-11, -37, -12, -28, -6, -22], P.a.maroon, 4.4, P.skin[1]);
+    // Puffer: three quilted bands, the top one lit, a zip.
+    shape(ctx, [-13, -42, 12, -42, 14, -23, -14, -23], P.a.maroon, { ink: CH, seed: 144, amp: CA });
+    ctx.globalAlpha = 0.28; shape(ctx, [-13, -42, -6, -42, -7, -23, -14, -23], P.ink, { ink: false, seed: 145, amp: CA }); ctx.globalAlpha = 1;
+    rect(ctx, P.a.maroonLight, -11, -41, 22, 3);
+    for (const qy of [-35, -29]) line(ctx, -13.5, qy, 13.5, qy + 0.5, P.ink, 0.9, qy);
+    line(ctx, 0.4, -41, 0.4, -24, P.inkSoft, 0.8, 146, 0.1);
+    // The phone: held out at what he films, held close when it rings, or in his lap.
+    if (k.phone === "film") {
+      const ax = 12 + Math.max(-2, k.look.x * 9), ay = -36 + k.look.y * 3;
+      limb(ctx, [10, -38, ax - 2, ay + 2, ax, ay - 1], P.a.maroon, 4.4, null);
+      box(ctx, ax - 2, ay - 8, 6, 9, P.ink, { ink: 1, amp: 0.1 });
+      rect(ctx, P.metal[3], ax + 1.6, ay - 6.6, 1.4, 1.4);
+      rect(ctx, P.fluoro[2], ax - 2.8, ay - 7.4, 1, 8);
+      oval(ctx, ax, ay - 0.5, 2.3, 2.1, P.skin[1], true, 0.9);
+    } else if (k.phone === "call") {
+      limb(ctx, [-11, -37, -9, -28, -3, -29], P.a.maroon, 4.4, P.skin[1]);
+      limb(ctx, [11, -37, 9, -28, 4, -29], P.a.maroon, 4.4, P.skin[1]);
+      box(ctx, -3.5, -38, 8, 11, P.ink, { ink: 1, amp: 0.1 });
+      rect(ctx, P.fluoro[2], -3, -38.6, 7, 1);
+    } else {
+      limb(ctx, [11, -37, 12, -28, 7, -22], P.a.maroon, 4.4, P.skin[1]);
+      box(ctx, 3, -25, 7, 4, P.ink, { ink: 0.8, amp: 0.1 });
+    }
+    // Head: ski mask under the beanie; the eye slot on crooked.
+    const hx = k.lean + k.look.x * 1.3 + k.talk * 0.2, hy = -47 + k.hop + k.idle + (k.quiet ? 2.6 : 0) - sy;
+    oval(ctx, hx, hy, 8.4, 8, P.ink, true, CH);
+    ctx.save(); ctx.translate(hx, hy - 0.4); ctx.rotate(-0.12); rect(ctx, P.cloth[0], -6.8, -2.8, 13.6, 4.6); ctx.restore();
+    crewEyes(ctx, hx + k.look.x * 0.8, hy - 0.6, 2.8, k, { crooked: true, wide: k.phone === "call" });
+    if (k.talking) oval(ctx, hx + k.look.x, hy + 4.4, 1.5, 0.8 + Math.abs(k.talk) * 0.6, P.cloth[1]);
+    // The screen's cold light on the mask when the phone is up.
+    if (k.phone) { ctx.globalAlpha = k.phone === "call" ? 0.5 : 0.3; oval(ctx, hx + (k.phone === "film" ? 3 : 0), hy + 3, 6, 3.6, P.fluoro[1]); ctx.globalAlpha = 1; }
+    shape(ctx, [hx - 8.7, hy - 2.6, hx - 7.8, hy - 9.4, hx, hy - 12.6, hx + 7.8, hy - 9.4, hx + 8.7, hy - 2.6], P.a.mustard, { ink: 1.3, seed: 147, amp: 0.25 });
+    rect(ctx, P.ink, hx - 8.4, hy - 5, 16.8, 0.8);
+    oval(ctx, hx + 1, hy - 13.8, 2.8, 2.6, P.a.mustard, true, 1);
+    ctx.restore();
+  }
+  // The capped one: wide, track jacket with the white stripe, cap on
+  // backwards (a flat top nobody else has), red bandana; elbows on his knees
+  // on the wheel arch, the empty pillowcase in his hands. He points once.
+  function crewCap(ctx, k) {
+    for (const side of [-1, 1]) {
+      box(ctx, side * 8.4 - 3.2, -18, 6.4, 17, P.cloth[0], { ink: 1.1, amp: 0.2, seed: 151 + side });
+      oval(ctx, side * 8.4, -19, 4.2, 3, P.cloth[1], true, 1);
+      oval(ctx, side * 9, -1.6, 4.4, 2.3, P.ink, true, 1);
+      line(ctx, side * 9 - 2, -1.4, side * 9 + 1.6, -2.2, P.a.white, 0.8);
+    }
+    box(ctx, -13, -26, 26, 8, P.cloth[0], { ink: 1.1, amp: 0.2, seed: 153 });
+    const sx = k.lean * 0.5, sy = k.hop * 0.5;
+    ctx.save(); ctx.translate(sx, sy);
+    // Hunched: shoulders forward and down.
+    shape(ctx, [-16, -42, 15, -43, 14, -24, -14, -24], P.a.track, { ink: CH, seed: 154, amp: CA });
+    shape(ctx, [-16, -42, -8, -43, -9, -24, -14, -24], "#24472f", { ink: false, seed: 155, amp: CA });
+    line(ctx, 0, -42, 0, -25, P.ink, 0.9);
+    // Pointing: the arm on Rizo's side goes straight out at him, one finger;
+    // the pillowcase drops at his feet. Otherwise elbows on knees, the cloth in his hands.
+    const side = k.look.x < 0 ? -1 : 1;
+    const ax = side * 14 + k.look.x * 13 + side * 8, ay = -38 + k.look.y * 13;
+    if (!k.point) {
+      limb(ctx, [-14, -39, -9, -26, -2, -27], P.a.track, 4.8, P.skin[0]);
+      shape(ctx, [-6, -31, 5, -32, 7, -24, 1, -21, -6, -23], P.a.white, { ink: 1.1, seed: 156, amp: 0.7 });
+      limb(ctx, [14, -39, 9, -26, 3, -27], P.a.track, 4.8, P.skin[0]);
+    } else {
+      shape(ctx, [-4, -6, 8, -7, 10, -1, -3, 0], P.a.white, { ink: 1.1, seed: 157, amp: 0.7 });
+      limb(ctx, [-side * 14, -39, -side * 9, -26, -side * 2, -27], P.a.track, 4.8, P.skin[0]);
+      limb(ctx, [side * 14, -39, (side * 14 + ax) / 2, (-39 + ay) / 2 - 1, ax, ay], P.a.track, 4.8, P.skin[0]);
+      line(ctx, ax, ay, ax + k.look.x * 5.5, ay + k.look.y * 5.5, P.ink, 2.8);
+      line(ctx, ax, ay, ax + k.look.x * 5.5, ay + k.look.y * 5.5, P.skin[0], 1.3);
+    }
+    rect(ctx, P.a.white, -15, -38, 1.6, 9); rect(ctx, P.a.white, 13, -38, 1.6, 9);
+    // Head: hood, the backwards cap's flat brim standing up behind, bandana.
+    const hx = k.lean + k.look.x * 1.3, hy = -47 + k.hop + k.idle - sy;
+    oval(ctx, hx, hy, 9.4, 8.8, P.cloth[1], true, CH);
+    shape(ctx, [hx - 6.4, hy - 7.6, hx + 6.4, hy - 7.6, hx + 5.6, hy - 12.4, hx - 5.6, hy - 12.4], P.ink, { ink: 1, seed: 158, amp: 0.15 });
+    oval(ctx, hx, hy - 4.6, 8.4, 4.6, P.ink, true, 1);
+    oval(ctx, hx, hy - 3.6, 2.4, 1.2, P.cloth[1]);
+    shape(ctx, [hx - 8.2, hy + 0.4, hx + 8.2, hy + 0.4, hx + 6.4, hy + 6.8, hx, hy + 9, hx - 6.4, hy + 6.8], P.a.red, { ink: 1.1, seed: 159, amp: 0.25 });
+    line(ctx, hx - 5, hy + 3.4, hx + 5, hy + 3.2, P.a.stamp, 0.8);
+    crewEyes(ctx, hx + k.look.x * 0.8, hy - 1.2, 3, k);
+    ctx.restore();
+  }
+  // The tall one, in the passenger seat: long legs out to the dash in socks
+  // and slides, twisted round with an arm over the seatback (the seatback is
+  // the van's, at x+6..x+15), hood peak drooping toward whatever he watches.
+  function crewTall(ctx, k) {
+    const sx = k.lean * 0.6, sy = k.hop * 0.5;
+    // Legs to the dash; socks and slides.
+    limb(ctx, [-1, -21, -12, -33, -22, -29], P.cloth[1], 5, null);
+    rect(ctx, P.a.sock, -24.5, -31.6, 4, 4.4);
+    shape(ctx, [-29, -30, -23, -31, -22.6, -27, -29.4, -26.4], P.ink, { ink: false, seed: 161, amp: 0.1 });
+    ctx.save(); ctx.translate(sx, sy);
+    // Far arm on his knee.
+    limb(ctx, [-4, -47, -8, -38, -11, -33], P.cloth[1], 4.4, P.skin[1]);
+    shape(ctx, [-8, -51, 6, -53, 8, -21, -8, -19], P.cloth[3], { ink: CH, seed: 162, amp: CA });
+    shape(ctx, [1, -52, 6, -53, 8, -21, 2, -20], P.cloth[2], { ink: false, seed: 163, amp: CA });
+    box(ctx, -5, -34, 11, 7, P.cloth[1], { ink: 1, amp: 0.3, seed: 164 });
+    ctx.globalAlpha = 0.5; oval(ctx, 0, -43, 4, 3.4, P.cloth[3]); ctx.globalAlpha = 1;
+    // Near arm over the seatback; lifted off it while he talks.
+    if (k.talking) limb(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[3], 4.6, P.skin[1]);
+    else limb(ctx, [4, -48, 12, -53, 18, -49], P.cloth[3], 4.6, P.skin[1]);
+    // Head: the peak droops toward where he looks; a slot of mask, lazy eyes.
+    const f = k.look.x < -0.3 ? -1 : 1;
+    const hx = 3 + k.lean + k.talk * 0.3, hy = -59 + k.hop + k.idle - sy + (k.quiet ? 1.5 : 0);
+    ctx.save(); ctx.translate(hx, hy); ctx.scale(f, 1);
+    shape(ctx, [-9, 7, -10, -4, -4, -11, 5, -11, 10, -5, 12, 1, 7, -1, 6, 8], P.cloth[3], { ink: CH, seed: 165, amp: CA });
+    line(ctx, -6, -6, 4, -10, P.paper[0], 1, 166, 0.2);
+    oval(ctx, 3, 1, 5.8, 5.6, P.ink);
+    rect(ctx, P.cloth[0], 0, -1.4, 8.6, 3.6);
+    if (k.state === "stare") { oval(ctx, 5.6, 0.4, 1.6, 1.3, P.paper[3]); oval(ctx, 6.2, 0.4, 0.6, 0.6, P.ink); rect(ctx, "#ffffff", 4.6, -0.5, 0.8, 0.8); }
+    else if (k.quiet) line(ctx, 3.6, 0.8, 7.4, 1.2, P.paper[2], 1.1);
+    else { line(ctx, 3.4, 0.2, 7.6, 0.4, P.paper[2], 1.3); rect(ctx, P.ink, 5.6 + Math.max(0, k.look.x) * 0.8, -0.1, 1.1, 1); }
+    line(ctx, 4, 7, 3.4, 15, P.paper[2], 0.8); line(ctx, 6.4, 6.4, 7, 11, P.paper[2], 0.8);
+    ctx.restore();
+    ctx.restore();
+  }
+  // The driver: heavy shoulders over the wheel in a rust chore coat with a
+  // cream fleece collar, gloves, a black ski mask and wraparound sunglasses at
+  // night. Faces the road; turns half round to talk, further to look at Rizo.
+  function crewDriver(ctx, k) {
+    const turn = k.state === "stare" ? 0.85 : k.talking ? 0.5 : k.quiet ? 0.2 : 0;
+    const sx = k.lean * 0.5, sy = k.hop * 0.4;
+    // Legs down to the pedals; work boots.
+    limb(ctx, [2, -21, -9, -25, -14, -6], P.cloth[0], 5.4, null);
+    oval(ctx, -16, -4, 4, 2.2, P.ink, true, 1);
+    ctx.save(); ctx.translate(sx, sy);
+    // The wheel, edge-on: a tilted ring and its column to the dash.
+    line(ctx, -21, -31, -31, -27, P.ink, 2.2);
+    ctx.save(); ctx.translate(-21, -38); ctx.rotate(-0.28);
+    ctx.strokeStyle = P.ink; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.ellipse(0, 0, 2.8, 10.5, 0, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = P.cloth[2]; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.restore();
+    // Far arm to the top of the wheel.
+    limb(ctx, [2, -46, -8, -40, -19, -47], P.a.rust, 4.8, null);
+    oval(ctx, -19.5, -47.5, 2.6, 2.4, P.ink, true, 0.9);
+    // The coat: rust canvas, a dark side, a chest pocket, the fleece collar.
+    shape(ctx, [-9, -50, 8, -52, 10, -20, -9, -19], P.a.rust, { ink: CH, seed: 171, amp: CA });
+    shape(ctx, [3, -51, 8, -52, 10, -20, 4, -20], P.wood[1], { ink: false, seed: 172, amp: CA });
+    box(ctx, -6, -40, 7, 6, P.wood[1], { ink: 0.8, amp: 0.2, seed: 173 });
+    shape(ctx, [-7, -50, 8, -53, 9, -47, -6, -45], P.paper[2], { ink: 1.1, seed: 174, amp: 0.5 });
+    // Near arm: on the wheel, or off it to make a point.
+    if (k.talking) { limb(ctx, [-3, -46, -9, -37, -11, -48 + k.talk * 2.4], P.a.rust, 4.8, null); oval(ctx, -11, -48.4 + k.talk * 2.4, 2.6, 2.4, P.ink, true, 0.9); }
+    else { limb(ctx, [-3, -46, -11, -35, -21, -31], P.a.rust, 4.8, null); oval(ctx, -21, -31, 2.6, 2.4, P.ink, true, 0.9); }
+    // Head: black knit mask with a rolled cuff, the glasses' band moving round as he turns.
+    const hx = -1 + k.lean * 0.8, hy = -57 + k.hop + k.idle - sy + (k.quiet ? 1.2 : 0);
+    oval(ctx, hx, hy, 7.6, 7.8, P.ink, true, CH);
+    rect(ctx, P.cloth[1], hx - 7.2, hy - 6.8, 14.4, 2.8);
+    oval(ctx, hx + 5.4 - turn * 6, hy + 0.6, 1.5, 2.3, P.cloth[0]);
+    const lx = hx - 4.8 + turn * 7.2;
+    box(ctx, lx - 3.4, hy - 2.4, 6.8 - turn * 1.2, 3.2, P.metal[3], { ink: 0.9, amp: 0.1 });
+    rect(ctx, "#ffffff", lx - 2.4, hy - 1.8, 2, 0.9);
+    oval(ctx, hx - 5.6 + turn * 6.6, hy + 4, 1.3, k.talking ? 0.8 + Math.abs(k.talk) * 0.5 : 0.5, P.cloth[1]);
+    ctx.restore();
   }
 
   // LATCH. A stranded courier: a folded-paper coat with the collar turned
@@ -1328,7 +1529,7 @@ ${mouth}
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
-    keeper, van, hood, seated, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
+    keeper, van, hood, seated, vanRide, CREW_HEIGHT, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
     PORTRAITS
   });
 });

@@ -179,7 +179,9 @@
       lead.x += ((heading ? heading.x * 14 : 0) - lead.x) * ease;
       lead.y += ((heading ? heading.y * 18 : 0) - lead.y) * ease;
       const fx = peek ? peek.x : px + lead.x, fy = peek ? peek.y + metrics.viewH * 0.3 : py + lead.y;
-      const targetX = maxX <= 0 ? maxX / 2 : Math.min(maxX, Math.max(0, fx - metrics.viewW / 2));
+      // A room narrower than the screen is centred, or framed on the middle it
+      // asks for (the van keeps its cab and its back doors in view).
+      const targetX = maxX <= 0 ? (roomGeo.cameraCenterX ?? roomGeo.w / 2) - metrics.viewW / 2 : Math.min(maxX, Math.max(0, fx - metrics.viewW / 2));
       let targetY = maxY <= 0 ? maxY / 2 : Math.min(maxY, Math.max(0, fy - metrics.viewH * 0.55));
       // A room may ask to keep one line in view when the screen is short (the
       // car keeps the store window), as long as the Rizo still fits below it.
@@ -236,7 +238,7 @@
     }
 
     // ===== ACTORS (Art cutouts; feet at x,y) =====
-    let extrasTime = 0, lastRoom = {}, speaking = new Set();
+    let extrasTime = 0, lastRoom = {}, speaking = new Set(), lastBarks = [], lastNpcs = [], crewRizo = { x: 0, y: 0 };
     const walkBob = (actor, time) => (actor.walking && !reducedMotion ? Math.sin(time / 110) * 2 : 0);
     function paintNpc(actor, time) {
       const t = reducedMotion ? 0 : time;
@@ -247,7 +249,7 @@
         case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
         case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;
         case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
-        case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y, { who: actor.id, talking: speaking.has(actor.id), state: actor.state, face: actor.face || 1, t }); break;
+        case "van-seat": case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y, crewOptions(actor, t)); break;
         case "taillights": {
           // Far off they are two red points; braking, they flare.
           const a = Math.max(0, Math.min(1, (actor.y + 160) / 300));
@@ -263,6 +265,34 @@
         case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
         default: break;
       }
+    }
+
+    // The van crew: who each of them is looking at, as a world point. Whoever
+    // talks looks at whoever spoke before them; the others look at the
+    // talker; nobody talking, they watch Rizo (they can't help it). The
+    // driver watches the road. When the phone rings, everyone looks at it;
+    // "stare", everyone looks at him.
+    const crewTalk = { current: null, previous: null };
+    const headOf = actor => ({ x: actor.x, y: actor.y - (Art.CREW_HEIGHT[actor.id] || 56) + 8 });
+    function crewOptions(actor, t) {
+      const npcs = lastNpcs, rizo = { x: crewRizo.x, y: crewRizo.y - 8 };
+      const byId = id => npcs.find(entry => entry.id === id);
+      const bark = lastBarks.find(entry => entry.id === actor.id);
+      const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;
+      const small = byId("hood-small");
+      let look = rizo;
+      if (actor.state === "stare") look = rizo;
+      else if (lastRoom.phoneLight === "call" && small) look = { x: small.x, y: small.y - 32 };
+      else if (talker === actor.id) { const other = crewTalk.previous && crewTalk.previous !== actor.id ? byId(crewTalk.previous) : null; look = other ? headOf(other) : rizo; }
+      else if (talker && byId(talker) && actor.id !== "driver") look = headOf(byId(talker));
+      else if (actor.id === "driver") look = { x: actor.x - 200, y: actor.y - 60 };
+      const shook = lastRoom.shake != null ? Math.max(0, 1 - (extrasTime - lastRoom.shake) / 450) : 0;
+      return {
+        who: actor.id, t, state: actor.state, look, talking: Boolean(bark), quiet: Boolean(bark?.quiet),
+        point: actor.id === "hood-cap" && (Boolean(bark) || actor.state === "stare"),
+        phone: actor.id === "hood-small" ? lastRoom.phoneLight || null : null,
+        ride: Art.vanRide(t, reducedMotion), bump: reducedMotion ? 0 : shook
+      };
     }
 
     // ===== ENEMIES: bodies (lit with the room), then telegraphs (above the dark) =====
@@ -292,14 +322,26 @@
         }
         Art.needle(ctx, x, y, { state: enemy.state, aimX: enemy.aimX, aimY: enemy.aimY, t, flash });
       } else if (enemy.kind === "cargo") {
-        if (enemy.state === "gone") return;
-        Art.cooler(ctx, enemy.x, enemy.y, { wobble: enemy.state === "windup" && !reducedMotion ? Math.sin(sim.t / 40) * 1.2 : 0 });
+        // One cooler: it comes to rest where a slide ends, and the next jolt
+        // drags it from there back to the front before it goes again.
+        if (enemy !== latestCargo(sim)) return;
+        if (enemy.state === "gone") { cooler.rest = { x: enemy.x, y: enemy.y }; Art.cooler(ctx, enemy.x, enemy.y, {}); return; }
+        let cx = enemy.x, cy = enemy.y;
+        if (enemy.state === "windup" && cooler.rest) {
+          const k = Math.min(1, (sim.t - enemy.stateAt) / 520), ease = 1 - (1 - k) * (1 - k);
+          cx = cooler.rest.x + (enemy.x - cooler.rest.x) * ease; cy = cooler.rest.y + (enemy.y - cooler.rest.y) * ease;
+        }
+        Art.cooler(ctx, cx, cy, { wobble: enemy.state === "windup" && !reducedMotion ? Math.sin(sim.t / 40) * 1.2 : 0 });
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
         Art.porter(ctx, x, y, { t, open, settled: enemy.state === "settled", flash, lean, lampAim: enemy.state === "sweep-tell" || enemy.state === "sweep" ? enemy.sweepDir || 0 : 0 });
       }
     }
+    // Before the first jolt the cooler sits by the seats, at the front of the bay.
+    const COOLER_HOME = Object.freeze({ x: 28, y: 104 });
+    const cooler = { sim: null, rest: null };
+    const latestCargo = sim => { let last = null; for (const enemy of sim.enemies) if (enemy.kind === "cargo") last = enemy; return last; };
     function paintLane(enemy, def) {
       const length = def.lungeDistance + enemy.r + 6;
       const ex = enemy.x + enemy.aimX * length, ey = enemy.y + enemy.aimY * length;
@@ -537,7 +579,11 @@
       extrasTime = extras.sceneTime || 0;
       lastRoom = extras.room || {};
       speaking = new Set((extras.barks || []).map(item => item.id));
+      lastBarks = extras.barks || []; lastNpcs = extras.npcs || [];
+      const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;
+      if (talker && talker !== crewTalk.current) { crewTalk.previous = crewTalk.current; crewTalk.current = talker; }
       const p = sim.player;
+      crewRizo = { x: pos.x, y: pos.y };
       follow(pos.x, pos.y, geo, dt, extras.peek, p.moving ? { x: p.fx || 0, y: p.fy || 0 } : null);
       const shake = extras.shake && !reducedMotion ? extras.shake * 2 : 0;
       const ox = shake ? (Math.sin(time / 23) * shake) : 0, oy = shake ? (Math.cos(time / 29) * shake) : 0;
@@ -562,12 +608,17 @@
       // The van's sort point is its near side, so people climbing out stand in front of it.
       for (const actor of extras.npcs || []) bodies.push({ y: actor.kind === "van" ? actor.y - 30 : actor.y, draw: () => paintNpc(actor, time) });
       for (const enemy of sim.enemies) bodies.push({ y: enemy.y + (enemy.kind === "porter" ? 20 : enemy.r), draw: () => paintEnemy(enemy, sim, time) });
+      if (geo.theme === "van") {
+        if (cooler.sim !== sim) { cooler.sim = sim; cooler.rest = null; }
+        if (!latestCargo(sim)) { cooler.rest = { ...COOLER_HOME }; bodies.push({ y: COOLER_HOME.y + 9, draw: () => Art.cooler(ctx, COOLER_HOME.x, COOLER_HOME.y, {}) }); }
+      }
       bodies.sort((a, b) => a.y - b.y);
       for (const body of bodies) body.draw();
       if (geo.world && geo.theme !== "drain" && geo.theme !== "van") {
         const worse = geo.theme === "road" ? Math.max(0, 1 - pos.y / 700) * 0.6 : 0;
         rain(geo, time, (geo.rain || 0) + worse, 0.25 + worse * 0.4);
-      } else if (geo.theme === "van" || geo.theme === "drain") rain({ shelters: geo.theme === "van" ? [{ x: -12, y: -18, w: geo.w + 24, h: geo.h + 36 }] : [{ x: 0, y: 0, w: geo.w, h: geo.h - 12 }] }, time, 0.7, 0.6);
+      } else if (geo.theme === "van") rain({ shelters: Scenery.shelterOf(geo) }, time, 0.8, 1.5);
+      else if (geo.theme === "drain") rain({ shelters: [{ x: 0, y: 0, w: geo.w, h: geo.h - 12 }] }, time, 0.7, 0.6);
       // The dark, and what cuts it.
       const lit = Scenery.lights(geo, scene);
       const flame = Math.max(0, p.flame);
@@ -590,7 +641,9 @@
       // The DOM actor follows the same camera.
       const [ax, ay] = toScreen(pos.x + ox, pos.y + oy + Core.T.PLAYER_RADIUS * 0.6);
       const size = actorUnits * metrics.scale;
-      el.actor.style.transform = `translate3d(${(ax - size / 2).toFixed(1)}px, ${(ay - size * 0.84).toFixed(1)}px, 0)`;
+      // In the van he sways with everyone else.
+      const sway = geo.theme === "van" && !reducedMotion ? ` rotate(${(Art.vanRide(time, false).surge * 3).toFixed(2)}deg)` : "";
+      el.actor.style.transform = `translate3d(${(ax - size / 2).toFixed(1)}px, ${(ay - size * 0.84).toFixed(1)}px, 0)${sway}`;
       // Full-line space is reserved before the typewriter starts. Choose the
       // end of the screen that leaves Rizo and the speaking body most visible.
       if (!el.dialogue.hidden && !el.dialogue.dataset.placed) {
@@ -719,7 +772,10 @@
         const off = x < 0 || x > metrics.cssW || y < height + 30 || y > metrics.cssH - 10;
         // Try the natural head position first, then beside it. Clamp each
         // candidate; never trade a readable line for hiding the small flame.
-        const candidates = [[x, y], [x + width * 0.55, y], [x - width * 0.55, y], [x, y - height - 12], [x, y + height + lift * metrics.scale + 12]];
+        // Someone sitting under somebody else (the driver, under the tall one)
+        // speaks from below, so the tail can only mean them.
+        const below = y + height + lift * metrics.scale + 12;
+        const candidates = actor.barkBelow ? [[x, below], [x + width * 0.55, below], [x - width * 0.55, below], [x, y]] : [[x, y], [x + width * 0.55, y], [x - width * 0.55, y], [x, y - height - 12], [x, below]];
         let best = null;
         for (const [cx, cy] of candidates) {
           const bx = Math.min(metrics.cssW - width / 2 - edge, Math.max(width / 2 + edge, cx));
@@ -728,6 +784,9 @@
           const score = occupied.reduce((sum, rect) => sum + overlap(bounds, rect), 0) * 100 + Math.hypot(bx - x, by - y);
           if (!best || score < best.score) best = { x: bx, y: by, bounds, score };
         }
+        // The tail stays over the speaker's head, wherever the bubble had to go.
+        const tail = Math.round(Math.min(width - 12, Math.max(12, x - (best.x - width / 2))));
+        if (node.dataset.tail !== String(tail)) { node.dataset.tail = String(tail); node.style.setProperty("--tail", `${tail}px`); }
         x = best.x; y = best.y; occupied.push(best.bounds);
         node.classList.toggle("is-edge", off);
         node.classList.toggle("is-below", y > toScreen(actor.x, actor.y)[1]);

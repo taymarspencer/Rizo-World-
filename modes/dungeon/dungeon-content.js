@@ -128,8 +128,13 @@
       entryAnchor: "start",
       props: [], zones: [], exits: [], encounters: []
     },
+    // The crew's work van, nose to the left, driving left; the cargo bay is
+    // his floor. The far wall (top) is the van's side with the sliding door,
+    // the cab is past the seatbacks (left), and the back doors (right) are
+    // the ones that come loose. The camera keeps the cab and the doors in frame.
     van: {
       id: "van", name: "BACK OF A VAN", world: true, w: 240, h: 150, theme: "van", rain: 0,
+      cameraCenterX: 100,
       solids: [
         { id: "seats", x: 0, y: 0, w: 240, h: 42, kind: "seats" },
         { id: "van-floor-s", x: 0, y: 138, w: 240, h: 12, kind: "wall" },

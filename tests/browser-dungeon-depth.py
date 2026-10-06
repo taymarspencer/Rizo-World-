@@ -127,7 +127,7 @@ def play_van(page, viewport_name=None, until_quiet=False):
         clock(page, 150)
         page.wait_for_timeout(22)
         st = state(page)
-        samples.append({"t": st["sceneTime"], "barks": st["barks"], "music": st["music"], "pose": st["pose"], "depth": st["depth"], "loose": bool(st["sim"]["flags"].get("vanDoorLoose")), "player": st["sim"]["player"], "light": st["lightScale"]})
+        samples.append({"t": st["sceneTime"], "barks": st["barks"], "music": st["music"], "pose": st["pose"], "depth": st["depth"], "loose": bool(st["sim"]["flags"].get("vanDoorLoose")), "player": st["sim"]["player"], "light": st["lightScale"], "npcs": st["npcs"]})
         if viewport_name and any(b["quiet"] for b in st["barks"]) and not any(s.get("shot") for s in samples):
             samples[-1]["shot"] = True
             samples[-1]["inside"] = bark_inside(page)
@@ -186,7 +186,13 @@ with sync_playwright() as pw:
     check("its first line comes after the ring, not over it", ring >= 0 and not samples[ring]["barks"] and first_index(samples, lambda s: shows(s, lines["phone"])) > ring)
     capped = first_index(samples, lambda s: shows(s, lines["listening"]))
     gaze = [s for s in samples[capped:capped + 12] if shows(s, lines["listening"]) and s["depth"]["still"] >= 600 and s["depth"]["actors"] and not any(a["state"] == "stare" for a in s["depth"]["actors"])]
-    check("still, he looks at whoever is talking (the capped one, behind him)", gaze and all(s["depth"]["facing"]["y"] > 0.2 for s in gaze), [s["depth"]["facing"] for s in gaze][:3])
+    def toward(s, who):
+        actor = next(a for a in s["npcs"] if a["id"] == who)
+        dx, dy = actor["x"] - s["player"]["x"], actor["y"] - s["player"]["y"]
+        d = (dx * dx + dy * dy) ** 0.5 or 1
+        f = s["depth"]["facing"]
+        return f["x"] * dx / d + f["y"] * dy / d
+    check("still, he looks at whoever is talking (the capped one, on the wheel arch)", gaze and all(toward(s, "hood-cap") > 0.6 for s in gaze), [(s["depth"]["facing"], round(toward(s, "hood-cap"), 2)) for s in gaze][:3])
     stare = first_index(samples, lambda s: any(a["state"] == "stare" for a in s["depth"]["actors"]))
     check("“It's listening.”: everyone turns to him, and he stares back, in rain only",
           stare > capped >= 0 and all(a["state"] == "stare" for a in samples[stare]["depth"]["actors"] if a["id"] in seated) and samples[stare]["pose"] == "stare" and samples[stare]["depth"]["hush"] == "rain", (capped, stare))

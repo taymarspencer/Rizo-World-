@@ -1814,12 +1814,15 @@
         tick() { vanGaze(); },
         enter(context) {
           room.rumble = true;
-          npc("driver", "driver-seat", 70, 20, { face: 1, barkDx: 14, barkLift: 20 });
-          npc("hood-tall", "passenger-seat", 160, 20, { face: -1, barkDx: 14, barkLift: 22 });
-          // The other two ride in the back with him, on the wheel arches: the
-          // same seated silhouettes as the front, seen from behind.
-          npc("hood-small", "passenger-seat", 40, 124, { face: 1, barkDx: 14, barkLift: 22 });
-          npc("hood-cap", "passenger-seat", 172, 124, { face: -1, barkDx: 14, barkLift: 22 });
+          // Where people sit in a work van (nose left; see dungeon-scenery's
+          // VAN): the driver at the wheel on the near side, the tall one
+          // twisted round in the far seat; the small one on a milk crate and
+          // the capped one on the wheel arch, backs to the far wall, facing
+          // the floor where he is. Bubbles sit over their heads.
+          npc("driver", "van-seat", -4, 134, { face: -1, barkDx: 0, barkLift: 66, barkBelow: true });
+          npc("hood-tall", "van-seat", -4, 60, { face: 1, barkDx: 4, barkLift: 72 });
+          npc("hood-small", "van-seat", 44, 46, { face: 1, barkDx: 0, barkLift: 64 });
+          npc("hood-cap", "van-seat", 183, 46, { face: -1, barkDx: 0, barkLift: 62 });
           room.cargoCount = 0;
           runScene("opening:van", [
             S.fade(0, 400),
@@ -1875,7 +1878,7 @@
             }),
             S.until(() => gapHold()),
             S.control(false),
-            S.call(() => { room.shake = sceneTime; room.doorOpen = true; sound("crack"); }),
+            S.call(() => { room.shake = sceneTime; room.doorOpen = true; room.openAt = sceneTime; sound("crack"); }),
             S.pose("fall", 1000),
             S.wait(1000),
             S.fade(1, 300),
@@ -2036,7 +2039,7 @@
     }
     // Rizo turns to someone (or, with null, back toward the whole cabin).
     function vanFaceToward(id) {
-      const actor = id ? npcs.get(id) : { x: 110, y: 60 };
+      const actor = id ? npcs.get(id) : { x: 70, y: 30 };
       if (actor) faceToward(actor.x, actor.y);
     }
     // Still, he watches whoever is talking. Moving, he looks where he goes.
