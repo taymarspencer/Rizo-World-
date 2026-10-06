@@ -205,6 +205,11 @@ physically, and does the art show it?
 | Press House | The stopped "empty job" came to rest at whichever end it reached. Its stop bar is drawn on the carriage's west side, so at the east end the bar was inside the wall. Nell stood at the west end holding nothing, and a reload put the carriage back at her end. | Stopping now completes only at the west stop, the same place a reload finds it. Nell stands on the near side with her board across its frame and the stop bar while he releases the brake at the drive end. She lets go when the test ride starts. |
 | Eyelet Landing | Orr walked in with the food through a solid east wall. | A one-way staff door, in the art only: no handle on this side, a kick plate, the kitchen's warm light in its wired window. It swings open while he passes. The narrative's "visible staff corridors" for Window Hall; no exit, collision or text added. |
 
+Before and after, from the cohesion suite's own walk:
+[rows-staging-before-after](../dungeon/visual-logic/rows-staging-before-after.webp).
+
+![Mending Rows staging before and after](../dungeon/visual-logic/rows-staging-before-after.webp)
+
 Kept as they were, because they already work: the car in the rain, the roadside
 and its loneliness, the drain, the Slip awakening, the Shared Hearth, the
 Porter's hall and the Rows' architecture.
