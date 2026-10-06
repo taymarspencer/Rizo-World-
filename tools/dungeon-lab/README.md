@@ -69,7 +69,8 @@ python3 tools/dungeon-lab/capture.py --out /tmp/lab --format png
 - **Rizo**: 37 poses: still, walking, flare, spark, tuck, kindle, hurt, down, the 26 `pose-*` stagings, wet, warm, and wearing the wrap. All five stages are available.
 - **Latch**: standing, walking, pinned, pulling, seated, unloaded. Expressions: procedural, startled, dry, soft, urgent.
 - **Nell**: work, support, lift, clear, point, listen, fix, walk, eat, brace, tired, fit, sit.
-- **Orr**: tray, carry, walking, hands free.
+- **Orr**: tray, carry, walking, hands free. World expressions: serving, irritated, dry.
+- **Nell world expressions**: work, measuring, listening, amused, irritated, tired; independently selectable from her working pose.
 - **Night Porter**: closed, opening, open, hit, charge tell, charge, lamp sweep, settled.
 - **The kidnappers**:
   - tall hood: standing, walking, grab, flinch;
