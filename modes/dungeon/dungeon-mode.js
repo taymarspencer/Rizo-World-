@@ -1622,7 +1622,9 @@
         return;
       }
       if (!fact("rowsPressStop")) { nell(34, 300, { face: 1, state: "work" }); startEmptyJob(); return; }
-      if (!fact("rowsBrake")) { nell(60, 214, { face: 1, state: "support" }); setTransient("brakeReady", true); return; }
+      // Stopped: she holds the carriage at its west stop (on the near side,
+      // her board across its frame) while he releases the brake at the drive end.
+      if (!fact("rowsBrake")) { nell(90, 282, { face: -1, state: "support" }); setTransient("brakeReady", true); return; }
       nell(150, 70, { face: 1, state: "support" }); setTransient("shutterReady", true);
     }
     function startEmptyJob() {
@@ -1635,9 +1637,9 @@
       room.stopping = true;
       setRoomFlag("rowsPressStop");
       runScene("rows:stop", [
-        S.call(() => { walk("nell", 60, 214, 1200); nellState("walk"); }),
+        S.call(() => { walk("nell", 90, 282, 1200); nellState("walk"); }),
         S.until(() => !room.carriage.moving),
-        S.call(() => { nellState("support"); sound("clunk"); room.shake = sceneTime; }),
+        S.call(() => { nellState("support"); const actor = npcs.get("nell"); if (actor) actor.face = -1; sound("clunk"); room.shake = sceneTime; }),
         talk([...L.rowsGotStop, { hold: 300 }, ...L.rowsBrakeAsk]),
         S.call(() => setTransient("brakeReady", true))
       ], { control: true });
@@ -1648,7 +1650,7 @@
         talk([...L.rowsTest]),
         // One test: the empty frame rides to its parked place. It waits for him to be off the track.
         S.until(() => !onTrack()),
-        S.call(() => { room.carriage.target = Content.ROOMS.press.track.x1; room.carriage.moving = true; room.carriage.once = true; room.carriage.speed = 46; sound("carriage"); }),
+        S.call(() => { room.carriage.target = Content.ROOMS.press.track.x1; room.carriage.moving = true; room.carriage.once = true; room.carriage.speed = 46; sound("carriage"); nellState("work"); }),
         S.until(() => !room.carriage.moving),
         S.call(() => { room.parked = sceneTime; sound("clunk"); }),
         S.wait(900),
@@ -1672,7 +1674,9 @@
         const step = (Math.min(dt, 100) / 1000) * c.speed * Math.sign(goal - c.x);
         c.x = Math.abs(goal - c.x) <= Math.abs(step) ? goal : c.x + step;
         if (c.x === goal) {
-          if (c.once || room.stopping) { c.moving = false; c.target = null; room.stopping = false; }
+          // Stopping, it comes to rest at the west stop where she holds it
+          // (the same place a resumed journey finds it), never at the drive end.
+          if (c.once || (room.stopping && goal === track.x0)) { c.moving = false; c.target = null; room.stopping = false; }
           else { c.dir = -c.dir; c.pauseUntil = sceneTime + 700; sound("carriage"); }
         }
         // Caught on the track: knocked clear, never hurt.
@@ -1694,9 +1698,10 @@
       runScene("rows:upper", [
         S.control(true),
         S.wait(900),
-        S.call(() => walk("nell", 60, 120, 2200)),
+        // She holds the stair door at its middle (her board on it), clear of the doorway.
+        S.call(() => walk("nell", 52, 160, 2200)),
         S.wait(2300),
-        S.call(() => { nellState("support"); sound("clunk"); setRoomFlag("rowsStair"); }),
+        S.call(() => { nellState("support"); const actor = npcs.get("nell"); if (actor) actor.face = -1; sound("clunk"); setRoomFlag("rowsStair"); }),
         talk([...L.rowsStairHere, { hold: 500 }, ...L.rowsAtTheTable]),
         S.call(() => { commitBeat("rows:upper"); nellState("walk"); leave("nell", 8, 120, 1000); })
       ], { control: true });
@@ -1814,12 +1819,15 @@
         tick() { vanGaze(); },
         enter(context) {
           room.rumble = true;
-          npc("driver", "driver-seat", 70, 20, { face: 1, barkDx: 14, barkLift: 20 });
-          npc("hood-tall", "passenger-seat", 160, 20, { face: -1, barkDx: 14, barkLift: 22 });
-          // The other two ride in the back with him, on the wheel arches: the
-          // same seated silhouettes as the front, seen from behind.
-          npc("hood-small", "passenger-seat", 40, 124, { face: 1, barkDx: 14, barkLift: 22 });
-          npc("hood-cap", "passenger-seat", 172, 124, { face: -1, barkDx: 14, barkLift: 22 });
+          // Where people sit in a work van (nose left; see dungeon-scenery's
+          // VAN): the driver at the wheel on the near side, the tall one
+          // twisted round in the far seat; the small one on a milk crate and
+          // the capped one on the wheel arch, backs to the far wall, facing
+          // the floor where he is. Bubbles sit over their heads.
+          npc("driver", "van-seat", -4, 134, { face: -1, barkDx: 0, barkLift: 66, barkBelow: true });
+          npc("hood-tall", "van-seat", -4, 60, { face: 1, barkDx: 4, barkLift: 72 });
+          npc("hood-small", "van-seat", 44, 46, { face: 1, barkDx: 0, barkLift: 64 });
+          npc("hood-cap", "van-seat", 183, 46, { face: -1, barkDx: 0, barkLift: 62 });
           room.cargoCount = 0;
           runScene("opening:van", [
             S.fade(0, 400),
@@ -1875,7 +1883,7 @@
             }),
             S.until(() => gapHold()),
             S.control(false),
-            S.call(() => { room.shake = sceneTime; room.doorOpen = true; sound("crack"); }),
+            S.call(() => { room.shake = sceneTime; room.doorOpen = true; room.openAt = sceneTime; sound("crack"); }),
             S.pose("fall", 1000),
             S.wait(1000),
             S.fade(1, 300),
@@ -2026,6 +2034,8 @@
     // What's left when the talking stops: null (engine and road), "wipers", "rain", or "phone".
     function vanHush(level) {
       room.hush = level;
+      // Once the joke dies, the van leaves the lit streets (presentation only).
+      if (level === "wipers") room.unlit = true;
       setMusic(level ? SILENT_TRACK : VAN_TRACK);
       if (level) duck(level === "wipers" ? 4200 : 3200, 0.02);
     }
@@ -2036,7 +2046,7 @@
     }
     // Rizo turns to someone (or, with null, back toward the whole cabin).
     function vanFaceToward(id) {
-      const actor = id ? npcs.get(id) : { x: 110, y: 60 };
+      const actor = id ? npcs.get(id) : { x: 70, y: 30 };
       if (actor) faceToward(actor.x, actor.y);
     }
     // Still, he watches whoever is talking. Moving, he looks where he goes.

@@ -15,7 +15,8 @@
   One idea per place, the thing that should survive memory:
     car      a parked car in the rain, nose to a bright late store; YOU inside it
     sack     black, and his own glow through a pillowcase
-    van      somebody's dirty van: cans, a cup, a swapped door, the road below
+    van      somebody's dirty work van, nose left, the road streaming under it;
+             a swapped door, a cup, and four people who keep looking at him
     roadside a tiny flame beside an endless road; far-off lit windows
     drain    shelter that slowly stops being a city pipe: concrete, brick, rock
     slip     the bottom of a shaft; home is a lit door very far up
@@ -333,84 +334,252 @@
   function sackLights() { return { ambient: { color: [0, 0, 0], alpha: 0.96 }, list: [] }; }
 
   // ---- the van
-  function vanStatic(c, geo) {
-    // Body from above, cut away: the roof edge all round.
-    box(c, -10, -16, 260, 180, P.paper[1], { ink: 2.4, amp: 0.6 });
-    rect(c, P.paper[2], -6, -12, 252, 2);
-    // Floor: ribbed rubber mat, wheel arches, scuffs.
-    rect(c, P.cloth[1], 14, 42, 212, 96);
-    for (let y = 46; y < 138; y += 5) rect(c, P.cloth[0], 14, y, 212, 1.1);
-    for (const x of [40, 168]) { box(c, x, 128, 36, 10, P.cloth[2], { ink: 1, amp: 0.3 }); rect(c, P.cloth[3], x + 2, 129, 32, 1); }
-    worn(c, 120, 100, 40, 14, P.cloth[2], 0.45);
-    // Side wall trim, rear doors with two little windows.
-    rect(c, P.cloth[2], 0, 0, 14, 150); rect(c, P.cloth[3], 12, 42, 2, 96);
-    rect(c, P.cloth[2], 0, 138, 240, 12);
-    for (const x of [60, 150]) { box(c, x, 140, 34, 8, P.wet[0], { ink: 1, amp: 0.2 }); rect(c, P.wet[2], x + 3, 141, 10, 1); }
-    line(c, 120, 138, 120, 150, P.ink, 1.2);
-    // Dashboard and the seats from behind.
-    rect(c, P.ink, 10, -2, 220, 12);
-    for (const [x, color] of [[60, P.service[3]], [66, P.a.red], [176, P.service[3]]]) rect(c, color, x, 3, 3, 1.6);
-    for (const x of [34, 136]) {
-      box(c, x, 14, 62, 28, P.cloth[2], { ink: 1.6, amp: 0.4 });
-      rect(c, P.cloth[3], x + 3, 15, 56, 2);
-      stitches(c, x + 6, 28, x + 56, 28, P.cloth[1], 3, 1, 0.6);
-      box(c, x + 20, 4, 22, 11, P.cloth[2], { ink: 1.3, amp: 0.3 });
+  // The crew's work van with the roof cut away, NOSE TO THE LEFT. It drives
+  // left, so the road streams right underneath it, streetlights wash through
+  // from the cab to the back, and the back doors (right) are the ones that
+  // come loose (beat sheet 7.8). The far wall stands up behind everyone in
+  // 3/4, like every room below: the swapped primer sliding door with its
+  // window, plywood lining, the rear wheel arch. The near wall is cut down to
+  // a stub so the floor shows; under it, the van's side and its wheels. The
+  // cab is at the left: dash, wheel, two seats, the console between them.
+  // Collision is the content's: Rizo has the cargo floor (x 14–226, y 42–138).
+  const VAN = Object.freeze({ nose: -60, glass: -46, dash: -36, cab: 10, cargo: 14, rear: 226, back: 240, bumper: 248, roof: -34, wall: -24, floor: 30, near: 138, skirt: 152, split: 84 });
+  const VAN_SPEED = 2.2; // ms per unit of road
+  const VAN_POLES = 1100; // units between streetlights
+  // Streetlights stand on the verge beyond the far side; they pass every
+  // couple of seconds. When the joke dies (the van's hush, room.unlit) the
+  // town runs out: from that stretch of road on, only one pole in three.
+  const vanUnlitAt = new WeakMap();
+  function vanPoles(t, room) {
+    const run = t / VAN_SPEED, list = [];
+    if (room?.unlit && !vanUnlitAt.has(room)) vanUnlitAt.set(room, run);
+    const from = room?.unlit ? vanUnlitAt.get(room) : Infinity;
+    for (let index = Math.floor((run - 1200) / VAN_POLES); index <= Math.floor(run / VAN_POLES); index += 1) {
+      if (index * VAN_POLES > from && index % 3 !== 0) continue;
+      list.push(-360 + run - index * VAN_POLES);
     }
-    // Centre console: a cup with a straw, a charger cable down to the floor.
-    box(c, 100, 18, 32, 24, P.cloth[0], { ink: 1.2, amp: 0.3 });
-    box(c, 106, 20, 9, 10, P.a.red, { ink: 0.9, amp: 0.2 }); rect(c, P.paper[3], 106, 20, 9, 2); line(c, 111, 20, 113, 14, P.paper[3], 1);
-    A.trace(c, [124, 30, 128, 46, 118, 58, 132, 70, 126, 84], 9, 0.8, false); A.inkStroke(c, 1, P.ink);
-    // Junk along the walls: the pile the cooler comes off, a food bag, cans, tickets.
-    oval(c, 26, 112, 10, 10, P.ink, true, 1); oval(c, 26, 112, 5, 5, P.metal[1], true, 0.8);
-    box(c, 16, 60, 18, 14, P.wood[2], { ink: 1.1, amp: 0.4 }); label(c, "XL", 25, 70, { size: 6, color: P.paper[3] });
-    shape(c, [16, 84, 30, 82, 32, 94, 18, 96], P.paper[1], { ink: 1, amp: 0.8 }); rect(c, P.a.mustard, 20, 87, 6, 3);
-    for (const [x, y, color] of [[214, 128, P.a.track], [206, 52, P.a.mustard], [196, 132, P.metal[2]]]) { box(c, x, y, 5, 8, color, { ink: 0.8, amp: 0.2 }); rect(c, P.metal[3], x, y, 5, 1); }
-    c.save(); c.translate(44, 44); c.rotate(0.2); box(c, 0, 0, 10, 7, P.paper[3], { ink: 0.7, amp: 0.2 }); box(c, 3, -2, 10, 7, P.paper[2], { ink: 0.7, amp: 0.2 }); c.restore();
-    // The chips bag somebody sat on.
-    shape(c, [28, 118, 44, 115, 46, 129, 27, 131], P.a.mustard, { ink: 1.1, amp: 0.8 }); rect(c, P.a.red, 31, 121, 10, 3);
+    return list;
+  }
+  // Now and then somebody comes the other way in the near lane, fast.
+  function vanOncoming(t) {
+    const k = t % 14000;
+    return k < 1100 ? { x: -420 + k * 1.05, y: 214 } : null;
+  }
+  function vanStatic(c) {
+    const V = VAN;
+    // Its shadow on the road, down and right.
+    alpha(c, 0.5, () => { rect(c, P.ink, V.nose + 6, V.skirt + 6, V.bumper - V.nose, 14); rect(c, P.ink, V.bumper, V.roof + 10, 6, V.skirt - V.roof); });
+    // Mirrors out from the cab doors.
+    box(c, -52, V.roof - 12, 9, 12, P.paper[1], { ink: 1.3, amp: 0.2 }); rect(c, P.wet[2], -50.5, V.roof - 10, 6, 7);
+    box(c, -52, V.skirt + 2, 9, 11, P.paper[1], { ink: 1.3, amp: 0.2 }); rect(c, P.wet[2], -50.5, V.skirt + 4, 6, 6);
+    // The nose: hood, grille, headlights (on, at night).
+    shape(c, [V.nose, -10, V.glass, -22, V.glass, V.skirt, V.nose, V.near + 4], P.paper[1], { ink: 2, seed: 901, amp: 0.3 });
+    rect(c, P.paper[2], V.nose + 3, -8, 10, 2);
+    line(c, V.nose + 7, 6, V.nose + 7, 128, P.paper[0], 1, 902, 0.2);
+    for (const hy of [-6, 128]) { box(c, V.nose - 1, hy, 5, 12, P.fluoro[2], { ink: 1, amp: 0.1 }); }
+    box(c, V.nose - 2, 30, 4, 82, P.ink, { ink: false, amp: 0.1 });
+    // Windscreen: a long band of wet glass from the hood up to the roof.
+    shape(c, [V.glass, V.roof + 6, V.dash, V.roof, V.dash, V.skirt - 6, V.glass, V.skirt - 2], P.wet[1], { ink: 1.6, seed: 903, amp: 0.2 });
+    alpha(c, 0.35, () => { for (const gy of [6, 70]) line(c, V.glass + 2, gy, V.dash - 2, gy - 18, P.fluoro[1], 1.2, gy, 0.1); });
+    // ---- the far wall, standing up behind everyone (inside face) ----
+    rect(c, P.paper[1], V.dash, V.roof, V.back - V.dash, V.wall - V.roof);
+    rect(c, P.paper[2], V.dash, V.roof, V.back - V.dash, 2);
+    rect(c, P.paper[0], V.dash, V.wall - 2, V.back - V.dash, 2);
+    // Cab: the passenger door from inside, its window, the armrest.
+    rect(c, P.cloth[2], V.dash, V.wall, V.cab - 6 - V.dash, V.floor - V.wall);
+    box(c, V.dash + 4, V.wall + 3, V.cab - V.dash - 14, 17, P.wet[1], { ink: 1.3, amp: 0.2 });
+    box(c, V.dash + 8, V.wall + 30, 22, 4, P.cloth[3], { ink: 0.9, amp: 0.2 });
+    box(c, V.dash + 4, V.wall + 37, 10, 10, P.cloth[1], { ink: 0.8, amp: 0.2 });
+    // B-pillar, then the bay: ribbed metal above, ply lining below, screws.
+    rect(c, P.paper[1], V.cab - 6, V.wall, 8, V.floor - V.wall); rect(c, P.paper[0], V.cab, V.wall, 2, V.floor - V.wall);
+    rect(c, P.metal[1], V.cab + 2, V.wall, V.rear - V.cab - 2, 22);
+    for (let rx = V.cab + 8; rx < V.rear; rx += 16) { rect(c, P.metal[2], rx, V.wall, 2, 22); rect(c, P.metal[0], rx + 2, V.wall, 1, 22); }
+    rect(c, P.ink, V.cab + 2, V.wall + 22, V.rear - V.cab - 2, 1);
+    A.planks(c, V.cab + 2, V.wall + 23, V.rear - V.cab - 2, V.floor - V.wall - 23, "van-ply", { tone: P.wood, board: 31 });
+    alpha(c, 0.7, () => { for (let px = V.cab + 14; px < V.rear; px += 26) { rect(c, P.ink, px, V.wall + 26, 1.2, 1.2); rect(c, P.ink, px, V.floor - 4, 1.2, 1.2); } });
+    worn(c, 60, V.floor - 6, 14, 4, P.wood[3], 0.35);
+    // The sliding door somebody swapped in: primer grey, its own window, a taped handle.
+    box(c, 92, V.wall, 64, V.floor - V.wall, P.concrete[2], { ink: 1.4, amp: 0.25, seed: 904 });
+    rect(c, P.concrete[3], 93, V.wall + 1, 62, 1.6);
+    box(c, 100, V.wall + 5, 48, 17, P.wet[1], { ink: 1.3, amp: 0.2, seed: 905 });
+    rect(c, P.ink, 92, V.wall + 25, 64, 0.8);
+    box(c, 96, V.wall + 32, 4, 12, P.metal[2], { ink: 1, amp: 0.1 });
+    tape(c, 98, V.wall + 38, 7, 1.5, 906);
+    alpha(c, 0.8, () => { box(c, 140, V.wall + 40, 6, 5, P.a.rust, { ink: false, amp: 0.8 }); });
+    // The rear wheel arch, a hump against the wall (the capped one sits on it).
+    shape(c, [160, V.floor + 12, 162, 22, 170, 17, 196, 17, 204, 22, 206, V.floor + 12], P.cloth[2], { ink: 1.4, seed: 907, amp: 0.3 });
+    rect(c, P.cloth[3], 168, 18.4, 30, 2);
+    rect(c, P.cloth[1], 162, 24, 44, V.floor + 12 - 24);
+    // C-pillar at the back corner.
+    rect(c, P.paper[1], V.rear - 6, V.wall, 6, V.floor - V.wall); rect(c, P.paper[2], V.rear - 6, V.wall, 1.4, V.floor - V.wall);
+    rect(c, P.ink, V.dash, V.wall, V.rear - V.dash, 1);
+    // ---- the floor ----
+    rect(c, P.cloth[0], V.dash, V.floor, V.cab - V.dash, V.near - V.floor);
+    rect(c, P.cloth[1], V.cab, V.floor, V.rear - V.cab, V.near - V.floor);
+    for (let fy = V.floor + 16; fy < V.near; fy += 5) rect(c, P.cloth[0], V.cargo, fy, V.rear - V.cargo, 1.1);
+    worn(c, 120, 96, 46, 16, P.cloth[2], 0.4);
+    // The step between the cab and the bay, and the bay's tie-down rings.
+    rect(c, P.metal[1], V.cargo - 2, V.floor + 4, 2, V.near - V.floor - 4);
+    for (const [rx, ry] of [[30, 48], [30, 130], [118, 48], [118, 132], [212, 52], [212, 130]]) { oval(c, rx, ry, 2.6, 1.6, null, true, 1); rivet(c, rx, ry - 1.6, 1); }
+    // Shadow the far wall throws on the floor.
+    alpha(c, 0.35, () => rect(c, P.ink, V.cab, V.floor, V.rear - V.cab, 5));
+    // The near wall's wheel arch, seen from above.
+    box(c, 162, 124, 42, 14, P.cloth[2], { ink: 1.2, amp: 0.3, seed: 908 }); rect(c, P.cloth[3], 164, 125, 38, 1.6);
+    // ---- the cab ----
+    // Dash: dark, the driver's gauges, the radio, tickets nobody paid.
+    rect(c, P.ink, V.dash, V.wall, 8, V.near - V.wall + 6);
+    for (const gy of [100, 112]) { oval(c, V.dash + 4, gy, 2.6, 4, P.service[0], true, 0.8); line(c, V.dash + 4, gy, V.dash + 5.6, gy - 2.4, P.service[3], 0.8); }
+    rect(c, P.service[1], V.dash + 2, 72, 4, 8); rect(c, P.service[3], V.dash + 3, 74, 2, 1.2);
+    c.save(); c.translate(V.dash + 3, 44); c.rotate(0.2); box(c, -3, -5, 7, 10, P.paper[2], { ink: 0.7, amp: 0.2 }); box(c, 0, -2, 7, 10, P.paper[3], { ink: 0.7, amp: 0.2 }); c.restore();
+    // Seats: cushion, then the seatback standing behind it, a headrest on top.
+    // Dark vinyl, so the people in them read against them.
+    for (const [sy, top] of [[60, 8], [134, 82]]) {
+      box(c, -22, sy - 24, 26, 20, P.cloth[1], { ink: 1.3, amp: 0.3, seed: sy });
+      rect(c, P.cloth[2], -20, sy - 23, 22, 2);
+      rect(c, P.ink, -22, sy - 5, 26, 5);
+      box(c, 2, top, 9, sy - top, P.cloth[1], { ink: 1.4, amp: 0.25, seed: sy + 1 });
+      rect(c, P.cloth[2], 3, top + 1, 1.6, sy - top - 4);
+      stitches(c, 6.5, top + 6, 6.5, sy - 6, P.cloth[0], 3, 1, 0.6);
+      box(c, 3, top - 8, 7, 9, P.cloth[1], { ink: 1.2, amp: 0.2, seed: sy + 2 });
+    }
+    // A tear in the driver's seatback, taped.
+    tape(c, 6, 110, 8, 1.2, 913);
+    // The console between them: a cup with a straw, a receipt, a charger cable into the back.
+    box(c, -20, 66, 20, 34, P.cloth[0], { ink: 1.2, amp: 0.3, seed: 909 });
+    box(c, -15, 70, 8, 9, P.a.red, { ink: 0.9, amp: 0.2 }); rect(c, P.paper[3], -15, 70, 8, 2); line(c, -11, 70, -9, 63, P.paper[3], 1);
+    shape(c, [-17, 86, -8, 84, -7, 91, -16, 93], P.paper[2], { ink: 0.6, amp: 0.5 });
+    A.trace(c, [-4, 94, 10, 98, 18, 106, 30, 102, 38, 110], 9, 0.8, false); A.inkStroke(c, 1, P.ink);
+    // ---- the near wall, cut down to a stub; under it the van's side and wheels ----
+    rect(c, P.paper[1], V.glass, V.near, V.back - V.glass, V.skirt - V.near + 10);
+    rect(c, P.paper[2], V.glass, V.near, V.back - V.glass, 2.2);
+    rect(c, P.paper[0], V.glass, V.skirt + 4, V.back - V.glass, 6);
+    rect(c, P.ink, V.glass, V.near + 3, V.back - V.glass, 1);
+    // A dent, rust, the mustard sticker from outside, the fuel flap.
+    alpha(c, 0.85, () => { box(c, 60, V.skirt + 2, 10, 5, P.a.rust, { ink: false, amp: 1 }); box(c, 208, V.skirt, 7, 7, P.a.rust, { ink: false, amp: 1 }); });
+    box(c, 132, V.near + 6, 10, 6, P.a.mustard, { ink: 0.8, amp: 0.3 });
+    box(c, 150, V.near + 6, 8, 6, P.paper[0], { ink: 0.8, amp: 0.2 });
+    line(c, 6, V.near + 3, 6, V.skirt + 10, P.paper[0], 1);
+    for (const [wx, cap] of [[-28, true], [180, false]]) {
+      oval(c, wx, V.skirt + 9, 15, 8, P.ink);
+      oval(c, wx, V.skirt + 8, 8, 4.5, cap ? P.metal[2] : P.metal[0], true, 1);
+      if (!cap) for (let index = 0; index < 4; index += 1) rivet(c, wx + Math.cos(index * 1.57) * 4.5, V.skirt + 8 + Math.sin(index * 1.57) * 2.4, 0.8);
+      rect(c, P.paper[0], wx - 18, V.skirt - 2, 36, 2);
+    }
+    // ---- the back: the doors' upper leaf (the lower one is live), bumper, lights ----
+    rect(c, P.paper[1], V.rear, V.roof, V.back - V.rear, V.split - V.roof);
+    rect(c, P.paper[2], V.rear, V.roof, 2, V.split - V.roof);
+    rect(c, P.paper[0], V.back - 3, V.roof, 3, V.split - V.roof);
+    box(c, V.rear + 3, V.wall + 6, 8, 18, P.wet[1], { ink: 1, amp: 0.2 });
+    box(c, V.rear + 4, V.split - 8, 6, 6, P.metal[2], { ink: 0.9, amp: 0.1 });
+    rect(c, P.cloth[0], V.back, V.roof + 4, V.bumper - V.back, V.skirt + 8 - V.roof - 4);
+    for (const ly of [V.roof + 6, V.skirt - 8]) box(c, V.back + 1, ly, 6, 12, P.a.red, { ink: 0.9, amp: 0.1 });
+    // The roof line: one firm edge round the whole cut-away body.
+    c.save(); c.strokeStyle = P.ink; c.lineWidth = 2.2; c.lineJoin = "round";
+    c.beginPath(); c.moveTo(V.glass, V.roof + 6); c.lineTo(V.dash, V.roof); c.lineTo(V.back, V.roof); c.lineTo(V.back, V.skirt + 10); c.lineTo(V.glass, V.skirt + 10); c.stroke(); c.restore();
   }
   function vanUnder(ctx, geo, s) {
-    const v = s.view, t = s.reduced ? 0 : s.time;
-    rect(ctx, P.asphalt[1], v.x - 30, v.y - 30, v.w + 60, v.h + 60);
-    const scroll = (t / 2.4) % 64;
-    for (let x = v.x - 64 + scroll; x < v.x + v.w + 64; x += 64) { box(ctx, x, geo.h + 34, 28, 3, P.a.mustard, { ink: false, amp: 0.2 }); box(ctx, x + 20, -40, 28, 3, P.paper[2], { ink: false, amp: 0.2 }); }
-    for (let x = v.x - 90 + ((t / 2.4) % 90); x < v.x + v.w + 90; x += 90) { rect(ctx, P.fluoro[2], x, geo.h + 52, 2, 2); rect(ctx, P.fluoro[2], x + 40, -56, 2, 2); }
-    if (!s.reduced) for (let index = 0; index < 3; index += 1) {
-      const x = v.x + ((t / 5 + index * 160) % (v.w + 240)) - 120;
-      alpha(ctx, 0.12, () => { oval(ctx, x, geo.h + 60, 50, 16, P.sodium[2]); oval(ctx, x, -60, 50, 16, P.sodium[2]); });
+    const v = s.view, t = s.reduced ? 0 : s.time, ride = A.vanRide(t, s.reduced);
+    rect(ctx, P.asphalt[1], v.x - 40, v.y - 40, v.w + 80, v.h + 80);
+    const run = t / VAN_SPEED;
+    ctx.save(); ctx.translate(0, ride.drift);
+    const L = v.x - 120, R = v.x + v.w + 120;
+    // Beyond the far side: the verge, a ditch, the poles. Near side: the
+    // dashed centre line, then the oncoming lane and its edge.
+    const edge = -84, centre = 196, far = 300;
+    rect(ctx, P.grass[1], L, v.y - 60, R - L, edge - 26 - v.y + 60);
+    rect(ctx, P.concrete[0], L, edge - 26, R - L, 24);
+    rect(ctx, P.paper[1], L, edge, R - L, 2.4);
+    rect(ctx, P.paper[1], L, far, R - L, 2.4);
+    rect(ctx, P.grass[1], L, far + 22, R - L, v.y + v.h + 60 - far);
+    const dash = run % 90;
+    for (let x = L - 90 + dash; x < R; x += 90) { box(ctx, x, centre, 40, 2.8, P.a.mustard, { ink: false, amp: 0.2 }); rect(ctx, P.paper[3], x + 44, centre + 0.6, 1.6, 1.6); }
+    // Old seams and wet patches in the tar, going by.
+    const seams = run % 260;
+    alpha(ctx, 0.55, () => {
+      for (let x = L - 260 + seams; x < R; x += 260) {
+        line(ctx, x, edge + 10, x + 14, edge + 70, "#0a0c10", 1.3, x, 0.6);
+        line(ctx, x + 120, centre + 14, x + 104, far - 12, "#0a0c10", 1.3, x + 1, 0.6);
+        oval(ctx, x + 60, edge + 34, 26, 5, P.wet[1]); oval(ctx, x + 190, centre + 52, 30, 6, P.wet[1]);
+      }
+    });
+    for (let x = L - 26 + (run % 26); x < R; x += 26) rect(ctx, P.grass[2], x, edge - 34, 2, 6);
+    // Streetlights: a pole at the verge, an arm out over the road, a pool on the wet tar.
+    for (const px of vanPoles(t, s.extras.room)) {
+      if (px < L - 80 || px > R + 80) continue;
+      alpha(ctx, 0.22, () => { oval(ctx, px, edge + 26, 64, 16, P.sodium[0]); oval(ctx, px, edge + 24, 34, 8, P.sodium[1]); });
+      oval(ctx, px, edge - 18, 3, 3, P.metal[1], true, 1);
+      line(ctx, px, edge - 18, px, edge + 12, P.metal[1], 2.2);
+      box(ctx, px - 5, edge + 10, 10, 4, P.sodium[2], { ink: 1, amp: 0.1 });
     }
+    // Our own taillights, red on the wet behind us; the headlights ahead.
+    alpha(ctx, 0.3, () => { oval(ctx, VAN.bumper + 30, -20, 34, 12, P.a.red); oval(ctx, VAN.bumper + 30, 150, 34, 12, P.a.red); });
+    alpha(ctx, 0.22, () => { shape(ctx, [VAN.nose, -6, VAN.nose - 160, -40, VAN.nose - 160, 20, VAN.nose, 6], P.fluoro[2], { ink: false }); shape(ctx, [VAN.nose, 128, VAN.nose - 160, 110, VAN.nose - 160, 170, VAN.nose, 140], P.fluoro[2], { ink: false }); });
+    // Somebody coming the other way: headlights first, then a dark car, then red.
+    const car = s.reduced ? null : vanOncoming(t);
+    if (car) {
+      alpha(ctx, 0.28, () => shape(ctx, [car.x + 30, car.y - 8, car.x + 190, car.y - 46, car.x + 190, car.y + 30, car.x + 30, car.y + 8], P.fluoro[2], { ink: false }));
+      box(ctx, car.x - 30, car.y - 13, 60, 26, P.night[2], { ink: 1.4, amp: 0.3, seed: 911 });
+      rect(ctx, P.wet[1], car.x - 8, car.y - 10, 16, 20);
+      for (const dy of [-10, 7]) { rect(ctx, P.fluoro[2], car.x + 27, car.y + dy, 3, 4); rect(ctx, P.a.red, car.x - 30, car.y + dy, 2, 4); }
+    }
+    ctx.restore();
   }
   function vanDynamic(ctx, geo, s) {
-    const room = s.extras.room || {}, t = s.reduced ? 0 : s.time;
-    // Windscreen: rain, and the wipers.
-    rect(ctx, P.wet[1], 14, -14, 212, 12);
-    alpha(ctx, 0.6, () => { for (let index = 0; index < 12; index += 1) { const x = 18 + ((index * 37) % 200), y = -13 + ((t / 30 + index * 7) % 10); rect(ctx, P.wet[3], x, y, 0.8, 2); } });
-    const sweep = s.reduced ? 0 : Math.sin(t / 420) * 0.9;
-    for (const px of [70, 170]) { ctx.save(); ctx.translate(px, -2); ctx.rotate(-Math.PI / 2 + sweep); line(ctx, 0, 0, 0, -10 + 22, P.ink, 1.4, px, 0); ctx.restore(); }
-    // The tree air freshener swinging off the mirror.
-    ctx.save(); ctx.translate(120, -2); ctx.rotate(s.reduced ? 0 : Math.sin(t / 300) * 0.35 + (room.shake ? 0.4 : 0));
-    line(ctx, 0, 0, 0, 8, P.ink, 0.6); shape(ctx, [0, 8, 4, 15, 1.4, 15, 3.4, 19, -3.4, 19, -1.4, 15, -4, 15], P.a.track, { ink: 0.7, amp: 0.1 });
+    const room = s.extras.room || {}, t = s.reduced ? 0 : s.time, ride = A.vanRide(t, s.reduced), V = VAN;
+    // Rain on the windscreen, blown back up the glass; the wipers going.
+    alpha(ctx, 0.7, () => { for (let index = 0; index < 16; index += 1) { const y = V.roof + 8 + ((index * 53) % 176), k = s.reduced ? 0.5 : ((t / 380) + index * 0.37) % 1; rect(ctx, P.wet[3], V.glass + 1 + k * 8, y - k * 3, 1.6, 0.8); } });
+    const wipe = s.reduced ? 0.3 : (Math.sin(t / 420) + 1) / 2;
+    for (const py of [30, 104]) line(ctx, V.glass + 1, py, V.dash - 1, py - 8 - wipe * 34, P.ink, 1.6, py, 0);
+    // The rear-view mirror over the console, and the tree swinging under it.
+    box(ctx, V.glass + 3, 50, 6, 16, P.ink, { ink: 1, amp: 0.1 }); rect(ctx, P.metal[2], V.glass + 4.4, 52, 2.6, 12);
+    ctx.save(); ctx.translate(V.glass + 6, 66); ctx.rotate(s.reduced ? 0 : ride.bend * 0.5 + Math.sin(t / 300) * 0.15 + (room.shake && s.extras.sceneTime - room.shake < 500 ? 0.5 : 0));
+    line(ctx, 0, 0, 0, 7, P.ink, 0.6); shape(ctx, [0, 7, 4, 14, 1.4, 14, 3.4, 18, -3.4, 18, -1.4, 14, -4, 14], P.a.track, { ink: 0.7, amp: 0.1 });
     ctx.restore();
-    // The sliding door: shut; then loose, with rain through the gap; then gone.
-    if (room.doorOpen) { rect(ctx, P.asphalt[1], 226, 44, 14, 94); alpha(ctx, 0.7, () => { for (let y = 50 + ((t / 2) % 20); y < 136; y += 20) rect(ctx, P.paper[2], 232, y, 3, 8); }); }
-    else {
-      box(ctx, 226, 44, 14, 94, P.paper[1], { ink: 1.4, amp: 0.3 });
-      rect(ctx, P.metal[2], 229, 88, 5, 12); rect(ctx, P.ink, 229, 100, 5, 1);
-      if (room.doorLoose) { rect(ctx, P.ink, 226, 60, 2.6, 66); alpha(ctx, 0.7, () => { for (let index = 0; index < 5; index += 1) { const y = 62 + ((t / 8 + index * 13) % 62); line(ctx, 225, y, 220, y + 3, P.wet[3], 0.8, index, 0); } }); }
+    // The driver's eyes in the mirror when he looks back.
+    const driver = (s.extras.npcs || []).find(actor => actor.id === "driver");
+    if (driver && (driver.state === "stare" || (s.extras.barks || []).some(bark => bark.id === "driver"))) { rect(ctx, "#ffffff", V.glass + 4.6, 55, 2, 1.6); rect(ctx, "#ffffff", V.glass + 4.6, 59.5, 2, 1.6); }
+    // The sliding door's window: rain, and each streetlight's glare going by.
+    for (const px of vanPoles(t, room)) if (px > 60 && px < 190) alpha(ctx, Math.max(0, 1 - Math.abs(px - 124) / 64) * 0.7, () => rect(ctx, P.sodium[2], Math.max(101, Math.min(140, px - 4)), V.wall + 6, 7, 15));
+    alpha(ctx, 0.6, () => { for (let index = 0; index < 7; index += 1) { const k = s.reduced ? 0.5 : ((t / 700) + index * 0.29) % 1; rect(ctx, P.wet[3], 102 + ((index * 17) % 44) + k * 4, V.wall + 7 + ((index * 5) % 12), 1.6, 0.8); } });
+    // A can rolling about the floor with the bends.
+    ctx.save(); ctx.translate(196 + ride.surge * 6, 116 + ride.bend * 6); ctx.rotate(ride.bend * 1.4);
+    box(ctx, -2.6, -4, 5.2, 8, P.metal[2], { ink: 0.8, amp: 0.1 }); rect(ctx, P.a.track, -2.6, -1.6, 5.2, 3);
+    ctx.restore();
+    // The back doors' lower leaf: shut; loose and rattling, rain spitting
+    // through the crack; then flung open on the black road.
+    const hingeY = V.skirt + 2, len = hingeY - V.split;
+    const swing = room.doorOpen ? Math.min(1.35, (s.extras.sceneTime - (room.openAt ?? s.extras.sceneTime - 400)) / 260 * 1.35) : room.doorLoose ? 0.1 + (s.reduced ? 0 : Math.abs(Math.sin(t / 70)) * 0.08 + Math.max(0, Math.sin(t / 900)) * 0.06) : 0;
+    if (swing > 0.01) {
+      rect(ctx, P.ink, V.rear, V.split, V.back - V.rear, len);
+      alpha(ctx, 0.75, () => { for (let index = 0; index < 6; index += 1) { const y = V.split + 4 + ((t / 6 + index * 11) % (len - 6)); line(ctx, V.back + 4, y, V.rear + 2, y + 2, P.wet[3], 0.8, index, 0); } });
     }
+    ctx.save(); ctx.translate(V.back, hingeY); ctx.rotate(swing);
+    box(ctx, -(V.back - V.rear), -len, V.back - V.rear, len, P.paper[1], { ink: 1.4, amp: 0.25, seed: 912 });
+    rect(ctx, P.paper[0], -3, -len, 3, len);
+    box(ctx, -(V.back - V.rear) + 3, -len + 6, 8, 16, P.wet[1], { ink: 1, amp: 0.2 });
+    box(ctx, -(V.back - V.rear) + 4, -len + 1, 6, 5, P.metal[2], { ink: 0.9, amp: 0.1 });
+    ctx.restore();
   }
   function vanLights(geo, s) {
     const room = s.extras.room || {}, t = s.reduced ? 0 : s.time;
-    const list = [{ x: 120, y: 8, r: 50, strength: 0.5 }];
-    if (!s.reduced) { const x = 300 - ((t / 6) % 420); list.push({ x, y: 80, r: 120, strength: 0.75, warm: 0.45 }); }
-    if (room.doorLoose || room.doorOpen) list.push({ x: 226, y: 92, r: room.doorOpen ? 80 : 40, strength: 0.8 });
-    // A phone in the back: a small cold light while he films; the whole van
-    // when it rings. Its screen faces the cabin, so only the light is ours.
-    if (room.phoneLight) list.push({ x: 56, y: 108, r: room.phoneLight === "call" ? 130 : 34, strength: room.phoneLight === "call" ? 0.95 : 0.7, warm: 0 });
+    // The dash: gauges on the driver's side, the radio between the seats.
+    const list = [{ x: -30, y: 108, r: 50, strength: 0.6 }, { x: -30, y: 70, r: 26, strength: 0.4 }, { x: -24, y: 34, r: 44, strength: 0.5 }];
+    // Streetlights wash through from the far side, cab first, then the back.
+    if (!s.reduced) for (const px of vanPoles(t, room)) if (px > -200 && px < 440) list.push({ x: px, y: 0, r: 140, strength: 0.7, warm: 0.5 });
+    const car = s.reduced ? null : vanOncoming(t);
+    if (car) list.push({ x: car.x + 90, y: 160, r: 120, strength: 0.75 });
+    if (room.doorLoose || room.doorOpen) list.push({ x: VAN.back, y: 112, r: room.doorOpen ? 80 : 36, strength: 0.7 });
+    // The small one's phone: a cold point while he films; the whole van
+    // when it rings. Its screen faces him, so only the light is ours.
+    const small = (s.extras.npcs || []).find(actor => actor.id === "hood-small");
+    const phone = small ? { x: small.x + (room.phoneLight === "film" ? 16 : 1), y: small.y - 32 } : { x: 56, y: 40 };
+    if (room.phoneLight) list.push({ x: phone.x, y: phone.y, r: room.phoneLight === "call" ? 150 : 42, strength: room.phoneLight === "call" ? 0.95 : 0.75, warm: 0 });
     // While it rings the whole cabin goes the colour of that screen.
     if (room.phoneLight === "call") return { ambient: { color: [18, 34, 62], alpha: 0.5 }, list };
-    return { ambient: { color: [6, 8, 12], alpha: 0.56 }, list };
+    return { ambient: { color: [6, 8, 12], alpha: 0.54 }, list };
   }
+  // Rain outside never falls into the van (it has a roof; we just can't see it).
+  const VAN_SHELTER = Object.freeze({ x: VAN.nose - 4, y: VAN.roof - 14, w: VAN.bumper - VAN.nose + 8, h: VAN.skirt + 26 - VAN.roof });
 
   // ---- the roadside
   function roadStatic(c, geo, m) {
@@ -926,7 +1095,7 @@
     drytable: [[172, 106, 145, 0.75, 0.8]],
     hangrow: [[60, 40, 110, 0.65, 0.5], [230, 250, 125, 0.55, 0.4], [80, 410, 80, 0.4, 0.3]],
     lowrun: [[58, 52, 95, 0.6, 0.55], [224, 176, 100, 0.55, 0.6]],
-    eyelet: [[136, 126, 120, 0.7, 0.7], [160, 26, 85, 0.45, 0.4]],
+    eyelet: [[136, 126, 120, 0.7, 0.7], [160, 26, 85, 0.45, 0.4], [306, 90, 24, 0.35, 0.8]],
     traypass: [[160, 30, 140, 0.7, 0.55]],
     press: [[160, 30, 120, 0.55, 0.4], [42, 320, 65, 0.55, 0.8], [160, 400, 105, 0.4, 0.4]],
     upper: [[70, 32, 95, 0.5, 0.45]],
@@ -1433,6 +1602,22 @@
     const sim = s.sim, t = s.reduced ? 0 : s.time, p = s.pos;
     thresholds(ctx, geo, s);
     for (const solid of geo.solids) if (solid.openWhen || solid.when) dynamicSolid(ctx, solid, sim, t, geo);
+    if (geo.id === "eyelet") {
+      // The staff door Orr comes through with the food: one-way (no handle on
+      // this side, a kick plate at tray height), the kitchen's warmth in its
+      // wired window; it swings open while he passes. Not a way on for Rizo.
+      const orr = (s.extras.npcs || []).find(actor => actor.id === "orr");
+      const passing = orr && orr.x > 262;
+      if (passing) {
+        rect(ctx, P.ink, 300, 76, 20, 40); alpha(ctx, 0.8, () => rect(ctx, P.ember[1], 303, 79, 14, 34));
+        alpha(ctx, 0.3, () => shape(ctx, [300, 76, 300, 116, 250, 128, 250, 70], P.ember[3], { ink: false }));
+      } else {
+        box(ctx, 300, 76, 20, 40, P.service[1], { ink: 1.4, amp: 0.2 });
+        rect(ctx, P.service[2], 301, 77, 18, 2);
+        box(ctx, 304, 82, 12, 9, P.sodium[1], { ink: 1, amp: 0.1 }); for (const gx of [308, 312]) rect(ctx, P.ink, gx, 82, 0.7, 9); rect(ctx, P.ink, 304, 86.2, 12, 0.7);
+        rect(ctx, P.metal[2], 302, 104, 16, 7); rect(ctx, P.metal[3], 302, 104, 16, 1.2);
+      }
+    }
     if (geo.id === "clatter") {
       // Dormant, not dead: pilot lamps on the chute and the pipe wake as he passes.
       for (const [x, y] of [[286, 6], [292, 6], [298, 6], [232, 232], [150, 56], [210, 56]]) {
@@ -1524,6 +1709,8 @@
     paintDynamic: (ctx, geo, s) => themeOf(geo).paintDynamic?.(ctx, geo, s),
     paintOver: (ctx, geo, s) => themeOf(geo).paintOver?.(ctx, geo, s),
     lights: (geo, s) => themeOf(geo).lights(geo, s),
-    transparent: geo => Boolean(themeOf(geo).transparent)
+    transparent: geo => Boolean(themeOf(geo).transparent),
+    // Where rain outside stops (the van's body), for the view's rain pass.
+    shelterOf: geo => (geo.theme === "van" ? [VAN_SHELTER] : null)
   });
 });

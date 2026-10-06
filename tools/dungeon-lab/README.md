@@ -76,7 +76,7 @@ python3 tools/dungeon-lab/capture.py --out /tmp/lab --format png
   - small hood: filming, walking, phone off, flinch;
   - cap hood: pillowcase on shoulder, walking, pillowcase out, flinch.
 - **YOU (Keeper)**: standing, walking. **YOU in the car**: idle, reach, keys, turn, look, look-back, reach-up.
-- **The van crew, seated**: idle, talking, freeze, stare.
+- **The van crew, seated** (where they sit in the van; fixed facings): idle, talking (small, driver), quiet, filming, freeze (the phone), stare (the capped one points).
 - **Draftling, Needle**: their idle, telegraph, attack, recover and hit states.
 - **Portraits**:
   - YOU: neutral;

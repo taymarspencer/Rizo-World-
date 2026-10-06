@@ -96,16 +96,28 @@
     },
     {
       id: "you-seated", name: "YOU in the car", role: "the opening: YOU seen from above in the driver's seat", shell: "open", units: 40, world: Art.youSeated, topDown: true, facing: false,
-      alike: [["turn", "look"]], // the art draws both the same: head turned, hands on the wheel
-      states: ["idle", "reach", "keys", "turn", "look", "look-back", "reach-up"].map(state => ({ id: state, o: { state } }))
+      states: [["idle"], ["reach", "“Hi. Yes. Hi.”"], ["keys"], ["turn", "to him: “Off the dash, please.”"], ["look", "at the glass: “It's just rain.”"], ["look-back", "“Be good.”"], ["reach-up", "the dome light"]].map(([state, note]) => ({ id: note ? `${state} (${note})` : state, o: { state } }))
     },
     {
-      id: "van-crew", name: "Van crew (seated)", role: "the same four people seen from behind in the van: driver, tall, small, cap", shell: "open", units: 30, portraits: "driver", group: true,
+      id: "van-crew", name: "Van crew (seated)", role: "the four in the van, where they sit: the driver at the wheel, the tall one twisted round in the passenger seat, the small one on a milk crate, the capped one on the wheel arch", shell: "open", units: 64, portraits: "driver", group: true,
+      facing: false, // each seat fixes a facing; the game never mirrors them
+      // Painted as dungeon-view.js crewOptions() does: Rizo is on the floor in
+      // front of them; whoever talks looks at the one before; the driver
+      // watches the road; frozen, they look at the phone; staring, at him.
       world(ctx, x, y, o) {
-        const seats = [["driver-seat", "driver"], ["passenger-seat", "hood-tall"], ["passenger-seat", "hood-small"], ["passenger-seat", "hood-cap"]];
-        seats.forEach(([kind, who], index) => Art.seated(ctx, kind, x - 66 + index * 36, y - 14, { who, talking: o.talking, state: o.state, face: o.face || 1, t: o.t }));
+        const rizo = { x, y: y + 34 }, phone = { x: x + 18, y: y - 32 };
+        const crew = [["driver", x - 60], ["hood-tall", x - 22], ["hood-small", x + 18], ["hood-cap", x + 58]];
+        for (const [who, cx] of crew) {
+          const talking = o.talker === who;
+          const look = o.state === "stare" ? rizo : o.phone === "call" ? phone : talking ? { x: x - 22, y: y - 50 } : who === "driver" ? { x: cx - 200, y: y - 60 } : o.talker ? { x: x + 18, y: y - 46 } : rizo;
+          Art.seated(ctx, "van-seat", cx, y, { who, t: o.t, state: o.state, look, talking, quiet: talking && o.quiet, point: who === "hood-cap" && (o.state === "stare" || o.point), phone: who === "hood-small" ? o.phone || null : null });
+        }
       },
-      states: [{ id: "idle", o: {} }, { id: "talking", o: { talking: true } }, { id: "freeze (the phone)", o: { state: "freeze" } }, { id: "stare (“It's listening.”)", o: { state: "stare" } }]
+      states: [
+        { id: "idle (watching him)", o: {} }, { id: "talking (the small one)", o: { talker: "hood-small" } }, { id: "talking (the driver)", o: { talker: "driver" } },
+        { id: "quiet (“What's he even want it for?”)", o: { talker: "hood-small", quiet: true } }, { id: "filming (“Say hi.”)", o: { phone: "film" } },
+        { id: "freeze (the phone rings)", o: { state: "freeze", phone: "call" } }, { id: "stare (“It's listening.”)", o: { state: "stare" } }
+      ]
     },
     {
       id: "draftling", name: "Draftling", role: "enemy: a torn paper dart; its nose is the attack", shell: "locked", units: Art.RULES.scale.draftling, enemy: true,
