@@ -643,7 +643,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <div aria-hidden="true" class="home-stringlights"><i></i><i></i><i></i><i></i><i></i></div>
 <div aria-hidden="true" class="home-telescope"><i></i></div>
 <div aria-hidden="true" class="den-light"><i class="den-shade"></i><i class="den-glow"></i></div>
-<button class="den-bed" id="denBed" type="button" data-den-bed aria-label="Let Rizo rest in his bed"><i></i><b class="den-bed-frame"></b><span>☾</span></button>
+<button class="den-bed" id="denBed" type="button" data-den-bed aria-label="Let Rizo rest in his bed"><i></i><b class="den-bed-frame"></b><b class="bed-quilt" aria-hidden="true"></b><span aria-hidden="true">×</span></button>
 <div aria-hidden="true" class="den-blanket"></div>
 <div class="den-keepsakes" aria-label="Things we brought home">
 <span id="denTrainingMemory" class="den-training-memory" hidden></span>
@@ -653,9 +653,9 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </div>
 <div aria-label="Interactive garden toys" class="habitat-toys">
 <button aria-label="Play ball with Rizo" class="garden-toy toy-ball" data-garden-toy="ball" title="Ball: raises Speed" type="button"></button>
-<button aria-label="Train with the stump" class="garden-toy toy-stump" data-garden-toy="stump" title="Stump: raises Power" type="button">✦</button>
-<button aria-label="Splash in the puddle" class="garden-toy toy-puddle" data-garden-toy="puddle" title="Puddle: raises Stamina" type="button">≈</button>
-<button aria-label="Investigate the moon bush" class="garden-toy toy-bush" data-garden-toy="bush" title="Bush: raises Instinct" type="button">✦</button>
+<button aria-label="Train with the stump" class="garden-toy toy-stump" data-garden-toy="stump" title="Stump: raises Power" type="button"><i aria-hidden="true" class="toy-grain"></i></button>
+<button aria-label="Splash in the puddle" class="garden-toy toy-puddle" data-garden-toy="puddle" title="Puddle: raises Stamina" type="button"><i aria-hidden="true" class="toy-ripple"></i></button>
+<button aria-label="Investigate the moon bush" class="garden-toy toy-bush" data-garden-toy="bush" title="Bush: raises Instinct" type="button"><i aria-hidden="true" class="toy-leaf"></i></button>
 </div>
 <div aria-hidden="true" class="weather-fx" id="weatherFx"></div><img aria-hidden="true" class="den-face-mark" src="./assets/rizo-full-mark.png" alt=""><div aria-hidden="true" class="den-care-trace" hidden id="denCareTrace"></div><div class="rizo-origin-stamp">A RIZO APPAREL GAME</div>
 <div class="scene-topline">
@@ -745,7 +745,7 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 <section aria-label="Sponsored content" class="ad-slot" data-ad-slot="home-feed" hidden=""></section>
 </section>
 <section class="view" data-view="arcade" id="viewArcade">
-<div class="training-heading"><small>THE YARD / SHORT DRILLS</small><h1>TRAIN TOGETHER.</h1><p>Rizo practices out back. Every drill you try earns a patch for the board at home.</p></div>
+<div class="training-heading"><small>THE YARD / SHORT DRILLS</small><h1>TRAIN TOGETHER.</h1><p>A little practice. Something to bring home.</p></div>
 <div class="training-focus" aria-label="Training focus"><button type="button" data-training-focus="all" aria-pressed="true">ANYTHING</button><button type="button" data-training-focus="speed" aria-pressed="false">SPEED</button><button type="button" data-training-focus="power" aria-pressed="false">POWER</button><button type="button" data-training-focus="instinct" aria-pressed="false">INSTINCT</button></div>
 <section class="training-featured" id="trainingFeatured" aria-label="Suggested training drill"></section>
 <p class="training-home-goal" id="trainingHomeGoal"></p>
@@ -809,15 +809,15 @@ body.life-night .habitat-scene{filter:brightness(.88) saturate(.93)}body.life-da
 </details>
 <section aria-label="Sponsored content" class="ad-slot" data-ad-slot="arcade-between-games" hidden=""></section>
 </section>
-<section class="view" data-view="go" id="viewGo"><div class="go-heading"><small>OUT THE DOOR</small><h1>LET'S GO.</h1><p>Some days, we go a little further. Home keeps the light on.</p></div><div class="destination dungeon-destination" data-mode-card="dungeon">
-<div class="game-art dungeon-art"><img alt="" src="./assets/rizo-classic.png"/><span>◆</span></div><div class="destination-way" aria-hidden="true"><i></i></div><div class="destination-companion" aria-hidden="true"></div>
-<div><small>BELOW / AN AUTHORED JOURNEY</small><h2>RIZO DUNGEON</h2><p>You said you would be right back. Something bad happened. Your Rizo is alone, and somewhere below. Get him home.</p><div class="game-meta" data-mode-meta="dungeon"></div></div>
+<section class="view" data-view="go" id="viewGo"><div class="go-heading"><small>OUT THE DOOR</small><h1>LET'S GO.</h1><p>Pick a way out. Home keeps the light on.</p></div><div class="destination dungeon-destination" data-mode-card="dungeon">
+<div class="game-art dungeon-art"><img alt="" src="./assets/rizo-classic.png"/><span>◆</span></div><div class="destination-way" aria-hidden="true"><i></i><b class="way-post"></b><b class="way-light"></b><b class="way-step"></b></div><div class="destination-companion" aria-hidden="true"></div>
+<div class="destination-story"><small>↓ BELOW / THE WAY BACK</small><h2>RIZO DUNGEON</h2><p>Rizo is somewhere below. Take the long way home.</p><div class="game-meta" data-mode-meta="dungeon"></div></div>
 <p class="departure-note" id="dungeonDeparture"></p>
 <button data-mode="dungeon" data-mode-label="GO BELOW" type="button">GO BELOW</button>
 </div>
 <div class="destination defense-destination" data-mode-card="defense">
-<div class="game-art defense-art"><img alt="" src="./assets/rizo-ember.png"/><span class="defense-card-balloon"><i></i></span></div><div class="destination-way" aria-hidden="true"><i></i></div><div class="destination-companion" aria-hidden="true"></div>
-<div><small>THE FIELD / STRATEGY + SURVIVAL</small><h2>RIZO DEFENSE</h2><p>Your raised Rizos become the roster. Place, upgrade, read the route, survive bosses, weather, and stranger balloon properties.</p><div class="game-meta" data-mode-meta="defense"></div></div>
+<div class="game-art defense-art"><img alt="" src="./assets/rizo-ember.png"/><span class="defense-card-balloon"><i></i></span></div><div class="destination-way" aria-hidden="true"><i></i><b class="way-post"></b><b class="way-light"></b><b class="way-step"></b></div><div class="destination-companion" aria-hidden="true"></div>
+<div class="destination-story"><small>↗ THE FIELD / HOLD YOUR GROUND</small><h2>RIZO DEFENSE</h2><p>Take your Rizos to the field. Build a defense. Hold the line.</p><div class="game-meta" data-mode-meta="defense"></div></div>
 <p class="departure-note" id="defenseDeparture"></p>
 <button data-mode="defense" data-mode-label="DEFEND" type="button">DEFEND</button>
 </div>
