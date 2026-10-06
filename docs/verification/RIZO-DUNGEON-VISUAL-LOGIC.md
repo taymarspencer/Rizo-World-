@@ -248,6 +248,8 @@ Results on the final code (local Chromium, the release workflow's suites):
 | `browser-v88-authored` | 25/25 |
 | `browser-v87-arcade-freeze` | 66/66 |
 | `tools/build-site.py` | 164 files, build `v95-dungeon-depth` |
+| `browser-public-product` (built site) | 150/150 |
+| `browser-world-first` (built site) | 77/77 |
 
 The build marker is unchanged: every Dungeon file is network-first in the
 service worker, so players get the new art without a cache bump.
