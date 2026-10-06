@@ -392,6 +392,7 @@ Every delivery that changes a runtime file:
 | `tests/browser-home-world.py` | `python3` | Real phone Home → Training → Go loop; spatial continuity; saved room changes; failed purchases; actual v22/threshold-v3 migration and cross-mode returns. |
 | `tests/browser-home-alive.py` | `python3` | The Den as a place: tier architecture and light, light below Rizo, toys within reach, sleeping in a tappable bed, tap zones, build ceremony across redraws, arrival, Training patch, Go doorway, reduced motion, 320–430 px. |
 | `tests/browser-dungeon.py` | `python3` | The Dungeon through the real hub over HTTP: the page lock, the opening beat by beat, the Threshold story (SIT and GO, help, gift, homecoming, an interrupted beat), real pet, keyboard/touch/mouse, combat/death/rest, lifecycle holds, care policy, reload/import, identity, the QA completion fixture (receipts, failed primary/backup), force update, save-blocked tab, isolation, newer-hub save, v21 and Gate 1 migrations, Defense under the shelf refresh. |
+| `tests/browser-dungeon-character-lab.py` | `python3` | The Character Lab: not in the build, writes no storage, every state/expression/portrait renders and differs, its phone table matches the live game. |
 | `tests/browser-*.py`, `static-defense-audit.py`, `worker-j-integration-risk-audit.py` | `python3` | Inherited browser and static suites. |
 
 The browser suites need Playwright for Python and Chromium at `/usr/bin/chromium`. Some write JSON into the
@@ -496,6 +497,12 @@ opens through work (room flags `rows*`), never through affection; Nell walks ahe
   room adds an entry to `dungeon-scenery.js`; a new character or enemy adds a function to `dungeon-art.js`
   built from its palette and helpers. The player's Rizo is never painted: it stays the hub's `petMarkup()` in
   the DOM, staged by CSS poses (lean, step, breathe, Flare gather/release, Tuck curl, hit jolt).
+- **Reviewing the art: the Character Lab** (`tools/dungeon-lab/`, development only, never built into the site).
+  `python3 tools/dungeon-lab/serve.py` and open the printed URL. It paints every character, state, world
+  expression and portrait with the real `dungeon-art.js` functions at each phone's real scale, on the game's own
+  BELOW, Hearth and street materials and light, with the real hub Rizo (booted in a hidden frame on in-memory
+  storage). Views: inspect, sheet, cast lineup (colour, values, silhouettes), phones, portraits. Edit a painter,
+  reload, compare; `tools/dungeon-lab/capture.py` re-shoots the review sheets.
 - **The page lock.** While open, the Dungeon adds `dungeon-locked` to `<html>`/`<body>` (no overflow, fixed
   body, no selection or callout, the root element included; images cannot be dragged), cancels `touchmove`,
   `gesturestart`, `selectstart` (fired at the Text node, so it is resolved from its parent element),
