@@ -225,7 +225,32 @@ Changed:
   seat), so its mirror check no longer applies to that group. YOU-in-car's
   declared twin pair is gone, because the states now differ.
 
-Results on the final commit are in the PR description.
+Results on the final code (local Chromium, the release workflow's suites):
+
+| Suite | Result |
+| --- | --- |
+| Source syntax (`node --check` on every runtime file), `git diff --check` | clean |
+| All 13 Node suites (`tests/*.test.js`, including `dungeon-core` 68/68) | all pass |
+| `browser-dungeon` | 371/371 |
+| `browser-dungeon-controls` | 185/185 |
+| `browser-dungeon-cohesion` | 67/67 |
+| `browser-dungeon-depth` | 44/44 |
+| `browser-dungeon-gamefeel` | 63/63 |
+| `browser-dungeon-character-lab` | 87/87 |
+| `save-safety` | 37/37 |
+| `mode-contract` | 25/25 |
+| `browser-home-world` | 110/110 |
+| `browser-home-alive` | 57/57 |
+| `browser-defense-integration` | 78/78 |
+| `training-contract` | 22/22 |
+| `browser-launch-recovery` | 5/5 |
+| `browser-v88-training-fixes` | 13/13 |
+| `browser-v88-authored` | 25/25 |
+| `browser-v87-arcade-freeze` | 66/66 |
+| `tools/build-site.py` | 164 files, build `v95-dungeon-depth` |
+
+The build marker is unchanged: every Dungeon file is network-first in the
+service worker, so players get the new art without a cache bump.
 
 ## What still remains weakest
 
