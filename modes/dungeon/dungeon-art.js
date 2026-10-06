@@ -528,12 +528,20 @@
       // Slides and socks; sweatpants a size too short.
       legs(ctx, 0, 0, -44, 3.4, 5.2, P.cloth[1], bob, P.ink, P.a.sock);
       ctx.save(); ctx.rotate(0.07);
-      shape(ctx, [-12, -88, 9, -88, 12, -42, -13, -42], P.cloth[2], { ink: CH, seed: 31, amp: CA });
+      shape(ctx, [-13, -86, -5, -90, 9, -88, 13, -69, 10, -42, -13, -42, -15, -65], P.cloth[2], { ink: CH, seed: 31, amp: CA });
       shape(ctx, [-12, -86, -4, -87, -7, -42, -13, -42], P.cloth[1], { ink: false, seed: 32, amp: CA });
       // Kangaroo pocket with both hands in it; a faded print.
       box(ctx, -7, -58, 15, 9, P.cloth[1], { ink: 1, amp: 0.3 });
       ctx.globalAlpha = 0.55; oval(ctx, 1, -72, 5, 4, P.cloth[3]); ctx.globalAlpha = 1;
-      if (grab) shape(ctx, [8, -80, 14, -78, 22, -62, 18, -60], P.cloth[2], { ink: 1.3, seed: 33, amp: 0.3 });
+      if (grab) {
+        limb(ctx,[8,-80,19,-69,25,-61],P.cloth[2],5.5,P.skin[1]);
+        line(ctx,25,-61,28,-58,P.skin[1],1.6);
+      } else {
+        limb(ctx,[-11,-80,-14,-66,-6,-55],P.cloth[2],5,null);
+        oval(ctx,-6,-55,2.6,1.8,P.skin[1],true,.7);
+      }
+      line(ctx,-10,-44,9,-44,P.cloth[3],1.4);
+      stitches(ctx,-8,-65,-3,-65,P.paper[0],2,.8,.65);
       // Hood up, peak drooping forward over a ski mask; uneven drawstrings.
       shape(ctx, [-11, -88, -12, -100, -4, -108, 6, -107, 13, -100, 12, -88], P.cloth[2], { ink: CH, seed: 34, amp: CA });
       oval(ctx, 4, -96, 6.5, 6, P.ink);
@@ -545,13 +553,18 @@
       drop(ctx, 0, 0, 11, 3.4);
       legs(ctx, 0, 0, -26, 3.6, 5.4, P.cloth[1], bob, P.a.white);
       // Puffer jacket: three quilted bands, the top one lit.
-      shape(ctx, [-13, -56, 12, -56, 14, -26, -14, -26], P.a.maroon, { ink: CH, seed: 41, amp: CA });
+      shape(ctx, [-12, -57, 10, -57, 16, -51, 17, -37, 13, -25, -13, -25, -17, -38, -16, -49], P.a.maroon, { ink: CH, seed: 41, amp: CA });
       rect(ctx, P.a.maroonLight, -11, -55, 22, 3);
       for (const qy of [-46, -36]) line(ctx, -13, qy, 13, qy + 0.6, P.ink, 0.9, qy);
+      line(ctx, 0, -55, 0, -27, P.ink, 1.1);
+      limb(ctx,[-12,-50,-17,-38,-12,-30],P.a.maroon,5,P.skin[1]);
       // Arm up, holding the phone out, filming. The screen is a light.
       shape(ctx, [6, -50, 12, -52, 18, -44, 14, -41], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
       box(ctx, 15, -54, 5, 8, P.ink, { ink: 1, amp: 0.1 });
       rect(ctx, o.phoneOff ? P.cloth[2] : P.fluoro[2], 16, -53, 3, 6);
+      oval(ctx,16.5,-46.5,2.3,1.8,P.skin[1],true,.7);
+      line(ctx,-7,-72,6,-72,P.paper[0],.8);
+
       // Beanie with a fold and a pom; the mask's eye slot is on crooked.
       oval(ctx, 0, -63, 9.5, 8, P.ink);
       ctx.save(); ctx.rotate(-0.12); rect(ctx, P.cloth[0], -6, -65, 13, 4); ctx.restore();
@@ -564,14 +577,18 @@
       // a pillowcase over one shoulder for what they came to take.
       drop(ctx, 0, 0, 14, 3.8);
       legs(ctx, 0, 0, -36, 4.6, 6.4, P.cloth[0], bob, P.ink);
-      shape(ctx, [-16, -74, 15, -74, 15, -35, -16, -35], P.a.track, { ink: CH, seed: 51, amp: CA });
+      shape(ctx, [-17, -70, -10, -77, 9, -76, 18, -68, 19, -47, 14, -35, -16, -35, -20, -49], P.a.track, { ink: CH, seed: 51, amp: CA });
       shape(ctx, [-16, -72, -8, -73, -9, -35, -16, -35], "#24472f", { ink: false, seed: 52, amp: CA });
       rect(ctx, P.a.white, 12, -72, 2, 30);
       line(ctx, 0, -74, 0, -36, P.ink, 0.9);
+      limb(ctx,[13,-69,20,-53,12,-45],P.a.track,6,P.skin[0]);
+      line(ctx,17,-67,19,-54,P.a.white,1.8);
       // The pillowcase.
       if (!grab) {
         shape(ctx, [-14, -76, -24, -70, -28, -52, -22, -44, -14, -50], P.a.white, { ink: 1.3, seed: 53, amp: 0.6 });
         rect(ctx, P.a.denim, -26, -60, 10, 2);
+        limb(ctx,[-13,-68,-20,-73,-17,-77],P.a.track,5.5,P.skin[0]);
+        line(ctx,-25,-56,-20,-49,P.paper[0],1);
       } else {
         shape(ctx, [10, -66, 26, -58, 30, -40, 18, -38], P.a.white, { ink: 1.3, seed: 54, amp: 0.6 });
       }
@@ -721,7 +738,7 @@
     if (k.talking && k.phone !== "call") limb(ctx, [-11, -37, -16, -31, -17, -38 + k.talk * 2], P.a.maroon, 4.4, P.skin[1]);
     else if (k.phone !== "call") limb(ctx, [-11, -37, -12, -28, -6, -22], P.a.maroon, 4.4, P.skin[1]);
     // Puffer: three quilted bands, the top one lit, a zip.
-    shape(ctx, [-13, -42, 12, -42, 14, -23, -14, -23], P.a.maroon, { ink: CH, seed: 144, amp: CA });
+    shape(ctx, [-12, -43, 10, -43, 15, -37, 16, -28, 12, -22, -12, -22, -16, -29, -16, -36], P.a.maroon, { ink: CH, seed: 144, amp: CA });
     ctx.globalAlpha = 0.28; shape(ctx, [-13, -42, -6, -42, -7, -23, -14, -23], P.ink, { ink: false, seed: 145, amp: CA }); ctx.globalAlpha = 1;
     rect(ctx, P.a.maroonLight, -11, -41, 22, 3);
     for (const qy of [-35, -29]) line(ctx, -13.5, qy, 13.5, qy + 0.5, P.ink, 0.9, qy);
@@ -753,6 +770,8 @@
     if (k.phone) { ctx.globalAlpha = k.phone === "call" ? 0.5 : 0.3; oval(ctx, hx + (k.phone === "film" ? 3 : 0), hy + 3, 6, 3.6, P.fluoro[1]); ctx.globalAlpha = 1; }
     shape(ctx, [hx - 8.7, hy - 2.6, hx - 7.8, hy - 9.4, hx, hy - 12.6, hx + 7.8, hy - 9.4, hx + 8.7, hy - 2.6], P.a.mustard, { ink: 1.3, seed: 147, amp: 0.25 });
     rect(ctx, P.ink, hx - 8.4, hy - 5, 16.8, 0.8);
+    for(const bx of [-5,-1,3,6]) line(ctx,hx+bx,hy-9,hx+bx,hy-5.6,P.paper[0],.55);
+    box(ctx,hx+3,hy-5.4,3.3,2.5,P.paper[1],{ink:.5,amp:.1});
     oval(ctx, hx + 1, hy - 13.8, 2.8, 2.6, P.a.mustard, true, 1);
     ctx.restore();
   }
@@ -770,7 +789,7 @@
     const sx = k.lean * 0.5, sy = k.hop * 0.5;
     ctx.save(); ctx.translate(sx, sy);
     // Hunched: shoulders forward and down.
-    shape(ctx, [-16, -42, 15, -43, 14, -24, -14, -24], P.a.track, { ink: CH, seed: 154, amp: CA });
+    shape(ctx, [-17, -39, -11, -45, 10, -44, 18, -37, 17, -26, 11, -23, -14, -24], P.a.track, { ink: CH, seed: 154, amp: CA });
     shape(ctx, [-16, -42, -8, -43, -9, -24, -14, -24], "#24472f", { ink: false, seed: 155, amp: CA });
     line(ctx, 0, -42, 0, -25, P.ink, 0.9);
     // Pointing: the arm on Rizo's side goes straight out at him, one finger;
@@ -797,6 +816,8 @@
     oval(ctx, hx, hy - 3.6, 2.4, 1.2, P.cloth[1]);
     shape(ctx, [hx - 8.2, hy + 0.4, hx + 8.2, hy + 0.4, hx + 6.4, hy + 6.8, hx, hy + 9, hx - 6.4, hy + 6.8], P.a.red, { ink: 1.1, seed: 159, amp: 0.25 });
     line(ctx, hx - 5, hy + 3.4, hx + 5, hy + 3.2, P.a.stamp, 0.8);
+    shape(ctx,[hx+7,hy+4,hx+13,hy+6,hx+10,hy+10,hx+6,hy+7],P.a.red,{ink:.8,seed:160,amp:.2});
+    line(ctx,hx-5,hy-8,hx+4,hy-8,P.cloth[2],1.2);
     crewEyes(ctx, hx + k.look.x * 0.8, hy - 1.2, 3, k);
     ctx.restore();
   }
@@ -815,6 +836,9 @@
     shape(ctx, [-8, -51, 6, -53, 8, -21, -8, -19], P.cloth[3], { ink: CH, seed: 162, amp: CA });
     shape(ctx, [1, -52, 6, -53, 8, -21, 2, -20], P.cloth[2], { ink: false, seed: 163, amp: CA });
     box(ctx, -5, -34, 11, 7, P.cloth[1], { ink: 1, amp: 0.3, seed: 164 });
+    line(ctx,-6,-23,7,-24,P.paper[0],.7);
+    stitches(ctx,-6,-40,-1,-40,P.paper[0],2,.8,.65);
+    line(ctx,3,-49,5,-37,P.cloth[1],1);
     ctx.globalAlpha = 0.5; oval(ctx, 0, -43, 4, 3.4, P.cloth[3]); ctx.globalAlpha = 1;
     // Near arm over the seatback; lifted off it while he talks.
     if (k.talking) limb(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[3], 4.6, P.skin[1]);
@@ -853,11 +877,17 @@
     // Far arm to the top of the wheel.
     limb(ctx, [2, -46, -8, -40, -19, -47], P.a.rust, 4.8, null);
     oval(ctx, -19.5, -47.5, 2.6, 2.4, P.ink, true, 0.9);
+    line(ctx,-20,-49,-18,-46,P.cloth[3],1.1);
     // The coat: rust canvas, a dark side, a chest pocket, the fleece collar.
-    shape(ctx, [-9, -50, 8, -52, 10, -20, -9, -19], P.a.rust, { ink: CH, seed: 171, amp: CA });
+    shape(ctx, [-11, -48, -6, -53, 8, -53, 13, -46, 12, -20, -10, -19], P.a.rust, { ink: CH, seed: 171, amp: CA });
     shape(ctx, [3, -51, 8, -52, 10, -20, 4, -20], P.wood[1], { ink: false, seed: 172, amp: CA });
     box(ctx, -6, -40, 7, 6, P.wood[1], { ink: 0.8, amp: 0.2, seed: 173 });
     shape(ctx, [-7, -50, 8, -53, 9, -47, -6, -45], P.paper[2], { ink: 1.1, seed: 174, amp: 0.5 });
+    // Worn canvas seams and the seat belt reinforce a road-facing driver.
+    line(ctx,7,-47,-6,-22,P.inkSoft,3.2);
+    line(ctx,7,-47,-6,-22,P.cloth[2],1.4);
+    box(ctx,-8,-24,4,3,P.metal[2],{ink:.6,amp:.1});
+    line(ctx,-8,-39,-8,-27,P.paper[0],.65);
     // Near arm: on the wheel, or off it to make a point.
     if (k.talking) { limb(ctx, [-3, -46, -9, -37, -11, -48 + k.talk * 2.4], P.a.rust, 4.8, null); oval(ctx, -11, -48.4 + k.talk * 2.4, 2.6, 2.4, P.ink, true, 0.9); }
     else { limb(ctx, [-3, -46, -11, -35, -21, -31], P.a.rust, 4.8, null); oval(ctx, -21, -31, 2.6, 2.4, P.ink, true, 0.9); }
@@ -975,6 +1005,9 @@
   function nell(ctx, x, y, o = {}) {
     const bob = o.bob || 0, t = o.t || 0, state = NELL_ARMS[o.state] ? o.state : "work";
     const seated = state === "sit", walking = Boolean(o.bob);
+    const low = ["fit", "clear", "fix"].includes(state);
+    const planted = ["brace", "support", "lift"].includes(state);
+    const expr = state === "tired" ? "tired" : o.expr || (state === "listen" ? "listening" : "work");
     const quiet = !walking && !["support", "lift", "brace"].includes(state);
     const breath = quiet ? Math.sin(t / 920) * 0.45 : 0;
     drop(ctx, x, y, 15, 3.8);
@@ -989,13 +1022,21 @@
       oval(ctx, 16, -2, 4.6, 2.3, P.wood[0], true, 1);
       ctx.translate(-2, 18);
     } else {
-      legs(ctx, 0, 0, -31, 3.7, 5.5, P.cloth[1], bob, P.wood[0]);
+      if (low || planted) {
+        // A worker takes the load through her knees. The hands still reach
+        // their existing work surfaces; feet spread before the coat leans.
+        const spread = state === "brace" ? 14 : planted ? 10 : 8;
+        limb(ctx, [-6, -30, -spread - 2, -16, -spread, -3], P.cloth[1], 6, null);
+        limb(ctx, [5, -29, spread + (low ? 4 : 0), -17, spread, -3], P.cloth[1], 6, null);
+        for (const side of [-1, 1]) oval(ctx, side * spread + 1.5, -2, 5.8, 2.6, P.wood[0], true, 1.2);
+        line(ctx, spread - 2, -4, spread + 3, -4, P.paper[0], .8);
+      } else legs(ctx, 0, 0, -31, 3.7, 5.5, P.cloth[1], bob, P.wood[0]);
       // One repaired knee is readable even when the upper-body detail is lost.
       box(ctx, -7.4, -18, 5.5, 5.2, P.service[1], { ink: 0.7, amp: 0.2, seed: 78 });
       stitches(ctx, -6.8, -15.4, -2.5, -15.4, P.paper[1], 2.2, 0.7, 0.55);
     }
-    ctx.translate(0, breath);
-    const lean = state === "brace" ? 0.16 : state === "clear" || state === "fit" || state === "fix" ? 0.2 : state === "support" ? 0.1 : state === "tired" ? -0.05 : state === "listen" ? -0.06 : 0;
+    ctx.translate(0, breath + (low ? 4 : state === "lift" ? -2 : 0));
+    const lean = state === "brace" ? 0.18 : state === "clear" || state === "fit" || state === "fix" ? 0.2 : state === "support" ? 0.1 : state === "tired" ? -0.09 : state === "listen" ? -0.1 : state === "work" ? 0.055 : 0;
     ctx.rotate(lean);
     const slump = state === "tired" ? 3 : 0;
     ctx.translate(0, slump);
@@ -1025,7 +1066,7 @@
     }
 
     // Broad service coat: squared shoulders, softened hem, one darker side.
-    shape(ctx, [-12, -63, 10, -63, 14, -39, 12, -29, 8, -24, -12, -25, -16, -38], P.service[2], { ink: CH, seed: 84, amp: CA });
+    shape(ctx, [-14, -62, -6, -65, 9, -63, 16, -43, 15, -32, 9, -24, -12, -25, -18, -38], P.service[2], { ink: CH, seed: 84, amp: CA });
     shape(ctx, [-12, -61, -3, -62, -5, -27, -12, -25, -16, -38], P.service[1], { ink: false, seed: 85, amp: CA });
     rect(ctx, P.service[3], -8, -63, 16, 1.8);
     line(ctx, 1, -61, 2, -29, P.inkSoft, 0.8, 86, 0.2);
@@ -1043,6 +1084,14 @@
     line(ctx, -9.5, -58.5, 8.5, -36.5, P.ink, 5, 188, 0.1);
     line(ctx, -9.5, -58.5, 8.5, -36.5, P.paper[0], 2.7, 188, 0.1);
     for (let k = 0; k < 3; k += 1) line(ctx, -5 + k * 4, -53 + k * 5, -3.5 + k * 4, -54.2 + k * 5, P.inkSoft, 0.65, 190 + k, 0.02);
+    // A spool at the waist and the open bow of her shears read as tools,
+    // even when the tiny stitches disappear at actual phone scale.
+    box(ctx, -18, -40, 5, 9, P.a.maroon, { ink: .8, amp: .2, seed: 198 });
+    line(ctx, -19, -40, -12, -40, P.paper[1], 1.6);
+    line(ctx, -19, -31, -12, -31, P.paper[1], 1.6);
+    oval(ctx, 11, -31, 2.2, 2.8, null, true, .9);
+    oval(ctx, 15, -31, 2.2, 2.8, null, true, .9);
+    line(ctx, 12, -28, 16, -21, P.metal[2], 1.1);
     // Belt, rag and repaired hip patch.
     rect(ctx, P.wood[1], -13, -41, 26, 2.5);
     shape(ctx, [-10, -41, -5, -41, -4, -27, -10, -30], P.paper[2], { ink: 0.8, seed: 88, amp: 0.4 });
@@ -1068,25 +1117,34 @@
     const cx = (near[2] + near[4]) / 2, cy = (near[3] + near[5]) / 2;
     oval(ctx, cx, cy, 2.5, 1.7, P.wood[2], true, 0.8);
     oval(ctx, near[2], near[3], 2.9, 2.3, P.service[3], true, 0.8);
+    // Palm and thumb wrap around the job, rather than ending in a joint bead.
+    oval(ctx, near[4] + 1, near[5], 2.9, 2.1, P.skin[1], true, .8);
+    line(ctx, near[4] - 1, near[5] - 1, near[4] + 1.4, near[5] - 2.4, P.skin[0], 1.1);
 
     // Head: tied wrap first, then tired hairline, chalk and a small face. The
     // wrap knot/tail is intentionally oversized because it is her phone-scale
     // head silhouette.
-    const tilt = state === "listen" ? -0.14 : state === "tired" ? 0.12 : 0;
+    const tilt = expr === "listening" ? -0.14 : expr === "tired" ? 0.12 : expr === "measuring" ? .09 : expr === "amused" ? -.06 : 0;
     ctx.save(); ctx.translate(1, -69); ctx.rotate(tilt);
-    oval(ctx, 0, 0, 6.5, 6.8, P.skin[1], true, 1.2);
+    shape(ctx, [-6.5,-2,-5.5,-6,1,-7,6,-4,7,1,5,5,0,6.8,-4.5,4], P.skin[1], {ink:1.2,seed:197,amp:.18});
+    oval(ctx, -5.5, 1, 1.5, 2, P.skin[0]);
+    line(ctx, -3.5, 3.1, -1.5, 4, P.skin[0], .75);
     shape(ctx, [-6.7, -1, -5.7, -7.2, 1, -9, 6.2, -6.4, 4.2, -4, -1, -4.2, -3.6, 1], P.wood[0], { ink: 1.1, seed: 89, amp: 0.2 });
     shape(ctx, [-8.8, -6, -5.4, -11.2, 1.8, -11.8, 5.2, -8.5, 1.8, -6.8, -5.8, -3.6], P.a.maroon, { ink: 1.2, seed: 90, amp: 0.25 });
     line(ctx, -5.4, -8.3, 3.8, -9.2, P.a.maroonLight, 1.1, 193, 0.08);
     oval(ctx, -8, -8.2, 2.8, 3, P.a.maroon, true, 0.95);
     shape(ctx, [-9.5, -6.3, -7.1, -5.8, -9.2, 1.3, -11.1, 0.2], P.a.maroon, { ink: 0.8, seed: 194, amp: 0.2 });
+    line(ctx, -5.5, -3.8, -4.5, -.4, P.paper[0], 1.15);
     // Chalk behind the ear, pale enough to pop once without becoming jewelry.
     rect(ctx, P.paper[3], -4.8, -2.8, 3.8, 1.3);
     const eyeY = -0.6;
-    if (state === "tired") {
+    if (expr === "tired") {
       line(ctx, 1.3, eyeY + 0.4, 3.5, eyeY + 0.5, P.ink, 0.9);
       line(ctx, 4.6, eyeY + 0.5, 6.5, eyeY + 0.2, P.ink, 0.9);
       line(ctx, 1.5, 1.2, 3.2, 1.4, P.skin[0], 0.55);
+    } else if (expr === "measuring") {
+      line(ctx,1.3,eyeY,3.8,eyeY+.2,P.ink,1.2);
+      oval(ctx,5.4,eyeY,.85,.95,P.ink);
     } else {
       oval(ctx, 2.5, eyeY, state === "listen" ? 0.85 : 0.75, 0.9, P.ink);
       oval(ctx, 5.4, eyeY, state === "listen" ? 0.82 : 0.7, 0.85, P.ink);
@@ -1094,7 +1152,9 @@
     }
     line(ctx, 4.1, 0.2, 3.7, 1.7, P.skin[0], 0.55, 195, 0.04);
     if (state === "eat") oval(ctx, 5.1, 3.3, 1, 0.8, P.ink);
-    else if (state === "listen") { ctx.save(); ctx.strokeStyle = P.inkSoft; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(3.1, 3.1); ctx.quadraticCurveTo(4.3, 3.9, 5.6, 3); ctx.stroke(); ctx.restore(); }
+    else if (expr === "amused") { oval(ctx, 4.3, 3.2, 1.7, 1.2, P.wood[0]); }
+    else if (expr === "irritated") { line(ctx, 1.2, -2.4, 3.7, -1.5, P.ink, 1); line(ctx, 3.2, 3.4, 5.8, 3.4, P.ink, .9); }
+    else if (state === "listen" || expr === "listening") { ctx.save(); ctx.strokeStyle = P.inkSoft; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(3.1, 3.1); ctx.quadraticCurveTo(4.3, 3.9, 5.6, 3); ctx.stroke(); ctx.restore(); }
     else line(ctx, 3.1, 3.4, 5.5, 3.2, P.inkSoft, 0.7);
     ctx.restore();
     ctx.restore();
@@ -1104,25 +1164,32 @@
   // dropped towel shoulder, reinforced apron, and a clipped serving spoon.
   // He leans into the job instead of posing; the oversized tray stays the read. ~82u.
   function orr(ctx, x, y, o = {}) {
-    const bob = o.bob || 0, state = o.state || "tray";
+    const bob = o.bob || 0, state = o.state || "tray", t = o.t || 0;
+    const expr = o.expr || "serving", carrying = state === "carry";
+    const free = state !== "tray" && !carrying;
     drop(ctx, x, y, 14, 3.6);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
 
     // Short, planted service legs. One wrapped shin breaks the symmetry.
-    legs(ctx, 0, 0, -27, 4.4, 5.4, P.cloth[0], bob, P.wood[0]);
+    if (!bob) {
+      limb(ctx, [-6,-28,-8,-14,-8,-3], P.cloth[0], 6.6, null);
+      limb(ctx, [5,-28,free ? 11 : 7,-16,free ? 13 : 10,-3], P.cloth[0], 6.3, null);
+      oval(ctx,-7,-2,5.5,2.6,P.wood[0],true,1);
+      oval(ctx,free ? 15 : 11,-2,6,2.6,P.wood[0],true,1);
+    } else legs(ctx, 0, 0, -27, 4.4, 5.4, P.cloth[0], bob, P.wood[0]);
     rect(ctx, P.paper[0], -8.2, -14.5, 5.2, 3.2);
     line(ctx, -7.7, -13.1, -3.5, -13.1, P.wood[1], 0.7, 201, 0.1);
 
     // Weight forward, towel shoulder low: useful rather than heroic.
     ctx.save();
     ctx.translate(0, -27);
-    ctx.rotate(state === "carry" ? -0.035 : 0.045);
+    ctx.rotate(carrying ? -0.08 : free ? -0.095 : 0.07);
     ctx.translate(0, 27);
 
     limb(ctx, state === "carry" ? [-7, -57, -11, -45, -9, -34] : [-7, -57, 0, -48, 10, -46], P.a.mustard, 4.4, P.skin[0]);
 
     // Rolled service shirt with an uneven shoulder instead of a round blob.
-    shape(ctx, [-14, -58, 7, -61, 14, -54, 15, -39, 10, -28, -12, -27, -16, -39], P.a.mustard, { ink: CH, seed: 91, amp: CA });
+    shape(ctx, [-15, -57, -8, -61, 7, -61, 16, -53, 17, -39, 10, -28, -12, -27, -18, -39], P.a.mustard, { ink: CH, seed: 91, amp: CA });
     shape(ctx, [-14, -56, -6, -59, -7, -29, -12, -27, -16, -39], P.wood[2], { ink: false, seed: 92, amp: 0.35 });
     rect(ctx, P.paper[0], -11, -56.8, 8, 2.2);
 
@@ -1141,12 +1208,17 @@
     oval(ctx, -14, -16.8, 2.1, 3, P.metal[2], true, 0.8);
 
     // Long striped towel is the identifying cloth shape, always on one shoulder.
-    shape(ctx, [3, -63, 10, -61, 9, -38, 4, -35, 1, -44], P.paper[3], { ink: 1, seed: 99, amp: 0.3 });
+    shape(ctx, [3, -63, 11, -61, 12, -44, 9, -36, 4, -35, 1, -44], P.paper[3], { ink: 1, seed: 99, amp: 0.3 });
     for (const sy of [-56, -50, -44]) line(ctx, 3.4, sy, 8.8, sy + 0.5, P.a.red, 0.9, sy + 200, 0.1);
 
+    // Apron creases converge where the tray presses against him.
+    line(ctx, -7,-40,-3,-22,P.wood[2],.8,202,.1);
+    line(ctx, 3,-38,7,-20,P.paper[3],1,203,.1);
+    oval(ctx,-3,-31,2.2,1.3,P.paper[0]);
     // Near arm and the object he is responsible for.
     if (state === "tray") {
-      limb(ctx, [6, -56, 13, -48, 20, -47], P.a.mustard, 4.5, P.skin[0]);
+      limb(ctx, [6, -56, 13, -44, 24, -47], P.a.mustard, 5.2, P.skin[0]);
+      oval(ctx,24,-48,3.4,1.8,P.skin[0],true,.8);
       box(ctx, 0, -51, 37, 3.4, P.metal[2], { ink: 1.1, amp: 0.2, seed: 100 });
       rect(ctx, P.metal[3], 1, -50.6, 35, 0.8);
       oval(ctx, 11, -53.3, 5, 2.2, P.paper[3], true, 0.9);
@@ -1154,17 +1226,22 @@
       oval(ctx, 11, -54.2, 3, 1.2, P.ember[1]);
       oval(ctx, 26, -54.2, 3, 1.2, P.ember[1]);
       shape(ctx, [18, -56, 25, -56, 28, -52, 20, -51], P.paper[1], { ink: 0.7, seed: 101, amp: 0.25 });
+      ctx.save();ctx.globalAlpha=.45;
+      for(const px of [10,26]) { const sway=Math.sin(t/700+px)*.8; line(ctx,px,-57,px-1+sway,-61,P.paper[3],.85);line(ctx,px-1+sway,-61,px+sway,-64,P.paper[3],.7); }
+      ctx.restore();
     } else if (state === "carry") {
       limb(ctx, [6, -56, 10, -45, 8, -35], P.a.mustard, 4.5, P.skin[0]);
       box(ctx, 4, -43, 5, 27, P.metal[1], { ink: 1.1, amp: 0.2, seed: 102 });
       rect(ctx, P.metal[3], 5, -41, 1, 23);
       oval(ctx, 6.5, -38, 0.8, 0.8, P.a.brass);
     } else {
-      limb(ctx, [6, -56, 14, -50, 21, -52], P.a.mustard, 4.5, P.skin[0]);
+      // Hands free: thumb hooked into his belt, elbow out, weight on one leg.
+      limb(ctx, [6,-56,18,-43,10,-32], P.a.mustard, 5.2, P.skin[0]);
+      line(ctx,10,-33,7,-35,P.skin[0],1.5);
     }
 
     // Narrow asymmetric face: long nose, tired lids, short beard edge.
-    const headTilt = state === "carry" ? 0.08 : -0.025;
+    const headTilt = expr === "dry" ? -.16 : expr === "irritated" ? .13 : carrying ? .12 : free ? -.09 : -.045;
     ctx.save(); ctx.translate(1, -67); ctx.rotate(headTilt);
     shape(ctx, [-6.2, -1, -5.2, -7.2, -1.2, -10, 4.8, -8.8, 7, -4.2, 6.2, 2.2, 2.4, 6.2, -2.8, 5.2, -5.8, 2.2], P.skin[0], { ink: 1.2, seed: 103, amp: 0.22 });
     oval(ctx, -5.9, -1, 1.8, 2.2, P.skin[0], true, 0.8);
@@ -1180,7 +1257,9 @@
     line(ctx, 3, -1.2, 5.3, -1.5, P.ink, 0.9);
     oval(ctx, 4.2, -0.5, 0.65, 0.75, P.ink);
     line(ctx, 2.3, 0.1, 3.4, 2.5, P.inkSoft, 0.7, 107, 0.1);
-    line(ctx, 0.4, 4.1, 4.6, 3.6, P.ink, 0.9, 108, 0.1);
+    line(ctx, .4, expr === "irritated" ? 4.5 : 4.1, 4.6, expr === "dry" ? 2.6 : expr === "irritated" ? 4.6 : 3.6, P.ink, 1, 108, .1);
+    if(expr === "dry") line(ctx,-1.5,-3,1.5,-4.4,P.ink,1.1);
+    if(expr === "irritated") line(ctx,-2,-3,1.5,-1.3,P.ink,1.3);
     line(ctx, -1.8, 4.8, 1.2, 5.6, P.wood[0], 0.8, 109, 0.15);
     line(ctx, 2.1, 5.5, 4.4, 4.8, P.wood[0], 0.8, 110, 0.15);
     ctx.restore();
@@ -1458,6 +1537,7 @@
 <path d="M20 30 Q21 38 25 42" stroke="${P.skin[0]}" stroke-width="3.2" fill="none"/>
 <path d="M33 31 q-1.2 4 .7 6" stroke="${P.skin[0]}" stroke-width="1.2" fill="none"/>
 ${eyes}${mouth}${cheek}
+<path d="M21.5 35.5 l3 1 M41.5 36 l2.5 -1 M23 39 l2 1" stroke="${P.skin[0]}" stroke-width="1.1" fill="none"/>
 <!-- hair mass stays quiet; the tied wrap owns the silhouette -->
 <path d="M19 27 Q18 13 33 11 Q47 12 48 25 Q41 20 33 21 Q25 20 19 27 Z" fill="${P.wood[0]}" ${ink} stroke-width="2"/>
 <path d="M16 20 Q16 8 29 5 Q44 4 50 14 Q43 12 34 13 Q24 13 16 20 Z" fill="${P.a.maroon}" ${ink} stroke-width="2"/>
@@ -1465,6 +1545,7 @@ ${eyes}${mouth}${cheek}
 <path d="M20 16 Q31 12 45 14" stroke="${P.inkSoft}" stroke-width="1" stroke-dasharray="2 2" fill="none"/>
 <circle cx="14.5" cy="14.5" r="5" fill="${P.a.maroon}" ${ink} stroke-width="1.8"/>
 <path d="M12 18 L17 18 L14 29 L10 26 Z" fill="${P.a.maroon}" ${ink} stroke-width="1.3"/>
+<path d="M20 24 l1.5 5 M23 23 l1 3" stroke="${P.paper[0]}" stroke-width="1.5"/>
 <!-- chalk behind the ear: Nell can lose it later because it is visibly hers now -->
 <rect x="44" y="21" width="10" height="3.2" fill="${P.paper[3]}" ${ink} stroke-width="1.1" transform="rotate(-18 49 22.6)"/>
 </g>${extra}`);
@@ -1502,6 +1583,8 @@ ${eyes}${mouth}${cheek}
 <path d="M8 64 L11 49 L22 46 L20 64 Z" fill="${P.wood[2]}" opacity=".9"/>
 <path d="M18 64 L20 49 L45 49 L48 64 Z" fill="${P.paper[1]}" ${ink} stroke-width="1.8"/>
 <path d="M23 54 L42 54" stroke="${P.wood[0]}" stroke-width="2.2"/>
+<path d="M22 58 l2 6 M41 57 l-1 7" stroke="${P.wood[2]}" stroke-width="1.2"/>
+<rect x="26" y="57" width="10" height="7" fill="${P.paper[0]}" stroke="${P.wood[1]}" stroke-width="1" stroke-dasharray="2 1"/>
 <path d="M45 44 L57 47 L56 64 L48 64 Z" fill="${P.paper[3]}" ${ink} stroke-width="1.8"/>
 <path d="M48 51 l8 .8 M48.5 56 l7.5 .8 M49 61 l7 .7" stroke="${P.a.red}" stroke-width="1.8"/>
 ${steam}
@@ -1509,6 +1592,7 @@ ${steam}
 <path d="M20 30 Q20 20 25 16 Q32 11 41 15 Q47 20 46 31 L44 39 Q40 46 31 47 Q23 45 20 39 Z" fill="${P.skin[0]}" ${ink}/>
 <path d="M20 35 Q17 35 18 31 Q19 28 22 30" fill="${P.skin[0]}" ${ink} stroke-width="1.6"/>
 ${eyes}
+<path d="M21 37 l3 1 M39 38 l4 -1" stroke="${P.wood[1]}" stroke-width="1.2"/>
 <path d="M32 35 l2 4 l-2 1" stroke="${P.inkSoft}" stroke-width="1.6" fill="none"/>
 ${mouth}
 <path d="M23 41 q4 5 11 5 q6 0 10 -5" stroke="${P.wood[0]}" stroke-width="1.5" fill="none"/>
