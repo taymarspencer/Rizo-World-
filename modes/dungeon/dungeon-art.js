@@ -715,7 +715,7 @@
     line(ctx, 0.4, -41, 0.4, -24, P.inkSoft, 0.8, 146, 0.1);
     // The phone: held out at what he films, held close when it rings, or in his lap.
     if (k.phone === "film") {
-      const ax = 12 + Math.max(-2, k.look.x * 9), ay = -36 + k.look.y * 3;
+      const ax = 12 + Math.max(-2, k.look.x * 13), ay = -35 + k.look.y * 6;
       limb(ctx, [10, -38, ax - 2, ay + 2, ax, ay - 1], P.a.maroon, 4.4, null);
       box(ctx, ax - 2, ay - 8, 6, 9, P.ink, { ink: 1, amp: 0.1 });
       rect(ctx, P.metal[3], ax + 1.6, ay - 6.6, 1.4, 1.4);
@@ -793,9 +793,9 @@
   function crewTall(ctx, k) {
     const sx = k.lean * 0.6, sy = k.hop * 0.5;
     // Legs to the dash; socks and slides.
-    limb(ctx, [-1, -21, -12, -33, -22, -29], P.cloth[1], 5, null);
-    rect(ctx, P.a.sock, -24.5, -31.6, 4, 4.4);
-    shape(ctx, [-29, -30, -23, -31, -22.6, -27, -29.4, -26.4], P.ink, { ink: false, seed: 161, amp: 0.1 });
+    limb(ctx, [-1, -21, -12, -33, -21, -30], P.cloth[2], 5, null);
+    box(ctx, -25.5, -33, 5.4, 5.6, P.a.sock, { ink: 0.9, amp: 0.1 });
+    shape(ctx, [-30, -31, -24, -32.4, -23.4, -27.4, -30.4, -26.8], P.ink, { ink: false, seed: 161, amp: 0.1 });
     ctx.save(); ctx.translate(sx, sy);
     // Far arm on his knee.
     limb(ctx, [-4, -47, -8, -38, -11, -33], P.cloth[1], 4.4, P.skin[1]);
@@ -1509,17 +1509,21 @@ ${mouth}
 <path d="M45 64 L48 44 L58 45 L56 64 Z" fill="${P.ink}" ${ink} stroke-width="1.6"/><path d="M48.5 47 L56.5 47.6 L55 62 L47 62 Z" fill="${P.fluoro[2]}"/>
 <path d="M22 37 Q31 41 40 36" stroke="${P.fluoro[1]}" stroke-width="1.6" opacity=".55" fill="none"/>`)
     }),
-    // DRIVER: backwards cap, sunglasses at night, a hand on the wheel.
+    // DRIVER: as he sits in the van: rust chore coat, cream fleece collar,
+    // black ski mask with a rolled cuff, sunglasses at night, a gloved hand on the wheel.
     driver: Object.freeze({
-      neutral: svg(`${disc("#0c0e10", "#151b1a", "#1d2a26", 30, 44)}
-<path d="M6 64 L10 50 Q18 44 32 44 Q46 44 54 50 L58 64 Z" fill="${P.a.track}" ${ink}/>
-<path d="M44 46 L46 64" stroke="${P.a.white}" stroke-width="2.4"/>
-<circle cx="32" cy="29" r="14" fill="${P.skin[0]}" ${ink}/>
-<path d="M18 33 L46 33 L45 41 Q32 46 19 41 Z" fill="${P.a.red}" ${ink} stroke-width="1.8"/>
-<path d="M19 26 H45 L44 31 Q39 33 35 30 L29 30 Q25 33 20 31 Z" fill="${P.ink}"/><path d="M23 27 l3 2 M38 27 l3 2" stroke="${P.metal[3]}" stroke-width="1.2"/>
-<path d="M18 22 Q19 13 32 12 Q45 13 46 22 Z" fill="${P.cloth[0]}" ${ink}/><path d="M12 22 L20 20 L20 24 Z" fill="${P.cloth[0]}" ${ink} stroke-width="1.8"/>
+      neutral: svg(`${disc(P.night[0], P.service[0], P.service[1], 32, 28)}
+<path d="M4 64 L8 50 Q16 43 32 43 Q48 43 56 50 L60 64 Z" fill="${P.a.rust}" ${ink}/>
+<path d="M40 44 Q50 46 56 50 L60 64 L44 64 Z" fill="${P.wood[1]}"/>
+<path d="M11 53 L21 43 L31 46 L25 61 Z" fill="${P.paper[2]}" ${ink} stroke-width="1.8"/><path d="M53 53 L43 43 L33 46 L39 61 Z" fill="${P.paper[2]}" ${ink} stroke-width="1.8"/>
+<path d="M17 51 h.1 M22 48 h.1 M21 54 h.1 M46 51 h.1 M41 48 h.1 M42 54 h.1" stroke="${P.paper[0]}" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="28" r="15" fill="${P.ink}" ${ink}/>
+<path d="M17 21 Q32 10 47 21 L46 16 Q32 6 18 16 Z" fill="${P.cloth[1]}" ${ink} stroke-width="1.6"/>
+<path d="M15 26 H49 L48 33 Q41 35 36 32 L28 32 Q23 35 16 33 Z" fill="${P.metal[3]}" ${ink} stroke-width="1.8"/>
+<path d="M20 28 h6 M38 28 h6" stroke="#ffffff" stroke-width="1.6"/>
+<ellipse cx="32" cy="38.5" rx="3.4" ry="1.8" fill="${P.cloth[1]}"/>
 <path d="M2 64 Q14 52 30 54 Q46 56 58 64" stroke="${P.ink}" stroke-width="5" fill="none"/><path d="M2 64 Q14 52 30 54 Q46 56 58 64" stroke="${P.cloth[2]}" stroke-width="2.4" fill="none"/>
-<circle cx="47" cy="58" r="3.4" fill="${P.skin[0]}" ${ink} stroke-width="1.6"/>
+<circle cx="47" cy="58" r="3.8" fill="${P.ink}" ${ink} stroke-width="1.6"/><path d="M45 56.5 h4" stroke="${P.cloth[2]}" stroke-width="1.2"/>
 <path d="M20 50 Q32 46 44 50" stroke="${P.service[3]}" stroke-width="1.4" opacity=".5" fill="none"/>`)
     })
   });

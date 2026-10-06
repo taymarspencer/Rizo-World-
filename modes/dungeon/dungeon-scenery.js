@@ -346,8 +346,20 @@
   const VAN = Object.freeze({ nose: -60, glass: -46, dash: -36, cab: 10, cargo: 14, rear: 226, back: 240, bumper: 248, roof: -34, wall: -24, floor: 30, near: 138, skirt: 152, split: 84 });
   const VAN_SPEED = 2.2; // ms per unit of road
   const VAN_POLES = 1100; // units between streetlights
-  // Streetlights stand on the verge beyond the far side; they pass every couple of seconds.
-  const vanPoles = t => [0, 1].map(index => -360 + ((t / VAN_SPEED + index * VAN_POLES) % (VAN_POLES * 2)));
+  // Streetlights stand on the verge beyond the far side; they pass every
+  // couple of seconds. When the joke dies (the van's hush, room.unlit) the
+  // town runs out: from that stretch of road on, only one pole in three.
+  const vanUnlitAt = new WeakMap();
+  function vanPoles(t, room) {
+    const run = t / VAN_SPEED, list = [];
+    if (room?.unlit && !vanUnlitAt.has(room)) vanUnlitAt.set(room, run);
+    const from = room?.unlit ? vanUnlitAt.get(room) : Infinity;
+    for (let index = Math.floor((run - 1200) / VAN_POLES); index <= Math.floor(run / VAN_POLES); index += 1) {
+      if (index * VAN_POLES > from && index % 3 !== 0) continue;
+      list.push(-360 + run - index * VAN_POLES);
+    }
+    return list;
+  }
   // Now and then somebody comes the other way in the near lane, fast.
   function vanOncoming(t) {
     const k = t % 14000;
@@ -492,7 +504,7 @@
     });
     for (let x = L - 26 + (run % 26); x < R; x += 26) rect(ctx, P.grass[2], x, edge - 34, 2, 6);
     // Streetlights: a pole at the verge, an arm out over the road, a pool on the wet tar.
-    for (const px of vanPoles(t)) {
+    for (const px of vanPoles(t, s.extras.room)) {
       if (px < L - 80 || px > R + 80) continue;
       alpha(ctx, 0.22, () => { oval(ctx, px, edge + 26, 64, 16, P.sodium[0]); oval(ctx, px, edge + 24, 34, 8, P.sodium[1]); });
       oval(ctx, px, edge - 18, 3, 3, P.metal[1], true, 1);
@@ -527,7 +539,7 @@
     const driver = (s.extras.npcs || []).find(actor => actor.id === "driver");
     if (driver && (driver.state === "stare" || (s.extras.barks || []).some(bark => bark.id === "driver"))) { rect(ctx, "#ffffff", V.glass + 4.6, 55, 2, 1.6); rect(ctx, "#ffffff", V.glass + 4.6, 59.5, 2, 1.6); }
     // The sliding door's window: rain, and each streetlight's glare going by.
-    for (const px of vanPoles(t)) if (px > 60 && px < 190) alpha(ctx, Math.max(0, 1 - Math.abs(px - 124) / 64) * 0.7, () => rect(ctx, P.sodium[2], Math.max(101, Math.min(140, px - 4)), V.wall + 6, 7, 15));
+    for (const px of vanPoles(t, room)) if (px > 60 && px < 190) alpha(ctx, Math.max(0, 1 - Math.abs(px - 124) / 64) * 0.7, () => rect(ctx, P.sodium[2], Math.max(101, Math.min(140, px - 4)), V.wall + 6, 7, 15));
     alpha(ctx, 0.6, () => { for (let index = 0; index < 7; index += 1) { const k = s.reduced ? 0.5 : ((t / 700) + index * 0.29) % 1; rect(ctx, P.wet[3], 102 + ((index * 17) % 44) + k * 4, V.wall + 7 + ((index * 5) % 12), 1.6, 0.8); } });
     // A can rolling about the floor with the bends.
     ctx.save(); ctx.translate(196 + ride.surge * 6, 116 + ride.bend * 6); ctx.rotate(ride.bend * 1.4);
@@ -553,7 +565,7 @@
     // The dash: gauges on the driver's side, the radio between the seats.
     const list = [{ x: -30, y: 108, r: 50, strength: 0.6 }, { x: -30, y: 70, r: 26, strength: 0.4 }, { x: -24, y: 34, r: 44, strength: 0.5 }];
     // Streetlights wash through from the far side, cab first, then the back.
-    if (!s.reduced) for (const px of vanPoles(t)) if (px > -200 && px < 440) list.push({ x: px, y: 0, r: 140, strength: 0.7, warm: 0.5 });
+    if (!s.reduced) for (const px of vanPoles(t, room)) if (px > -200 && px < 440) list.push({ x: px, y: 0, r: 140, strength: 0.7, warm: 0.5 });
     const car = s.reduced ? null : vanOncoming(t);
     if (car) list.push({ x: car.x + 90, y: 160, r: 120, strength: 0.75 });
     if (room.doorLoose || room.doorOpen) list.push({ x: VAN.back, y: 112, r: room.doorOpen ? 80 : 36, strength: 0.7 });

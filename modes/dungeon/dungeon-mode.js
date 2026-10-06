@@ -2029,6 +2029,8 @@
     // What's left when the talking stops: null (engine and road), "wipers", "rain", or "phone".
     function vanHush(level) {
       room.hush = level;
+      // Once the joke dies, the van leaves the lit streets (presentation only).
+      if (level === "wipers") room.unlit = true;
       setMusic(level ? SILENT_TRACK : VAN_TRACK);
       if (level) duck(level === "wipers" ? 4200 : 3200, 0.02);
     }
