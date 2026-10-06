@@ -1095,7 +1095,7 @@
     drytable: [[172, 106, 145, 0.75, 0.8]],
     hangrow: [[60, 40, 110, 0.65, 0.5], [230, 250, 125, 0.55, 0.4], [80, 410, 80, 0.4, 0.3]],
     lowrun: [[58, 52, 95, 0.6, 0.55], [224, 176, 100, 0.55, 0.6]],
-    eyelet: [[136, 126, 120, 0.7, 0.7], [160, 26, 85, 0.45, 0.4]],
+    eyelet: [[136, 126, 120, 0.7, 0.7], [160, 26, 85, 0.45, 0.4], [306, 90, 24, 0.35, 0.8]],
     traypass: [[160, 30, 140, 0.7, 0.55]],
     press: [[160, 30, 120, 0.55, 0.4], [42, 320, 65, 0.55, 0.8], [160, 400, 105, 0.4, 0.4]],
     upper: [[70, 32, 95, 0.5, 0.45]],
@@ -1602,6 +1602,22 @@
     const sim = s.sim, t = s.reduced ? 0 : s.time, p = s.pos;
     thresholds(ctx, geo, s);
     for (const solid of geo.solids) if (solid.openWhen || solid.when) dynamicSolid(ctx, solid, sim, t, geo);
+    if (geo.id === "eyelet") {
+      // The staff door Orr comes through with the food: one-way (no handle on
+      // this side, a kick plate at tray height), the kitchen's warmth in its
+      // wired window; it swings open while he passes. Not a way on for Rizo.
+      const orr = (s.extras.npcs || []).find(actor => actor.id === "orr");
+      const passing = orr && orr.x > 262;
+      if (passing) {
+        rect(ctx, P.ink, 300, 76, 20, 40); alpha(ctx, 0.8, () => rect(ctx, P.ember[1], 303, 79, 14, 34));
+        alpha(ctx, 0.3, () => shape(ctx, [300, 76, 300, 116, 250, 128, 250, 70], P.ember[3], { ink: false }));
+      } else {
+        box(ctx, 300, 76, 20, 40, P.service[1], { ink: 1.4, amp: 0.2 });
+        rect(ctx, P.service[2], 301, 77, 18, 2);
+        box(ctx, 304, 82, 12, 9, P.sodium[1], { ink: 1, amp: 0.1 }); for (const gx of [308, 312]) rect(ctx, P.ink, gx, 82, 0.7, 9); rect(ctx, P.ink, 304, 86.2, 12, 0.7);
+        rect(ctx, P.metal[2], 302, 104, 16, 7); rect(ctx, P.metal[3], 302, 104, 16, 1.2);
+      }
+    }
     if (geo.id === "clatter") {
       // Dormant, not dead: pilot lamps on the chute and the pipe wake as he passes.
       for (const [x, y] of [[286, 6], [292, 6], [298, 6], [232, 232], [150, 56], [210, 56]]) {

@@ -1622,7 +1622,9 @@
         return;
       }
       if (!fact("rowsPressStop")) { nell(34, 300, { face: 1, state: "work" }); startEmptyJob(); return; }
-      if (!fact("rowsBrake")) { nell(60, 214, { face: 1, state: "support" }); setTransient("brakeReady", true); return; }
+      // Stopped: she holds the carriage at its west stop (on the near side,
+      // her board across its frame) while he releases the brake at the drive end.
+      if (!fact("rowsBrake")) { nell(90, 282, { face: -1, state: "support" }); setTransient("brakeReady", true); return; }
       nell(150, 70, { face: 1, state: "support" }); setTransient("shutterReady", true);
     }
     function startEmptyJob() {
@@ -1635,9 +1637,9 @@
       room.stopping = true;
       setRoomFlag("rowsPressStop");
       runScene("rows:stop", [
-        S.call(() => { walk("nell", 60, 214, 1200); nellState("walk"); }),
+        S.call(() => { walk("nell", 90, 282, 1200); nellState("walk"); }),
         S.until(() => !room.carriage.moving),
-        S.call(() => { nellState("support"); sound("clunk"); room.shake = sceneTime; }),
+        S.call(() => { nellState("support"); const actor = npcs.get("nell"); if (actor) actor.face = -1; sound("clunk"); room.shake = sceneTime; }),
         talk([...L.rowsGotStop, { hold: 300 }, ...L.rowsBrakeAsk]),
         S.call(() => setTransient("brakeReady", true))
       ], { control: true });
@@ -1648,7 +1650,7 @@
         talk([...L.rowsTest]),
         // One test: the empty frame rides to its parked place. It waits for him to be off the track.
         S.until(() => !onTrack()),
-        S.call(() => { room.carriage.target = Content.ROOMS.press.track.x1; room.carriage.moving = true; room.carriage.once = true; room.carriage.speed = 46; sound("carriage"); }),
+        S.call(() => { room.carriage.target = Content.ROOMS.press.track.x1; room.carriage.moving = true; room.carriage.once = true; room.carriage.speed = 46; sound("carriage"); nellState("work"); }),
         S.until(() => !room.carriage.moving),
         S.call(() => { room.parked = sceneTime; sound("clunk"); }),
         S.wait(900),
@@ -1672,7 +1674,9 @@
         const step = (Math.min(dt, 100) / 1000) * c.speed * Math.sign(goal - c.x);
         c.x = Math.abs(goal - c.x) <= Math.abs(step) ? goal : c.x + step;
         if (c.x === goal) {
-          if (c.once || room.stopping) { c.moving = false; c.target = null; room.stopping = false; }
+          // Stopping, it comes to rest at the west stop where she holds it
+          // (the same place a resumed journey finds it), never at the drive end.
+          if (c.once || (room.stopping && goal === track.x0)) { c.moving = false; c.target = null; room.stopping = false; }
           else { c.dir = -c.dir; c.pauseUntil = sceneTime + 700; sound("carriage"); }
         }
         // Caught on the track: knocked clear, never hurt.
@@ -1694,9 +1698,10 @@
       runScene("rows:upper", [
         S.control(true),
         S.wait(900),
-        S.call(() => walk("nell", 60, 120, 2200)),
+        // She holds the stair door at its middle (her board on it), clear of the doorway.
+        S.call(() => walk("nell", 52, 160, 2200)),
         S.wait(2300),
-        S.call(() => { nellState("support"); sound("clunk"); setRoomFlag("rowsStair"); }),
+        S.call(() => { nellState("support"); const actor = npcs.get("nell"); if (actor) actor.face = -1; sound("clunk"); setRoomFlag("rowsStair"); }),
         talk([...L.rowsStairHere, { hold: 500 }, ...L.rowsAtTheTable]),
         S.call(() => { commitBeat("rows:upper"); nellState("walk"); leave("nell", 8, 120, 1000); })
       ], { control: true });

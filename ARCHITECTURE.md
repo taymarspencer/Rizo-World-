@@ -456,8 +456,9 @@ below, inside the Rizo Field Unit. It is a complete small story, not the full ca
 `docs/dungeon/story/Rizo-Dungeon-Opening-Beat-Sheet-v0.3.md`). `car` (the Keeper's car parked at the late
 store, seen from above: YOU answers each thing once; "Be good." with the pet's own name; YOU goes in and the
 dome light times out; headlights, three hooded figures, a forced door, a grab nobody can prevent) → `sack`
-(black but his glow through a pillowcase; three pushes free him) → `van` (overheard talk as bubbles, a loose
-cooler that teaches Tuck, a door that gives under a held push or a jolt) → `roadside` (alone; a flashlight
+(black but his glow through a pillowcase; three pushes free him) → `van` (the crew's work van from above with
+the roof cut away, nose left and driving left; the four sitting where people sit and watching him; overheard
+talk as bubbles, a loose cooler that teaches Tuck, the back door that gives under a held push or a jolt) → `roadside` (alone; a flashlight
 search where light and Flare get him seen but never caught; an optional ringing phone; a passing car that is
 not YOU; the lonely walk past a bowl that is not his) → `drain` (shelter, then brick, then rock; warm air from
 below; two slips) → the fall, and the handheld locks on impact → `slip` (he wakes in the dark; one thought,
@@ -497,6 +498,15 @@ opens through work (room flags `rows*`), never through affection; Nell walks ahe
   room adds an entry to `dungeon-scenery.js`; a new character or enemy adds a function to `dungeon-art.js`
   built from its palette and helpers. The player's Rizo is never painted: it stays the hub's `petMarkup()` in
   the DOM, staged by CSS poses (lean, step, breathe, Flare gather/release, Tuck curl, hit jolt).
+- **Physical staging.** The art shows what is physically happening. Vehicles are seen from above with the roof
+  cut away (the car nose to the store; the van nose left, so its road, streetlight washes and the oncoming
+  car all move the way it drives). In the van one shared ride (`Art.vanRide`) sways the crew, Rizo and the
+  loose can together and a pothole jolts every head. The crew's eyes follow the talk (`crewOptions` in
+  `dungeon-view.js`): a talker looks at whoever spoke before, the rest at the talker, nobody talking they
+  watch Rizo, the driver the road. A bubble's tail always points at its speaker, even when the bubble is
+  pushed aside (someone seated under somebody else speaks from below, `barkBelow`). Someone holding a job
+  holds a visible thing at the place it meets (Nell's board on the table's support, the grille, the press
+  carriage at its west stop, the stair door, the shutter).
 - **Reviewing the art: the Character Lab** (`tools/dungeon-lab/`, development only, never built into the site).
   `python3 tools/dungeon-lab/serve.py` and open the printed URL. It paints every character, state, world
   expression and portrait with the real `dungeon-art.js` functions at each phone's real scale, on the game's own

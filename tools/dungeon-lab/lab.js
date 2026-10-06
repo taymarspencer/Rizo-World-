@@ -96,8 +96,7 @@
     },
     {
       id: "you-seated", name: "YOU in the car", role: "the opening: YOU seen from above in the driver's seat", shell: "open", units: 40, world: Art.youSeated, topDown: true, facing: false,
-      alike: [["turn", "look"]], // the art draws both the same: head turned, hands on the wheel
-      states: ["idle", "reach", "keys", "turn", "look", "look-back", "reach-up"].map(state => ({ id: state, o: { state } }))
+      states: [["idle"], ["reach", "“Hi. Yes. Hi.”"], ["keys"], ["turn", "to him: “Off the dash, please.”"], ["look", "at the glass: “It's just rain.”"], ["look-back", "“Be good.”"], ["reach-up", "the dome light"]].map(([state, note]) => ({ id: note ? `${state} (${note})` : state, o: { state } }))
     },
     {
       id: "van-crew", name: "Van crew (seated)", role: "the four in the van, where they sit: the driver at the wheel, the tall one twisted round in the passenger seat, the small one on a milk crate, the capped one on the wheel arch", shell: "open", units: 64, portraits: "driver", group: true,
