@@ -735,10 +735,18 @@
       rect(ctx, P.fluoro[2], ax - 2.8, ay - 7.4, 1, 8);
       oval(ctx, ax, ay - 0.5, 2.3, 2.1, P.skin[1], true, 0.9);
     } else if (k.phone === "call") {
-      limb(ctx, [-11, -37, -9, -28, -3, -29], P.a.maroon, 4.4, P.skin[1]);
-      limb(ctx, [11, -37, 9, -28, 4, -29], P.a.maroon, 4.4, P.skin[1]);
-      box(ctx, -3.5, -38, 8, 11, P.ink, { ink: 1, amp: 0.1 });
-      rect(ctx, P.fluoro[2], -3, -38.6, 7, 1);
+      if (k.state === "phone-stopped") {
+        // He starts to answer; Tall's hand forces the phone back toward his lap.
+        limb(ctx, [-11, -37, -10, -29, -5, -25], P.a.maroon, 4.4, P.skin[1]);
+        limb(ctx, [11, -37, 8, -29, 1, -25], P.a.maroon, 4.4, P.skin[1]);
+        box(ctx, -5, -30, 8, 11, P.ink, { ink: 1, amp: 0.1 });
+        rect(ctx, P.fluoro[2], -4.5, -30.6, 7, 1);
+      } else {
+        limb(ctx, [-11, -37, -9, -28, -3, -29], P.a.maroon, 4.4, P.skin[1]);
+        limb(ctx, [11, -37, 9, -28, 4, -29], P.a.maroon, 4.4, P.skin[1]);
+        box(ctx, -3.5, -38, 8, 11, P.ink, { ink: 1, amp: 0.1 });
+        rect(ctx, P.fluoro[2], -3, -38.6, 7, 1);
+      }
     } else {
       limb(ctx, [11, -37, 12, -28, 7, -22], P.a.maroon, 4.4, P.skin[1]);
       box(ctx, 3, -25, 7, 4, P.ink, { ink: 0.8, amp: 0.1 });
@@ -816,8 +824,11 @@
     shape(ctx, [1, -52, 6, -53, 8, -21, 2, -20], P.cloth[2], { ink: false, seed: 163, amp: CA });
     box(ctx, -5, -34, 11, 7, P.cloth[1], { ink: 1, amp: 0.3, seed: 164 });
     ctx.globalAlpha = 0.5; oval(ctx, 0, -43, 4, 3.4, P.cloth[3]); ctx.globalAlpha = 1;
-    // Near arm over the seatback; lifted off it while he talks.
-    if (k.talking) limb(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[3], 4.6, P.skin[1]);
+    // Near arm over the seatback; lifted off it while he talks. When Small
+    // starts to answer the Boss call, Tall reaches across and pushes the phone
+    // back down instead of merely saying not to pick up.
+    if (k.state === "stop-phone") limb(ctx, [4, -48, 22, -50, 43, -40], P.cloth[3], 4.6, P.skin[1]);
+    else if (k.talking) limb(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[3], 4.6, P.skin[1]);
     else limb(ctx, [4, -48, 12, -53, 18, -49], P.cloth[3], 4.6, P.skin[1]);
     // Head: the peak droops toward where he looks; a slot of mask, lazy eyes.
     const f = k.look.x < -0.3 ? -1 : 1;
