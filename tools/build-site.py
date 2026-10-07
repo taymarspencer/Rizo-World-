@@ -55,7 +55,10 @@ for name in sorted(pages):
 out.mkdir(parents=True, exist_ok=True)
 for name in sorted(files):
     dest = out/name; dest.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(source(name),dest)
+# The Dungeon's late-game kit is a development tool (tools/dungeon-kit/?dev=1):
+# the game never loads it, so the production package never ships it.
+DEV_ONLY = shutil.ignore_patterns('kit')
 for folder in ['assets','core','providers','training','modes']:
-    shutil.copytree(ROOT/folder,out/folder,dirs_exist_ok=True)
+    shutil.copytree(ROOT/folder,out/folder,dirs_exist_ok=True,ignore=DEV_ONLY if folder == 'modes' else None)
 fingerprints = {str(p.relative_to(out)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(out.rglob('*')) if p.is_file()}
-print(json.dumps({'output':str(out),'files':len(fingerprints),'build':'v95-dungeon-depth','ads_txt':(out/'ads.txt').exists(),'fingerprint':hashlib.sha256(json.dumps(fingerprints,sort_keys=True).encode()).hexdigest()},indent=2))
+print(json.dumps({'output':str(out),'files':len(fingerprints),'build':'v96-dungeon-story','ads_txt':(out/'ads.txt').exists(),'fingerprint':hashlib.sha256(json.dumps(fingerprints,sort_keys=True).encode()).hexdigest()},indent=2))

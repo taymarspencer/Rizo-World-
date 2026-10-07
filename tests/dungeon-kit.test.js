@@ -95,6 +95,8 @@ test("the kit is dev only: no page, service worker or live script loads it", () 
   for (const file of fs.readdirSync(path.join(ROOT, "modes/dungeon")).filter(name => name.endsWith(".js"))) {
     assert.ok(!/RizoDungeonKit|dungeon-kit/.test(fs.readFileSync(path.join(ROOT, "modes/dungeon", file), "utf8")), file);
   }
+  const build = fs.readFileSync(path.join(ROOT, "tools/build-site.py"), "utf8");
+  assert.ok(/ignore_patterns\('kit'\)/.test(build), "the production package leaves modes/dungeon/kit out");
   const page = fs.readFileSync(path.join(ROOT, "tools/dungeon-kit/index.html"), "utf8");
   assert.ok(/dev=1/.test(page), "the greybox page asks for ?dev=1");
 });

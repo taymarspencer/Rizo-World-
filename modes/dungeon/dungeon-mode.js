@@ -1452,8 +1452,9 @@
         case "drain": return room.deepWarmAt ? "deeper" : null;
         case "slip": return scene?.id === "opening:landed" || (room.wakeAt != null && room.awakeAt == null) ? null : data.journal.discoveredEntryIds.includes("home-sign") ? "climb" : "findWay";
         case "clatter": return sim.enemies.some(enemy => enemy.kind === "collector") || (room.passAt != null && !room.lampAt) ? "lamp" : "climb";
-        case "hem": return !fact("latchFreed") ? (room.approached || fact("jamInspected") ? "freeLatch" : "climb") : "toHearth";
-        case "hearth": return data.checkpoint.hearthId !== "threshold-hearth" ? "hearth" : "toQueue";
+        case "hem": return !fact("latchFreed") ? (room.approached || fact("jamInspected") ? "freeLatch" : "climb") : data.checkpoint.hearthId !== "threshold-hearth" ? "toHearth" : "toQueue";
+        // From the hearth the Queue is back through the Hem Room, until the lever opens the short way north.
+        case "hearth": return data.checkpoint.hearthId !== "threshold-hearth" ? "hearth" : fact("shortcutOpen") ? "toQueueShort" : "toQueueBack";
         case "queue": return fact("porterDown") ? "porterDoor" : "queue";
         case "porter": return fact("porterDown") ? "porterDoor" : "porter";
         default: return Content.isRows(id) ? rowsNext() : beatsDone("opening:below") ? "climb" : null;

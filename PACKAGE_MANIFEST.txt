@@ -1,3 +1,34 @@
+RIZO V96 — DUNGEON STORY OVERHAUL
+Build marker: v96-dungeon-story
+Branch: claude/dungeon-story-overhaul → develop
+Save: Dungeon content revision threshold-v4 (one bump; threshold-v1/v2/v3 carried forward untouched)
+Story: docs/dungeon/story/Rizo-Dungeon-Story-Spine-v0.4.md (canon) and Rizo-Dungeon-Contracts-v0.4.md
+
+NEW FILES (shipped)
+  modes/dungeon/dungeon-comic.js        — action comic pages (grab, sack, van-leap,
+                                           taillights, fall, boss-hands, boss-glass)
+  modes/dungeon/styles/dungeon-comic.css — the comic page: panels, halftone, SFX, reduced motion
+  Both are in index.html (after dungeon-view.js / dungeon.css) and in sw.js
+  SHELL and REQUIRED_SHELL.
+
+NEW FILES (dev only: never loaded, precached or packaged — build-site.py skips modes/dungeon/kit)
+  modes/dungeon/kit/dungeon-kit.js      — late-game kit: stealth, watchers, chase, cage, vents
+  tools/dungeon-kit/                    — greybox factory slice (?dev=1)
+  tests/dungeon-kit.test.js
+
+CHANGED
+  dungeon-content.js  dialogue rewrite, objectives, collectors, calling cards, flags
+  dungeon-core.js     collectors (patrol, cold lamp, hide, caught → hearth)
+  dungeon-art.js      the Boss's mark, calling card, collector, new portraits
+  dungeon-scenery.js  cards, LOST poster, frozen load, queue posts
+  dungeon-view.js     collector lamps, objective HUD, the mark as caller ID
+  dungeon-mode.js     comic step and triggers, objectives, wayfinding, Boss on the phone
+  tools/dungeon-lab/  collector and Boss entries
+
+------------------------------------------------------------------------------
+
+(Earlier packaging notes follow, kept as history.)
+
 RIZO V87 — ARCADE QUALITY PASS
 Baseline: RIZO_V87_PURPLE_POP_CORRECTION_FLAT
 Build marker: v87-first-ten-visual-nuance
