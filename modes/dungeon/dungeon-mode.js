@@ -2075,8 +2075,9 @@
       }
     };
     Object.assign(ROOM_LOGIC, ROWS_LOGIC);
-    // ---- The van's staging (presentation only; the talk itself is unchanged).
-    // A line can be given more time on screen, or said quietly; never reworded.
+    // ---- The van's staging. Accepted lines stay word-for-word; the missed
+    // check-in is now an authored connective beat that makes Boss pressure causal.
+    // A line can be given more time on screen or said quietly.
     const weighted = (line, weight) => ({ ...line, weight });
     const quietly = line => ({ ...line, quiet: true, weight: 1.35 });
     // What's left when the talking stops: null (engine and road), "wipers", "rain", or "phone".
