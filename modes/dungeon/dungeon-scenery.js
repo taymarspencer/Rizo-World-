@@ -219,6 +219,19 @@
     if (room.storeDoorOpen) { rect(ctx, P.fluoro[2], 156, 28, 40, 66); rect(ctx, P.fluoro[1], 156, 80, 40, 14); box(ctx, 156, 28, 8, 66, P.metal[2], { ink: 1, amp: 0.2 }); }
     else { rect(ctx, P.fluoro[1], 156, 28, 40, 66); rect(ctx, P.fluoro[0], 156, 76, 40, 18); rect(ctx, P.metal[3], 160, 60, 32, 2.6); rect(ctx, P.ink, 160, 62.6, 32, 0.8); label(ctx, "PULL", 176, 54, { size: 5, color: P.a.red }); }
     oval(ctx, 176, 24, 2.2, 2, P.a.brass, true, 0.8);
+    // Ordinary store life keeps going after the car becomes Rizo's whole
+    // world. One anonymous customer-shadow crosses the far window now and
+    // then; reduced motion leaves the glass still.
+    if (!s.reduced && room.phase !== "taken") {
+      const customer = (t / 1000) % 23;
+      if (customer < 4.4) {
+        const cx = 34 + (customer / 4.4) * 104;
+        A.clip(ctx, 31, 23, 110, 64, () => alpha(ctx, 0.24, () => {
+          oval(ctx, cx, 47, 4.5, 5, P.inkSoft);
+          rect(ctx, P.inkSoft, cx - 4, 52, 8, 22);
+        }));
+      }
+    }
     // YOU in the store: between the aisles, or at the counter with YOU's back to the window.
     const you = room.youCounter ? { x: 296, visible: true, back: true } : room.you;
     if (you?.visible) {

@@ -39,7 +39,7 @@
     // 1 Parked
     PARKED_IN_MS: 4000, PARKED_MIN_MS: 20000, PARKED_IDLE_MS: 45000, PARKED_CAP_MS: 75000,
     // 2 Be good: YOU's lines to Rizo close themselves after 5 s.
-    YOU_AUTO_MS: 5000, BE_GOOD_HOLD_MS: 1500,
+    YOU_AUTO_MS: 5000, YOU_CINEMATIC_SAFETY_MS: 9000, BE_GOOD_HOLD_MS: 1500, DEPARTURE_SILENCE_MS: 900,
     // 3 Waiting: looking never shortens it.
     DOME_TIMEOUT_MS: 35000, DOME_FADE_MS: 3000, WAIT_MIN_MS: 55000, WAIT_MAX_MS: 90000, SEEN_YOU_MS: 1500, CART_AT_MS: 48000,
     // 5–6 Taken, the sack
@@ -754,6 +754,10 @@
     }
     function dome(to, ms) { room.domeFrom = room.dome || 0; room.domeTo = to; room.domeAt = sceneTime; room.domeMs = Math.max(1, ms); }
     function youState(state, ms) { const you = npcs.get("you-seat"); if (you) { you.state = state; you.stateUntil = sceneTime + ms; } }
+    function keeperState(state, ms = 0) { const keeper = npcs.get("keeper"); if (keeper) { keeper.state = state; keeper.stateUntil = ms ? sceneTime + ms : 0; } }
+    // Cinematic framing is deliberately brief. Reduced-motion players keep the
+    // stable gameplay composition instead of being snapped to a new subject.
+    function cameraBeat(x, y, ms) { if (!reducedMotion()) room.peek = { x, y, until: sceneTime + ms }; }
     function tickRoom() {
       if (!sim) return;
       const dt = Math.max(0, sceneTime - roomTickAt);
@@ -794,31 +798,50 @@
     function beGoodSteps() {
       return [
         S.control(false),
-        S.call(() => { room.phase = "leaving"; room.parkedEnd = sceneTime; youState("keys", 1200); sound("keys"); }),
-        S.wait(1000),
-        S.say(personal(L.goingIn), BEAT.YOU_AUTO_MS),
+        S.call(() => { room.phase = "leaving"; room.parkedEnd = sceneTime; youState("keys", 900); sound("keys"); }),
+        S.wait(700),
+        // Important departure lines are player-paced. The long safety fallback
+        // keeps a completely idle player from ever being soft-locked here.
+        S.say(personal(L.goingIn), BEAT.YOU_CINEMATIC_SAFETY_MS),
+        // The box goes away before the next action. Keys disappear into a
+        // pocket; only rain, the cooling engine and the store hum fill the gap.
+        S.call(() => youState("pocket", BEAT.DEPARTURE_SILENCE_MS)),
+        S.wait(BEAT.DEPARTURE_SILENCE_MS),
         S.call(() => { dome(1, 700); sound("dome"); youState("reach-up", 900); }),
         S.wait(700),
         S.say(L.lightsOn, BEAT.YOU_AUTO_MS),
-        S.call(() => { room.driverDoor = true; room.rainLoud = true; sound("door"); youState("look-back", 6000); }),
-        S.wait(800),
-        S.say(L.beGood, BEAT.YOU_AUTO_MS),
-        S.wait(BEAT.BE_GOOD_HOLD_MS),
+        S.wait(650),
+        // YOU actually gets out before saying the line that matters. The open
+        // door changes the sound first; the camera only leans toward the beat.
         S.call(() => {
-          // THUNK. YOU is outside now; the rain goes muffled again.
+          room.driverDoor = true; room.rainLoud = true; room.youOut = true; room.youOutside = true; sound("door");
           const seat = npcs.get("you-seat");
           if (seat) seat.visible = false;
+          npc("keeper", "keeper", 116, 246, { face: 1, state: "step-out" });
+          cameraBeat(154, 240, 1800);
+        }),
+        S.wait(850),
+        S.call(() => keeperState("look-back", BEAT.YOU_CINEMATIC_SAFETY_MS + 1800)),
+        S.say(L.beGood, BEAT.YOU_CINEMATIC_SAFETY_MS),
+        S.wait(BEAT.BE_GOOD_HOLD_MS),
+        S.call(() => {
+          // THUNK. The line is already gone. Rain goes muffled; Rizo watches
+          // the person who said it become smaller across the wet lot.
           setTransient("youGone", true);
-          room.driverDoor = false; room.rainLoud = false; room.shake = sceneTime; room.thunkAt = sceneTime; room.youOut = true;
+          room.youOutside = false;
+          room.driverDoor = false; room.rainLoud = false; room.shake = sceneTime; room.thunkAt = sceneTime;
           sound("thunk");
-          npc("keeper", "keeper", 108, 238, { face: -1 });
+          keeperState("walk", 5200);
+          cameraBeat(154, 154, 2300);
           sim.player.fx = -1; sim.player.fy = -0.4;
         }),
-        S.pose("press-glass", 5600),
+        S.pose("press-glass", 6100),
         S.move("keeper", 104, 128, 1900),
-        S.call(() => { const keeper = npcs.get("keeper"); if (keeper) keeper.face = 1; sim.player.fx = 0; sim.player.fy = -1; }),
+        // One half-beat of body language in the rain before the store takes YOU.
+        S.call(() => { const keeper = npcs.get("keeper"); if (keeper) { keeper.face = 1; keeperState("look-back", 500); } sim.player.fx = 0; sim.player.fy = -1; }),
+        S.wait(450),
         S.move("keeper", 176, 104, 2000),
-        S.call(() => { room.storeDoorOpen = true; sound("chime"); }),
+        S.call(() => { keeperState("door", 700); room.storeDoorOpen = true; sound("chime"); }),
         S.wait(450),
         S.call(() => { const keeper = npcs.get("keeper"); if (keeper) keeper.visible = false; room.storeDoorOpen = false; }),
         S.wait(550),
@@ -857,7 +880,7 @@
     // ---- 4 Headlights, 5 Taken. Nothing Rizo does changes what happens here.
     function headlightSteps() {
       return [
-        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); }),
+        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); cameraBeat(180, 336, 1800); }),
         S.wait(1500),
         // He knows first: the flame pulls in, he turns to the rear window.
         S.call(() => { setPose("pull-in", 2500); room.sensedAt = sceneTime; sim.player.fx = 0; sim.player.fy = 1; sound("bass"); }),
@@ -871,16 +894,28 @@
         }),
         S.move("van", 238, 452, 3000),
         // It parks behind. Lights off. Nothing happens.
-        S.call(() => { room.vanLights = false; room.vanParked = sceneTime; sound("engine-off"); }),
+        S.call(() => {
+          room.vanLights = false; room.vanParked = sceneTime; sound("engine-off");
+          // The low note belongs to the approach, not the whole kidnapping.
+          // Once the van is in position, taking it away makes the five seconds
+          // before the doors open feel watched instead of scored.
+          setMusic(SILENT_TRACK);
+        }),
         S.wait(5000),
         talk([
           { call: () => sound("door") }, { hold: 420 }, { call: () => { sound("door"); spawnHoods(); } }, { hold: 500 },
-          ...L.twoMinutes, { hold: 900 },
+          ...L.twoMinutes, { hold: 550 },
+          // One person checks the store while the others hold near the car.
+          // Only after that check do they confirm what they came for.
+          { call: () => lookoutReturns() }, { hold: 900 },
           L.thatHim[0], { hold: 1400 }, L.thatHim[1], { hold: 300 },
           // A face at his window.
           { call: () => cupWindow() }, { hold: 400 },
           ...L.glowing,
-          { call: () => { sound("tap"); setPose("recoil", 900); room.shake = sceneTime; room.tapAt = sceneTime; } }, { hold: 900 }
+          { call: () => { sound("tap"); setPose("recoil", 900); room.shake = sceneTime; room.tapAt = sceneTime; } }, { hold: 650 },
+          // The tap is stupid; the entry is not. Two bodies take positions at
+          // the passenger door before anybody forces it.
+          { call: () => stageDoorTeam() }, { hold: 900 }
         ]),
         // The door is forced: cold air, the rain loud.
         S.call(() => { room.phase = "taken"; room.passengerDoor = sceneTime; room.rainLoud = true; sound("crack"); room.shake = sceneTime; }),
@@ -925,14 +960,28 @@
       ];
     }
     function spawnHoods() {
-      // The driver stays in the van: heard, not seen.
+      // The driver stays in the van: heard, not seen. The other three do not
+      // fan out randomly: one watches the store, one takes the window, one
+      // hangs back to become the second body at the door.
       npc("driver", "none", 292, 452, { barkLift: 62 });
       npc("hood-tall", "hood-tall", 256, 470, { face: 1 });
       npc("hood-small", "hood-small", 280, 474, { face: 1 });
-      npc("hood-cap", "hood-cap", 304, 470, { face: 1 });
-      walk("hood-tall", 290, 228, 4300);
+      npc("hood-cap", "hood-cap", 304, 470, { face: 1, state: "lookout" });
+      walk("hood-tall", 286, 306, 3400);
       walk("hood-small", 268, 318, 3200);
-      walk("hood-cap", 300, 352, 3700);
+      walk("hood-cap", 316, 176, 3600);
+    }
+    function lookoutReturns() {
+      room.storeCheckAt = sceneTime;
+      const cap = npcs.get("hood-cap");
+      if (cap) { cap.face = -1; cap.state = "return"; walk("hood-cap", 300, 340, 1500); }
+    }
+    function stageDoorTeam() {
+      room.doorTeamAt = sceneTime;
+      const tall = npcs.get("hood-tall"), cap = npcs.get("hood-cap"), small = npcs.get("hood-small");
+      if (tall) { tall.state = "brace"; walk("hood-tall", 250, 260, 800); }
+      if (cap) { cap.state = "brace"; walk("hood-cap", 252, 286, 800); }
+      if (small) walk("hood-small", 272, 302, 650);
     }
     function cupWindow() {
       walk("hood-small", 250, 268, 700);
@@ -1814,7 +1863,9 @@
       },
       // ---- Scene 6: the sack
       sack: {
-        music: () => DREAD_TRACK,
+        // The bag kills the score. Cloth, breath, body movement and the van
+        // outside the fabric carry this beat instead.
+        music: () => SILENT_TRACK,
         enter() {
           room.inSack = true; room.bursts = 0; room.burstAt = -1e9; room.pushing = false;
           runScene("opening:sack", [
@@ -2660,7 +2711,7 @@
     // QA only: the opening's presentation state, as plain data.
     function openingQA() {
       const pick = {};
-      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "tapAt", "passengerDoor", "grabbed", "carryAt", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
+      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "storeCheckAt", "doorTeamAt", "youOutside", "tapAt", "passengerDoor", "grabbed", "carryAt", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
       if (room.you) pick.you = { ...room.you };
       if (room.hands) pick.hands = { x: room.hands.x, y: room.hands.y };
       if (room.beam) pick.beam = { x: room.beam.x, y: room.beam.y, angle: room.beam.angle };
