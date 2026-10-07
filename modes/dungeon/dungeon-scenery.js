@@ -264,12 +264,29 @@
     }
     // The dome light, when it is on.
     if ((room.dome || 0) > 0.02) alpha(ctx, room.dome, () => { box(ctx, 174, 276, 12, 6, P.paper[3], { ink: 0.8, amp: 0.1 }); });
-    // Hands, reaching in through the forced door.
+    // Hands, reaching in through the forced door. Once they have Rizo, the
+    // grip moves up from the floor-point to his body and becomes a real
+    // two-handed hold: one arm catches high, the other braces low.
     if (room.hands) {
       const h = room.hands;
-      line(ctx, 250, 244, h.x + 4, h.y - 2, P.ink, 9, 3, 0.2); line(ctx, 250, 244, h.x + 4, h.y - 2, P.cloth[1], 6.4, 3, 0.2);
-      oval(ctx, h.x, h.y, 5.5, 4.5, P.cloth[0], true, 1.2);
-      for (let f = -2; f <= 2; f += 2) line(ctx, h.x - 2, h.y + f, h.x - 7, h.y + f * 1.4, P.ink, 1.6, f, 0);
+      if (room.grabbed) {
+        const upper = { x: p.x + 5.5, y: p.y - 14 };
+        const lower = { x: p.x + 7, y: p.y - 6 };
+        line(ctx, 250, 238, upper.x + 3, upper.y, P.ink, 9, 31, 0.16);
+        line(ctx, 250, 238, upper.x + 3, upper.y, P.cloth[1], 6.2, 31, 0.16);
+        line(ctx, 251, 253, lower.x + 3, lower.y, P.ink, 9, 32, 0.16);
+        line(ctx, 251, 253, lower.x + 3, lower.y, P.cloth[1], 6.2, 32, 0.16);
+        oval(ctx, upper.x, upper.y, 5.6, 4.4, P.cloth[0], true, 1.2);
+        oval(ctx, lower.x, lower.y, 5.6, 4.4, P.cloth[0], true, 1.2);
+        // Fingers curl inward around his silhouette instead of pointing past it.
+        for (const [g, dir] of [[upper, -1], [lower, 1]]) {
+          for (let f = -2; f <= 2; f += 2) line(ctx, g.x - 1, g.y + f, g.x - 6, g.y + f * 0.65 + dir, P.ink, 1.6, 40 + f + dir, 0);
+        }
+      } else {
+        line(ctx, 250, 244, h.x + 4, h.y - 2, P.ink, 9, 3, 0.2); line(ctx, 250, 244, h.x + 4, h.y - 2, P.cloth[1], 6.4, 3, 0.2);
+        oval(ctx, h.x, h.y, 5.5, 4.5, P.cloth[0], true, 1.2);
+        for (let f = -2; f <= 2; f += 2) line(ctx, h.x - 2, h.y + f, h.x - 7, h.y + f * 1.4, P.ink, 1.6, f, 0);
+      }
     }
     // The pillowcase coming down over him.
     if (room.bagAt != null) {
