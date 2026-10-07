@@ -1073,7 +1073,7 @@
       if (stopped) angle = Math.atan2(room.beamStop.y - beam.y, room.beamStop.x - beam.x);
       beam.angle = angle;
       // A Flare is seen from much further than he is: light carries.
-      const flaring = p.act?.kind === "flare" && distance(beam, p) < 380;
+      const flaring = p.act?.kind === "flare" && distance(beam, p) < 460;
       room.inBeam = beamHits(beam, p) && !room.hidden;
       if ((room.inBeam || flaring) && !(room.beamStop && sceneTime < room.beamStop.until + 1600)) {
         // Seen: the light stops on him. They are not sure. Nothing else happens.
