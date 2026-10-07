@@ -548,10 +548,16 @@
       shape(ctx, [-13, -56, 12, -56, 14, -26, -14, -26], P.a.maroon, { ink: CH, seed: 41, amp: CA });
       rect(ctx, P.a.maroonLight, -11, -55, 22, 3);
       for (const qy of [-46, -36]) line(ctx, -13, qy, 13, qy + 0.6, P.ink, 0.9, qy);
-      // Arm up, holding the phone out, filming. The screen is a light.
-      shape(ctx, [6, -50, 12, -52, 18, -44, 14, -41], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
-      box(ctx, 15, -54, 5, 8, P.ink, { ink: 1, amp: 0.1 });
-      rect(ctx, o.phoneOff ? P.cloth[2] : P.fluoro[2], 16, -53, 3, 6);
+      // Arm up with the phone until the roadside panic. After he drops it,
+      // the hand stays empty and low so the lost object is physically legible.
+      if (o.state === "phone-dropped") {
+        shape(ctx, [6, -50, 11, -49, 9, -35, 4, -33], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
+        oval(ctx, 4, -32, 2.1, 2, P.skin[1], true, 0.8);
+      } else {
+        shape(ctx, [6, -50, 12, -52, 18, -44, 14, -41], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
+        box(ctx, 15, -54, 5, 8, P.ink, { ink: 1, amp: 0.1 });
+        rect(ctx, o.phoneOff ? P.cloth[2] : P.fluoro[2], 16, -53, 3, 6);
+      }
       // Beanie with a fold and a pom; the mask's eye slot is on crooked.
       oval(ctx, 0, -63, 9.5, 8, P.ink);
       ctx.save(); ctx.rotate(-0.12); rect(ctx, P.cloth[0], -6, -65, 13, 4); ctx.restore();
