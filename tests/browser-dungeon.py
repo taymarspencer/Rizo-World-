@@ -512,7 +512,7 @@ with sync_playwright() as p:
     jump(page, 3200); page.wait_for_timeout(80)
     check("…fading over 3 s: he is the only light inside now", op(page)["dome"] < 0.02)
     jump(page, 12500); page.wait_for_timeout(80)
-    check("3.3: a shopping cart rattles past at about 50 s", any(n["id"] == "cart" for n in page.evaluate(ST)["npcs"]) and op(page)["cartDone"])
+    check("3.3: a shopping cart rattles past before the threat turn", any(n["id"] == "cart" for n in page.evaluate(ST)["npcs"]) and op(page)["cartDone"])
     check("3.4: seenYou never shortens the wait below 55 s", sid(page) == "opening:waiting" and hoods(page) == 0 and page.evaluate(ST)["sceneTime"] - t0 < 55000)
     jump(page, max(0, 55500 - (page.evaluate(ST)["sceneTime"] - t0))); page.wait_for_timeout(120)
     check("…and at 55 s with YOU seen, the headlights begin", op(page)["phase"] == "headlights", str(op(page).get("phase")))
