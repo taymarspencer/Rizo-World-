@@ -125,6 +125,8 @@ Constraints for whoever designs it:
 
 Small Hood's line "…It's him." is kept. He recognizes the symbol; the player does not learn why.
 
+**Accepted opening continuity:** the phone Small Hood carries in the van is also the search flashlight on the roadside. During the crew's panicked retreat he drops that same phone. When `CALLER_SYMBOL` rings on it again after they leave, this is continuity of the existing Boss plant—not a new organization, motive, or BELOW connection.
+
 ---
 
 ## 4. The adopted opening (production draft)
