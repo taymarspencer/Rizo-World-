@@ -17,7 +17,7 @@ forward.
 
 v0.3 (full opening) covers all fourteen scenes in order: the parked car and
 YOU's once-only answers, "Be good." with the pet's own name, the waiting
-rule (60 s and seeing YOU, or 120 s; looking never shortens it), the dome
+rule (55 s and seeing YOU, or 90 s; looking never shortens it), the dome
 light, headlights, the abduction nobody can prevent, the sack, the van's
 non-blocking talk, the held push at the gap, the roadside search (beam,
 shadow, Flare; seen never means caught), the ringing phone touched and
@@ -855,10 +855,10 @@ console.log(JSON.stringify(Save.createEnvelope({state:v.state,modes:{dungeon:{sc
         if page.evaluate(ST)["ui"] == "play": break
         page.wait_for_timeout(100)
     check("with no presses at all, YOU's lines close themselves and the scene goes on", page.evaluate(ST)["ui"] == "play" and sid(page) == "opening:waiting", str(page.evaluate(ST)["sceneTime"] - t_line))
-    jump(page, 119000); page.wait_for_timeout(150)
-    check("never looking out: still waiting at 119 s", op(page)["phase"] == "waiting" and not op(page)["seenYou"])
+    jump(page, 89000); page.wait_for_timeout(150)
+    check("never looking out: still waiting at 89 s", op(page)["phase"] == "waiting" and not op(page)["seenYou"])
     jump(page, 1500); page.wait_for_timeout(150)
-    check("…and the headlights at 120 s regardless", op(page)["phase"] == "headlights")
+    check("…and the headlights at 90 s regardless", op(page)["phase"] == "headlights")
     st = to_room(page, "sack", step=500)
     check("without any input the abduction still happens (the hands come to him)", st["sim"]["roomId"] == "sack")
     page.wait_for_timeout(300)
