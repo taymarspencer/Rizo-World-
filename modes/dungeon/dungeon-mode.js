@@ -890,6 +890,9 @@
         S.until(() => room.grabbed || sceneTime - room.hands.start >= BEAT.GRAB_MAX_MS),
         S.control(false),
         S.call(() => grab()),
+        // Do not cut away on contact: physically drag him across the passenger
+        // seat toward the forced door so the player sees the abduction happen.
+        S.wait(850),
         // Through the windshield: YOU at the counter, back turned. YOU does not know.
         S.call(() => { room.youCounter = true; room.peek = { x: 290, y: 60, until: sceneTime + 2500 }; }),
         S.wait(2500),
@@ -936,6 +939,7 @@
     }
     function grab() {
       room.grabbed = true;
+      room.carryAt = sceneTime;
       const hands = room.hands;
       if (hands) { hands.x = sim.player.x + 6; hands.y = sim.player.y - 10; hands.grabbed = true; }
       setPose("held", 6000);
@@ -1885,14 +1889,26 @@
               { hold: 900 },
               ...L.vanCooler, { hold: 1000 },
               ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
+              // The job has a clock. Missing the check-in turns "Boss" from
+              // vague talk into pressure that can reach the van.
+              { hold: 650 }, ...L.vanCheckin,
               // Nobody laughs. Wipers only. He feels the joke end before anyone says so.
-              { call: () => { vanHush("wipers"); flameMood("fear", 2800); } }, { hold: 4000 },
+              { call: () => { vanHush("wipers"); flameMood("fear", 2800); } }, { hold: 2600 },
               quietly(L.vanAsk[0]),
               // Nobody answers. Rain.
-              { call: () => vanHush("rain") }, { hold: 3000 },
+              { call: () => vanHush("rain") }, { hold: 2200 },
               // His phone: cold light fills the van, and everyone freezes. The ring is his presence.
               { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); vanHush("phone"); vanFreeze(true); flameMood("fear", 9000); } }, { hold: 1200 },
-              weighted(L.vanPhone[0], 1.4), ...L.vanPhone.slice(1), { call: () => setPose("tremble", 4000) }, { hold: 4000 },
+              weighted(L.vanPhone[0], 1.4), L.vanPhone[1], L.vanPhone[2],
+              // Small starts to lift the phone. Tall physically stops the answer.
+              { call: () => {
+                  const small = npcs.get("hood-small"), tall = npcs.get("hood-tall");
+                  if (small) small.state = "phone-stopped";
+                  if (tall) tall.state = "stop-phone";
+                  sound("cloth");
+                } },
+              L.vanPhone[3], { hold: 1100 },
+              { call: () => { vanFreeze(true); setPose("tremble", 4000); } }, { hold: 2900 },
               // It goes dark. In the silence he looks at the one who's scared: they are afraid too.
               { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 1200 },
               { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("stare", 1800); } }, { hold: 1800 },
