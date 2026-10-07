@@ -41,7 +41,7 @@
     // 2 Be good: YOU's lines to Rizo close themselves after 5 s.
     YOU_AUTO_MS: 5000, BE_GOOD_HOLD_MS: 1500,
     // 3 Waiting: looking never shortens it.
-    DOME_TIMEOUT_MS: 35000, DOME_FADE_MS: 3000, WAIT_MIN_MS: 60000, WAIT_MAX_MS: 120000, SEEN_YOU_MS: 1500, CART_AT_MS: 50000,
+    DOME_TIMEOUT_MS: 35000, DOME_FADE_MS: 3000, WAIT_MIN_MS: 55000, WAIT_MAX_MS: 90000, SEEN_YOU_MS: 1500, CART_AT_MS: 50000,
     // 5–6 Taken, the sack
     GRAB_MAX_MS: 6000, SACK_STILL_MS: 4000, SACK_MAX_MS: 12000, SACK_BURSTS: 3,
     // 8 The gap: a held push, or the jolt
@@ -911,9 +911,13 @@
         }),
         S.wait(420),
         S.call(() => { room.shake = sceneTime; sound("thud"); }),
-        S.wait(520),
+        S.wait(420),
+        S.call(() => sound("slide")),
+        S.wait(320),
         S.call(() => sound("door")),
-        S.wait(620),
+        S.wait(260),
+        S.call(() => sound("engine")),
+        S.wait(360),
         S.call(() => sound("heart")),
         S.wait(680),
         S.call(() => commitBeat("opening:taken")),
@@ -940,6 +944,7 @@
     function grab() {
       room.grabbed = true;
       room.carryAt = sceneTime;
+      room.carryFrom = { x: sim.player.x, y: sim.player.y };
       const hands = room.hands;
       if (hands) { hands.x = sim.player.x + 6; hands.y = sim.player.y - 10; hands.grabbed = true; }
       setPose("held", 6000);
@@ -1817,7 +1822,6 @@
             // the cloth and his own flame slowly become visible.
             S.call(() => {
               sceneFade = { value: 1, from: 1, to: 1, start: sceneTime, ms: 1 };
-              sound("slide");
               sound("heart");
             }),
             S.wait(650),
@@ -2655,7 +2659,7 @@
     // QA only: the opening's presentation state, as plain data.
     function openingQA() {
       const pick = {};
-      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "tapAt", "passengerDoor", "grabbed", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
+      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "tapAt", "passengerDoor", "grabbed", "carryAt", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
       if (room.you) pick.you = { ...room.you };
       if (room.hands) pick.hands = { x: room.hands.x, y: room.hands.y };
       if (room.beam) pick.beam = { x: room.beam.x, y: room.beam.y, angle: room.beam.angle };
