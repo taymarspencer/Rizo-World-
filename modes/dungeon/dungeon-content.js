@@ -630,6 +630,7 @@
     vanFilm: [L("hood-small", "neutral", "Say hi."), L("hood-tall", "neutral", "Put that away."), L("hood-small", "neutral", "It's for me. It's not for nobody.")],
     vanCooler: [L("hood-small", "neutral", "Why do we even got a cooler."), L("driver", "neutral", "In case."), L("hood-small", "neutral", "In case of what?"), L("driver", "neutral", "…In case.")],
     vanNumber: [L("hood-small", "neutral", "How much we getting for it?"), L("hood-tall", "neutral", "Enough."), L("hood-small", "neutral", "That's not a number."), L("driver", "neutral", "It ain't about the number. You don't say no to him."), L("hood-small", "neutral", "I'd say no."), L("driver", "neutral", "Nah. You wouldn't.")],
+    vanCheckin: [L("driver", "neutral", "We missed the check-in."), L("hood-small", "neutral", "By what, a minute?"), L("hood-tall", "neutral", "Doesn't matter.")],
     vanAsk: [L("hood-small", "neutral", "What's he even want it for?")],
     vanPhone: [L("hood-small", "neutral", "…It's him."), L("driver", "neutral", "Don't."), L("hood-small", "neutral", "If I don't pick up—"), L("hood-tall", "neutral", "Then don't pick up.")],
     vanLost: [L("hood-small", "neutral", "You know what happened to the last dude who lost one."), L("hood-tall", "neutral", "Shut up."), L("hood-small", "neutral", "I'm just saying."), L("hood-tall", "neutral", "I said shut the f—")],
