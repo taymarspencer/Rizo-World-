@@ -289,6 +289,8 @@
         else if (kind === "brake") a.tone?.(900, 0.25, "sine", 0.004, 0, -200);
         else if (kind === "horn") { a.tone?.(392, 0.32, "square", 0.012); a.tone?.(466, 0.32, "square", 0.01); }
         else if (kind === "connect") a.tone?.(1320, 0.03, "sine", 0.006);
+        else if (kind === "phone-drop") { a.tone?.(1240, 0.025, "square", 0.008); a.noise?.(0.05, 0.009); a.haptic?.(6); }
+        else if (kind === "hangup") { a.tone?.(980, 0.025, "square", 0.007); a.tone?.(620, 0.035, "square", 0.006, 0.05); }
         else if (kind === "breath") a.noise?.(0.5, 0.004);
         else if (kind === "slip") { a.noise?.(0.25, 0.014); a.tone?.(140, 0.2, "triangle", 0.01, 0, -60); }
         // The Rows: work sounds.
@@ -1092,11 +1094,11 @@
       setMusic(DREAD_TRACK);
       npc("driver", "none", 250, 772, { barkLift: 40 });
       npc("hood-tall", "hood-tall", 186, 806, { face: 1 });
-      npc("hood-small", "hood-small", 166, 798, { face: 1 });
+      npc("hood-small", "hood-small", 166, 798, { face: 1, state: "search-phone" });
       const targetY = clamp(sim.player.y - 130, 860, 1190);
       walk("hood-tall", 178, targetY, 8200);
       walk("hood-small", 158, targetY - 24, 8600);
-      room.beam = { on: true, x: 186, y: 800, angle: Math.PI / 2, length: 150, half: 0.26 };
+      room.beam = { on: true, x: 183, y: 748, angle: Math.PI / 2, length: 150, half: 0.26 };
     }
     function beamHits(beam, point) {
       const d = Math.hypot(point.x - beam.x, point.y - beam.y);
@@ -1108,17 +1110,17 @@
     }
     function hidingSpot(p) { return (geo().hides || []).find(rect => p.x >= rect.x - 2 && p.x <= rect.x + rect.w + 2 && p.y >= rect.y - 2 && p.y <= rect.y + rect.h + 2) || null; }
     function searchTick() {
-      const holder = npcs.get("hood-tall"), beam = room.beam, p = sim.player;
+      const holder = npcs.get("hood-small"), beam = room.beam, p = sim.player;
       if (!holder || !beam) return;
       const t = sceneTime - room.searchAt;
-      beam.x = holder.x + 7; beam.y = holder.y - 4;
+      beam.x = holder.x + (holder.face || 1) * 17; beam.y = holder.y - 50;
       const base = Math.atan2(FALLEN.y - beam.y, FALLEN.x - beam.x);
       let angle = reducedMotion() ? base + [-0.45, 0, 0.45][Math.floor(t / 1600) % 3] : base + Math.sin((t / 3200) * Math.PI * 2) * 0.62;
       const stopped = room.beamStop && sceneTime < room.beamStop.until;
       if (stopped) angle = Math.atan2(room.beamStop.y - beam.y, room.beamStop.x - beam.x);
       beam.angle = angle;
       // A Flare is seen from much further than he is: light carries.
-      const flaring = p.act?.kind === "flare" && distance(beam, p) < 380;
+      const flaring = p.act?.kind === "flare" && distance(beam, p) < 460;
       room.inBeam = beamHits(beam, p) && !room.hidden;
       if ((room.inBeam || flaring) && !(room.beamStop && sceneTime < room.beamStop.until + 1600)) {
         // Seen: the light stops on him. They are not sure. Nothing else happens.
@@ -1129,7 +1131,27 @@
         sound("notice");
       }
     }
+    function dropSearchPhone() {
+      if (room.phone || beats().includes("opening:phone")) return;
+      const small = npcs.get("hood-small");
+      if (!small) return;
+      const face = small.face || 1;
+      room.phoneDroppedAt = sceneTime;
+      room.phone = {
+        x: clamp(small.x + face * 17, 34, 190),
+        y: clamp(small.y - 4, 60, 1372),
+        dropFromY: small.y - 50,
+        dropAt: sceneTime,
+        state: "dropped",
+        source: "hood-small",
+        at: 0, connectAt: 0, darkAt: 0, ringing: false, cycle: -1, near: false
+      };
+      small.state = "phone-dropped";
+      room.beam = null;
+      sound("phone-drop");
+    }
     function hoodsLeave() {
+      dropSearchPhone();
       walk("hood-tall", 200, 790, 2600);
       walk("hood-small", 214, 784, 2300);
     }
@@ -1148,10 +1170,13 @@
     }
     // ---- 10 The ringing: a dropped phone in the grass. Optional. Nothing explains it.
     function startPhone() {
-      if (room.phone || beats().includes("opening:phone")) return;
-      const p = sim.player;
-      const x = clamp(p.x > 92 ? p.x - 40 : p.x + 40, 34, 142), y = clamp(p.y - 10, 60, 1372);
-      room.phone = { x, y, state: "ringing", at: sceneTime, connectAt: 0, darkAt: 0, ringing: true, cycle: -1, near: false };
+      if (beats().includes("opening:phone") || room.phone?.state === "ringing" || room.phone?.state === "connected") return;
+      if (!room.phone) {
+        const p = sim.player;
+        const x = clamp(p.x > 92 ? p.x - 40 : p.x + 40, 34, 142), y = clamp(p.y - 10, 60, 1372);
+        room.phone = { x, y, state: "dropped", source: "resume", at: 0, connectAt: 0, darkAt: 0, ringing: false, cycle: -1, near: false };
+      }
+      Object.assign(room.phone, { state: "ringing", at: sceneTime, connectAt: 0, darkAt: 0, ringing: true, cycle: -1, near: false, breathed: false, listened: false, hungUp: false });
     }
     function phoneNear() {
       const phone = room.phone;
@@ -1171,8 +1196,22 @@
           room.streetAt = sceneTime + 3000;
         }
       } else if (phone.state === "connected") {
-        if (!phone.breathed && sceneTime - phone.connectAt > 1600) { phone.breathed = true; sound("breath"); }
-        if (sceneTime - phone.connectAt >= BEAT.PHONE_CALL_MS) { phone.state = "dark"; phone.darkAt = sceneTime; room.streetAt = sceneTime + 3000; }
+        const t = sceneTime - phone.connectAt;
+        if (!phone.breathed && t > 1400) {
+          phone.breathed = true;
+          sound("breath");
+          setPose("pull-in", 900);
+        }
+        if (!phone.listened && t > 3400) {
+          phone.listened = true;
+          sound("heart");
+          flameMood("fear", 1200);
+        }
+        if (t >= BEAT.PHONE_CALL_MS) {
+          phone.state = "dark"; phone.darkAt = sceneTime; phone.hungUp = true; phone.ringing = false;
+          sound("hangup");
+          room.streetAt = sceneTime + 3500;
+        }
       }
     }
     // Touching it connects the call: committed first, then shown. No narration.
@@ -1182,7 +1221,11 @@
       const outcome = commitData(next => { next.story.facts.callerConnected = true; addBeat(next, "opening:phone"); });
       if (outcome.status === "failed") renderSaveFailedPanel("moment");
       phone.state = "connected"; phone.connectAt = sceneTime; phone.ringing = false;
+      room.phoneAnsweredAt = sceneTime;
+      setMusic(SILENT_TRACK);
+      flameMood("fear", BEAT.PHONE_CALL_MS + 500);
       sound("connect");
+      duck(BEAT.PHONE_CALL_MS + 700, 0.045);
       return true;
     }
     // ---- 11 A car that is not YOU.
@@ -1207,6 +1250,13 @@
       if (room.phone) phoneTick();
       if (room.pass) passTick();
       if (room.streetAt && sceneTime >= room.streetAt) { room.streetAt = 0; room.walkMode = true; setMusic(STREET_TRACK); }
+      if (room.searchOver && !room.culvertAt && p.y < 260 && ui === "play") {
+        room.culvertAt = sceneTime;
+        faceToward(100, 0);
+        setPose("notice", 700);
+        view.addDraft?.(100, 18, p.x, p.y);
+        sound("draft");
+      }
     }
 
     // ---- 12 The drain, 13 the fall
@@ -2046,7 +2096,7 @@
       },
       // ---- Scene 12: shelter, and the drain going back too far
       drain: {
-        music: () => DRAIN_TRACK,
+        music: () => SILENT_TRACK,
         enter() {
           room.rain = 0.2; room.mouthFor = 0;
           runScene("opening:shelter", [
@@ -2054,7 +2104,12 @@
             S.pose("shake", 900),
             S.wait(900),
             S.pose("settle", 700),
-            S.call(() => { room.warm = sceneTime; })
+            S.call(() => {
+              room.warm = sceneTime;
+              flameMood("relief", 1900);
+              setMusic(DRAIN_TRACK);
+              sound("relief");
+            })
           ]);
         },
         tick(dt) {
@@ -2062,7 +2117,13 @@
           // Once, if he stays near the mouth: headlights on the road sweep in. He flinches deeper.
           if (!room.headlightsDone && p.y > 560 && ui === "play") {
             room.mouthFor += dt;
-            if (room.mouthFor >= BEAT.MOUTH_MS) { room.headlightsDone = true; room.sweepAt = sceneTime; sound("car"); setPose("recoil", 900); nudge(0, -10); }
+            if (room.mouthFor >= BEAT.MOUTH_MS) { room.headlightsDone = true; room.sweepAt = sceneTime; sound("car"); setPose("recoil", 900); nudge(0, -10); flameMood("fear", 1400); }
+          }
+          if (!room.deepWarmAt && p.y < 250 && ui === "play") {
+            room.deepWarmAt = sceneTime;
+            flameMood("warm", 2200);
+            sound("draft");
+            if (!p.moving) setPose("notice", 700);
           }
           if (room.slope) slopeTick();
         }
@@ -2711,11 +2772,11 @@
     // QA only: the opening's presentation state, as plain data.
     function openingQA() {
       const pick = {};
-      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "storeCheckAt", "doorTeamAt", "youOutside", "tapAt", "passengerDoor", "grabbed", "carryAt", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
+      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "storeCheckAt", "doorTeamAt", "youOutside", "tapAt", "passengerDoor", "grabbed", "carryAt", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "phoneDroppedAt", "phoneAnsweredAt", "culvertAt", "deepWarmAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
       if (room.you) pick.you = { ...room.you };
       if (room.hands) pick.hands = { x: room.hands.x, y: room.hands.y };
       if (room.beam) pick.beam = { x: room.beam.x, y: room.beam.y, angle: room.beam.angle };
-      if (room.phone) pick.phone = { x: room.phone.x, y: room.phone.y, state: room.phone.state, near: room.phone.near, ringing: room.phone.ringing };
+      if (room.phone) pick.phone = { x: room.phone.x, y: room.phone.y, state: room.phone.state, source: room.phone.source, near: room.phone.near, ringing: room.phone.ringing, breathed: Boolean(room.phone.breathed), listened: Boolean(room.phone.listened), hungUp: Boolean(room.phone.hungUp) };
       if (room.pass) pick.pass = { y: room.pass.y, kind: room.pass.kind };
       if (room.slope) pick.slope = room.slope.stage;
       return plain(pick);
