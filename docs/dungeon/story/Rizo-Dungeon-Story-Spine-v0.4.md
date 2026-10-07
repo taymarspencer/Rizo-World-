@@ -71,7 +71,7 @@ Still the funniest people in the game. Incompetent, and terrified of The Boss; t
 | eyelet | Orr and the tray | Thaw the grille catch so Orr's tray fits | Orr: "Two portions. One's Eda's." |
 | traypass | The way back round | Walk the tray route back to the table | (bent wheel) |
 | press | Stop what they left running | Stop the empty job; release the brake; open the shutter | Nell: "They left it running so nobody gets up." |
-| upper | See where the road goes | Help Nell hold the stair door | High window: cold lamps in Window Hall |
+| upper | See where the road goes | Look through the high window; take the stair Nell holds open | High window: "a cold white lamp goes from window to window" |
 | stair | The way back down to the table | Take the stair | Chalk bowl and arrow |
 | windowgate | The edge of what's built | Reach the window; wait with Nell | `boss-glass`: "Be at the window when it opens." |
 

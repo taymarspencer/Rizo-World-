@@ -135,7 +135,7 @@ with sync_playwright() as p:
         record(f'{width}: Dungeon returns to Home and keeps the journey',page.evaluate(HOME)['view']=='home' and page.evaluate('()=>RizoModes.active()') is None and page.evaluate(STATE)['qaModes']['dungeon']['data']['campaign']['petId']==after['pet']['id'],page.evaluate('()=>({home:RizoRuntimeQA.homeForQA(),active:RizoModes.active(),campaign:RizoRuntimeQA.snapshot().qaModes.dungeon.data.campaign})'))
         page.reload();page.wait_for_function('window.RizoRuntimeQA && RizoBoot.status().ready')
         saved=page.evaluate(STATE)
-        record(f'{width}: Home growth, training, and the journey survive reload',saved['home']['tier']==1 and saved['home']['trained']==['power'] and saved['qaModes']['dungeon']['data']['campaign']['contentRevision']=='threshold-v3')
+        record(f'{width}: Home growth, training, and the journey survive reload',saved['home']['tier']==1 and saved['home']['trained']==['power'] and saved['qaModes']['dungeon']['data']['campaign']['contentRevision']=='threshold-v4')
         record(f'{width}: complete loop has no page errors',not errors,errors)
         ctx.close()
 

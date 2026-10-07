@@ -802,6 +802,8 @@
       const seen = new Set();
       const occupied = [rizo];
       if (!el.dialogue.hidden) { const h = el.dialogue.offsetHeight; occupied.push({ x: 8, y: el.dialogue.classList.contains("at-top") ? 30 : metrics.cssH - h - 8, w: metrics.cssW - 16, h }); }
+      // The goal line under the HUD is read at a glance; a bubble never sits on it.
+      if (!el.objective.hidden) occupied.push({ x: el.objective.offsetLeft, y: el.objective.offsetTop, w: el.objective.offsetWidth, h: el.objective.offsetHeight + 4 });
       for (const item of list) {
         const actor = actors.find(entry => entry.id === item.id);
         if (!actor) continue;

@@ -781,10 +781,12 @@ with sync_playwright() as p:
     hold(page, "s", 200)
     check("any move inside the 1.2 s window scrambles him back up", op(page).get("slope") in ("recovered", "armed"), str(op(page).get("slope")))
 
+    COMIC_PAGES = []  # the classes of each comic page seen during a fall (v0.4)
     def watch_fall(page, hold_ms=0):
         """Record the fall frame by frame until he is seen below."""
         import time as _t
         rows, silent_open, lock_rows, banner_seen = [], False, [], False
+        COMIC_PAGES.clear()
         t0 = _t.time()
         if hold_ms: page.keyboard.down("w")
         released = not hold_ms
@@ -794,6 +796,7 @@ with sync_playwright() as p:
             if not released and (now_ms > hold_ms or (st["scene"] and st["scene"]["id"] == "opening:fall")):
                 page.keyboard.up("w"); released = True
             sid_ = st["scene"] and st["scene"]["id"]
+            if st.get("comic"): COMIC_PAGES.append(page.evaluate("document.querySelector('.dungeon-comic')?.className || ''"))
             if sid_ == "opening:fall" and st["silent"] and st["shell"] == "open" and st["fade"] >= 0.99: silent_open = True
             if st["shell"] == "locking": lock_rows.append((now_ms, st["impactAt"] is not None, st["sim"]["roomId"]))
             if not page.evaluate("document.querySelector('.dungeon-banner').hidden"): banner_seen = True
@@ -816,6 +819,7 @@ with sync_playwright() as p:
     check("the lock keeps its ~560 ms", first_lock and slip_at and 400 <= slip_at - first_lock[0] <= 1100, str((first_lock, slip_at)))
     fall_start = fall_rows[0][0] if fall_rows else 0
     # v0.4: the second slip cuts to the fall comic (3.4 s) between the crack and the black.
+    check("the second slip cuts to the fall comic, a full-motion page", any("dungeon-comic" in c and "is-reduced" not in c for c in COMIC_PAGES), str(COMIC_PAGES[:2]))
     check("the fall runs about 0.3 s crack + the fall comic + 2.5 s in the black before impact", first_lock and 2300 + 3400 <= first_lock[0] - fall_start <= 3900 + 3400, str(first_lock and first_lock[0] - fall_start))
     landed = [r for r in rows if r[3] == "opening:landed"]
     check("a held black after impact: nothing seen for about 2 s", landed and all(r[4] >= 0.99 for r in landed if slip_at and r[0] - slip_at <= 1800), str([(round(r[0]), r[4]) for r in landed][:5]))
@@ -1051,6 +1055,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
     fall_rows = [r for r in rows if r[3] == "opening:fall"]
     early = [r[4] for r in fall_rows if r[0] - fall_rows[0][0] < 700] if fall_rows else []
     check("reduced motion: no cut to black and no flashes, a slow dim fade instead", early and max(early) < 0.8, str(early[:6]))
+    check("reduced motion: the fall comic still plays, as the reduced page (panels fade, nothing slams or shakes)", COMIC_PAGES and all("is-reduced" in c for c in COMIC_PAGES), str(COMIC_PAGES[:2]))
     check("reduced motion: the handheld still locks on impact, quickly (~160 ms)", first_lock and first_lock[1] and slip_at and slip_at - first_lock[0] < 450, str((first_lock, slip_at)))
     check("reduced motion: the fall still goes silent first and lands without a banner", silent_open and not banner_seen and page.evaluate(ST)["sim"]["roomId"] == "slip")
     check("reduced motion raises no page errors", not errors, "; ".join(errors[:3]))
