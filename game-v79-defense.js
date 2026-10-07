@@ -2486,8 +2486,11 @@
     const host = $("#trainingFeatured");
     if (host && game) {
       host.style.setProperty("--patch", DRILL_PATCH[game.id] || "#cfc4a2");
-      host.innerHTML = `<div class="training-yard" aria-hidden="true"><i class="yard-fence"></i><i class="yard-bag"></i><i class="yard-cones"></i><i class="yard-lamp"></i></div><div class="training-companion">${petMarkup({ extraClass: "training-rizo", context: "card" })}</div><div class="training-pick"><small>${state.home.trained.includes(game.id) ? "ANOTHER ROUND?" : "TODAY: SOMETHING NEW"}</small><h2>${game.name}</h2><p>${SKILLS.filter(skill => game.trains[skill.id] > 0).map(skill => skill.name).join(" + ")} · ${game.duration}s · ${game.energy} energy</p><button data-minigame="${game.id}" type="button">TRAIN TOGETHER</button></div>`;
+      // Presentation follows the drill; the training contract still owns every rule.
+      host.dataset.station = trainingFocus !== "all" ? trainingFocus : ["power", "speed", "instinct"].sort((a, b) => (game.trains[b] || 0) - (game.trains[a] || 0))[0];
+      host.innerHTML = `<div class="training-yard" aria-hidden="true"><i class="yard-fence"></i><i class="yard-bag"></i><i class="yard-cones"></i><i class="yard-lamp"></i><i class="yard-lines"></i><i class="yard-target"></i><i class="yard-bench"></i><b class="yard-sign">THE YARD</b><span class="yard-patches">${Home.DRILLS.map(id => `<i class="${state.home.trained.includes(id) ? "earned" : ""}" style="--c:${DRILL_PATCH[id]}"></i>`).join("")}</span></div><div class="training-companion">${petMarkup({ extraClass: "training-rizo", context: "card" })}</div><div class="training-pick"><small>${state.home.trained.includes(game.id) ? "ANOTHER ROUND?" : "TODAY: SOMETHING NEW"}</small><h2>${game.name}</h2><p>${SKILLS.filter(skill => game.trains[skill.id] > 0).map(skill => skill.name).join(" + ")} · ${game.duration}s · ${game.energy} energy</p><button data-minigame="${game.id}" type="button">TRAIN TOGETHER</button></div>`;
     }
+    host?.setAttribute("aria-label", `Suggested training drill. ${state.home.trained.length} of ${Home.DRILLS.length} practice patches earned.`);
     const line = $("#trainingHomeGoal");
     if (line) line.textContent = homeTargetCopy();
   }
@@ -2925,7 +2928,7 @@
     currentView = view;
     $$(".view").forEach(section => section.classList.toggle("active", section.dataset.view === view));
     $$("[data-nav]").forEach(button => { const active = button.dataset.nav === view || (button.closest(".bottom-nav") && button.dataset.nav === "home" && ["farm", "closet", "journal"].includes(view)); button.classList.toggle("active", active); button.setAttribute("aria-current", active ? "page" : "false"); });
-    window.scrollTo({ top: 0, behavior: state.settings.reducedMotion ? "auto" : "smooth" });
+    window.scrollTo({ top: 0, behavior: reducedMotionActive() ? "auto" : "smooth" });
     renderSharedUI();
     renderCurrentView();
     refreshAdSlots();

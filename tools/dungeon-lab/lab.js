@@ -61,11 +61,11 @@
       ]
     },
     {
-      id: "nell", name: "Nell", role: "the Mending Rows mender: work coat, apron, strap, head wrap", shell: "locked", units: Art.HEIGHT.nell, portraits: "nell", world: Art.nell,
+      id: "nell", name: "Nell", role: "the Mending Rows mender: work coat, apron, strap, head wrap", shell: "locked", units: Art.HEIGHT.nell, portraits: "nell", world: Art.nell, exprs: ["work", "measuring", "listening", "amused", "irritated", "tired"],
       states: NELL_STATES.map(state => ({ id: state, o: { state }, walk: state === "walk" }))
     },
     {
-      id: "orr", name: "Orr", role: "the kitchen runner: low cap, towel shoulder, apron, an oversized tray", shell: "locked", units: Art.HEIGHT.orr, portraits: "orr", world: Art.orr,
+      id: "orr", name: "Orr", role: "the kitchen runner: low cap, towel shoulder, apron, an oversized tray", shell: "locked", units: Art.HEIGHT.orr, portraits: "orr", world: Art.orr, exprs: ["serving", "irritated", "dry"],
       states: [{ id: "tray", o: { state: "tray" } }, { id: "carry (leaving with the tray)", o: { state: "carry" } }, { id: "walking (carry)", o: { state: "carry" }, walk: true }, { id: "hands free", o: { state: "serving" } }]
     },
     {

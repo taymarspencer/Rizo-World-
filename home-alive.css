@@ -51,7 +51,7 @@ body.rizo-handmade #habitatScene .level-badge{transform:scale(.82) rotate(3deg);
 #habitatScene .den-bed.occupied{box-shadow:0 5px 0 rgba(0,0,0,.28),0 0 22px #ffdf8c33}
 .den-blanket{position:absolute;z-index:9;left:calc(72% - 49px);bottom:calc(7% + 2px);width:94px;height:38px;display:none;pointer-events:none;border:3px solid #2b2420;border-radius:10px 10px 4px 4px;background:repeating-linear-gradient(90deg,#c9604f 0 10px,#e8d6b0 10px 13px,#5c7f9e 13px 23px,#e8d6b0 23px 26px);box-shadow:inset 0 5px 0 rgba(255,255,255,.18)}
 #habitatScene.den-sleeping .den-blanket{display:block}
-#habitatScene.den-sleeping #petActor .rizo-motion-shell{transform:translateY(16px) rotate(-9deg) scale(.9)}
+#habitatScene.den-sleeping #petActor .rizo-motion-shell{transform:translateY(27px) rotate(-22deg) scale(.86,.76)}
 
 /* ===== Keepsakes: things, not badges ===== */
 #habitatScene .den-keepsakes,#habitatScene[data-home-tier] .den-keepsakes{z-index:6;top:auto;bottom:37%;left:auto;right:5%;gap:7px;align-items:flex-end}
@@ -380,3 +380,163 @@ body.rizo-handmade #trainingLibrary .game-card.drill-done h2:after{content:" ✓
 @keyframes doorway-light{0%{transform:scaleX(.1)}50%{transform:scaleX(1)}100%{transform:scaleX(3);opacity:0}}
 @media(prefers-reduced-motion:reduce){.go-doorway{display:none}}
 body.reduce-motion .go-doorway{display:none}
+
+/* Visual uphaul: the things he owns. Hit areas remain 44px; art sits inside. */
+#habitatScene .garden-toy{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#habitatScene .garden-toy.toy-ball{width:44px;height:44px;border:0;background:none;box-shadow:none;transform:none;isolation:isolate}
+#habitatScene .toy-ball:before{content:"";position:absolute;inset:3px 4px 6px;border-radius:49% 51% 47% 53%;border:2px solid #392e27;background:radial-gradient(ellipse at 28% 23%,#fff0cc99 0 7%,transparent 22%),radial-gradient(circle at 33% 28%,transparent 22%,#372e3166 78%),conic-gradient(from 30deg,#b95945 0 32%,#dcc596 33% 66%,#5b7f83 67%);box-shadow:inset -3px -4px 0 #282b3044,inset 1px 1px 0 #f3dba288;z-index:1}
+#habitatScene .toy-ball:after{content:"";position:absolute;left:3px;right:1px;bottom:2px;height:8px;border-radius:50%;background:#14201e77;filter:blur(1px)}
+#habitatScene .toy-ball.toy-in-play{animation:owned-ball .9s ease-out 2}
+@keyframes owned-ball{0%,100%{translate:0 0;rotate:0deg}25%{translate:20px -13px;rotate:70deg}50%{translate:29px 0;rotate:120deg;scale:1.08 .93}75%{translate:12px -5px;rotate:50deg}}
+#habitatScene .garden-toy.toy-stump{border:2px solid #392819;border-radius:9px 7px 5px 5px;background:repeating-linear-gradient(84deg,transparent 0 9px,#35291866 10px 11px,transparent 12px 18px),linear-gradient(90deg,#6e4a33,#b08859 38%,#775135 85%);box-shadow:inset -4px -3px #422f2555,2px 4px 0 #14201e66;color:transparent}
+#habitatScene .toy-stump:before{top:-3px;height:14px;left:0;right:0;background:repeating-radial-gradient(ellipse at 42% 50%,#b28a5f 0 2px,#dbb783 3px 4px);border:2px solid #513a28;transform:rotate(-4deg)}
+.toy-grain{position:absolute;top:14px;left:16px;width:12px;height:15px;border:1px dashed #d6be9299;border-radius:2px;background:#655445;transform:rotate(9deg);pointer-events:none}
+#habitatScene .garden-toy.toy-puddle{background:none;border:0;box-shadow:none;isolation:isolate;color:transparent}
+#habitatScene .toy-puddle:before{content:"";position:absolute;inset:17px 0 3px;border-radius:47% 53% 36% 64%;background:linear-gradient(168deg,#abb8a7 0 9%,#547a83 13% 38%,#2d505b 83%);border:2px solid #273f41;box-shadow:2px 2px #b4a78155}
+#habitatScene .toy-ripple{position:absolute;left:18px;right:15px;top:24px;height:9px;border:1px solid #b8d5c28c;border-radius:50%;transform:rotate(-5deg);pointer-events:none}
+#habitatScene .toy-puddle.toy-in-play{animation:none}
+#habitatScene .toy-puddle.toy-in-play .toy-ripple{animation:owned-ripple .65s ease-out 3}
+@keyframes owned-ripple{from{scale:.4;opacity:1}to{scale:1.3;opacity:0}}
+#habitatScene .garden-toy.toy-bush{border-radius:42% 58% 38% 52%;background:radial-gradient(ellipse at 26% 27%,#8eac6d 0 18%,transparent 20%),radial-gradient(ellipse at 70% 35%,#708e58 0 21%,transparent 23%),radial-gradient(ellipse at 44% 64%,#799557 0 20%,transparent 23%),#3f6446;border:2px solid #263b2d;box-shadow:inset -5px -5px #203d3270,0 3px #17241d66;font-size:0}
+#habitatScene .toy-bush:after{background:linear-gradient(90deg,#775440,#b9815b 44%,#82543e);box-shadow:inset 0 4px #4b3829;bottom:-13px;height:14px;border-width:2px}
+.toy-leaf{position:absolute;left:20px;top:9px;width:10px;height:16px;border-radius:0 80% 0 80%;background:#b5be7c;transform:rotate(-28deg);border-right:1px solid #365438;pointer-events:none}
+#habitatScene .toy-bush.toy-in-play{animation:owned-leaves .22s ease-in-out 6 alternate;transform-origin:center bottom}
+@keyframes owned-leaves{to{rotate:7deg}}
+/* A low nest of patched cloth: the early one is still a found cardboard box. */
+#habitatScene[data-home-tier] .den-bed{border-radius:24% 20% 17% 19%;border:3px solid #40352b;background:radial-gradient(ellipse at 50% 40%,#514a4199 0 35%,transparent 61%),linear-gradient(#c3a37c,#917251);box-shadow:inset 0 5px #e4c79955,inset 0 -5px #584a3688,1px 5px 2px #1b24256b}
+#habitatScene[data-home-tier="0"] .den-bed{border-radius:4px 6px 10px 8px;background:linear-gradient(170deg,#b38a58,#89653e);border-color:#4f3b27}
+#habitatScene[data-home-tier] .den-bed i{width:34px;height:17px;left:5px;top:4px;border:1px solid #7a7056;background:linear-gradient(165deg,#e6d7b4,#b3a58a);border-radius:37% 48% 32% 38%;transform:rotate(-8deg);box-shadow:inset -3px -3px #7c735633,1px 2px 2px #342e3b66}
+#habitatScene[data-home-tier] .den-bed .den-bed-frame{height:8px;left:6px;right:3px;bottom:-6px;border-radius:40%;background:#493e32;box-shadow:0 2px 2px #17242055}
+#habitatScene[data-home-tier="1"] .den-bed:before,#habitatScene[data-home-tier="2"] .den-bed:before{left:-2px;right:-2px;top:-4px;bottom:auto;width:auto;height:16px;border:2px solid #514534;border-bottom:0;border-radius:40% 35% 0 0;background:linear-gradient(#d0b58f,#a38967);box-shadow:inset 0 2px #edcc9f77}
+#habitatScene[data-home-tier] .bed-quilt{position:absolute;left:12px;right:5px;bottom:2px;height:26px;border-radius:30% 17% 22% 12%;background:linear-gradient(170deg,transparent 30%,#23383a55 35%,transparent 40% 70%,#192f3544 76%),linear-gradient(90deg,#617b7c 0 47%,#a45f4d 48% 68%,#758785 69%);border:1px solid #3f4944;box-shadow:inset 0 3px #d2bf9780,inset 0 -4px #253e4644;pointer-events:none}
+#habitatScene .bed-quilt:after{content:"";position:absolute;left:7px;right:6px;bottom:6px;border-bottom:1px dashed #dfcda4;transform:rotate(-3deg)}
+#habitatScene .den-bed span{font:14px monospace;bottom:7px;right:11px;color:#e7d9b6;z-index:1;pointer-events:none}
+#habitatScene .den-bed>*{pointer-events:none}
+#habitatScene .den-blanket{border-radius:35% 24% 16% 13%;background:linear-gradient(170deg,transparent 30%,#293e444f 36%,transparent 42% 68%,#2d484b66 75%),linear-gradient(90deg,#698586 0 45%,#aa6856 46% 69%,#748f8c 70%);box-shadow:inset 0 4px #b3c3ae77,inset 0 -5px #263b4855}
+#habitatScene .den-blanket:after{content:"";position:absolute;left:9px;right:8px;bottom:7px;border-bottom:1px dashed #e1d1af;transform:rotate(-2deg)}
+/* GO: two physical approaches; the sign and threshold sit in the landscape. */
+#viewGo .go-heading{padding:18px 2px 13px}
+#viewGo .go-heading h1{font-family:system-ui,sans-serif;font-weight:900;letter-spacing:-.03em}
+#viewGo .destination{display:flex;flex-direction:column;min-height:0;margin:0 0 22px;padding:174px 14px 14px;border:0;border-bottom:3px solid #3c4541;background:#121b1b;box-shadow:none;isolation:isolate}
+#viewGo .destination .game-art{inset:0 0 auto;height:180px;opacity:1;z-index:-2;mask-image:linear-gradient(#000 78%,transparent)}
+#viewGo .dungeon-destination .game-art{background:radial-gradient(ellipse at 38% 34%,#cbaa6733,transparent 53%),repeating-linear-gradient(0deg,transparent 0 22px,#101f25aa 23px 26px),repeating-linear-gradient(90deg,#2b3c3f 0 65px,#1c3036 66px 70px);box-shadow:inset 0 -50px 45px #09171b}
+#viewGo .defense-destination .game-art{background:linear-gradient(0deg,#121b1b99,#14271911 70%),url('./assets/defense-pine-bend.svg') center 53%/cover}
+#viewGo .destination-story>small{position:absolute;top:14px;left:13px;color:#f1dfb9;font-size:9px;letter-spacing:.1em;padding:6px 8px;background:#101b20cf;border-left:2px solid #d2b77d}
+#viewGo .destination h2{font:900 27px/1.05 system-ui,sans-serif;margin:0 0 7px;letter-spacing:.035em;color:#f1e3bd}
+#viewGo .destination-story>p{font:12px/1.45 system-ui;color:#bdc9bf;max-width:none;margin:0 0 8px}
+#viewGo .destination .game-meta{margin:0 0 9px;gap:15px;flex-wrap:wrap}
+#viewGo .destination .game-meta span{background:none;border:0;padding:0;display:flex;gap:5px;align-items:baseline}
+#viewGo .destination .game-meta small{font-size:8px;color:#a4b3a7}
+#viewGo .destination .game-meta b{font-size:10px;color:#e3d6af}
+#viewGo .destination .departure-note{border:0;border-left:2px solid #59624a;background:none;margin:0 0 10px;padding:1px 0 1px 8px;font:10px/1.5 monospace;color:#aab9ad}
+#viewGo .destination>button{min-height:48px;text-align:left;padding:11px 15px;background:#cdbb8d;color:#182323;border:1px solid #ebdcb0;box-shadow:0 3px #665c40;font-size:12px;transition:translate .12s,filter .12s}
+#viewGo .destination>button:after{content:"↗";float:right;font-size:18px}
+#viewGo .destination>button:active{translate:0 3px;box-shadow:none;filter:brightness(1.15)}
+#viewGo .defense-destination>button{background:#9fb494;border-color:#d0d5b2;box-shadow:0 3px #405440}
+#viewGo .destination-companion{right:16%;top:65px;bottom:auto;width:90px;height:100px;filter:drop-shadow(0 0 8px #f0c36622)}
+#viewGo .destination-way{inset:62px 0 auto;height:112px;width:auto;z-index:-1}
+#viewGo .destination-way i{left:16%;right:-12%;height:64px;bottom:-14px;opacity:.7;transform:skewY(-12deg);background:repeating-linear-gradient(6deg,#a9a99522 0 2px,transparent 2px 18px),linear-gradient(90deg,#7b7f6655,#15222500);border-top:1px solid #c5b99a66}
+#viewGo .way-post{position:absolute;left:15%;bottom:26px;width:5px;height:50px;background:linear-gradient(90deg,#3e332b,#9b7c4f);transform:rotate(-4deg)}
+#viewGo .way-post:after{content:"↓";position:absolute;top:5px;left:-12px;width:31px;height:22px;background:#c6ad7c;border:2px solid #463929;color:#342f27;font:900 19px/20px monospace;text-align:center;transform:rotate(7deg)}
+#viewGo .defense-destination .way-post:after{content:"↗";background:#a1b28a}
+#viewGo .way-light{position:absolute;left:29%;top:0;width:13px;height:17px;background:#f3ca7f;border:3px solid #31312a;border-radius:3px;box-shadow:0 0 28px 13px #ffcd6340}
+#viewGo .defense-destination .way-light{left:75%;top:-10px;width:3px;height:40px;border:0;border-radius:0;background:#9c8b62;box-shadow:none}
+#viewGo .defense-destination .way-light:after{content:"";position:absolute;left:2px;top:0;width:27px;height:15px;background:#bb785a;clip-path:polygon(0 0,100% 10%,78% 50%,100% 95%,0 100%)}
+#viewGo .way-step{position:absolute;right:14%;bottom:8px;width:80px;height:12px;border-radius:50%;background:#07131899;filter:blur(2px)}
+#viewGo .destination:focus-within .destination-way .way-post:after{outline:2px solid #f5dfac;outline-offset:3px}
+#viewGo .destination:focus-within .go-rizo{translate:-3px -2px}
+#viewGo .go-rizo{transition:translate .15s;width:90px!important;height:100px!important}
+/* TRAIN: an actual practice floor, with the next drill on its front rail. */
+#viewArcade .training-heading{padding:18px 2px 8px}
+#viewArcade .training-heading h1{font:900 30px/1.05 system-ui,sans-serif;letter-spacing:.02em}
+#viewArcade .training-heading p{margin:7px 0;font-size:12px}
+#viewArcade .training-focus{margin:0 0 8px;gap:2px}
+#viewArcade .training-focus button{border:0;border-bottom:3px solid #455b51;background:#182724;color:#bac7b1;border-radius:0;font-size:10px;min-height:44px}
+#viewArcade .training-focus button[aria-pressed="true"]{background:#c8bb93;color:#202c27;border-bottom-color:#82724e}
+#trainingFeatured.training-featured{display:block;padding:216px 12px 12px;min-height:0;border:0;border-bottom:4px solid #3b382b;background:linear-gradient(#172c34 0 27%,#31494a 27% 46%,#696249 46%,#444b3c 69%,#252f29 70%);box-shadow:inset 0 0 50px #09151b88}
+#trainingFeatured .training-yard{z-index:-1}
+#trainingFeatured .yard-fence{top:52px;height:93px;opacity:.55;background:repeating-linear-gradient(90deg,#142d2c 0 4px,transparent 4px 27px),linear-gradient(transparent 25%,#1a3331 25% 30%,transparent 30% 73%,#243b36 73% 79%,transparent 79%)}
+#trainingFeatured .yard-sign{position:absolute;top:13px;left:14px;padding:5px 9px;color:#c6b993;background:#223b36;border:1px solid #8b896366;font:900 10px monospace;letter-spacing:.2em;transform:rotate(-2deg);box-shadow:2px 2px #0d211e}
+#trainingFeatured .yard-bag{left:68%;top:51px;width:38px;height:86px;border-radius:12px 9px 16px 16px;background:linear-gradient(90deg,#673e30,#bd7951 45%,#80503b);border:2px solid #292923;box-shadow:inset 0 11px #3b413b,3px 5px 9px #12222177}
+#trainingFeatured .yard-bag:before{height:57px;top:-57px;width:3px;background:repeating-linear-gradient(#788577 0 3px,#182a28 3px 6px)}
+#trainingFeatured .yard-bag:after{content:"×";position:absolute;top:29px;left:8px;width:18px;height:24px;border:1px dashed #e1c59b;background:#384c47;color:#e6d2a7;font:22px/22px monospace;text-align:center;transform:rotate(-7deg)}
+#trainingFeatured .yard-cones{left:58%;bottom:auto;top:172px;width:16px;height:21px;background:linear-gradient(#c88855 0 48%,#ddd0a1 48% 65%,#9a5d39 65%);filter:drop-shadow(61px -8px 0 #a97044)}
+#trainingFeatured .yard-lamp{right:17%;height:31px;top:0}
+#trainingFeatured .yard-lamp:after{box-shadow:0 44px 60px 36px #fbe3a326}
+#trainingFeatured .yard-lines{left:14%;right:9%;top:157px;height:48px;border:2px solid #d6c89c66;border-radius:50%;transform:rotate(-5deg);background:repeating-linear-gradient(0deg,transparent 0 13px,#cebf9533 14px 15px);opacity:.7}
+#trainingFeatured .yard-bench{left:6%;top:105px;width:60px;height:7px;background:#927b52;border:2px solid #3b3d2f;box-shadow:0 4px #162c2855}
+#trainingFeatured .yard-bench:before,#trainingFeatured .yard-bench:after{content:"";position:absolute;top:5px;width:4px;height:24px;background:#344438}
+#trainingFeatured .yard-bench:before{left:4px}#trainingFeatured .yard-bench:after{right:4px}
+#trainingFeatured .yard-target{display:none;right:19%;top:74px;width:48px;height:48px;border-radius:46% 50% 42% 49%;background:repeating-radial-gradient(circle,#cbaa71 0 7px,#574d39 8px 11px);border:3px solid #958363;box-shadow:0 35px 0 -20px #233a32}
+#trainingFeatured[data-station="instinct"] .yard-target{display:block}
+#trainingFeatured[data-station="instinct"] .yard-bag{display:none}
+#trainingFeatured[data-station="speed"] .yard-bag{display:none}
+#trainingFeatured[data-station="speed"] .yard-lines{border-radius:0;left:44%;right:16%;top:111px;height:85px;transform:skewX(-20deg);border-top:0;border-bottom:0;background:repeating-linear-gradient(0deg,transparent 0 18px,#d6c89c88 19px 21px)}
+#trainingFeatured .yard-patches{position:absolute;right:12px;top:15px;display:flex;gap:3px}
+#trainingFeatured .yard-patches i{position:static;width:7px;height:9px;border:1px dashed #97a38a66;background:#162b28}
+#trainingFeatured .yard-patches i.earned{background:var(--c);border-color:#e5d7af;transform:rotate(-5deg)}
+#trainingFeatured .training-companion{position:absolute;left:19%;top:89px;width:112px;height:123px;filter:drop-shadow(4px 3px 2px #132c2b88);pointer-events:none}
+#trainingFeatured .training-rizo{width:112px!important;height:123px!important;transform:rotate(-4deg);transform-origin:center bottom}
+#trainingFeatured .training-pick{padding:10px 10px 11px;border:1px solid #788268;border-top:3px solid #9b8b61;background:#182c28ed;box-shadow:2px 3px #15231b;display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+#trainingFeatured .training-pick:before{display:none}
+#trainingFeatured .training-pick small{grid-column:1/-1;font-size:8px;letter-spacing:.1em;color:#bdb68e}
+#trainingFeatured .training-pick h2{font-family:system-ui,sans-serif;font-weight:850;font-size:24px;margin:4px 0;grid-column:1/-1;line-height:1.05}
+#trainingFeatured .training-pick p{margin:0;font:10px/1.5 monospace;align-self:center;max-width:22ch}
+#trainingFeatured .training-pick button{min-height:46px;padding:8px 12px;background:#c8bb93;color:#1a2b25;border:1px solid #e1d7ae;box-shadow:0 3px #73684a;font:900 10px/1.25 monospace;max-width:112px;transition:translate .1s}
+#trainingFeatured .training-pick button:active{translate:0 3px;box-shadow:none}
+#viewArcade .training-home-goal{border:0;border-left:2px solid #a39568;padding:0 0 0 9px;margin:12px 2px;font-size:10px}
+body.rizo-handmade #trainingLibrary .game-card{border:0;border-bottom:1px dashed #66745c;border-left:3px solid var(--patch);background:#192b2499;box-shadow:none;border-radius:0;margin:0;padding:13px 9px;grid-template-columns:47px 1fr auto;gap:9px}
+body.rizo-handmade #trainingLibrary .game-card .game-art{width:42px;height:49px;border:0;background:none;box-shadow:none}
+body.rizo-handmade #trainingLibrary .game-card h2{font-size:18px}
+body.rizo-handmade #trainingLibrary .game-card>button{min-height:44px;min-width:44px;padding:6px;font-size:9px}
+#viewGo button:focus-visible,#viewArcade button:focus-visible,#habitatScene .garden-toy:focus-visible,#habitatScene .den-bed:focus-visible{outline:2px solid #f7d79b;outline-offset:3px}
+@media(max-width:350px){
+ #viewGo .destination{padding-top:154px}#viewGo .destination .game-art{height:160px}#viewGo .destination-companion{top:47px;right:11%}#viewGo .destination-way{top:42px}
+ #viewGo .destination h2{font-size:27px}#viewGo .destination .game-meta{gap:10px}
+ #trainingFeatured.training-featured{padding-top:191px}#trainingFeatured .training-companion{left:11%;top:72px}#trainingFeatured .yard-bag{top:39px;height:76px}#trainingFeatured .yard-lines{top:147px;height:37px}#trainingFeatured .yard-cones{top:156px}
+ #trainingFeatured[data-station="speed"] .yard-lines{top:99px;height:75px}#trainingFeatured .training-pick{gap:3px 5px}#trainingFeatured .training-pick h2{font-size:23px}#trainingFeatured .training-pick p{font-size:9px}#trainingFeatured .training-pick button{max-width:99px;padding:7px}
+ #viewArcade .training-focus button{font-size:9px;padding:7px 5px}
+ body.rizo-handmade #trainingLibrary .game-card{grid-template-columns:35px 1fr auto;gap:6px}body.rizo-handmade #trainingLibrary .game-card .game-art{width:32px;height:42px}
+}
+@media(prefers-reduced-motion:reduce){#habitatScene .garden-toy.toy-in-play,#habitatScene .toy-in-play *{animation:none!important}#viewGo .go-rizo,#viewGo .destination>button,#trainingFeatured .training-pick button{transition:none}}
+body.reduce-motion #habitatScene .garden-toy.toy-in-play,body.reduce-motion #habitatScene .toy-in-play *{animation:none!important}
+body.reduce-motion #viewGo .go-rizo,body.reduce-motion #viewGo .destination>button,body.reduce-motion #trainingFeatured .training-pick button{transition:none}
+
+#viewGo .dungeon-destination .game-art:before{content:"";position:absolute;left:19%;top:39px;width:87px;height:120px;border:9px solid #46504a;border-bottom:0;border-radius:48px 44px 0 0;background:radial-gradient(ellipse at 42% 88%,#59868344,transparent 60%),#091519;box-shadow:-4px 0 #19292c,5px 1px #182a2d,inset 5px 2px #080f12}
+#viewGo .dungeon-destination .game-art:after{content:"";position:absolute;left:23%;top:128px;width:96px;height:42px;background:repeating-linear-gradient(0deg,#13262b 0 6px,#53645c 7px 9px,#263d3d 10px 14px);transform:skewX(-25deg);box-shadow:3px 4px #0b181e88}
+#viewGo .dungeon-destination .way-light{left:49%;top:0}
+#trainingFeatured .training-pick p{max-width:none}
+#viewGo .destination .mode-badge{top:49px;right:12px;z-index:2}
+
+#habitatScene .garden-toy.toy-ball.toy-dragging{animation:none;translate:var(--toy-drag-x,0px) var(--toy-drag-y,0px);scale:1.1}
+/* The shortest phone still gets a usable first choice above its nav. */
+@media(max-width:350px) and (max-height:650px){
+ #viewArcade .training-heading,#viewGo .go-heading{padding:7px 2px 8px}
+ #viewArcade .training-heading h1{font-size:25px;letter-spacing:-.04em;white-space:nowrap}
+ #viewArcade .training-heading p,#viewGo .go-heading p{font-size:11px;margin:6px 0}
+ #viewGo .go-heading h1{font-size:28px;margin:5px 0}
+ #viewGo .destination{padding-top:126px;padding-bottom:10px}
+ #viewGo .destination .game-art{height:134px}
+ #viewGo .destination-companion{top:28px;width:78px;height:89px}
+ #viewGo .go-rizo{width:78px!important;height:89px!important}
+ #viewGo .destination-way{top:19px}
+ #viewGo .destination h2{font-size:25px}
+ #viewGo .destination .departure-note{font-size:9px;margin-bottom:7px}
+ #viewGo .destination-story>p{font-size:11px;margin-bottom:6px}
+ #viewGo .dungeon-destination .game-art:before{top:27px;height:104px;width:77px}
+ #viewGo .dungeon-destination .game-art:after{top:110px}
+ #trainingFeatured.training-featured{padding-top:143px;padding-bottom:9px}
+ #trainingFeatured .training-companion{top:46px;left:13%;width:90px;height:96px}
+ #trainingFeatured .training-rizo{width:90px!important;height:96px!important}
+ #trainingFeatured .yard-bag{top:33px;width:32px;height:64px}
+ #trainingFeatured .yard-bag:after{top:22px;left:5px}
+ #trainingFeatured .yard-lines{top:116px;height:24px}
+ #trainingFeatured .yard-cones{top:116px;width:12px;height:17px}
+ #trainingFeatured .yard-bench{top:87px;width:44px}
+ #trainingFeatured .yard-target{top:55px;width:39px;height:39px}
+ #trainingFeatured[data-station="speed"] .yard-lines{top:65px;height:68px}
+ #trainingFeatured .training-pick{padding:7px 8px 9px}
+ #trainingFeatured .training-pick h2{font-size:21px;margin:2px 0}
+}
+/* The global idle animation formerly overrode the bed's tucked-in pose. */
+#habitatScene.den-sleeping #petActor .rizo-motion-shell{animation:none!important}

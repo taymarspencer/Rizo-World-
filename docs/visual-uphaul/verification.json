@@ -1,0 +1,97 @@
+{
+  "starting_sha": "8c90028286b67b89ccf187ce9f022ead51d53c56",
+  "branch": "feat/astra-adhd-visual-uphaul",
+  "resumed_suites": [
+    {
+      "suite": "browser-dungeon",
+      "exit": 0,
+      "passed": 371,
+      "failed": 0
+    },
+    {
+      "suite": "browser-dungeon-character-lab",
+      "exit": 0,
+      "passed": 89,
+      "failed": 0
+    },
+    {
+      "suite": "browser-dungeon-gamefeel",
+      "exit": 0,
+      "passed": 63,
+      "failed": 0
+    },
+    {
+      "suite": "browser-launch-recovery",
+      "exit": 0,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "suite": "browser-v87-arcade-freeze",
+      "exit": 0,
+      "passed": 66,
+      "failed": 0
+    },
+    {
+      "suite": "browser-v88-authored",
+      "exit": 0,
+      "passed": 25,
+      "failed": 0
+    },
+    {
+      "suite": "browser-v88-training-fixes",
+      "exit": 0,
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "suite": "browser-world-first",
+      "exit": 0,
+      "passed": 77,
+      "failed": 0
+    },
+    {
+      "suite": "mode-contract",
+      "exit": 0,
+      "passed": 25,
+      "failed": 0
+    },
+    {
+      "suite": "save-safety",
+      "exit": 0,
+      "passed": 37,
+      "failed": 0
+    },
+    {
+      "suite": "training-contract",
+      "exit": 0,
+      "passed": 22,
+      "failed": 0
+    }
+  ],
+  "checks_passed": 793,
+  "production_build": {
+    "files": 164,
+    "fingerprint": "65470a84ac77f7333184a13f1be4acc757e7d417443f22994904399b2cb9b5cd"
+  },
+  "focused_production_review_page_errors": [],
+  "mobile_viewports": [
+    [
+      320,
+      568
+    ],
+    [
+      375,
+      812
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      430,
+      932
+    ]
+  ],
+  "earlier_passes": "See README.md; retained without unnecessary reruns."
+}
