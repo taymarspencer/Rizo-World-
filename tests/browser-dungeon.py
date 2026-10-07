@@ -513,9 +513,9 @@ with sync_playwright() as p:
     check("…fading over 3 s: he is the only light inside now", op(page)["dome"] < 0.02)
     jump(page, 12500); page.wait_for_timeout(80)
     check("3.3: a shopping cart rattles past at about 50 s", any(n["id"] == "cart" for n in page.evaluate(ST)["npcs"]) and op(page)["cartDone"])
-    check("3.4: seenYou never shortens the wait below 60 s", sid(page) == "opening:waiting" and hoods(page) == 0 and page.evaluate(ST)["sceneTime"] - t0 < 60000)
-    jump(page, max(0, 60500 - (page.evaluate(ST)["sceneTime"] - t0))); page.wait_for_timeout(120)
-    check("…and at 60 s with YOU seen, the headlights begin", op(page)["phase"] == "headlights", str(op(page).get("phase")))
+    check("3.4: seenYou never shortens the wait below 55 s", sid(page) == "opening:waiting" and hoods(page) == 0 and page.evaluate(ST)["sceneTime"] - t0 < 55000)
+    jump(page, max(0, 55500 - (page.evaluate(ST)["sceneTime"] - t0))); page.wait_for_timeout(120)
+    check("…and at 55 s with YOU seen, the headlights begin", op(page)["phase"] == "headlights", str(op(page).get("phase")))
 
     # ---- Scene 4 · Headlights (nothing he does changes it)
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(204,222)")
@@ -561,8 +561,9 @@ with sync_playwright() as p:
         if op(page).get("grabbed") and page.evaluate(ST)["ui"] == "scene": break
     st = page.evaluate(ST)
     check("he cannot get away: the hands have him within 6 s", st["opening"].get("grabbed") is True and st["ui"] == "scene", str(st["opening"].get("hands")))
-    page.wait_for_timeout(300)
-    check("5.3: through the windshield, YOU at the counter, back turned", op(page).get("youCounter") is True)
+    check("the grab becomes a carry beat instead of an instant cut", st["opening"].get("carryAt") is not None and not st["opening"].get("youCounter"), str(st["opening"]))
+    page.wait_for_timeout(950)
+    check("5.3: after the visible carry, YOU is at the counter, back turned", op(page).get("youCounter") is True)
     jump(page, 2500); page.wait_for_timeout(100)
     check("5.4: “Bag. Bag.” and the pillowcase", "Bag. Bag." in [b["text"] for b in page.evaluate(ST)["barks"]] and op(page).get("bagAt") is not None)
     st = to_room(page, "sack", step=300)
@@ -580,7 +581,7 @@ with sync_playwright() as p:
     st = to_room(page, "van", step=200, limit=60)
     check("6.3: he tumbles onto the van floor", st["sim"]["roomId"] == "van" and st["scene"]["id"] == "opening:van")
 
-    # ---- Scene 7 · The van (Track A, unchanged)
+    # ---- Scene 7 · The van (Boss pressure sharpened; accepted lines preserved)
     page.wait_for_timeout(2200)
     st = page.evaluate(ST)
     check("7.1: the front seats argue in bubbles; nothing to press through", st["dialogue"] is None and st["ui"] == "play" and any(b["text"] in ("I thought you said he didn't do that fire shit.", "I said probably.") for b in st["barks"]), str((st["ui"], st["barks"])))
@@ -612,8 +613,8 @@ with sync_playwright() as p:
             page.wait_for_timeout(900)
             check("Tuck curls him out of the way; a miss would only bump, never burn", page.evaluate(ST)["sim"]["player"]["flame"] == 5)
         if st["sim"]["flags"].get("vanDoorLoose"): break
-    expected = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return [...L.vanArgue,...L.vanTouch,...L.vanFilm,...L.bump,...L.vanCooler,...L.vanNumber,...L.vanAsk,...L.vanPhone,...L.vanLost,...L.vanListening].map(l=>l.text)})()")
-    check("the van plays its three movements in order, overheard, nothing added or skipped", order == expected, str(order))
+    expected = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return [...L.vanArgue,...L.vanTouch,...L.vanFilm,...L.bump,...L.vanCooler,...L.vanNumber,...L.vanCheckin,...L.vanAsk,...L.vanPhone,...L.vanLost,...L.vanListening].map(l=>l.text)})()")
+    check("the van plays its three movements in order, including the missed check-in, with nothing skipped", order == expected, str(order))
     check("every accepted RC2 van line survives word for word", all(x in order for x in ["I thought you said he didn't do that fire shit.", "I said probably.", "My bad. Pothole."]))
     check("nobody is named and nothing is explained in the van", not any(w in " ".join(order).lower() for w in ["because", "boss is", "company", "symbol"]), " | ".join(order))
 
