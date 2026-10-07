@@ -679,14 +679,13 @@ with sync_playwright() as p:
     check("Small leaves his actual search phone behind in the panic", dropped.get("state") == "dropped" and dropped.get("source") == "hood-small" and st["opening"].get("phoneDroppedAt") is not None, str(dropped))
 
     # ---- Scene 10 · The ringing (touched)
-    page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(150,1300)")
     jump(page, 8200); page.wait_for_timeout(200)
     st = page.evaluate(ST)
     ph = st["opening"].get("phone") or {}
     check("10.1: the same dropped phone lights up where Small lost it", ph.get("state") == "ringing" and ph.get("source") == "hood-small" and (ph.get("x"), ph.get("y")) == drop_xy, str((drop_xy, ph)))
-    inset = page.evaluate("(()=>{const e=document.querySelector('.dungeon-phone');return {hidden:e.hidden,text:e.innerText.trim(),symbol:Boolean(e.querySelector('[data-caller-symbol=\"CALLER_SYMBOL\"]'))}})()")
-    check("its screen shows only CALLER_SYMBOL (a placeholder), no words", not inset["hidden"] and inset["symbol"] and inset["text"] == "", str(inset))
     page.evaluate(f"RizoRuntimeQA.dungeonTeleportForQA({ph['x'] + 12},{ph['y']})"); page.wait_for_timeout(150)
+    inset = page.evaluate("(()=>{const e=document.querySelector('.dungeon-phone');return {hidden:e.hidden,text:e.innerText.trim(),symbol:Boolean(e.querySelector('[data-caller-symbol=\"CALLER_SYMBOL\"]'))}})()")
+    check("up close, its screen shows only CALLER_SYMBOL (a placeholder), no words", not inset["hidden"] and inset["symbol"] and inset["text"] == "", str(inset))
     prompt = page.evaluate("[document.querySelector('.dungeon-prompt').hidden, document.querySelector('.dungeon-prompt').textContent]")
     a0 = page.evaluate(ST)["sim"]["player"]["attacks"]
     page.keyboard.press("z"); page.wait_for_timeout(300)
