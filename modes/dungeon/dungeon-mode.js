@@ -41,7 +41,7 @@
     // 2 Be good: YOU's lines to Rizo close themselves after 5 s.
     YOU_AUTO_MS: 5000, BE_GOOD_HOLD_MS: 1500,
     // 3 Waiting: looking never shortens it.
-    DOME_TIMEOUT_MS: 35000, DOME_FADE_MS: 3000, WAIT_MIN_MS: 55000, WAIT_MAX_MS: 90000, SEEN_YOU_MS: 1500, CART_AT_MS: 50000,
+    DOME_TIMEOUT_MS: 35000, DOME_FADE_MS: 3000, WAIT_MIN_MS: 55000, WAIT_MAX_MS: 90000, SEEN_YOU_MS: 1500, CART_AT_MS: 48000,
     // 5–6 Taken, the sack
     GRAB_MAX_MS: 6000, SACK_STILL_MS: 4000, SACK_MAX_MS: 12000, SACK_BURSTS: 3,
     // 8 The gap: a held push, or the jolt
