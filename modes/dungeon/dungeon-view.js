@@ -584,7 +584,8 @@
       if (geo.theme === "car" && lastRoom.carryAt != null) {
         const k = Math.max(0, Math.min(1, (extrasTime - lastRoom.carryAt) / 850));
         const eased = 1 - Math.pow(1 - k, 3);
-        pos = { x: pos.x + (228 - pos.x) * eased, y: pos.y + (248 - pos.y) * eased };
+        const from = lastRoom.carryFrom || pos;
+        pos = { x: from.x + (228 - from.x) * eased, y: from.y + (248 - from.y) * eased };
       }
       speaking = new Set((extras.barks || []).map(item => item.id));
       lastBarks = extras.barks || []; lastNpcs = extras.npcs || [];
