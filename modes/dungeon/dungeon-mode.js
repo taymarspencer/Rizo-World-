@@ -894,8 +894,25 @@
         S.call(() => { room.youCounter = true; room.peek = { x: 290, y: 60, until: sceneTime + 2500 }; }),
         S.wait(2500),
         S.call(() => { bark("hood-tall", L.bag[0], 1500); room.bagAt = sceneTime; sound("cloth"); }),
-        S.wait(900),
-        S.fade(1, 500),
+        S.wait(700),
+        // The bag does not teleport him into the next scene. Stay with the
+        // abduction for a few blind seconds: cloth, weight, the door, then the
+        // rain going dull outside. Story carried by sound while the screen is black.
+        S.fade(1, 280),
+        S.call(() => {
+          room.phase = "carried";
+          room.rainLoud = false;
+          setMusic(SILENT_TRACK);
+          sound("cloth");
+          sound("heart");
+        }),
+        S.wait(420),
+        S.call(() => { room.shake = sceneTime; sound("thud"); }),
+        S.wait(520),
+        S.call(() => sound("door")),
+        S.wait(620),
+        S.call(() => sound("heart")),
+        S.wait(680),
         S.call(() => commitBeat("opening:taken")),
         S.call(() => goToRoom("sack", "start", { context: "taken" }))
       ];
@@ -1792,8 +1809,19 @@
         enter() {
           room.inSack = true; room.bursts = 0; room.burstAt = -1e9; room.pushing = false;
           runScene("opening:sack", [
-            S.call(() => { sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: 500 }; sound("slide"); }),
-            S.wait(BEAT.SACK_STILL_MS),
+            // Arrive in total black. Let the player hear where Rizo is before
+            // the cloth and his own flame slowly become visible.
+            S.call(() => {
+              sceneFade = { value: 1, from: 1, to: 1, start: sceneTime, ms: 1 };
+              sound("slide");
+              sound("heart");
+            }),
+            S.wait(650),
+            S.call(() => {
+              sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: 900 };
+              sound("cloth");
+            }),
+            S.wait(Math.max(0, BEAT.SACK_STILL_MS - 650)),
             S.control(true),
             S.call(() => { room.limitedAt = sceneTime; view.pulseKey("dpad"); }),
             S.until(() => room.bursts >= BEAT.SACK_BURSTS || sceneTime - room.limitedAt >= BEAT.SACK_MAX_MS),
