@@ -29,7 +29,7 @@ Every number is a target to be checked with a stopwatch before any code is writt
 |---|---|---:|---:|---:|---:|---|
 | 1 | Parked | 24 | 39 | 79 | 4 | Warm, ordinary |
 | 2 | Be good | 15 | 18 | 22 | 9 | Trusting |
-| 3 | Waiting | 60 | 75 | 120 | 0 | Calm, then small |
+| 3 | Waiting | 55 | 70 | 90 | 0 | Calm, then small |
 | 4 | Headlights | 24 | 28 | 40 | 0 | Something is wrong |
 | 5 | Taken | 8 | 10 | 12 | 4 | Helpless |
 | 6 | The sack | 9 | 12 | 17 | 5 | Blind, trapped |
@@ -73,7 +73,7 @@ Sound-off reading: Rizo bounces between YOU and the windows; YOU's hand moves to
 | 3.1 | 2.5 ends | runs to 3.4 | Full | YOU visible through the store window, drifting between aisles on a loop: visible about 70% of the time, behind a shelf the rest. If Rizo is at the glass when YOU disappears: press-to-glass pose; when YOU reappears: relax. LOOK at the store window: "Inside, between the chips and the cold drinks: YOU." |
 | 3.2 | 35 s after THUNK | 3 | Full | **Dome light times out**, fading over 3 s. Rizo's light becomes the only light inside. If he is away from the window: pull-in pose 1.5 s. No line, no cue. |
 | 3.3 | throughout | — | Full | Windshield fogs where he breathes near glass; rain trails; ice-machine hum; one shopping cart rattles past at about 50 s. |
-| 3.4 | see rule | 60 / 75 / 120 total | Full | **Exit rule:** (≥60 s since THUNK **and** `seenYou`) **or** ≥120 s. `seenYou` = Rizo in the window zone while YOU is visible for ≥1.5 s, or a LOOK at the store window. **Looking never shortens this scene.** |
+| 3.4 | see rule | 55 / 70 / 90 total | Full | **Exit rule:** (≥55 s since THUNK **and** `seenYou`) **or** ≥90 s. `seenYou` = Rizo in the window zone while YOU is visible for ≥1.5 s, or a LOOK at the store window. The 50 s shopping-cart beat always gets room to land before the threat arrives. **Looking never shortens this scene.** |
 
 Track A interim, on RC2's curb until the car exists: the van comes at ≥45 s **and** after at least one LOOK, or at 90 s. Never sooner because of looking.
 
@@ -103,7 +103,7 @@ Throughout: Rizo may hide in the footwell (darkest place in the car) or press to
 
 | ID | Starts when | Seconds | Control | Beat |
 |---|---|---|---|---|
-| 6.1 | 5.4 ends | 4 | None | Black except Rizo's own glow through fabric, trembling. Muffled: sliding door, engine. |
+| 6.1 | 5.4 ends | 4 | None | The abduction stays black long enough to hear the transfer complete: body into the van, sliding door, latch, engine. Then Rizo's own glow begins to show through fabric, trembling. |
 | 6.2 | 6.1 ends | 4 / 7 / 12 | Limited: Flare, move | Each Flare or move burst shakes the cloth. Three bursts free him; auto-free at 12 s. |
 | 6.3 | freed | 1 | None | He tumbles onto the van floor. Room switches to the existing van `[BUILT]`. |
 
