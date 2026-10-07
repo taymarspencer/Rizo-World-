@@ -1951,7 +1951,9 @@
       },
       // ---- Scene 7: inside the van (Track A), then 8: the gap
       van: {
-        music: () => VAN_TRACK,
+        // From the sack, silence follows Rizo through the cut. The moving-van
+        // bed enters only after his body has visibly landed on the floor.
+        music: context => context === "sack" ? SILENT_TRACK : VAN_TRACK,
         // He looks at whoever is talking, when he's still: the talk happens TO him.
         tick() { vanGaze(); },
         enter(context) {
@@ -1968,9 +1970,18 @@
           room.cargoCount = 0;
           runScene("opening:van", [
             S.fade(0, 400),
-            // Out of the sack: he tumbles onto the floor.
+            // Out of the sack: he tumbles onto the floor. Let the silence from
+            // inside the bag survive the cut before the moving road arrives.
             S.pose(context === "sack" ? "land" : "recoil", context === "sack" ? 600 : 1200),
-            S.wait(700),
+            S.wait(320),
+            S.call(() => {
+              if (context === "sack") {
+                sound("road");
+                room.roadAt = sceneTime;
+                setMusic(VAN_TRACK);
+              }
+            }),
+            S.wait(380),
             S.control(true),
             // A breath before anyone talks: he shakes the sack off and looks around.
             S.call(() => setPose("shake", 900)),
@@ -2032,7 +2043,15 @@
             }),
             S.until(() => gapHold()),
             S.control(false),
-            S.call(() => { room.shake = sceneTime; room.doorOpen = true; room.openAt = sceneTime; sound("crack"); }),
+            S.call(() => {
+              room.shake = sceneTime; room.doorOpen = true; room.openAt = sceneTime;
+              sound("crack");
+              // The cabin does not hard-cut into a new soundtrack. The road
+              // drops away first; rushing outside air carries us into rain.
+              room.hush = "rain";
+              setMusic(SILENT_TRACK);
+              sound("wind");
+            }),
             S.pose("fall", 1000),
             S.wait(1000),
             S.fade(1, 300),
@@ -2060,7 +2079,7 @@
           npc("taillights", "taillights", 250, 1180, {});
           runScene("opening:separation", [
             S.fade(1, 1),
-            S.call(() => { room.blackRain = true; }),
+            S.call(() => { room.blackRain = true; sound("rain"); }),
             S.wait(1300),
             S.call(() => walk("taillights", 250, 760, 3400)),
             S.pose("lying", 99999),
