@@ -17,7 +17,7 @@ forward.
 
 v0.3 (full opening) covers all fourteen scenes in order: the parked car and
 YOU's once-only answers, "Be good." with the pet's own name, the waiting
-rule (60 s and seeing YOU, or 120 s; looking never shortens it), the dome
+rule (55 s and seeing YOU, or 90 s; looking never shortens it), the dome
 light, headlights, the abduction nobody can prevent, the sack, the van's
 non-blocking talk, the held push at the gap, the roadside search (beam,
 shadow, Flare; seen never means caught), the ringing phone touched and
@@ -463,6 +463,8 @@ with sync_playwright() as p:
     wait_for_dialogue(page)
     st = page.evaluate(ST)
     check("2.2: the accepted line, with the pet's own name (MOSSY → “Mossy”)", st["dialogue"] and st["dialogue"]["text"] == "Alright Mossy, I'm gonna go in the store real quick." and st["dialogue"]["lines"] == 1, str(st["dialogue"]))
+    page.wait_for_timeout(5600)
+    check("2.2: the departure line is player-paced past the old 5 s auto-close window", (page.evaluate(ST)["dialogue"] or {}).get("text") == "Alright Mossy, I'm gonna go in the store real quick.")
     press_until_closed(page); page.wait_for_timeout(300)
     wait_for_dialogue(page)
     st = page.evaluate(ST)
@@ -471,7 +473,7 @@ with sync_playwright() as p:
     press_until_closed(page); page.wait_for_timeout(200)
     wait_for_dialogue(page)
     st = page.evaluate(ST)
-    check("2.4: the door opens and “Be good.” lands alone, YOU still in the car", st["dialogue"] and st["dialogue"]["text"] == "Be good." and st["dialogue"]["lines"] == 1 and any(n["id"] == "you-seat" and n["visible"] for n in st["npcs"]), str(st["dialogue"]))
+    check("2.4: YOU steps into the rain first, looks back, and “Be good.” lands alone", st["dialogue"] and st["dialogue"]["text"] == "Be good." and st["dialogue"]["lines"] == 1 and st["opening"].get("youOutside") and any(n["id"] == "keeper" and n["visible"] and n["state"] == "look-back" for n in st["npcs"]) and not any(n["id"] == "you-seat" and n["visible"] for n in st["npcs"]), str((st["dialogue"], st["npcs"])))
     press_until_closed(page); page.wait_for_timeout(700)
     st = page.evaluate(ST)
     check("then a held silence: no line, no control, YOU not gone yet", st["dialogue"] is None and st["ui"] == "scene" and not st["transient"].get("youGone"), str((st["ui"], st["transient"])))
@@ -512,10 +514,10 @@ with sync_playwright() as p:
     jump(page, 3200); page.wait_for_timeout(80)
     check("…fading over 3 s: he is the only light inside now", op(page)["dome"] < 0.02)
     jump(page, 12500); page.wait_for_timeout(80)
-    check("3.3: a shopping cart rattles past at about 50 s", any(n["id"] == "cart" for n in page.evaluate(ST)["npcs"]) and op(page)["cartDone"])
-    check("3.4: seenYou never shortens the wait below 60 s", sid(page) == "opening:waiting" and hoods(page) == 0 and page.evaluate(ST)["sceneTime"] - t0 < 60000)
-    jump(page, max(0, 60500 - (page.evaluate(ST)["sceneTime"] - t0))); page.wait_for_timeout(120)
-    check("…and at 60 s with YOU seen, the headlights begin", op(page)["phase"] == "headlights", str(op(page).get("phase")))
+    check("3.3: a shopping cart rattles past before the threat turn", any(n["id"] == "cart" for n in page.evaluate(ST)["npcs"]) and op(page)["cartDone"])
+    check("3.4: seenYou never shortens the wait below 55 s", sid(page) == "opening:waiting" and hoods(page) == 0 and page.evaluate(ST)["sceneTime"] - t0 < 55000)
+    jump(page, max(0, 55500 - (page.evaluate(ST)["sceneTime"] - t0))); page.wait_for_timeout(120)
+    check("…and at 55 s with YOU seen, the headlights begin", op(page)["phase"] == "headlights", str(op(page).get("phase")))
 
     # ---- Scene 4 · Headlights (nothing he does changes it)
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(204,222)")
@@ -526,7 +528,7 @@ with sync_playwright() as p:
     st = page.evaluate(ST)
     check("4.2: headlights sweep the cabin and one held low tone begins", st["opening"].get("sweepAt") is not None and st["music"] == "dungeon-dread" and any(n["id"] == "van" for n in st["npcs"]), str(st["music"]))
     jump(page, 3100); page.wait_for_timeout(80)
-    check("4.3: the van parks behind; lights off; nothing happens (no one yet)", op(page).get("vanParked") is not None and hoods(page) == 0 and page.evaluate(ST)["ui"] == "play")
+    check("4.3: the van parks behind; the dread tone cuts out; nothing happens (no one yet)", op(page).get("vanParked") is not None and hoods(page) == 0 and page.evaluate(ST)["ui"] == "play" and page.evaluate(ST)["music"] == "dungeon-silence")
     page.wait_for_timeout(300)
     # He hides in the footwell for all of it. Nothing is recorded.
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(206,222)"); page.wait_for_timeout(250)
@@ -541,6 +543,7 @@ with sync_playwright() as p:
             if b["text"] not in order: order.append(b["text"])
         if st["opening"].get("passengerDoor"): break
     check("4.4–4.6 play as overheard barks, in order, word for word", order[:5] == ["Two minutes.", "That him?", "Obviously.", "Bro. It's glowing.", "Don't tap the glass."], str(order))
+    check("their behavior makes the job look planned: store checked, then two bodies stage at the passenger door", op(page).get("storeCheckAt") is not None and op(page).get("doorTeamAt") is not None, str((op(page).get("storeCheckAt"), op(page).get("doorTeamAt"))))
     check("the barks never take control from him", st["ui"] == "play")
     check("hiding records nothing", page.evaluate(STORED)["slice"]["story"] == facts_before)
     check("the window LOOK is gone once they come (no line can cover the abduction)", page.evaluate("document.querySelector('.dungeon-prompt').hidden"))
@@ -561,12 +564,13 @@ with sync_playwright() as p:
         if op(page).get("grabbed") and page.evaluate(ST)["ui"] == "scene": break
     st = page.evaluate(ST)
     check("he cannot get away: the hands have him within 6 s", st["opening"].get("grabbed") is True and st["ui"] == "scene", str(st["opening"].get("hands")))
-    page.wait_for_timeout(300)
-    check("5.3: through the windshield, YOU at the counter, back turned", op(page).get("youCounter") is True)
+    check("the grab becomes a carry beat instead of an instant cut", st["opening"].get("carryAt") is not None and not st["opening"].get("youCounter"), str(st["opening"]))
+    page.wait_for_timeout(950)
+    check("5.3: after the visible carry, YOU is at the counter, back turned", op(page).get("youCounter") is True)
     jump(page, 2500); page.wait_for_timeout(100)
     check("5.4: “Bag. Bag.” and the pillowcase", "Bag. Bag." in [b["text"] for b in page.evaluate(ST)["barks"]] and op(page).get("bagAt") is not None)
     st = to_room(page, "sack", step=300)
-    check("taken is committed once, and he is in the dark", st["sim"]["roomId"] == "sack" and beats(page).count("opening:taken") == 1 and "in-sack" in pose_class(page))
+    check("taken is committed once, and he is in the dark with the score gone", st["sim"]["roomId"] == "sack" and beats(page).count("opening:taken") == 1 and "in-sack" in pose_class(page) and st["music"] == "dungeon-silence")
 
     # ---- Scene 6 · The sack
     page.wait_for_timeout(300)
@@ -580,7 +584,7 @@ with sync_playwright() as p:
     st = to_room(page, "van", step=200, limit=60)
     check("6.3: he tumbles onto the van floor", st["sim"]["roomId"] == "van" and st["scene"]["id"] == "opening:van")
 
-    # ---- Scene 7 · The van (Track A, unchanged)
+    # ---- Scene 7 · The van (Boss pressure sharpened; accepted lines preserved)
     page.wait_for_timeout(2200)
     st = page.evaluate(ST)
     check("7.1: the front seats argue in bubbles; nothing to press through", st["dialogue"] is None and st["ui"] == "play" and any(b["text"] in ("I thought you said he didn't do that fire shit.", "I said probably.") for b in st["barks"]), str((st["ui"], st["barks"])))
@@ -612,8 +616,8 @@ with sync_playwright() as p:
             page.wait_for_timeout(900)
             check("Tuck curls him out of the way; a miss would only bump, never burn", page.evaluate(ST)["sim"]["player"]["flame"] == 5)
         if st["sim"]["flags"].get("vanDoorLoose"): break
-    expected = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return [...L.vanArgue,...L.vanTouch,...L.vanFilm,...L.bump,...L.vanCooler,...L.vanNumber,...L.vanAsk,...L.vanPhone,...L.vanLost,...L.vanListening].map(l=>l.text)})()")
-    check("the van plays its three movements in order, overheard, nothing added or skipped", order == expected, str(order))
+    expected = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return [...L.vanArgue,...L.vanTouch,...L.vanFilm,...L.bump,...L.vanCooler,...L.vanNumber,...L.vanCheckin,...L.vanAsk,...L.vanPhone,...L.vanLost,...L.vanListening].map(l=>l.text)})()")
+    check("the van plays its three movements in order, including the missed check-in, with nothing skipped", order == expected, str(order))
     check("every accepted RC2 van line survives word for word", all(x in order for x in ["I thought you said he didn't do that fire shit.", "I said probably.", "My bad. Pothole."]))
     check("nobody is named and nothing is explained in the van", not any(w in " ".join(order).lower() for w in ["because", "boss is", "company", "symbol"]), " | ".join(order))
 
@@ -850,14 +854,14 @@ console.log(JSON.stringify(Save.createEnvelope({state:v.state,modes:{dungeon:{sc
     wait_for_dialogue(page)
     check("a save without a pet name hears the fallback: “Alright Rizo, …”", (page.evaluate(ST)["dialogue"] or {}).get("text") == "Alright Rizo, I'm gonna go in the store real quick.", str(page.evaluate(ST)["dialogue"]))
     t_line = page.evaluate(ST)["sceneTime"]
-    for _ in range(320):
+    for _ in range(440):
         if page.evaluate(ST)["ui"] == "play": break
         page.wait_for_timeout(100)
-    check("with no presses at all, YOU's lines close themselves and the scene goes on", page.evaluate(ST)["ui"] == "play" and sid(page) == "opening:waiting", str(page.evaluate(ST)["sceneTime"] - t_line))
-    jump(page, 119000); page.wait_for_timeout(150)
-    check("never looking out: still waiting at 119 s", op(page)["phase"] == "waiting" and not op(page)["seenYou"])
+    check("with no presses at all, the cinematic dialogue safety fallback prevents a soft-lock", page.evaluate(ST)["ui"] == "play" and sid(page) == "opening:waiting", str(page.evaluate(ST)["sceneTime"] - t_line))
+    jump(page, 89000); page.wait_for_timeout(150)
+    check("never looking out: still waiting at 89 s", op(page)["phase"] == "waiting" and not op(page)["seenYou"])
     jump(page, 1500); page.wait_for_timeout(150)
-    check("…and the headlights at 120 s regardless", op(page)["phase"] == "headlights")
+    check("…and the headlights at 90 s regardless", op(page)["phase"] == "headlights")
     st = to_room(page, "sack", step=500)
     check("without any input the abduction still happens (the hands come to him)", st["sim"]["roomId"] == "sack")
     page.wait_for_timeout(300)
@@ -1024,8 +1028,8 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
         check(f"{w}×{h}: no page scroll, the screen sits above the controls", not layout["overflowX"] and not layout["overflowY"] and layout["screenBottom"] <= min(layout["padTop"], layout["keysTop"]) + 1 and layout["screenLeft"] >= 0 and layout["screenRight"] <= w, str(layout))
         check(f"{w}×{h}: the store window and the whole cabin fit on screen together", cam >= 330, str(cam))
         page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(190,250)"); hold(page, "a", 250)
-        box = page.evaluate("(()=>{const d=document.querySelector('.dungeon-dialogue').getBoundingClientRect(),s=document.querySelector('.dungeon-screen').getBoundingClientRect();return [d.left>=s.left-1,d.right<=s.right+1,d.bottom<=s.bottom+1,d.top>=s.top]})()")
-        check(f"{w}×{h}: YOU's line fits inside the screen, never under the controls", all(box), str(box))
+        box = page.evaluate("(()=>{const d=document.querySelector('.dungeon-dialogue').getBoundingClientRect(),s=document.querySelector('.dungeon-screen').getBoundingClientRect(),a=document.querySelector('.dungeon-actor').getBoundingClientRect();const cx=a.left+a.width/2,cy=a.top+a.height/2;return [d.left>=s.left-1,d.right<=s.right+1,d.bottom<=s.bottom+1,d.top>=s.top,!(cx>=d.left&&cx<=d.right&&cy>=d.top&&cy<=d.bottom)]})()")
+        check(f"{w}×{h}: YOU's line fits inside the screen, never under controls or over Rizo", all(box), str(box))
         check(f"{w}×{h}: no page errors", not errors, "; ".join(errors[:2]))
         ctx.close()
 

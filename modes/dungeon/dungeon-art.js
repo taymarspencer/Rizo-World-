@@ -450,9 +450,10 @@
 
   // YOU: the person who said "Be good." Never a face: a long coat and the blue umbrella.
   function keeper(ctx, x, y, o = {}) {
-    const bob = o.bob || 0, t = o.t || 0;
+    const bob = o.bob || 0, t = o.t || 0, state = o.state || "idle";
     drop(ctx, x, y, 14, 3.6);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
+    if (state === "look-back") ctx.rotate(-0.055);
     legs(ctx, 0, 0, -34, 3.2, 5, P.a.denim, bob, P.ink);
     // Coat: long, camel, one pocket flap; the back half falls into the dark band.
     shape(ctx, [-11, -76, 10, -76, 14, -30, -14, -29], P.wood[2], { ink: CH, seed: 11, amp: CA });
@@ -464,10 +465,18 @@
     shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
     oval(ctx, 1, -83, 5.5, 4.5, P.skin[1], true, 1.1);
     ctx.globalAlpha = 0.55; oval(ctx, 1, -85, 6, 3, P.ink); ctx.globalAlpha = 1;
-    // Arm up to the shaft.
+    // Arm up to the shaft. The free arm carries the tiny acting beats: a
+    // glance back toward the car, then a hand toward the store door.
     shape(ctx, [5, -74, 10, -72, 9, -60, 4, -61], P.wood[2], { ink: 1.2, seed: 14, amp: 0.3 });
     oval(ctx, 7, -60, 2.2, 2, P.skin[1], true, 0.9);
     line(ctx, 7, -60, 4, -96, P.ink, 1.3, 15, 0.1);
+    if (state === "look-back") {
+      shape(ctx, [-7, -72, -11, -69, -19, -61, -16, -58], P.wood[2], { ink: 1.1, seed: 141, amp: 0.25 });
+      oval(ctx, -19, -60, 2.2, 2, P.skin[1], true, 0.8);
+    } else if (state === "door") {
+      shape(ctx, [-6, -73, -10, -70, -15, -79, -11, -81], P.wood[2], { ink: 1.1, seed: 142, amp: 0.25 });
+      oval(ctx, -14, -80, 2.2, 2, P.skin[1], true, 0.8);
+    }
     // The umbrella: eight panels, a lit top band, a bent rib (it has been through weather before).
     const canopy = [-24, -90, -18, -97, -9, -102, 4, -104, 16, -101, 26, -95, 30, -89];
     const rim = [30, -89, 25, -91, 20, -88, 14, -91, 8, -88, 2, -91, -4, -88, -10, -91, -16, -88, -21, -91, -24, -90];
@@ -586,8 +595,8 @@
   }
   // YOU in the driver's seat, seen from above with the roof cut away: the
   // back of a head, the camel coat's shoulders, hands at the wheel. Never a face.
-  // States: reach (a hand toward him), keys, turn / look (head toward him or
-  // the rain), look-back (over the shoulder), reach-up (the dome light).
+  // States: reach (a hand toward him), keys / pocket, turn / look (head toward
+  // him or the rain), look-back (over the shoulder), reach-up (the dome light).
   function youSeated(ctx, x, y, o = {}) {
     const state = o.state || "idle", t = o.t || 0;
     const breathe = Math.sin(t / 900) * 0.35;
@@ -600,7 +609,7 @@
     const cos = Math.cos(twist), sin = Math.sin(twist);
     const at = (dx, dy) => [x + dx * cos - dy * sin, y + 2 + dx * sin + dy * cos];
     // Arms forward to the wheel, or reaching: drawn first, under the shoulders.
-    const handR = state === "reach" ? [x + 27, y - 2] : state === "keys" ? [x + 15, y - 16] : state === "reach-up" ? [x + 19, y + 13] : state === "turn" ? [x + 23, y - 19] : state === "look" ? [x + 6, y - 37] : [x + 8, y - 27];
+    const handR = state === "reach" ? [x + 27, y - 2] : state === "keys" ? [x + 15, y - 16] : state === "pocket" ? [x + 12, y + 5] : state === "reach-up" ? [x + 19, y + 13] : state === "turn" ? [x + 23, y - 19] : state === "look" ? [x + 6, y - 37] : [x + 8, y - 27];
     const handL = state === "look-back" ? [x - 13, y - 6] : [x - 8, y - 27];
     const [lsx, lsy] = at(-11, -3), [rsx, rsy] = at(11, -3);
     for (const [hx, hy, sx, sy] of [[handL[0], handL[1], lsx, lsy], [handR[0], handR[1], rsx, rsy]]) {
@@ -608,6 +617,7 @@
       oval(ctx, hx, hy, 2.6, 2.4, P.skin[1], true, 1);
     }
     if (state === "keys") { rect(ctx, P.metal[3], handR[0] + 1, handR[1] - 4, 2, 4); rect(ctx, P.a.brass, handR[0] - 2, handR[1] - 5, 2.4, 2.4); }
+    if (state === "pocket") { rect(ctx, P.metal[3], x + 13, y + 1, 1.4, 3); oval(ctx, x + 12.4, y + 0.5, 1.5, 1.5, P.a.brass, true, 0.6); }
     // An open palm (the rain) or one raised finger (the dash): fingers out of the hand.
     if (state === "look") for (let f = -2; f <= 2; f += 2) line(ctx, handR[0] + f, handR[1] - 1, handR[0] + f * 1.4, handR[1] - 5, P.skin[1], 1.3, f, 0);
     if (state === "turn") { line(ctx, handR[0], handR[1] - 1, handR[0] + 1, handR[1] - 7, P.ink, 2.6, 3, 0); line(ctx, handR[0], handR[1] - 1, handR[0] + 1, handR[1] - 7, P.skin[1], 1.3, 3, 0); }
@@ -735,10 +745,18 @@
       rect(ctx, P.fluoro[2], ax - 2.8, ay - 7.4, 1, 8);
       oval(ctx, ax, ay - 0.5, 2.3, 2.1, P.skin[1], true, 0.9);
     } else if (k.phone === "call") {
-      limb(ctx, [-11, -37, -9, -28, -3, -29], P.a.maroon, 4.4, P.skin[1]);
-      limb(ctx, [11, -37, 9, -28, 4, -29], P.a.maroon, 4.4, P.skin[1]);
-      box(ctx, -3.5, -38, 8, 11, P.ink, { ink: 1, amp: 0.1 });
-      rect(ctx, P.fluoro[2], -3, -38.6, 7, 1);
+      if (k.state === "phone-stopped") {
+        // He starts to answer; Tall's hand forces the phone back toward his lap.
+        limb(ctx, [-11, -37, -10, -29, -5, -25], P.a.maroon, 4.4, P.skin[1]);
+        limb(ctx, [11, -37, 8, -29, 1, -25], P.a.maroon, 4.4, P.skin[1]);
+        box(ctx, -5, -30, 8, 11, P.ink, { ink: 1, amp: 0.1 });
+        rect(ctx, P.fluoro[2], -4.5, -30.6, 7, 1);
+      } else {
+        limb(ctx, [-11, -37, -9, -28, -3, -29], P.a.maroon, 4.4, P.skin[1]);
+        limb(ctx, [11, -37, 9, -28, 4, -29], P.a.maroon, 4.4, P.skin[1]);
+        box(ctx, -3.5, -38, 8, 11, P.ink, { ink: 1, amp: 0.1 });
+        rect(ctx, P.fluoro[2], -3, -38.6, 7, 1);
+      }
     } else {
       limb(ctx, [11, -37, 12, -28, 7, -22], P.a.maroon, 4.4, P.skin[1]);
       box(ctx, 3, -25, 7, 4, P.ink, { ink: 0.8, amp: 0.1 });
@@ -816,8 +834,11 @@
     shape(ctx, [1, -52, 6, -53, 8, -21, 2, -20], P.cloth[2], { ink: false, seed: 163, amp: CA });
     box(ctx, -5, -34, 11, 7, P.cloth[1], { ink: 1, amp: 0.3, seed: 164 });
     ctx.globalAlpha = 0.5; oval(ctx, 0, -43, 4, 3.4, P.cloth[3]); ctx.globalAlpha = 1;
-    // Near arm over the seatback; lifted off it while he talks.
-    if (k.talking) limb(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[3], 4.6, P.skin[1]);
+    // Near arm over the seatback; lifted off it while he talks. When Small
+    // starts to answer the Boss call, Tall reaches across and pushes the phone
+    // back down instead of merely saying not to pick up.
+    if (k.state === "stop-phone") limb(ctx, [4, -48, 22, -50, 43, -40], P.cloth[3], 4.6, P.skin[1]);
+    else if (k.talking) limb(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[3], 4.6, P.skin[1]);
     else limb(ctx, [4, -48, 12, -53, 18, -49], P.cloth[3], 4.6, P.skin[1]);
     // Head: the peak droops toward where he looks; a slot of mask, lazy eyes.
     const f = k.look.x < -0.3 ? -1 : 1;

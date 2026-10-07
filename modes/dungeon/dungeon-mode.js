@@ -39,9 +39,9 @@
     // 1 Parked
     PARKED_IN_MS: 4000, PARKED_MIN_MS: 20000, PARKED_IDLE_MS: 45000, PARKED_CAP_MS: 75000,
     // 2 Be good: YOU's lines to Rizo close themselves after 5 s.
-    YOU_AUTO_MS: 5000, BE_GOOD_HOLD_MS: 1500,
+    YOU_AUTO_MS: 5000, YOU_CINEMATIC_SAFETY_MS: 9000, BE_GOOD_HOLD_MS: 1500, DEPARTURE_SILENCE_MS: 900,
     // 3 Waiting: looking never shortens it.
-    DOME_TIMEOUT_MS: 35000, DOME_FADE_MS: 3000, WAIT_MIN_MS: 60000, WAIT_MAX_MS: 120000, SEEN_YOU_MS: 1500, CART_AT_MS: 50000,
+    DOME_TIMEOUT_MS: 35000, DOME_FADE_MS: 3000, WAIT_MIN_MS: 55000, WAIT_MAX_MS: 90000, SEEN_YOU_MS: 1500, CART_AT_MS: 48000,
     // 5–6 Taken, the sack
     GRAB_MAX_MS: 6000, SACK_STILL_MS: 4000, SACK_MAX_MS: 12000, SACK_BURSTS: 3,
     // 8 The gap: a held push, or the jolt
@@ -754,6 +754,10 @@
     }
     function dome(to, ms) { room.domeFrom = room.dome || 0; room.domeTo = to; room.domeAt = sceneTime; room.domeMs = Math.max(1, ms); }
     function youState(state, ms) { const you = npcs.get("you-seat"); if (you) { you.state = state; you.stateUntil = sceneTime + ms; } }
+    function keeperState(state, ms = 0) { const keeper = npcs.get("keeper"); if (keeper) { keeper.state = state; keeper.stateUntil = ms ? sceneTime + ms : 0; } }
+    // Cinematic framing is deliberately brief. Reduced-motion players keep the
+    // stable gameplay composition instead of being snapped to a new subject.
+    function cameraBeat(x, y, ms) { if (!reducedMotion()) room.peek = { x, y, until: sceneTime + ms }; }
     function tickRoom() {
       if (!sim) return;
       const dt = Math.max(0, sceneTime - roomTickAt);
@@ -794,31 +798,50 @@
     function beGoodSteps() {
       return [
         S.control(false),
-        S.call(() => { room.phase = "leaving"; room.parkedEnd = sceneTime; youState("keys", 1200); sound("keys"); }),
-        S.wait(1000),
-        S.say(personal(L.goingIn), BEAT.YOU_AUTO_MS),
+        S.call(() => { room.phase = "leaving"; room.parkedEnd = sceneTime; youState("keys", 900); sound("keys"); }),
+        S.wait(700),
+        // Important departure lines are player-paced. The long safety fallback
+        // keeps a completely idle player from ever being soft-locked here.
+        S.say(personal(L.goingIn), BEAT.YOU_CINEMATIC_SAFETY_MS),
+        // The box goes away before the next action. Keys disappear into a
+        // pocket; only rain, the cooling engine and the store hum fill the gap.
+        S.call(() => youState("pocket", BEAT.DEPARTURE_SILENCE_MS)),
+        S.wait(BEAT.DEPARTURE_SILENCE_MS),
         S.call(() => { dome(1, 700); sound("dome"); youState("reach-up", 900); }),
         S.wait(700),
         S.say(L.lightsOn, BEAT.YOU_AUTO_MS),
-        S.call(() => { room.driverDoor = true; room.rainLoud = true; sound("door"); youState("look-back", 6000); }),
-        S.wait(800),
-        S.say(L.beGood, BEAT.YOU_AUTO_MS),
-        S.wait(BEAT.BE_GOOD_HOLD_MS),
+        S.wait(650),
+        // YOU actually gets out before saying the line that matters. The open
+        // door changes the sound first; the camera only leans toward the beat.
         S.call(() => {
-          // THUNK. YOU is outside now; the rain goes muffled again.
+          room.driverDoor = true; room.rainLoud = true; room.youOut = true; room.youOutside = true; sound("door");
           const seat = npcs.get("you-seat");
           if (seat) seat.visible = false;
+          npc("keeper", "keeper", 116, 246, { face: 1, state: "step-out" });
+          cameraBeat(154, 240, 1800);
+        }),
+        S.wait(850),
+        S.call(() => keeperState("look-back", BEAT.YOU_CINEMATIC_SAFETY_MS + 1800)),
+        S.say(L.beGood, BEAT.YOU_CINEMATIC_SAFETY_MS),
+        S.wait(BEAT.BE_GOOD_HOLD_MS),
+        S.call(() => {
+          // THUNK. The line is already gone. Rain goes muffled; Rizo watches
+          // the person who said it become smaller across the wet lot.
           setTransient("youGone", true);
-          room.driverDoor = false; room.rainLoud = false; room.shake = sceneTime; room.thunkAt = sceneTime; room.youOut = true;
+          room.youOutside = false;
+          room.driverDoor = false; room.rainLoud = false; room.shake = sceneTime; room.thunkAt = sceneTime;
           sound("thunk");
-          npc("keeper", "keeper", 108, 238, { face: -1 });
+          keeperState("walk", 5200);
+          cameraBeat(154, 154, 2300);
           sim.player.fx = -1; sim.player.fy = -0.4;
         }),
-        S.pose("press-glass", 5600),
+        S.pose("press-glass", 6100),
         S.move("keeper", 104, 128, 1900),
-        S.call(() => { const keeper = npcs.get("keeper"); if (keeper) keeper.face = 1; sim.player.fx = 0; sim.player.fy = -1; }),
+        // One half-beat of body language in the rain before the store takes YOU.
+        S.call(() => { const keeper = npcs.get("keeper"); if (keeper) { keeper.face = 1; keeperState("look-back", 500); } sim.player.fx = 0; sim.player.fy = -1; }),
+        S.wait(450),
         S.move("keeper", 176, 104, 2000),
-        S.call(() => { room.storeDoorOpen = true; sound("chime"); }),
+        S.call(() => { keeperState("door", 700); room.storeDoorOpen = true; sound("chime"); }),
         S.wait(450),
         S.call(() => { const keeper = npcs.get("keeper"); if (keeper) keeper.visible = false; room.storeDoorOpen = false; }),
         S.wait(550),
@@ -857,7 +880,7 @@
     // ---- 4 Headlights, 5 Taken. Nothing Rizo does changes what happens here.
     function headlightSteps() {
       return [
-        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); }),
+        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); cameraBeat(180, 336, 1800); }),
         S.wait(1500),
         // He knows first: the flame pulls in, he turns to the rear window.
         S.call(() => { setPose("pull-in", 2500); room.sensedAt = sceneTime; sim.player.fx = 0; sim.player.fy = 1; sound("bass"); }),
@@ -871,16 +894,28 @@
         }),
         S.move("van", 238, 452, 3000),
         // It parks behind. Lights off. Nothing happens.
-        S.call(() => { room.vanLights = false; room.vanParked = sceneTime; sound("engine-off"); }),
+        S.call(() => {
+          room.vanLights = false; room.vanParked = sceneTime; sound("engine-off");
+          // The low note belongs to the approach, not the whole kidnapping.
+          // Once the van is in position, taking it away makes the five seconds
+          // before the doors open feel watched instead of scored.
+          setMusic(SILENT_TRACK);
+        }),
         S.wait(5000),
         talk([
           { call: () => sound("door") }, { hold: 420 }, { call: () => { sound("door"); spawnHoods(); } }, { hold: 500 },
-          ...L.twoMinutes, { hold: 900 },
+          ...L.twoMinutes, { hold: 550 },
+          // One person checks the store while the others hold near the car.
+          // Only after that check do they confirm what they came for.
+          { call: () => lookoutReturns() }, { hold: 900 },
           L.thatHim[0], { hold: 1400 }, L.thatHim[1], { hold: 300 },
           // A face at his window.
           { call: () => cupWindow() }, { hold: 400 },
           ...L.glowing,
-          { call: () => { sound("tap"); setPose("recoil", 900); room.shake = sceneTime; room.tapAt = sceneTime; } }, { hold: 900 }
+          { call: () => { sound("tap"); setPose("recoil", 900); room.shake = sceneTime; room.tapAt = sceneTime; } }, { hold: 650 },
+          // The tap is stupid; the entry is not. Two bodies take positions at
+          // the passenger door before anybody forces it.
+          { call: () => stageDoorTeam() }, { hold: 900 }
         ]),
         // The door is forced: cold air, the rain loud.
         S.call(() => { room.phase = "taken"; room.passengerDoor = sceneTime; room.rainLoud = true; sound("crack"); room.shake = sceneTime; }),
@@ -890,25 +925,63 @@
         S.until(() => room.grabbed || sceneTime - room.hands.start >= BEAT.GRAB_MAX_MS),
         S.control(false),
         S.call(() => grab()),
+        // Do not cut away on contact: physically drag him across the passenger
+        // seat toward the forced door so the player sees the abduction happen.
+        S.wait(850),
         // Through the windshield: YOU at the counter, back turned. YOU does not know.
         S.call(() => { room.youCounter = true; room.peek = { x: 290, y: 60, until: sceneTime + 2500 }; }),
         S.wait(2500),
         S.call(() => { bark("hood-tall", L.bag[0], 1500); room.bagAt = sceneTime; sound("cloth"); }),
-        S.wait(900),
-        S.fade(1, 500),
+        S.wait(700),
+        // The bag does not teleport him into the next scene. Stay with the
+        // abduction for a few blind seconds: cloth, weight, the door, then the
+        // rain going dull outside. Story carried by sound while the screen is black.
+        S.fade(1, 280),
+        S.call(() => {
+          room.phase = "carried";
+          room.rainLoud = false;
+          setMusic(SILENT_TRACK);
+          sound("cloth");
+          sound("heart");
+        }),
+        S.wait(420),
+        S.call(() => { room.shake = sceneTime; sound("thud"); }),
+        S.wait(420),
+        S.call(() => sound("slide")),
+        S.wait(320),
+        S.call(() => sound("door")),
+        S.wait(260),
+        S.call(() => sound("engine")),
+        S.wait(360),
+        S.call(() => sound("heart")),
+        S.wait(680),
         S.call(() => commitBeat("opening:taken")),
         S.call(() => goToRoom("sack", "start", { context: "taken" }))
       ];
     }
     function spawnHoods() {
-      // The driver stays in the van: heard, not seen.
+      // The driver stays in the van: heard, not seen. The other three do not
+      // fan out randomly: one watches the store, one takes the window, one
+      // hangs back to become the second body at the door.
       npc("driver", "none", 292, 452, { barkLift: 62 });
       npc("hood-tall", "hood-tall", 256, 470, { face: 1 });
       npc("hood-small", "hood-small", 280, 474, { face: 1 });
-      npc("hood-cap", "hood-cap", 304, 470, { face: 1 });
-      walk("hood-tall", 290, 228, 4300);
+      npc("hood-cap", "hood-cap", 304, 470, { face: 1, state: "lookout" });
+      walk("hood-tall", 286, 306, 3400);
       walk("hood-small", 268, 318, 3200);
-      walk("hood-cap", 300, 352, 3700);
+      walk("hood-cap", 316, 176, 3600);
+    }
+    function lookoutReturns() {
+      room.storeCheckAt = sceneTime;
+      const cap = npcs.get("hood-cap");
+      if (cap) { cap.face = -1; cap.state = "return"; walk("hood-cap", 300, 340, 1500); }
+    }
+    function stageDoorTeam() {
+      room.doorTeamAt = sceneTime;
+      const tall = npcs.get("hood-tall"), cap = npcs.get("hood-cap"), small = npcs.get("hood-small");
+      if (tall) { tall.state = "brace"; walk("hood-tall", 250, 260, 800); }
+      if (cap) { cap.state = "brace"; walk("hood-cap", 252, 286, 800); }
+      if (small) walk("hood-small", 272, 302, 650);
     }
     function cupWindow() {
       walk("hood-small", 250, 268, 700);
@@ -919,8 +992,10 @@
     }
     function grab() {
       room.grabbed = true;
+      room.carryAt = sceneTime;
+      room.carryFrom = { x: sim.player.x, y: sim.player.y };
       const hands = room.hands;
-      if (hands) { hands.x = sim.player.x + 6; hands.y = sim.player.y - 2; hands.grabbed = true; }
+      if (hands) { hands.x = sim.player.x + 6; hands.y = sim.player.y - 10; hands.grabbed = true; }
       setPose("held", 6000);
       sound("grab");
       const cap = npcs.get("hood-cap");
@@ -978,7 +1053,7 @@
         if (d > 0.5) { hands.x += (dx / d) * step; hands.y += (dy / d) * step; }
         if (d < 12) room.grabbed = true;
       }
-      if (room.grabbed && hands) { hands.x = p.x + 6; hands.y = p.y - 2; }
+      if (room.grabbed && hands) { hands.x = p.x + 6; hands.y = p.y - 10; }
       // The footwell is the darkest place in the car. Nothing is recorded.
       room.hiding = inZone("footwell") && !p.moving;
     }
@@ -1788,12 +1863,24 @@
       },
       // ---- Scene 6: the sack
       sack: {
-        music: () => DREAD_TRACK,
+        // The bag kills the score. Cloth, breath, body movement and the van
+        // outside the fabric carry this beat instead.
+        music: () => SILENT_TRACK,
         enter() {
           room.inSack = true; room.bursts = 0; room.burstAt = -1e9; room.pushing = false;
           runScene("opening:sack", [
-            S.call(() => { sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: 500 }; sound("slide"); }),
-            S.wait(BEAT.SACK_STILL_MS),
+            // Arrive in total black. Let the player hear where Rizo is before
+            // the cloth and his own flame slowly become visible.
+            S.call(() => {
+              sceneFade = { value: 1, from: 1, to: 1, start: sceneTime, ms: 1 };
+              sound("heart");
+            }),
+            S.wait(650),
+            S.call(() => {
+              sceneFade = { value: 1, from: 1, to: 0, start: sceneTime, ms: 900 };
+              sound("cloth");
+            }),
+            S.wait(Math.max(0, BEAT.SACK_STILL_MS - 650)),
             S.control(true),
             S.call(() => { room.limitedAt = sceneTime; view.pulseKey("dpad"); }),
             S.until(() => room.bursts >= BEAT.SACK_BURSTS || sceneTime - room.limitedAt >= BEAT.SACK_MAX_MS),
@@ -1857,14 +1944,26 @@
               { hold: 900 },
               ...L.vanCooler, { hold: 1000 },
               ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
+              // The job has a clock. Missing the check-in turns "Boss" from
+              // vague talk into pressure that can reach the van.
+              { hold: 650 }, ...L.vanCheckin,
               // Nobody laughs. Wipers only. He feels the joke end before anyone says so.
-              { call: () => { vanHush("wipers"); flameMood("fear", 2800); } }, { hold: 4000 },
+              { call: () => { vanHush("wipers"); flameMood("fear", 2800); } }, { hold: 2600 },
               quietly(L.vanAsk[0]),
               // Nobody answers. Rain.
-              { call: () => vanHush("rain") }, { hold: 3000 },
+              { call: () => vanHush("rain") }, { hold: 2200 },
               // His phone: cold light fills the van, and everyone freezes. The ring is his presence.
               { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); vanHush("phone"); vanFreeze(true); flameMood("fear", 9000); } }, { hold: 1200 },
-              weighted(L.vanPhone[0], 1.4), ...L.vanPhone.slice(1), { call: () => setPose("tremble", 4000) }, { hold: 4000 },
+              weighted(L.vanPhone[0], 1.4), L.vanPhone[1], L.vanPhone[2],
+              // Small starts to lift the phone. Tall physically stops the answer.
+              { call: () => {
+                  const small = npcs.get("hood-small"), tall = npcs.get("hood-tall");
+                  if (small) small.state = "phone-stopped";
+                  if (tall) tall.state = "stop-phone";
+                  sound("cloth");
+                } },
+              L.vanPhone[3], { hold: 1100 },
+              { call: () => { vanFreeze(true); setPose("tremble", 4000); } }, { hold: 2900 },
               // It goes dark. In the silence he looks at the one who's scared: they are afraid too.
               { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 1200 },
               { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("stare", 1800); } }, { hold: 1800 },
@@ -2027,8 +2126,9 @@
       }
     };
     Object.assign(ROOM_LOGIC, ROWS_LOGIC);
-    // ---- The van's staging (presentation only; the talk itself is unchanged).
-    // A line can be given more time on screen, or said quietly; never reworded.
+    // ---- The van's staging. Accepted lines stay word-for-word; the missed
+    // check-in is now an authored connective beat that makes Boss pressure causal.
+    // A line can be given more time on screen or said quietly.
     const weighted = (line, weight) => ({ ...line, weight });
     const quietly = line => ({ ...line, quiet: true, weight: 1.35 });
     // What's left when the talking stops: null (engine and road), "wipers", "rain", or "phone".
@@ -2611,7 +2711,7 @@
     // QA only: the opening's presentation state, as plain data.
     function openingQA() {
       const pick = {};
-      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "tapAt", "passengerDoor", "grabbed", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
+      for (const key of ["phase", "reactions", "dome", "seenYou", "waitStart", "parkedAt", "sweepAt", "vanParked", "storeCheckAt", "doorTeamAt", "youOutside", "tapAt", "passengerDoor", "grabbed", "carryAt", "youCounter", "bagAt", "flares", "bursts", "limitedAt", "freedAt", "gapAt", "push", "retreats", "through", "searchAt", "inBeam", "hidden", "hiding", "seenCount", "searchOver", "leaveAt", "walkMode", "passedOnce", "headlightsDone", "mouthFor", "fallAt", "wakeAt", "awakeAt", "thoughtAt", "thoughtArmed", "motifAt", "falling", "domeOut", "cartDone", "moved", "sighted", "sightedAt", "loosenAt", "quietAt", "smallestAt", "smallestDone", "hurtAt", "brake"]) if (room[key] !== undefined) pick[key] = room[key];
       if (room.you) pick.you = { ...room.you };
       if (room.hands) pick.hands = { x: room.hands.x, y: room.hands.y };
       if (room.beam) pick.beam = { x: room.beam.x, y: room.beam.y, angle: room.beam.angle };

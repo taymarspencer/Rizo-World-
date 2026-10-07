@@ -89,10 +89,15 @@
     box(c, 254, -26, 24, 12, P.metal[1], { ink: 0.8, amp: 0.3 });
     for (let gx = 257; gx < 276; gx += 3) rect(c, P.metal[0], gx, -24, 1, 8);
     rect(c, P.metal[1], 8, T, 5, 96 - T); rect(c, P.metal[2], 8, T, 1.4, 96 - T); tape(c, 10.5, 34, 9, 1.45, 3); tape(c, 10.5, 38, 8, 1.6, 4);
-    // Fascia sign: FOOD · ICE · LOTTO, one letter dead.
-    box(c, 20, 1, 320, 19, P.night[2], { ink: 1.2, amp: 0.3 });
-    label(c, "FOOD · ICE · LOTTO", 180, 15, { size: 10, color: P.fluoro[2], shadow: P.ink, spacing: 1.2 });
-    alpha(c, 0.75, () => rect(c, P.night[2], 236, 5, 7, 12));
+    // Fascia sign: mounted to the storefront header above the glass, not loose
+    // on the sidewalk plane. The backing, lower lip, and cast shadow make the
+    // sign read as part of the building even in the top-down camera.
+    rect(c, P.concrete[1], 16, -2, 328, 25);
+    rect(c, P.concrete[2], 16, -2, 328, 2);
+    rect(c, P.ink, 18, 20, 324, 4);
+    box(c, 20, 0, 320, 19, P.night[2], { ink: 1.2, amp: 0.3 });
+    label(c, "FOOD · ICE · LOTTO", 180, 14, { size: 10, color: P.fluoro[2], shadow: P.ink, spacing: 1.2 });
+    alpha(c, 0.75, () => rect(c, P.night[2], 236, 4, 7, 12));
     for (const [x, w] of [[0, 30], [142, 12], [198, 16], [330, 30]]) { rect(c, P.concrete[1], x, 20, w, 76); rect(c, P.concrete[2], x, 20, w, 2); rect(c, P.concrete[0], x + w - 1.5, 20, 1.5, 76); }
     storeWindow(c, 30, 22, 112, 66, 1, { poster: [82, 18] });
     storeWindow(c, 214, 22, 116, 66, 2, { counter: true });
@@ -214,6 +219,19 @@
     if (room.storeDoorOpen) { rect(ctx, P.fluoro[2], 156, 28, 40, 66); rect(ctx, P.fluoro[1], 156, 80, 40, 14); box(ctx, 156, 28, 8, 66, P.metal[2], { ink: 1, amp: 0.2 }); }
     else { rect(ctx, P.fluoro[1], 156, 28, 40, 66); rect(ctx, P.fluoro[0], 156, 76, 40, 18); rect(ctx, P.metal[3], 160, 60, 32, 2.6); rect(ctx, P.ink, 160, 62.6, 32, 0.8); label(ctx, "PULL", 176, 54, { size: 5, color: P.a.red }); }
     oval(ctx, 176, 24, 2.2, 2, P.a.brass, true, 0.8);
+    // Ordinary store life keeps going after the car becomes Rizo's whole
+    // world. One anonymous customer-shadow crosses the far window now and
+    // then; reduced motion leaves the glass still.
+    if (!s.reduced && room.phase !== "taken") {
+      const customer = (t / 1000) % 23;
+      if (customer < 4.4) {
+        const cx = 34 + (customer / 4.4) * 104;
+        A.clip(ctx, 31, 23, 110, 64, () => alpha(ctx, 0.24, () => {
+          oval(ctx, cx, 47, 4.5, 5, P.inkSoft);
+          rect(ctx, P.inkSoft, cx - 4, 52, 8, 22);
+        }));
+      }
+    }
     // YOU in the store: between the aisles, or at the counter with YOU's back to the window.
     const you = room.youCounter ? { x: 296, visible: true, back: true } : room.you;
     if (you?.visible) {
@@ -259,12 +277,29 @@
     }
     // The dome light, when it is on.
     if ((room.dome || 0) > 0.02) alpha(ctx, room.dome, () => { box(ctx, 174, 276, 12, 6, P.paper[3], { ink: 0.8, amp: 0.1 }); });
-    // Hands, reaching in through the forced door.
+    // Hands, reaching in through the forced door. Once they have Rizo, the
+    // grip moves up from the floor-point to his body and becomes a real
+    // two-handed hold: one arm catches high, the other braces low.
     if (room.hands) {
       const h = room.hands;
-      line(ctx, 250, 244, h.x + 4, h.y - 2, P.ink, 9, 3, 0.2); line(ctx, 250, 244, h.x + 4, h.y - 2, P.cloth[1], 6.4, 3, 0.2);
-      oval(ctx, h.x, h.y, 5.5, 4.5, P.cloth[0], true, 1.2);
-      for (let f = -2; f <= 2; f += 2) line(ctx, h.x - 2, h.y + f, h.x - 7, h.y + f * 1.4, P.ink, 1.6, f, 0);
+      if (room.grabbed) {
+        const upper = { x: p.x + 5.5, y: p.y - 14 };
+        const lower = { x: p.x + 7, y: p.y - 6 };
+        line(ctx, 250, 238, upper.x + 3, upper.y, P.ink, 9, 31, 0.16);
+        line(ctx, 250, 238, upper.x + 3, upper.y, P.cloth[1], 6.2, 31, 0.16);
+        line(ctx, 251, 253, lower.x + 3, lower.y, P.ink, 9, 32, 0.16);
+        line(ctx, 251, 253, lower.x + 3, lower.y, P.cloth[1], 6.2, 32, 0.16);
+        oval(ctx, upper.x, upper.y, 5.6, 4.4, P.cloth[0], true, 1.2);
+        oval(ctx, lower.x, lower.y, 5.6, 4.4, P.cloth[0], true, 1.2);
+        // Fingers curl inward around his silhouette instead of pointing past it.
+        for (const [g, dir] of [[upper, -1], [lower, 1]]) {
+          for (let f = -2; f <= 2; f += 2) line(ctx, g.x - 1, g.y + f, g.x - 6, g.y + f * 0.65 + dir, P.ink, 1.6, 40 + f + dir, 0);
+        }
+      } else {
+        line(ctx, 250, 244, h.x + 4, h.y - 2, P.ink, 9, 3, 0.2); line(ctx, 250, 244, h.x + 4, h.y - 2, P.cloth[1], 6.4, 3, 0.2);
+        oval(ctx, h.x, h.y, 5.5, 4.5, P.cloth[0], true, 1.2);
+        for (let f = -2; f <= 2; f += 2) line(ctx, h.x - 2, h.y + f, h.x - 7, h.y + f * 1.4, P.ink, 1.6, f, 0);
+      }
     }
     // The pillowcase coming down over him.
     if (room.bagAt != null) {

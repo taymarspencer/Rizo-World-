@@ -105,6 +105,7 @@ Allowed in Act I:
 - He is referred to only as "Boss," "him," or "he," and by the crew's fear.
 - He calls rather than appears. A phone is his presence.
 - Corporate texture through procedure: a job, a time limit, consequences for losing things, nobody saying no to him.
+- **Accepted direction:** the crew misses a routine check-in by roughly a minute; they know that still matters. The Boss call follows soon after. This establishes active oversight without naming him, explaining his motive or linking him to BELOW.
 
 Not allowed anywhere until the owner decides:
 - A name, title beyond "Boss," company, organization, logo, building, uniform or face.

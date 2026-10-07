@@ -578,6 +578,15 @@
       if (!geo || !metrics.cssW) return;
       extrasTime = extras.sceneTime || 0;
       lastRoom = extras.room || {};
+      // During the kidnapping, contact is not the cut. Once the hands close,
+      // Rizo visibly leaves the passenger seat and is dragged to the forced
+      // door. This is presentation-only; the story scene owns control.
+      if (geo.theme === "car" && lastRoom.carryAt != null) {
+        const k = Math.max(0, Math.min(1, (extrasTime - lastRoom.carryAt) / 850));
+        const eased = 1 - Math.pow(1 - k, 3);
+        const from = lastRoom.carryFrom || pos;
+        pos = { x: from.x + (228 - from.x) * eased, y: from.y + (248 - from.y) * eased };
+      }
       speaking = new Set((extras.barks || []).map(item => item.id));
       lastBarks = extras.barks || []; lastNpcs = extras.npcs || [];
       const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;

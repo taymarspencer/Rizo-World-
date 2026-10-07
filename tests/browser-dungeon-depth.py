@@ -8,8 +8,9 @@ danger layer and his flame reacting to fear and relief, Rizo noticing things in
 his light, the room pointing the way on when he stands still (never a marker),
 the first reveal of a new room, Latch looking back once, the Rows arrival
 breath and Nell's notes, reduced motion, and quiet barks staying on screen on
-small phones and short landscape. No line is added or reworded; the main suite
-pins the van's exact order. Presentation only: nothing here is saved.
+small phones and short landscape. The main suite pins the van's exact authored
+order, including the accepted missed-check-in addition. Presentation only:
+nothing here is saved.
 Chromium only.
 """
 import argparse
@@ -159,7 +160,7 @@ with sync_playwright() as pw:
 
     # ================= THE VAN: a playable cutscene =================
     ctx, page, errors = boot(browser)
-    lines = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return {boss:L.vanNumber[3].text,last:L.vanNumber[L.vanNumber.length-1].text,ask:L.vanAsk[0].text,phone:L.vanPhone[0].text,listening:L.vanListening[0].text,touch:L.vanTouch[0].text,why:L.vanTouch[2]?.text}})()")
+    lines = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return {boss:L.vanNumber[3].text,last:L.vanNumber[L.vanNumber.length-1].text,checkin:L.vanCheckin[L.vanCheckin.length-1].text,ask:L.vanAsk[0].text,phone:L.vanPhone[0].text,listening:L.vanListening[0].text,touch:L.vanTouch[0].text,why:L.vanTouch[2]?.text}})()")
     samples = play_van(page, "390")
     check("the van has its own sound: engine and road under the floor, not the street",
           samples[0]["music"] == "dungeon-van" and samples[0]["depth"]["hush"] is None, (samples[0]["music"], samples[0]["depth"]["hush"]))
@@ -167,7 +168,7 @@ with sync_playwright() as pw:
     held = boss[-1] - boss[0] if boss else 0
     check("the Boss line is given more room than a joke of its length (held on screen longer)",
           held >= bark_ms(lines["boss"]) * 1.25, (held, bark_ms(lines["boss"])))
-    end_last = first_index(samples, lambda s: not shows(s, lines["last"]), first_index(samples, lambda s: shows(s, lines["last"])))
+    end_last = first_index(samples, lambda s: not shows(s, lines["checkin"]), first_index(samples, lambda s: shows(s, lines["checkin"])))
     hush = samples[end_last + 2] if end_last >= 0 and end_last + 2 < len(samples) else {}
     check("when the joke dies: wipers only, nobody talks, the music stops",
           hush.get("depth", {}).get("hush") == "wipers" and hush.get("music") == "dungeon-silence" and not hush.get("barks"), {k: hush.get(k) for k in ("music", "barks")} | {"hush": hush.get("depth", {}).get("hush")})
@@ -184,6 +185,8 @@ with sync_playwright() as pw:
     frozen = ring >= 0 and all(a["state"] == "freeze" for a in samples[ring]["depth"]["actors"] if a["id"] in seated)
     check("the phone rings: everyone freezes, he recoils, his light shrinks", frozen and samples[ring]["pose"] == "recoil" and samples[ring]["depth"]["mood"] == "fear", (ring, samples[ring]["depth"]["actors"] if ring >= 0 else None, samples[ring]["pose"] if ring >= 0 else None))
     check("its first line comes after the ring, not over it", ring >= 0 and not samples[ring]["barks"] and first_index(samples, lambda s: shows(s, lines["phone"])) > ring)
+    stopped = [s for s in samples if {a["id"]: a["state"] for a in s["depth"]["actors"]}.get("hood-small") == "phone-stopped" and {a["id"]: a["state"] for a in s["depth"]["actors"]}.get("hood-tall") == "stop-phone"]
+    check("Small starts to answer and Tall physically stops the Boss call", bool(stopped), stopped[:1])
     capped = first_index(samples, lambda s: shows(s, lines["listening"]))
     gaze = [s for s in samples[capped:capped + 12] if shows(s, lines["listening"]) and s["depth"]["still"] >= 600 and s["depth"]["actors"] and not any(a["state"] == "stare" for a in s["depth"]["actors"])]
     def toward(s, who):
