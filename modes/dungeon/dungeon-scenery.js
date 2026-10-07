@@ -676,7 +676,10 @@
     // The dropped phone, face up in the grass.
     const phone = room.phone;
     if (phone) {
-      ctx.save(); ctx.translate(phone.x, phone.y); ctx.rotate(-0.3);
+      const dropT = phone.dropAt != null ? Math.max(0, Math.min(1, ((s.extras.sceneTime || 0) - phone.dropAt) / 320)) : 1;
+      const eased = 1 - Math.pow(1 - dropT, 3);
+      const drawY = phone.dropFromY != null ? phone.dropFromY + (phone.y - phone.dropFromY) * eased : phone.y;
+      ctx.save(); ctx.translate(phone.x, drawY); ctx.rotate(-0.3 - (1 - dropT) * 0.45);
       drop(ctx, 0, 4, 6, 2);
       box(ctx, -3.5, -6, 7, 12, P.ink, { ink: 1, amp: 0.1 });
       const lit = phone.state === "connected" || (phone.state === "ringing" && (phone.ringing || s.reduced));
