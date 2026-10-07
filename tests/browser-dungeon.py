@@ -1388,9 +1388,17 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     check("Rows: she kept the table appointment: a low board set at his height", "rows:return" in rbeats() and st["sim"]["flags"].get("boardReady"))
     warm(page, 150, 188)
     st = drive(page, lambda st: st["sim"]["flags"].get("chalkOut"))
-    tp(page, 196, 186); page.wait_for_timeout(80); page.keyboard.press("z"); page.wait_for_timeout(200)
-    st = page.evaluate(ST)
-    check("Rows: he finds her chalk (“I was keeping it warm.”), and it is remembered", said(st, "keeping it warm") and page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsChalk") is True, str(st["barks"]))
+    tp(page, 196, 186)
+    page.wait_for_function("!document.querySelector('.dungeon-prompt').hidden")
+    page.keyboard.press("z")
+    heard_chalk = False
+    for _ in range(12):
+        page.wait_for_timeout(80)
+        st = page.evaluate(ST)
+        heard_chalk = heard_chalk or said(st, "keeping it warm")
+        if page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsChalk") is True:
+            break
+    check("Rows: he finds her chalk (“I was keeping it warm.”), and it is remembered", heard_chalk and page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsChalk") is True, str(st["barks"]))
     st = drive(page, lambda st: st["choice"] is not None)
     check("Rows: the wrap is offered, never put on him: WEAR IT, FOLDED or LEAVE IT", st["choice"] and st["choice"]["options"] == ["worn", "folded", "peg"], str(st["choice"]))
     page.keyboard.press("z"); page.wait_for_timeout(200)
