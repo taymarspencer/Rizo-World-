@@ -89,10 +89,15 @@
     box(c, 254, -26, 24, 12, P.metal[1], { ink: 0.8, amp: 0.3 });
     for (let gx = 257; gx < 276; gx += 3) rect(c, P.metal[0], gx, -24, 1, 8);
     rect(c, P.metal[1], 8, T, 5, 96 - T); rect(c, P.metal[2], 8, T, 1.4, 96 - T); tape(c, 10.5, 34, 9, 1.45, 3); tape(c, 10.5, 38, 8, 1.6, 4);
-    // Fascia sign: FOOD · ICE · LOTTO, one letter dead.
-    box(c, 20, 1, 320, 19, P.night[2], { ink: 1.2, amp: 0.3 });
-    label(c, "FOOD · ICE · LOTTO", 180, 15, { size: 10, color: P.fluoro[2], shadow: P.ink, spacing: 1.2 });
-    alpha(c, 0.75, () => rect(c, P.night[2], 236, 5, 7, 12));
+    // Fascia sign: mounted to the storefront header above the glass, not loose
+    // on the sidewalk plane. The backing, lower lip, and cast shadow make the
+    // sign read as part of the building even in the top-down camera.
+    rect(c, P.concrete[1], 16, -2, 328, 25);
+    rect(c, P.concrete[2], 16, -2, 328, 2);
+    rect(c, P.ink, 18, 20, 324, 4);
+    box(c, 20, 0, 320, 19, P.night[2], { ink: 1.2, amp: 0.3 });
+    label(c, "FOOD · ICE · LOTTO", 180, 14, { size: 10, color: P.fluoro[2], shadow: P.ink, spacing: 1.2 });
+    alpha(c, 0.75, () => rect(c, P.night[2], 236, 4, 7, 12));
     for (const [x, w] of [[0, 30], [142, 12], [198, 16], [330, 30]]) { rect(c, P.concrete[1], x, 20, w, 76); rect(c, P.concrete[2], x, 20, w, 2); rect(c, P.concrete[0], x + w - 1.5, 20, 1.5, 76); }
     storeWindow(c, 30, 22, 112, 66, 1, { poster: [82, 18] });
     storeWindow(c, 214, 22, 116, 66, 2, { counter: true });
