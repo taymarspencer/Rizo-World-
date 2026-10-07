@@ -139,15 +139,15 @@ Scene total: 83 / 88 / 95 s. Almost all of it is fixed bark time; only the coole
 | 9.1 | 8.3 | 4.7 + player | None, then player | Black rain 1.3 s; taillights recede 3.4 s; Rizo lies still **until the player moves**; get-up 0.7 s `[BUILT]`. |
 | 9.2 | +2 s | 2 | Full | Far up the road, the taillights stop. Brake red. Two doors. |
 | 9.3 | 9.2 ends | 12 | Full | A phone flashlight comes back along the shoulder. Barks: **TALL:** "It went off right here." **SMALL:** "It's dark as hell." **TALL:** "It's a flame. Look for the light." **SMALL:** "I don't see no light." **Hide rule:** in ditch shadow or behind a guardrail post, not Flaring → the beam passes. Seen (in beam outside shadow, or Flaring) → the beam stops on him for 1.2 s and **SMALL:** "Yo— was that—" *(proposed line)*. Being seen never causes capture. |
-| 9.4 | 9.3 ends | 9 | Full | A different car's headlights approach on the road. **DRIVER** (horn): "Car! Somebody's coming!" **TALL:** "We can't go back without it." **DRIVER:** "We can't go back at all if we get pulled over." **SMALL** (walking away, quiet): "You said probably." Doors; taillights gone. |
+| 9.4 | 9.3 ends | 9 | Full | A different car's headlights approach on the road. **DRIVER** (horn): "Car! Somebody's coming!" **TALL:** "We can't go back without it." **DRIVER:** "We can't go back at all if we get pulled over." In the panic, **SMALL drops the same phone he used as the search flashlight** and does not notice. Its screen is dark in the wet grass. **SMALL** (walking away, quiet): "You said probably." Doors; taillights gone. |
 | 9.5 | 9.4 ends | 6 | Full | **Music off. Rain only.** Nothing scripted. |
 
 ## Scene 10 · The ringing — Track B, optional
 
 | ID | Starts when | Seconds | Control | Beat |
 |---|---|---|---|---|
-| 10.1 | 9.5 + 2 s | up to 40 | Full | A dropped phone lights up in the grass about 40 units away, showing only `CALLER_SYMBOL`. Rings in 4-second cycles. Its glow is the only light nearby. |
-| 10.2 | Rizo uses primary or LOOK on it | 5 | Full | Call connects. Screen: `CALLER_SYMBOL` and a running call timer, no text. Rain and Rizo's small breath. Then the screen goes dark. No narration. (Later fact: `callerConnected`, proposal only.) |
+| 10.1 | 9.5 + 2 s | up to 40 | Full | **Small Hood's dropped phone** lights up where it fell, showing the same `CALLER_SYMBOL` seen in the van. Rings in 4-second cycles. No new explanation is added: the player can infer that whoever frightened the crew is calling back. |
+| 10.2 | Rizo uses primary or LOOK on it | 5 | Full | Call connects. Screen: `CALLER_SYMBOL` and a running call timer, no text. The road sound pulls away. After a held silence, one breath is heard from the other end; later Rizo's heartbeat answers it. The caller hangs up first. No narration. Fact: `callerConnected`. |
 | 10.3 | 40 s with no touch | 1 | Full | Rings out; dark. |
 
 The walk continues normally whether or not Rizo goes near the phone.
@@ -163,8 +163,8 @@ The walk continues normally whether or not Rizo goes near the phone.
 
 | ID | Starts when | Seconds | Control | Beat |
 |---|---|---|---|---|
-| 12.1 | enter drain | 1.6 | Full | Shake 0.9 s, settle 0.7 s `[BUILT]`. "A glove. Dry. Somebody waited here once." on LOOK `[BUILT]`. |
-| 12.2 | moving inward | 30 / 45 / 80 | Full | His light shows the drain going back too far: concrete, then old brick, then rock. At the black back: LOOK → "Warm air. From down there." A faint warm shimmer at the edge of his light. |
+| 12.1 | enter drain | 1.6 | Full | The culvert is first presented as believable shelter, not a destination marker. Music stays out while Rizo shakes off the rain and settles; only then does the drain's low warm tonal bed enter. "A glove. Dry. Somebody waited here once." on LOOK. |
+| 12.2 | moving inward | 30 / 45 / 80 | Full | His light shows the drain going back too far: concrete, then old brick, then rock. Near the culvert on the road, a subtle warm draft can turn him toward it with no arrow. Deeper inside, the warmth reaches his flame before the slope. At the black back: LOOK → "Warm air. From down there." |
 | 12.3 | 30 s near the mouth | 6 | Full | Once only: headlights pass on the road behind, sweeping into the drain. Rizo flinches deeper. |
 
 ## Scene 13 · The fall — Track B (black hold and lock timing also Track A)
