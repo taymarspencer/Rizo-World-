@@ -704,8 +704,8 @@ with sync_playwright() as p:
     check("callerConnected stays the only new opening fact", set(page.evaluate(STORED)["slice"]["story"]["facts"]) <= {"callerConnected"} and page.evaluate(STORED)["slice"]["story"]["choices"] == {})
 
     # ---- Scene 11 · The walk, one car that is not YOU
-    jump(page, 3200); page.wait_for_timeout(100)
-    check("the walk's sparse music comes back after the phone", page.evaluate(ST)["music"] == "dungeon-street")
+    jump(page, 3700); page.wait_for_timeout(100)
+    check("after one last held rain silence, the walk's sparse music comes back", page.evaluate(ST)["music"] == "dungeon-street")
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(140,1030)"); hold(page, "w", 500)
     check("RC2's bowl: he approaches and stops (no text forced)", page.evaluate(ST)["pose"] == "approach-stop" and page.evaluate(ST)["dialogue"] is None)
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(120,770)"); hold(page, "w", 400)
