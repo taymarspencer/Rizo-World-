@@ -131,7 +131,8 @@
     ] }
   };
 
-  function create({ mount, reducedMotion = false, petMarkup = () => "", lines = {}, speakers = {} } = {}) {
+  // onPanel(sceneId, index, panel) is called as each panel lands (the mode plays its hit).
+  function create({ mount, reducedMotion = false, petMarkup = () => "", lines = {}, speakers = {}, onPanel = null } = {}) {
     let state = null, destroyed = false;
     const nameOf = speaker => (speaker === "collector" ? "RADIO" : speakers[speaker]?.name || "");
     function lineText(ref) {
@@ -187,6 +188,7 @@
         if (state.t >= panel.at && !state.shown.has(index)) {
           state.shown.add(index);
           state.node.querySelector(`[data-panel="${index}"]`)?.classList.add("is-in");
+          try { onPanel?.(state.id, index, panel); } catch (error) {}
           if (index > 0 && !reducedMotion && /slam|drop/.test(panel.enter || "slam")) { state.node.classList.remove("is-shake"); void state.node.offsetWidth; state.node.classList.add("is-shake"); }
         }
       });

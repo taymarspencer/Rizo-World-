@@ -226,6 +226,8 @@
     let roomTickAt = 0;
     let qaLog = [];
     let comic = null;                 // the comic page (dungeon-comic.js), if this build has it
+    // One hit per comic panel, from the Dungeon's own sounds. The fall ends in silence.
+    const COMIC_HITS = { grab: ["grab", "heart", "tap"], sack: ["cloth", "cloth", "thud"], "van-leap": ["crack", "wind", "bump"], taillights: ["brake", "door", "click"], fall: ["slip", "wind", null], "boss-hands": ["buzz", "click", "cloth", "hangup"], "boss-glass": [null, "connect", "chime"] };
 
     const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
     // The hub's own setting, or the device's (the hub does not pass the OS preference to modes).
@@ -3012,7 +3014,7 @@
       view.el.choice.addEventListener("click", onChoiceClick);
       // Action moments cut to a comic page drawn over the screen (story spine v0.4).
       const ComicKit = root?.RizoDungeonComic;
-      if (ComicKit) comic = ComicKit.create({ mount: view.el.screen, reducedMotion: reducedMotion(), petMarkup: () => (pet ? host.petMarkup(pet, { context: "dungeon", extraClass: "comic-rizo-art", label: pet.name || "Rizo" }) : ""), lines: Content.LINES, speakers: Content.SPEAKERS });
+      if (ComicKit) comic = ComicKit.create({ mount: view.el.screen, reducedMotion: reducedMotion(), petMarkup: () => (pet ? host.petMarkup(pet, { context: "dungeon", extraClass: "comic-rizo-art", label: pet.name || "Rizo" }) : ""), lines: Content.LINES, speakers: Content.SPEAKERS, onPanel: (id, index) => { const hit = COMIC_HITS[id]?.[index]; if (hit) sound(hit); } });
       started = true;
       live = api;
       settings = { ...Core.SETTINGS_DEFAULTS, ...host.modeSettings() };
