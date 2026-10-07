@@ -53,13 +53,14 @@
     return out;
   };
 
-  const CONTENT_REVISION = "threshold-v3";
+  const CONTENT_REVISION = "threshold-v4";
   // Revisions this build knows how to carry forward (see dungeon-core normalizeSlice):
   // a Gate 1 review campaign restarts at the opening; an RC2 (threshold-v1)
   // journey keeps everything and only leaves the deleted curb for the car.
   const LEGACY_REVISIONS = ["threshold-gate1"];
-  // threshold-v2 → v3 only adds rooms and facts (Mending Rows); nothing moves.
-  const CARRIED_REVISIONS = ["threshold-v1", "threshold-v2"];
+  // threshold-v2 → v3 only adds rooms and facts (Mending Rows); v3 → v4 adds
+  // the collectors, their marks and four facts (story spine v0.4). Nothing moves.
+  const CARRIED_REVISIONS = ["threshold-v1", "threshold-v2", "threshold-v3"];
   const CAMPAIGN_KIND = "proof";
   const CHAPTER_ID = "threshold";
   const OPENING_ROOMS = ["car", "sack", "van", "roadside", "drain"];
@@ -173,7 +174,9 @@
       shelters: [{ x: 56, y: 590, w: 104, h: 64 }],
       props: [
         { id: "bowl-road", kind: "inspect", x: 142, y: 984, r: 7, prompt: "LOOK", lines: ["A bowl in the rain. Somebody's, once.", "Not his."] },
-        { id: "bus-sign", kind: "inspect", x: 66, y: 592, r: 7, prompt: "LOOK", lines: ["A bus stop. No bus."] }
+        { id: "bus-sign", kind: "inspect", x: 66, y: 592, r: 7, prompt: "LOOK", lines: ["A bus stop. No bus."] },
+        // Wherever a Rizo goes missing, his card turns up.
+        { id: "lost-poster", kind: "inspect", x: 128, y: 594, r: 7, prompt: "LOOK", lines: ["A paper on the glass: LOST. Small. Glows. Answers to Pip.", "A black card is tucked under it. A jar, with a light shut inside."] }
       ],
       zones: [{ id: "bowl-near", x: 112, y: 950, w: 64, h: 64 }, { id: "rain-worse", x: 22, y: 26, w: 176, h: 300 }, { id: "midpoint", x: 22, y: 700, w: 176, h: 40 }],
       // Shadow a beam passes over: the ditch along the embankment, the lee of
@@ -245,9 +248,12 @@
       anchors: { "clatter-entry": { x: 52, y: 388 }, "clatter-north": { x: 256, y: 46 } },
       entryAnchor: "clatter-entry",
       props: [
-        { id: "ticket-stub", kind: "inspect", x: 290, y: 382, r: 6, prompt: "LOOK", lines: ["A ticket stub, punched twice.", "The name on it has been rubbed away."] }
+        { id: "ticket-stub", kind: "inspect", x: 290, y: 382, r: 6, prompt: "LOOK", lines: ["A ticket stub, punched twice.", "The name on it has been rubbed away."] },
+        { id: "card-clatter", kind: "inspect", x: 290, y: 36, r: 7, prompt: "LOOK", lines: ["A black card, wedged in the doorframe. No words. A jar, with a light shut inside.", "The same mark as the phone. Down here too."] }
       ],
-      zones: [],
+      // The collector's lamp passes the north door; these stay dark.
+      hides: [{ id: "crate-lee", x: 50, y: 184, w: 64, h: 28 }, { id: "pipe-lee", x: 212, y: 230, w: 20, h: 78 }, { id: "shelf-lee", x: 146, y: 78, w: 80, h: 20 }, { id: "west-dark", x: 20, y: 200, w: 26, h: 200 }],
+      zones: [{ id: "clatter-mid", x: 20, y: 200, w: 296, h: 60 }],
       exits: [
         { id: "clatter-to-slip", x: 34, y: 422, w: 36, h: 10, to: "slip", anchor: "slip-north" },
         { id: "clatter-to-hem", x: 236, y: 0, w: 40, h: 12, to: "hem", anchor: "hem-entry" }
@@ -313,15 +319,22 @@
       entryAnchor: "queue-entry",
       props: [
         { id: "queue-lever", kind: "lever", x: 36, y: 300, r: 8, prompt: "PULL", when: { shortcutOpen: false } },
-        { id: "queue-lever-done", kind: "inspect", x: 36, y: 300, r: 8, prompt: "LOOK", lines: ["The lever stays down. The way to the hearth stays open."], when: { shortcutOpen: true } }
+        { id: "queue-lever-done", kind: "inspect", x: 36, y: 300, r: 8, prompt: "LOOK", lines: ["The lever stays down. The way to the hearth stays open."], when: { shortcutOpen: true } },
+        { id: "card-queue", kind: "inspect", x: 228, y: 278, r: 7, prompt: "LOOK", lines: ["Every post had a lamp hook once. The hooks are empty.", "On this one, a black card. The jar mark."] }
       ],
-      zones: [],
+      // Dark corners the lamp doesn't reach, besides the posts' own shadow.
+      hides: [{ id: "nw-dark", x: 20, y: 20, w: 34, h: 70 }, { id: "ne-dark", x: 266, y: 20, w: 34, h: 70 }],
+      zones: [{ id: "queue-north", x: 120, y: 12, w: 80, h: 40 }],
       exits: [
         { id: "queue-to-hem", x: 140, y: 428, w: 40, h: 12, to: "hem", anchor: "hem-north" },
         { id: "queue-to-porter", x: 140, y: 0, w: 40, h: 12, to: "porter", anchor: "porter-entry" },
         { id: "queue-to-hearth", x: 0, y: 330, w: 10, h: 40, to: "hearth", anchor: "hearth-shortcut", openWhen: "shortcutOpen" }
       ],
-      encounters: [{ id: "queue-draftling", kind: "draftling", x: 236, y: 330 }, { id: "queue-needle", kind: "needle", x: 160, y: 84 }]
+      // v0.4: the Cold Queue is where the hunt becomes real. Nothing to fight:
+      // a collector walks the old queue line, lamp first, and the ticket posts
+      // throw the only shadow. (Its Draftling and Needle moved on; the Needle
+      // now holds the Low Run.)
+      encounters: [{ id: "queue-collector", kind: "collector", x: 56, y: 224, patrol: [[56, 224], [270, 224], [270, 140], [56, 140]] }]
     },
     porter: {
       id: "porter", name: "THE NIGHT PORTER", w: 336, h: 260, theme: "porter",
@@ -359,13 +372,15 @@
       solids: [
         ...wallSet(320, 260, 20, { s: [[140, 180]], e: [[100, 140]] }),
         { id: "ledge", x: 110, y: 20, w: 150, h: 30, kind: "ledge" },
-        { id: "recv-crate", x: 30, y: 30, w: 40, h: 30, kind: "crate" }
+        { id: "recv-crate", x: 30, y: 30, w: 40, h: 30, kind: "crate" },
+        // The load, frozen to the ledge by their cold, hangs across the way to the table.
+        { id: "recv-load", x: 284, y: 96, w: 16, h: 48, kind: "frozen-load", openWhen: "rowsLedge" }
       ],
       anchors: { "receiving-entry": { x: 160, y: 222 }, "receiving-east": { x: 278, y: 120 } },
       entryAnchor: "receiving-entry",
       props: [
-        { id: "packet", kind: "inspect", x: 186, y: 58, r: 7, prompt: "LOOK", lines: ["A delivery packet, wet at one corner. The crease stays in it even unfolded."] },
-        { id: "ledge-catch", kind: "warm", x: 236, y: 58, r: 7, prompt: "WARM", when: { rowsLatchHelped: false, ledgeReady: true } }
+        { id: "packet", kind: "inspect", x: 186, y: 58, r: 7, prompt: "LOOK", lines: ["Latch's notice, wet at one corner: COLLECTORS ON THE ROWS. KEEP LIGHTS LOW.", "Stamped at the bottom: the jar mark."] },
+        { id: "ledge-catch", kind: "warm", x: 236, y: 58, r: 7, prompt: "WARM", when: { rowsLedge: false, ledgeReady: true } }
       ],
       zones: [{ id: "receiving-near", x: 20, y: 60, w: 280, h: 120 }],
       exits: [
@@ -388,7 +403,7 @@
       // The table's stove: a dry place to come back to (a checkpoint like the Shared Hearth).
       hearth: { id: "rows-stove", x: 262, y: 176, r: 10, spawnAnchorId: "drytable-stove", banner: "A DRY PLACE TO COME BACK TO" },
       props: [
-        { id: "route-card", kind: "inspect", x: 150, y: 30, r: 8, prompt: "LOOK", lines: ["A route card, pinned crooked. The dry way goes up through the rows."] },
+        { id: "route-card", kind: "inspect", x: 150, y: 30, r: 8, prompt: "LOOK", lines: ["A route card, pinned crooked. The dry way goes up through the rows: north door, low route east, the press, then the stair back here.", "Somebody chalked a jar on it and crossed it out hard."] },
         { id: "drying-load-look", kind: "door", x: 260, y: 32, r: 10, prompt: "LOOK", lines: ["Wet sheets hung right across the doorway. Somebody will have to move them."], when: { rowsOnward: false } },
         { id: "work-catch", kind: "warm", x: 200, y: 172, r: 7, prompt: "WARM", when: { rowsCatch: false, catchReady: true } },
         { id: "low-board", kind: "warm", x: 150, y: 174, r: 8, prompt: "WARM", when: { boardReady: true } },
@@ -423,12 +438,14 @@
         { id: "low-catch", kind: "warm", x: 278, y: 92, r: 7, prompt: "WARM", when: { rowsLowRoute: false, lowReady: true } },
         { id: "sheets", kind: "inspect", x: 230, y: 380, r: 9, prompt: "LOOK", lines: ["Sheets drying in rows. Somebody counted them; the chalk tally is on the post."] }
       ],
-      zones: [{ id: "split", x: 190, y: 20, w: 110, h: 100 }, { id: "row-north", x: 20, y: 20, w: 280, h: 190 }],
+      zones: [{ id: "split", x: 190, y: 20, w: 110, h: 100 }, { id: "row-north", x: 20, y: 20, w: 280, h: 150 }],
       exits: [
         { id: "rows-to-table", x: 60, y: 450, w: 40, h: 10, to: "drytable", anchor: "drytable-north" },
         { id: "rows-to-lowrun", x: 308, y: 40, w: 12, h: 40, to: "lowrun", anchor: "lowrun-west", openWhen: "rowsLowRoute" }
       ],
-      encounters: [{ id: "row-draftling", kind: "draftling", x: 222, y: 290 }]
+      // Shadow under the hanging sheets: the lamp passes over it.
+      hides: [{ id: "sheet-a", x: 130, y: 338, w: 70, h: 22 }, { id: "sheet-b", x: 200, y: 238, w: 80, h: 22 }, { id: "sheet-c", x: 40, y: 208, w: 70, h: 22 }, { id: "sheet-d", x: 150, y: 138, w: 60, h: 22 }, { id: "west-row", x: 20, y: 240, w: 28, h: 120 }],
+      encounters: [{ id: "row-collector", kind: "collector", x: 290, y: 280, patrol: [[290, 280], [120, 280], [120, 180], [290, 180]] }]
     },
     lowrun: {
       id: "lowrun", name: "THE LOW RUN", w: 320, h: 240, theme: "below",
@@ -526,7 +543,7 @@
       anchors: { "upper-entry": { x: 160, y: 210 }, "upper-west": { x: 40, y: 120 } },
       entryAnchor: "upper-entry",
       props: [
-        { id: "service-window", kind: "inspect", x: 290, y: 110, r: 9, prompt: "LOOK", lines: ["Through the high window: a long hall of service windows. Most are lit. A few say CLOSED."] },
+        { id: "service-window", kind: "inspect", x: 290, y: 110, r: 9, prompt: "LOOK", lines: ["Through the high window: a long hall of service windows. Most are lit. A few say CLOSED.", "Far down the hall, a cold white lamp goes from window to window."] },
         { id: "scratched-arrow", kind: "inspect", x: 288, y: 158, r: 6, prompt: "LOOK", lines: ["Another arrow, scratched into the sill with a key. Up."] },
         { id: "upper-card", kind: "inspect", x: 90, y: 30, r: 7, prompt: "LOOK", lines: ["A route card. Its arrow goes down the stair, past the table, through the doorway the sheets were hiding."] }
       ],
@@ -578,6 +595,9 @@
     needle: { hp: 4, radius: 7, detect: 150, indicateMs: 1000, pulseMs: 120, recoverMs: 1000, laneWidth: 10, laneMax: 300 },
     // The van's loose cooler: a readable slide that bumps, never burns.
     cargo: { hp: 1, radius: 9, windupMs: 900, slideMs: 320, slideDistance: 150 },
+    // The Boss's collectors (v0.4): a cold lamp on a patrol. They cannot be hurt;
+    // they can only be avoided. Seen long enough (spotMs) means caught.
+    collector: { radius: 9, speed: 24, range: 92, halfAngle: 0.46, spotMs: 1000, loseMs: 350, searchMs: 1600, pauseMs: 900, chase: 30, flareRange: 2 },
     porter: { hp: 28, radius: 18, helpAt: 14, sweepTellMs: 950, sweepMs: 350, sweepOpenMs: 900, chargeTellMs: 850, chargeMs: 400, chargeDistance: 80, chargeOpenMs: 1200, repositionMs: 450, bandHeight: 44, beamWidth: 36 }
   };
 
@@ -593,7 +613,10 @@
     "hood-small": { name: "SMALL HOOD", portrait: "hood-small" },
     driver: { name: "DRIVER", portrait: "driver" },
     nell: { name: "NELL", portrait: "nell" },
-    orr: { name: "ORR", portrait: "orr" }
+    orr: { name: "ORR", portrait: "orr" },
+    // v0.4: the capped hood finally gets a face; The Boss never does (his mark stands in).
+    "hood-cap": { name: "CAPPED HOOD", portrait: "hood-cap" },
+    boss: { name: "THE BOSS", portrait: "boss" }
   };
 
   // ===== LINES =====
@@ -625,46 +648,77 @@
     vanArgue: [L("driver", "neutral", "I thought you said he didn't do that fire shit."), L("hood-tall", "neutral", "I said probably.")],
     bump: [L("driver", "neutral", "My bad. Pothole.")],
     // The van, overheard (v0.3 beat sheet Scene 7). Rizo understands the tone,
-    // not the words. Nobody says why, what "one" is, or what the cooler is for.
+    // not the words. v0.4: the player learns WHAT the Boss wants (every Rizo);
+    // WHY stays unanswered ("What's he even want it for?" — nobody answers).
     vanTouch: [L("hood-small", "neutral", "Boss said don't touch it."), L("hood-tall", "neutral", "I'm not touching it."), L("hood-small", "neutral", "Then why you keep looking at it?"), L("hood-tall", "neutral", "'Cause it's looking at me.")],
     vanFilm: [L("hood-small", "neutral", "Say hi."), L("hood-tall", "neutral", "Put that away."), L("hood-small", "neutral", "It's for me. It's not for nobody.")],
     vanCooler: [L("hood-small", "neutral", "Why do we even got a cooler."), L("driver", "neutral", "In case."), L("hood-small", "neutral", "In case of what?"), L("driver", "neutral", "…In case.")],
     vanNumber: [L("hood-small", "neutral", "How much we getting for it?"), L("hood-tall", "neutral", "Enough."), L("hood-small", "neutral", "That's not a number."), L("driver", "neutral", "It ain't about the number. You don't say no to him."), L("hood-small", "neutral", "I'd say no."), L("driver", "neutral", "Nah. You wouldn't.")],
+    // The collection, said out loud once, as a fear joke.
+    vanEvery: [L("hood-small", "scared", "How many of these he even got?"), L("driver", "neutral", "All of 'em. He wants every one there is."), L("hood-small", "scared", "Every one? Like, every every?"), L("hood-tall", "scared", "Stop counting. He can hear you counting.")],
     vanCheckin: [L("driver", "neutral", "We missed the check-in."), L("hood-small", "neutral", "By what, a minute?"), L("hood-tall", "neutral", "Doesn't matter.")],
     vanAsk: [L("hood-small", "neutral", "What's he even want it for?")],
     vanPhone: [L("hood-small", "neutral", "…It's him."), L("driver", "neutral", "Don't."), L("hood-small", "neutral", "If I don't pick up—"), L("hood-tall", "neutral", "Then don't pick up.")],
     vanLost: [L("hood-small", "neutral", "You know what happened to the last dude who lost one."), L("hood-tall", "neutral", "Shut up."), L("hood-small", "neutral", "I'm just saying."), L("hood-tall", "neutral", "I said shut the f—")],
     vanListening: [L("hood-cap", "neutral", "Both of you. It's listening.")],
-    // ===== MENDING ROWS (v0.2 §10 drafts, condensed; functional lines added in the same voices) =====
-    // Receiving: Latch got here first, by a door that still does doors.
+    // The dropped phone (scene 10), answered: the Boss, for the first time, in his own words.
+    bossPhone: [L("boss", "calm", "…That isn't them."), L("boss", "calm", "Hello, little light."), L("boss", "cold", "Stay where you are. Someone will come and collect you.")],
+    // A collector's radio in Clatter Passage: the Boss, directing the hunt below.
+    bossRadio: [L("boss", "calm", "Anything?"), L("boss", "cold", "Then try the Queue. It wants to go up.")],
+    // ===== COMICS (spoken inside the panels; see dungeon-comic.js) =====
+    comicBossHands: [L("hood-tall", "scared", "Boss. Funny story. It went down a drain."), L("boss", "calm", "Then it's in the Below."), L("boss", "cold", "Send the collectors down. I want every one of them."), L("hood-small", "scared", "So… we're good?")],
+    comicBossGlass: [L("collector", "neutral", "Its light went up through the Rows."), L("boss", "calm", "Then be at the window when it opens.")],
+    // ===== THE THRESHOLD (v0.4: the collectors have been here) =====
+    latchApproach: [L("latch", "startled", "NO OPEN FLAMES."), L("latch", "dry", "Sorry. Sign's older than the door."), L("latch", "procedural", "Collectors froze this gate on their way through. With me in it.")],
+    latchJam: [L("latch", "procedural", "Latch is frozen. I'm Latch. Like the door bit. Different problem."), L("latch", "urgent", "Their cold won't let go. You're warm. Warm it?")],
+    latchRescue: [L("latch", "startled", "Oh."), L("latch", "dry", "That was the useful kind of fire."), L("latch", "soft", "They take every light down here. You're the first one that gave some back."), L("latch", "procedural", "Going up? Hearth first. I owe you a route.")],
+    latchRescueStranger: [L("latch", "startled", "Oh."), L("latch", "dry", "That was the useful kind of fire. I'm Latch. Like the door bit."), L("latch", "soft", "They take every light down here. You're the first one that gave some back."), L("latch", "procedural", "Going up? Hearth first. I owe you a route.")],
+    // The hearth went cold when the collectors came for its fire; he brings it back by arriving.
+    hearthLit: [L("latch", "soft", "Cold since they took our fire. You lit it just walking in.")],
+    seatOffer: [L("latch", "procedural", "Seat's dry."), L("latch", "dry", "I checked with the wet part of me.")],
+    sit: [L("latch", "soft", "You can stay. Just don't eat the chair.")],
+    go: [L("latch", "dry", "Right. Officially: route inspection.")],
+    beforePorter: [L("latch", "procedural", "Way up is past the Cold Queue. A collector walks it now."), L("latch", "urgent", "Stay in the dark. Posts block his lamp. If it finds you, run back here."), L("latch", "procedural", "Then the Night Porter. He checks every ticket."), L("latch", "soft", "Nobody here has one.")],
+    latchHearthIdle: [L("latch", "soft", "Fire's good. The Queue's north. Stay out of the lamp.")],
+    bowl: ["A bowl. A familiar shape. Cold ash.", "Under it, a black card. The jar mark."],
+    // Caught in a lamp: Latch pulled him back to the hearth. Try again.
+    latchCaught: [L("latch", "urgent", "Got you. Their lamp had you. Use the posts, and wait for his back.")],
+    help: [L("latch", "urgent", "Here. I found a door that still does doors."), L("latch", "urgent", "He thinks you're one of their lamps. Hide in here!")],
+    // After the Porter settles: why he stopped, before the knot.
+    porterSettled: [L("latch", "soft", "He's settled. He saw your light is warm. Theirs never is.")],
+    gift: [L("latch", "soft", "Keeps the draft off."), L("latch", "dry", "Don't get it cleaned. That's my best knot.")],
+    departure: [L("latch", "soft", "Go on."), L("latch", "soft", "Something upstairs is waiting for you.")],
+    // ===== MENDING ROWS (v0.4: the collectors are coming through the Rows) =====
+    // Receiving: Latch delivers a warning; the load is frozen to the ledge.
     rowsLatchHello: [L("latch", "procedural", "You're through. Good. I'm mid-delivery.")],
     rowsLatchHelloSat: [L("latch", "soft", "You're through. The chair survived, by the way.")],
-    rowsDispute: [L("latch", "procedural", "It needs to be bigger."), L("nell", "measuring", "It needs to be empty."), L("latch", "dry", "That would interfere with delivery.")],
-    rowsMend: [L("nell", "work", "There. Now I can mend it.")],
+    rowsDispute: [L("latch", "procedural", "Notice for the Rows, Nell. Collectors tonight."), L("nell", "irritated", "Again? They froze my ledge last time."), L("latch", "dry", "Delivered. Not my fault. Noted, though.")],
+    rowsMend: [L("nell", "work", "Load's frozen to the ledge. Their cold. I can't reach the catch.")],
     rowsDry: [L("nell", "work", "This bit's dry.")],
-    rowsGoingUp: [L("latch", "procedural", "Nell. He's going up."), L("nell", "listening", "Through the work room, then. Let me finish this.")],
+    rowsGoingUp: [L("latch", "procedural", "Nell. He's going up. Home's up there."), L("nell", "listening", "Then he goes through my rows. The dry way's the only way up.")],
     rowsLedgeHelp: [L("nell", "work", "Thanks. Now it lowers."), L("latch", "dry", "That counts as assistance. I'll note it.")],
-    rowsLatchGoes: [L("latch", "procedural", "Next stop. The rows are hers.")],
-    // The Dry Table: a misunderstanding, a rough corner, a small job.
+    rowsLedgeSelf: [L("nell", "tired", "Got it. Took me three tries.")],
+    rowsLatchGoes: [L("latch", "procedural", "Next stop. Nell mends what they break. Stick with her.")],
+    // The Dry Table: where she works; the dry way up starts here.
     rowsWarmRoom: [L("nell", "work", "Warm room's here.")],
-    rowsFurtherUp: [L("nell", "listening", "Oh. Further up."), L("nell", "work", "The dry way's through the rows. Rail's stuck.")],
-    rowsCorner: [L("nell", "measuring", "That corner's taking bites.")],
-    rowsCatchAsk: [L("nell", "work", "Low catch. Warm it. I've got the weight.")],
+    rowsFurtherUp: [L("nell", "listening", "Oh. Further up. Home's up, is it?"), L("nell", "work", "Dry way's through the rows. Collectors froze the catch.")],
+    rowsCorner: [L("nell", "measuring", "That corner's taking bites. Hold on.")],
+    rowsCatchAsk: [L("nell", "work", "They froze it low. Warm the catch. I've got the weight.")],
     rowsHolds: [L("nell", "work", "Holds.")],
-    rowsDrySide: [L("nell", "work", "Dry side.")],
+    rowsLamp: [L("nell", "work", "Lamp. Get behind the sheets.")],
+    rowsLampPast: [L("nell", "work", "He's gone by. Good. Over here.")],
     rowsLowAsk: [L("nell", "work", "Low catch again. I'll hold the bar.")],
-    rowsEyeletPromise: [L("nell", "work", "Eyelet landing. Other end of this row.")],
+    rowsEyeletPromise: [L("nell", "work", "Low route's yours. Meet me at Eyelet Landing.")],
     // Eyelet: somebody at the other end.
-    rowsThereYouAre: [L("nell", "work", "There you are."), L("nell", "work", "Mind the eyelet. It catches cloth.")],
-    rowsThatOne: [L("nell", "amused", "Yes. That one.")],
+    rowsThereYouAre: [L("nell", "work", "There you are."), L("nell", "work", "Orr's due with food. Go easy on him. They took his partner.")],
     rowsHatch: [L("orr", "irritated", "That hatch was built for one portion. I carry two."), L("nell", "work", "Grille's got a low catch. He can reach it.")],
     rowsTable: [L("orr", "serving", "Table, then. Food wants sitting down.")],
-    // The meal: Nell loses a small argument.
-    rowsMeal: [L("nell", "irritated", "Not on the cleared bit."), L("orr", "serving", "It's food. It wants the reachable bit."), L("nell", "work", "I just cleared it."), L("orr", "irritated", "Then move the chalk."), L("nell", "work", "Fine.")],
+    // The meal: Nell loses a small argument; Orr says who the second portion is for.
+    rowsMeal: [L("nell", "irritated", "Not on the cleared bit."), L("orr", "serving", "It's food. It wants the reachable bit."), L("nell", "work", "I just cleared it."), L("orr", "irritated", "Then move the chalk."), L("nell", "work", "Fine."), L("orr", "dry", "Second portion's Eda's. Collectors took her."), L("orr", "serving", "Nobody they're hunting eats standing up. Sit, if you like.")],
     rowsCrunchy: [L("nell", "amused", "Where's the other crunchy edge?"), L("orr", "dry", "On what you just ate.")],
-    rowsPressNext: [L("nell", "work", "Press house next. Its door sticks.")],
+    rowsPressNext: [L("nell", "work", "Press house next. They left it running so nobody gets up.")],
     rowsTakeEdge: [L("orr", "serving", "Take the edge at least.")],
-    // Press House: an opening stays an opening; an empty job stopped together.
+    // Press House: stop what they left running.
     rowsWaitItOut: [L("nell", "work", "Carriage. Wait it out.")],
     rowsClear: [L("nell", "work", "Clear.")],
     rowsEmptyJob: [L("nell", "work", "It's running an empty job. Something's pulling it.")],
@@ -685,31 +739,58 @@
     rowsWrapWorn: [L("nell", "work", "Hold still. Strap's twisting."), L("nell", "amused", "Ugly seam. Good seam.")],
     rowsWrapFolded: [L("nell", "work", "Clasp on top. Easier to find.")],
     rowsWrapPeg: [L("nell", "work", "Low peg. It'll stay dry.")],
-    rowsOnward: [L("nell", "work", "Counter's through there. I'm going that way.")],
+    rowsOnward: [L("nell", "work", "Window Hall's through there. The way up goes past its counter.")],
     // Window Hall: the staffed side of CLOSED.
     rowsClosed: [L("nell", "tired", "Closed. They'll open.")],
     rowsStayNear: [L("nell", "work", "Stay where I can see you. They call in order.")],
-    rowsLatchAgainHelped: [L("latch", "procedural", "Packet arrived dry. Your catch held."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
+    rowsLatchAgainHelped: [L("latch", "procedural", "Notice delivered. Your catch held."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
     rowsLatchAgain: [L("latch", "dry", "You two opened the rows. It shows."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
-    latchApproach: [L("latch", "startled", "NO OPEN FLAMES."), L("latch", "dry", "Sorry. Sign's older than the door.")],
-    latchJam: [L("latch", "procedural", "Latch is frozen. Name's Latch. Different problem.")],
-    latchRescue: [L("latch", "startled", "Oh."), L("latch", "dry", "That was the useful kind."), L("latch", "procedural", "You're going up? Hearth first.")],
-    latchRescueStranger: [L("latch", "startled", "Oh."), L("latch", "dry", "That was the useful kind. I'm Latch, by the way."), L("latch", "procedural", "You're going up? Hearth first.")],
-    seatOffer: [L("latch", "procedural", "Seat's dry."), L("latch", "dry", "I checked with the wet part of me.")],
-    sit: [L("latch", "soft", "You can stay. Just don't eat the chair.")],
-    go: [L("latch", "dry", "Right. Officially: route inspection.")],
-    beforePorter: [L("latch", "procedural", "He checks every ticket."), L("latch", "soft", "Nobody here has one.")],
-    latchHearthIdle: [L("latch", "soft", "Fire's good. Go on when you're ready.")],
-    bowl: ["A bowl. A familiar shape. Cold ash."],
-    help: [L("latch", "urgent", "Here. I found a door that still does doors.")],
-    gift: [L("latch", "soft", "Keeps the draft off."), L("latch", "dry", "Don't get it cleaned. That's my best knot.")],
-    departure: [L("latch", "soft", "Go on."), L("latch", "soft", "Something upstairs is waiting for you.")],
     rested: "WARM AGAIN",
     hearthKnows: "THE HEARTH KNOWS YOU NOW",
     firstDown: "THE FLAME WENT LOW. THE HEARTH KEPT IT.",
     downNoHearth: "BACK WHERE HE LANDED",
+    caught: "CAUGHT IN THE LAMP. BACK TO THE HEARTH.",
+    caughtNoHearth: "CAUGHT IN THE LAMP. BACK WHERE HE LANDED.",
     shortcutOpen: "THE WAY TO THE HEARTH IS OPEN",
     homeUp: "HOME ↑"
+  };
+  // What Rizo is trying to do right now, shown on the HUD (see dungeon-mode.js guide()).
+  const OBJECTIVES = {
+    wait: "WAIT FOR YOU",
+    sack: "STRUGGLE FREE",
+    van: "GET OUT OF THIS VAN",
+    gap: "THE BACK DOOR. PUSH THROUGH.",
+    hide: "HIDE IN THE DARK",
+    shelter: "GET OUT OF THE RAIN",
+    deeper: "FOLLOW THE WARM AIR",
+    findWay: "FIND A WAY UP",
+    climb: "HOME IS UP. KEEP CLIMBING.",
+    lamp: "STAY OUT OF THE LAMP. KEEP GOING UP.",
+    freeLatch: "WARM THE FROZEN LATCH",
+    toHearth: "FOLLOW LATCH TO THE HEARTH (EAST)",
+    hearth: "WARM UP AT THE HEARTH",
+    toQueue: "THE WAY UP IS NORTH, THROUGH THE COLD QUEUE",
+    queue: "SNEAK PAST THE COLLECTOR. HIDE BEHIND THE POSTS.",
+    porter: "GET PAST THE NIGHT PORTER",
+    porterDoor: "THROUGH THE PORTER'S DOOR. UP.",
+    ledge: "WARM THE LEDGE CATCH FOR NELL",
+    toTable: "FOLLOW NELL (EAST)",
+    tableCatch: "WARM THE LOW CATCH NELL CAN'T REACH",
+    toRows: "INTO THE ROWS (NORTH DOOR)",
+    rowLamp: "SLIP PAST THE COLLECTOR'S LAMP",
+    lowCatch: "WARM THE LOW CATCH AT THE SPLIT",
+    toEyelet: "LOW ROUTE (EAST) TO EYELET LANDING",
+    grille: "WARM THE GRILLE CATCH SO ORR'S TRAY FITS",
+    toMeal: "BACK TO THE TABLE TO EAT (WEST)",
+    meal: "EAT WITH NELL AND ORR",
+    toPress: "TO THE PRESS HOUSE (EYELET, NORTH DOOR)",
+    stopPress: "STOP THE RUNAWAY PRESS",
+    brake: "WARM THE BRAKE BY THE TRACK",
+    shutter: "WARM THE SHUTTER CATCH, THEN GO UNDER",
+    toStair: "TAKE THE STAIR DOWN TO THE TABLE (WEST)",
+    toNell: "MEET NELL AT THE TABLE",
+    toWindow: "THROUGH THE DOORWAY TO WINDOW HALL",
+    window: "WAIT AT THE WINDOW WITH NELL"
   };
   // Short acknowledgements for a committed beat whose scene was interrupted.
   const ACKS = {
@@ -734,6 +815,7 @@
     PORTRAITS,
     LINES,
     ACKS,
+    OBJECTIVES,
     START_ROOM: "car",
     ROWS_ROOMS,
     BELOW_START: "slip",
@@ -742,9 +824,11 @@
     // connected. Its consequence is deliberately undecided; it only persists.
     FLAGS: ["latchFreed", "jamInspected", "sharedRest", "seatChosen", "bowlSeen", "shortcutOpen", "porterHelp", "alcoveOpen", "porterDown", "beforePorterSaid", "hearthArrived", "callerConnected",
       // Mending Rows: work that stays done (routes), and two small remembered kindnesses.
-      "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLatchHelped", "rowsChalk"],
+      "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLatchHelped", "rowsChalk",
+      // v0.4 (threshold-v4): the hearth he brought back, the collectors he got past, the ledge lowered.
+      "hearthKindled", "queueCrossed", "hangrowCrossed", "rowsLedge"],
     // Durable room work lives in world.durableRoomFlags; the rest in story.facts.
-    ROOM_FLAGS: ["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown", "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward"],
+    ROOM_FLAGS: ["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown", "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLedge"],
     // Story choices and their allowed values (the save keeps nothing else).
     CHOICES: { "hearth-seat": ["sit", "go"], "rows-meal": ["sit", "go"], "rows-wrap": ["worn", "folded", "peg"] },
     // The caller's symbol is an owner/art decision. Until it exists, the phone

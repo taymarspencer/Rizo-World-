@@ -45,7 +45,7 @@ test("content is frozen: the opening plus the six stable Threshold rooms, all re
   assert.ok(Object.isFrozen(Content.ROOMS.clatter.solids[0]));
   assert.deepStrictEqual(Content.ROOM_IDS, ["slip", "clatter", "hem", "hearth", "queue", "porter"]);
   assert.deepStrictEqual(Content.OPENING_ROOMS, ["car", "sack", "van", "roadside", "drain"]);
-  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v3");
+  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v4");
   assert.strictEqual(Content.ROOMS.curb, undefined, "the curb is gone: the car replaced it");
   for (const [id, room] of Object.entries(Content.ROOMS)) {
     for (const [name, anchor] of Object.entries(room.anchors)) {
@@ -391,7 +391,7 @@ test("a new campaign binds the pet, starts in the parked car and stays small", (
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
   assert.strictEqual(data.campaign.petId, "PET-1");
   assert.strictEqual(data.campaign.kind, "proof");
-  assert.strictEqual(data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(data.campaign.contentRevision, "threshold-v4");
   assert.deepStrictEqual(data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
   assert.strictEqual(data.proofComplete, false);
   assert.strictEqual(data.storyComplete, false);
@@ -523,22 +523,24 @@ test("the jammed gate holds until Latch is freed; warming it is a Kindle", () =>
   assert.strictEqual(D.interactables(freed).some(item => item.id === "latch-jam"), false);
 });
 test("Needle: a 10-wide lane shown for 1000 ms, a 120 ms pulse, a 1000 ms rest; cover stops it", () => {
-  const sim = D.createSim({ roomId: "queue" });
+  // v0.4: the Needle that guarded the Cold Queue now holds the Low Run, between its blocks.
+  const sim = D.createSim({ roomId: "lowrun" });
   sim.enemies = sim.enemies.filter(enemy => enemy.kind === "needle");
-  sim.player.x = 160; sim.player.y = 220;
+  const [nx, ny] = [sim.enemies[0].x, sim.enemies[0].y];
+  sim.player.x = nx; sim.player.y = ny - 140;
   const events = run(sim, 1300, {});
   const at = type => events.find(event => event.type === type)?.t;
   near(at("pulse") - at("lane"), 1000, D.STEP_MS + 1e-6, "indicate");
   assert.ok(events.some(event => event.type === "hurt"), "standing in the lane hurts");
-  const covered = D.createSim({ roomId: "queue" });
+  const covered = D.createSim({ roomId: "lowrun" });
   covered.enemies = covered.enemies.filter(enemy => enemy.kind === "needle");
   const needle = covered.enemies[0];
-  needle.aware = true; needle.state = "indicate"; needle.stateAt = 0; needle.aimX = 0; needle.aimY = 1;
-  needle.laneLength = D.rayLength(D.geoOf(covered), 160, 93, 0, 1, 300);
-  covered.player.x = 108; covered.player.y = 330; // behind post-c, out of the lane
+  needle.aware = true; needle.state = "indicate"; needle.stateAt = 0; needle.aimX = -1; needle.aimY = 0;
+  needle.laneLength = D.rayLength(D.geoOf(covered), nx - 9, ny, -1, 0, 300);
+  covered.player.x = 150; covered.player.y = ny; // behind block-b, out of the lane
   assert.ok(!run(covered, 300, {}).some(event => event.type === "hurt"));
-  const blocked = D.rayLength(D.geoOf(covered), 108, 100, 0, 1, 300);
-  assert.ok(blocked < 200, `a post stops the lane at ${blocked}`);
+  const blocked = D.rayLength(D.geoOf(covered), nx - 9, ny, -1, 0, 300);
+  assert.ok(blocked < 200, `a block stops the lane at ${blocked}`);
 });
 test("the van's cooler bumps but never burns, and Tuck slips it", () => {
   const sim = D.createSim({ roomId: "van" });
@@ -605,10 +607,10 @@ test("the alcove shelters from the sweep once opened", () => {
 test("a durable defeat never respawns; ordinary enemies return on rest", () => {
   const sim = D.createSim({ roomId: "porter", defeated: ["night-porter"] });
   assert.strictEqual(sim.enemies.length, 0);
-  const queue = D.createSim({ roomId: "queue", cleared: ["queue-draftling"] });
-  assert.deepStrictEqual(queue.enemies.map(enemy => enemy.id), ["queue-needle"]);
-  D.rest(queue);
-  assert.strictEqual(queue.enemies.length, 2);
+  const clatter = D.createSim({ roomId: "clatter", cleared: ["clatter-draftling"] });
+  assert.deepStrictEqual(clatter.enemies.map(enemy => enemy.id), []);
+  D.rest(clatter);
+  assert.deepStrictEqual(clatter.enemies.map(enemy => enemy.id), ["clatter-draftling"]);
 });
 test("a Gate 1 review campaign is carried into The Threshold explicitly", () => {
   const gate1 = { settings: { assist: true, textSpeed: "instant" }, campaign: { id: "threshold-old123", kind: "proof", contentRevision: "threshold-gate1", petId: "PET-1", petName: "MOSSY", status: "active", chapterId: "threshold" }, world: { visitedRooms: ["clatter"] }, checkpoint: { hearthId: "clatter-review-hearth", roomId: "clatter", spawnAnchorId: "clatter-hearth-side" }, continuation: { roomId: "clatter", safeAnchorId: "clatter-hearth-side", roomEntryFlame: 5, resumeKind: "hearth" }, journal: { discoveredEntryIds: ["ticket-stub"] } };
@@ -616,7 +618,7 @@ test("a Gate 1 review campaign is carried into The Threshold explicitly", () => 
   assert.strictEqual(result.status, "migrated");
   assert.strictEqual(result.data.campaign.id, "threshold-old123");
   assert.strictEqual(result.data.campaign.petId, "PET-1");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
   assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
   assert.deepStrictEqual(result.data.journal.discoveredEntryIds, ["ticket-stub"]);
   assert.strictEqual(result.data.continuation.roomId, "car");
@@ -651,7 +653,7 @@ test("an RC2 journey still at the curb becomes the same journey in the car, noth
   assert.strictEqual(result.status, "migrated");
   assert.deepStrictEqual(result.notes, ["migrated-from-v1"]);
   assert.strictEqual(result.data.campaign.id, "threshold-rc2abc");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
   assert.deepStrictEqual(result.data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
   assert.deepStrictEqual(result.data.world.visitedRooms, ["car"]);
   assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
@@ -733,7 +735,7 @@ test("each Rows route opens through work, never through affection", () => {
   assert.ok(sim.player.y > 20, "the onward doorway is blocked by the drying load until Nell moves it");
   assert.strictEqual(D.room("drytable").hearth.id, "rows-stove");
 });
-test("a threshold-v2 journey is carried into v3 untouched (rooms and facts were only added)", () => {
+test("a threshold-v2 journey is carried into v4 untouched (rooms and facts were only added)", () => {
   const data = D.newCampaign({ pet, id: "threshold-v2abcd" });
   data.campaign.contentRevision = "threshold-v2";
   data.world.visitedRooms = ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth", "queue", "porter"];
@@ -745,7 +747,7 @@ test("a threshold-v2 journey is carried into v3 untouched (rooms and facts were 
   data.proofComplete = true; data.campaign.status = "homecoming-ready";
   const result = D.normalizeSlice(clone(data));
   assert.strictEqual(result.status, "migrated");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
   for (const key of ["world", "story", "continuation", "checkpoint", "npcs", "journal", "pendingRewards", "proofComplete"]) assert.deepStrictEqual(result.data[key], clone(data)[key], key);
 });
 test("Rows choices are allowlisted with their exact values; anything else is dropped", () => {
@@ -756,6 +758,128 @@ test("Rows choices are allowlisted with their exact values; anything else is dro
   assert.deepStrictEqual(D.normalizeSlice(data).data.story.choices, { "rows-meal": "go" });
   data.story.facts = { rowsLatchHelped: true, rowsChalk: true, rowsFriend: true };
   assert.deepStrictEqual(D.normalizeSlice(data).data.story.facts, { rowsLatchHelped: true, rowsChalk: true }, "no friendship score exists to be saved");
+});
+
+// ---------- v0.4: THE BOSS'S COLLECTORS ----------
+function queueWithCollector() {
+  const sim = D.createSim({ roomId: "queue" });
+  sim.enemies = sim.enemies.filter(enemy => enemy.kind === "collector");
+  return { sim, lamp: sim.enemies[0] };
+}
+test("a collector walks his patrol, lamp first, and is never fought", () => {
+  const { sim, lamp } = queueWithCollector();
+  sim.player.x = 160; sim.player.y = 400;
+  const start = { x: lamp.x, y: lamp.y };
+  run(sim, 3000, {});
+  assert.ok(lamp.x > start.x + 40 && Math.abs(lamp.y - start.y) < 1, `he walks his line east (${lamp.x}, ${lamp.y})`);
+  assert.ok(lamp.aimX > 0.9, "the lamp points the way he walks");
+  assert.strictEqual(D.encounterActive(sim), false, "a collector never turns Primary into Flare");
+  sim.player.x = lamp.x + 14; sim.player.y = lamp.y;
+  sim.player.fx = -1; sim.player.fy = 0;
+  const flare = run(sim, 400, { primaryPressed: true });
+  assert.ok(!flare.some(event => event.type === "hit"), "a Flare does nothing to him");
+});
+test("seen in his lamp for a second means caught: a flame-out back to the hearth, nothing durable lost", () => {
+  const { sim, lamp } = queueWithCollector();
+  sim.player.x = lamp.x + 50; sim.player.y = lamp.y;
+  const events = run(sim, 1300, {});
+  const at = type => events.find(event => event.type === type)?.t;
+  assert.ok(at("spotted") != null && at("caught") != null, "spotted, then caught");
+  near(at("caught") - at("spotted"), C_SPOT(), D.STEP_MS + 1e-6, "spot time");
+  assert.strictEqual(sim.phase, "down");
+  assert.strictEqual(sim.downReason, "caught");
+  assert.ok(events.some(event => event.type === "down" && event.reason === "caught"));
+});
+function C_SPOT() { return Content.ENEMIES.collector.spotMs; }
+test("breaking his line of sight in time loses him; he searches, then walks on", () => {
+  const { sim, lamp } = queueWithCollector();
+  sim.player.x = lamp.x + 50; sim.player.y = lamp.y;
+  const seen = run(sim, 300, {});
+  assert.ok(seen.some(event => event.type === "spotted"));
+  // Behind post-a, out of his lamp.
+  sim.player.x = 108; sim.player.y = 160;
+  const after = run(sim, 4000, {});
+  assert.ok(after.some(event => event.type === "lost") && after.some(event => event.type === "resume"), after.map(event => event.type).join(","));
+  assert.strictEqual(sim.phase, "play");
+});
+test("posts and shadow hide him; a Flare is seen from twice as far, even in shadow", () => {
+  const { sim, lamp } = queueWithCollector();
+  lamp.aimX = 1; lamp.aimY = 0;
+  sim.player.x = lamp.x + 60; sim.player.y = lamp.y;
+  assert.strictEqual(D.collectorSees(sim, lamp), true, "in the lamp");
+  sim.player.y = lamp.y - 60;
+  assert.strictEqual(D.collectorSees(sim, lamp), false, "outside the cone");
+  // A dark corner (a room hide) keeps him unseen even inside the cone…
+  const nw = Content.ROOMS.queue.hides[0];
+  lamp.x = 130; lamp.y = 60; lamp.aimX = -1; lamp.aimY = 0;
+  sim.player.x = nw.x + nw.w / 2; sim.player.y = nw.y + nw.h / 2;
+  assert.strictEqual(D.hiddenIn(sim), true);
+  assert.strictEqual(D.collectorSees(sim, lamp), false, "hidden in the dark corner");
+  // …but not while he Flares, and a Flare carries.
+  sim.player.act = { kind: "flare", start: sim.t, id: 1, fx: 1, fy: 0, hit: [] };
+  assert.strictEqual(D.collectorSees(sim, lamp), true, "a Flare gives him away");
+  sim.player.act = null;
+  lamp.x = 200; lamp.y = 224; lamp.aimX = -1; lamp.aimY = 0;
+  sim.player.x = 108; sim.player.y = 188; // post-a stands between them
+  assert.strictEqual(D.collectorSees(sim, lamp), false, "a post blocks the lamp");
+});
+test("a soft collector (Clatter's first lamp) stops on him but never catches", () => {
+  const sim = D.createSim({ roomId: "clatter" });
+  sim.enemies = [];
+  const lamp = D.spawnCollector(sim, { id: "clatter-collector", x: 200, y: 300, soft: true, patrol: [[200, 300], [100, 300]] });
+  sim.player.x = 150; sim.player.y = 300;
+  const events = run(sim, 2500, {});
+  assert.ok(events.some(event => event.type === "spotted"), "it sees him");
+  assert.ok(!events.some(event => event.type === "caught"), "it never catches");
+  assert.strictEqual(sim.phase, "play");
+  assert.strictEqual(lamp.kind, "collector");
+});
+test("threshold-v4: one revision bump; v3 journeys carry forward untouched; the new facts are allowlisted", () => {
+  assert.deepStrictEqual(Content.CARRIED_REVISIONS, ["threshold-v1", "threshold-v2", "threshold-v3"]);
+  for (const flag of ["hearthKindled", "queueCrossed", "hangrowCrossed", "rowsLedge"]) assert.ok(Content.FLAGS.includes(flag), flag);
+  assert.ok(Content.ROOM_FLAGS.includes("rowsLedge"));
+  const data = D.newCampaign({ pet, id: "threshold-v3abcd" });
+  data.campaign.contentRevision = "threshold-v3";
+  data.world.visitedRooms = ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth", "queue", "porter", "receiving", "drytable"];
+  data.world.durableRoomFlags = { latchFreed: true, porterDown: true, rowsCatch: true };
+  data.story.facts = { rowsLatchHelped: true, sharedRest: true };
+  data.story.committedSceneBeats = ["opening:below", "rows:arrived", "rows:met"];
+  data.continuation = { roomId: "drytable", safeAnchorId: "drytable-west", roomEntryFlame: 5, resumeKind: "room-entry" };
+  const result = D.normalizeSlice(clone(data));
+  assert.strictEqual(result.status, "migrated");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
+  for (const key of ["world", "story", "continuation", "checkpoint", "npcs", "journal"]) assert.deepStrictEqual(result.data[key], clone(data)[key], key);
+  const v4 = clone(result.data);
+  v4.story.facts = { ...v4.story.facts, hearthKindled: true, queueCrossed: true, hangrowCrossed: true, bossFriend: true };
+  v4.world.durableRoomFlags.rowsLedge = true;
+  const again = D.normalizeSlice(v4);
+  assert.strictEqual(again.status, "ok");
+  assert.deepStrictEqual(again.data.story.facts, { rowsLatchHelped: true, sharedRest: true, hearthKindled: true, queueCrossed: true, hangrowCrossed: true });
+  assert.strictEqual(again.data.world.durableRoomFlags.rowsLedge, true);
+});
+test("v0.4 cast: the Boss speaks only through his mark; the capped hood has a face; the hoods can be scared", () => {
+  assert.deepStrictEqual(Content.SPEAKERS.boss, { name: "THE BOSS", portrait: "boss" });
+  assert.deepStrictEqual(Content.SPEAKERS["hood-cap"], { name: "CAPPED HOOD", portrait: "hood-cap" });
+  assert.deepStrictEqual(Object.keys(Art.PORTRAITS.boss).sort(), ["calm", "cold"]);
+  for (const expr of ["calm", "cold"]) assert.ok(Art.PORTRAITS.boss[expr].includes("<svg") && !/<text/.test(Art.PORTRAITS.boss[expr]), "his portrait is only the mark: no name, no face, no text");
+  assert.notStrictEqual(Art.PORTRAITS.boss.calm, Art.PORTRAITS.boss.cold);
+  assert.ok(Art.PORTRAITS["hood-cap"].neutral.length > 900);
+  for (const id of ["hood-tall", "hood-small", "driver"]) assert.ok(Art.PORTRAITS[id].scared && Art.PORTRAITS[id].scared !== Art.PORTRAITS[id].neutral, id);
+  for (const [key, lines] of Object.entries(Content.LINES)) for (const line of Array.isArray(lines) ? lines : []) if (line && line.speaker) {
+    assert.ok(line.speaker === "collector" || Content.SPEAKERS[line.speaker], `${key}: speaker ${line.speaker}`);
+    if (Content.SPEAKERS[line.speaker]) assert.ok(Art.PORTRAITS[Content.SPEAKERS[line.speaker].portrait]?.[line.expr], `${key}: ${line.speaker} has the ${line.expr} expression`);
+  }
+});
+test("v0.4 story: the van says what the Boss wants; nobody says why; the cave folk each say why they help", () => {
+  const all = Object.values(Content.LINES).flatMap(lines => (Array.isArray(lines) ? lines : [])).map(line => (typeof line === "string" ? line : line.text));
+  assert.ok(Content.LINES.vanEvery.some(line => line.text === "All of 'em. He wants every one there is."), "the collection is said once");
+  assert.deepStrictEqual(Content.LINES.vanAsk.map(line => line.text), ["What's he even want it for?"]);
+  assert.ok(!all.some(text => /because he|he wants them for|the reason he/i.test(text)), "nobody answers why");
+  assert.ok(Content.LINES.latchRescue.some(line => /take every light/.test(line.text)), "Latch: they take every light; Rizo gave some back");
+  assert.ok(Content.LINES.rowsMeal.some(line => line.speaker === "orr" && /Eda's\. Collectors took her/.test(line.text)), "Orr: who the second portion is for");
+  assert.ok(Content.LINES.porterSettled.some(line => /warm/.test(line.text)), "the Porter stops because Rizo's light is warm");
+  assert.ok(Content.LINES.rowsDispute.some(line => /Collectors/.test(line.text)), "Nell's Rows are where they come hunting");
+  for (const key of Object.keys(Content.OBJECTIVES)) assert.ok(Content.OBJECTIVES[key].length <= 48 && Content.OBJECTIVES[key] === Content.OBJECTIVES[key].toUpperCase(), key);
 });
 
 // ---------- RESTART DUNGEON ----------
@@ -793,7 +917,7 @@ test("restart: the player's Dungeon settings and an unconfirmed reward are kept"
   assert.deepStrictEqual(out.settings, { assist: true, textSpeed: "instant" });
   assert.deepStrictEqual(out.pendingRewards, [{ receiptId: "threshold-old111:threshold-complete", entitlements: ["first-knot", "shared-hearth"] }]);
 });
-test("restart: the result is a valid threshold-v3 slice that reloads unchanged", () => {
+test("restart: the result is a valid threshold-v4 slice that reloads unchanged", () => {
   const out = D.restartSlice(deepJourney(), { pet, id: "threshold-new222" });
   const reloaded = D.normalizeSlice(clone(out));
   assert.strictEqual(reloaded.status, "ok");
@@ -802,7 +926,7 @@ test("restart: the result is a valid threshold-v3 slice that reloads unchanged",
 test("restart: an empty or older-revision slice restarts; one from another build is never dropped", () => {
   assert.strictEqual(D.restartSlice({}, { pet, id: "threshold-new222" }).continuation.roomId, "car");
   const v2 = deepJourney(); v2.campaign.contentRevision = "threshold-v2";
-  assert.strictEqual(D.restartSlice(v2, { pet, id: "threshold-new222" }).campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(D.restartSlice(v2, { pet, id: "threshold-new222" }).campaign.contentRevision, "threshold-v4");
   const other = deepJourney(); other.campaign.contentRevision = "threshold-v9";
   assert.strictEqual(D.restartSlice(other, { pet, id: "threshold-new222" }), null);
   assert.throws(() => D.restartSlice(deepJourney(), { pet, id: "nope" }));

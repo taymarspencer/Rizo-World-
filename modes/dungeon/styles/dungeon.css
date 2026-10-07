@@ -380,3 +380,18 @@ html.dungeon-locked .minigame-overlay img,html.dungeon-locked .minigame-overlay 
 .dungeon-wear::after{content:"";position:absolute;left:8%;top:70%;width:22%;height:85%;background:#5a8578;border:2px solid #15110e;border-top:0;border-radius:0 0 40% 60%;transform:rotate(14deg);transform-origin:50% 0}
 .dungeon-wear-strap{position:absolute;left:10%;right:10%;top:44%;border-top:2px dashed #e3d8bf}
 .dungeon-wear-clasp{position:absolute;right:4%;top:18%;width:22%;aspect-ratio:1;border-radius:50%;background:#ecc77d;border:2px solid #15110e}
+
+/* ===== v0.4 story overhaul ===== */
+/* What he is trying to do now: one short line under the HUD. */
+.dungeon-objective{position:absolute;left:8px;top:27px;z-index:4;max-width:calc(100% - 16px);display:flex;gap:5px;align-items:flex-start;padding:3px 7px 3px 5px;border-radius:4px;background:rgba(8,9,12,.62);color:#f1e6c8;font:800 10.5px/1.25 Inter,system-ui,sans-serif;letter-spacing:.06em;pointer-events:none;box-shadow:0 0 0 1px rgba(241,230,200,.14)}
+.dungeon-objective[hidden]{display:none}
+.dungeon-objective i{font-style:normal;color:#ffaf4a;font-size:9px;line-height:13px}
+.dungeon-objective.is-new{animation:dungeon-objective-new 1.6s ease-out 1}
+@keyframes dungeon-objective-new{0%{background:rgba(224,112,42,.9);color:#fff8e6;transform:translateY(-3px)}30%{background:rgba(224,112,42,.75);transform:none}100%{background:rgba(8,9,12,.62)}}
+@media (max-width:340px){.dungeon-objective{font-size:9.5px;top:25px}}
+/* The Boss speaks only through phones and radios: cold, black, square. */
+.dungeon-bark[data-speaker="boss"]{background:#0b0c0f;color:#eef5f9;border-color:#b8c9d4;border-radius:2px;font-weight:700;letter-spacing:.02em;box-shadow:0 0 12px rgba(184,201,212,.45)}
+.dungeon-bark[data-speaker="boss"]::after{background:#0b0c0f;border-color:#b8c9d4}
+.dungeon-dialogue[data-speaker="boss"]{background:#0b0c0f;color:#eef5f9;border-color:#b8c9d4}
+.dungeon-dialogue[data-speaker="boss"] .dungeon-speaker{color:#b8c9d4}
+.dungeon-pause-goal{display:block;margin-top:6px;font-weight:900;letter-spacing:.06em;color:#ffaf4a}

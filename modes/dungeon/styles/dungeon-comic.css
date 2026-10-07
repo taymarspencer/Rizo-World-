@@ -1,0 +1,69 @@
+/* RIZO DUNGEON — comic cutscenes (story spine v0.4). Nothing here looks like
+   the game: paper, ink, halftone, slammed panels and SFX lettering. Lives
+   inside .dungeon-screen above dialogue (6) and choices, below the pause menu (8). */
+.dungeon-comic{position:absolute;inset:0;z-index:7;box-sizing:border-box;padding:7px;background:#f6efdc radial-gradient(rgba(17,16,19,.16) 1px,transparent 1.2px) 0 0/5px 5px;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;animation:comic-page-in .18s ease-out both}
+.dungeon-comic.is-out{animation:comic-page-out .2s ease-in both;pointer-events:none}
+.dungeon-comic.is-shake .comic-page{animation:comic-jolt .22s ease-out 1}
+.comic-page{position:relative;width:100%;height:100%;display:grid;gap:6px;grid-template:"a a" 1.1fr "b c" 1fr / 1fr 1fr}
+.layout-tall .comic-page{grid-template:"a b" 1fr "c b" 1fr / 1fr 1.15fr}
+.layout-boss .comic-page{grid-template:"a a" 1fr "b c" 1.05fr "d d" .8fr / 1fr 1fr}
+.comic-panel{position:relative;min-width:0;min-height:0;border:3px solid #111013;background:#111013;box-shadow:3px 3px 0 #111013;opacity:0;transform-origin:50% 50%}
+.comic-clip{position:absolute;inset:0;overflow:hidden}
+.comic-panel .comic-art{position:absolute;inset:0;width:100%;height:100%;display:block}
+.comic-panel.is-in{opacity:1}
+.comic-panel.is-in.enter-slam{animation:comic-slam .26s cubic-bezier(.2,1.6,.4,1) both}
+.comic-panel.is-in.enter-slam-l{animation:comic-slam-l .28s cubic-bezier(.2,1.4,.4,1) both}
+.comic-panel.is-in.enter-slam-r{animation:comic-slam-r .28s cubic-bezier(.2,1.4,.4,1) both}
+.comic-panel.is-in.enter-flip{animation:comic-flip .34s ease-out both}
+.comic-panel.is-in.enter-drop{animation:comic-drop .32s cubic-bezier(.3,1.5,.5,1) both}
+.comic-panel.is-in.enter-zoom{animation:comic-zoom .3s ease-out both}
+.comic-panel.is-in.enter-fade{animation:comic-fade .4s ease-out both}
+/* Gutters are never straight in an action page. */
+.comic-panel[data-panel="1"]{transform:rotate(-.8deg)}
+.comic-panel[data-panel="2"]{transform:rotate(.9deg)}
+.comic-panel[data-panel="3"]{transform:rotate(-.5deg)}
+/* The player's own Rizo, drawn by the hub, glowing in the panel. */
+.comic-rizo{position:absolute;z-index:1;aspect-ratio:1;transform:translate(-50%,-50%) rotate(var(--rot,0deg));filter:drop-shadow(0 0 5px #ffaf4a) drop-shadow(0 0 1px #111013);pointer-events:none}
+.comic-rizo>*{position:absolute!important;inset:0;width:100%!important;height:100%!important;max-width:none!important;margin:0!important}
+.comic-rizo.is-eyes{filter:drop-shadow(0 0 10px #ffaf4a)}
+.comic-panel.is-in .comic-rizo.is-eyes{animation:comic-tremble .12s linear infinite}
+.comic-panel.is-in .comic-rizo.is-tumble{animation:comic-tumble .9s ease-out both}
+.comic-panel.is-in .comic-rizo.is-leap{animation:comic-leap 1s ease-out both}
+.comic-panel.is-in .comic-rizo.is-fall{animation:comic-fall 1.2s ease-in both}
+.comic-panel.is-in .comic-rizo.is-slip{animation:comic-slip .7s ease-in both}
+.comic-sfx{position:absolute;z-index:2;transform:translate(-50%,-50%) rotate(var(--rot,0deg));font:900 calc(var(--size,1.6) * 14px)/.9 Impact,"Arial Black","Helvetica Neue",Inter,system-ui,sans-serif;color:#ffe2a0;-webkit-text-stroke:2px #111013;paint-order:stroke fill;text-shadow:3px 3px 0 #111013;letter-spacing:.03em;white-space:nowrap;pointer-events:none}
+.comic-sfx.is-cold{color:#eef5f9}
+.comic-sfx.is-small{-webkit-text-stroke:1.5px #111013;text-shadow:2px 2px 0 #111013}
+.comic-panel.is-in .comic-sfx{animation:comic-pop .3s .08s cubic-bezier(.2,1.8,.4,1) both}
+.comic-balloon{position:absolute;z-index:3;margin:0;padding:4px 7px 5px;box-sizing:border-box;width:max-content;background:#fffdf4;color:#111013;border:2px solid #111013;border-radius:11px;font:800 11.5px/1.2 Inter,system-ui,sans-serif;box-shadow:2px 2px 0 #111013}
+.comic-balloon small{display:block;font:900 8.5px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;opacity:.7;margin-bottom:2px}
+.comic-balloon.is-boss{background:#0b0c0f;color:#eef5f9;border-color:#b8c9d4;border-radius:2px;box-shadow:0 0 10px rgba(184,201,212,.55),2px 2px 0 #000}
+.comic-balloon.is-radio{background:#dfe8ee;border-style:dashed;border-radius:3px;font-style:italic}
+.comic-panel.is-in .comic-balloon{animation:comic-fade .25s .15s ease-out both}
+.comic-caption{position:absolute;left:3px;top:-1px;z-index:4;padding:3px 8px;background:#f4c27c;color:#111013;border:2px solid #111013;font:900 10.5px/1.1 Inter,system-ui,sans-serif;letter-spacing:.08em;transform:rotate(-1.2deg);box-shadow:2px 2px 0 #111013}
+.comic-skip{position:absolute;right:10px;bottom:9px;z-index:5;padding:2px 6px;background:#111013;color:#f6efdc;font:800 9px/1.2 Inter,system-ui,sans-serif;letter-spacing:.1em;opacity:0;animation:comic-fade .3s .7s ease-out both;pointer-events:none}
+@media (max-width:340px){.comic-balloon{font-size:10.5px;padding:3px 6px}.comic-sfx{-webkit-text-stroke:1.5px #111013}}
+@keyframes comic-page-in{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+@keyframes comic-page-out{to{opacity:0;transform:scale(.97)}}
+@keyframes comic-jolt{0%{transform:translate(0,0)}25%{transform:translate(-4px,3px)}50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,1px)}100%{transform:none}}
+@keyframes comic-slam{from{opacity:0;transform:scale(1.45) rotate(-5deg)}to{opacity:1}}
+@keyframes comic-slam-l{from{opacity:0;transform:translateX(-70%) rotate(-7deg)}to{opacity:1}}
+@keyframes comic-slam-r{from{opacity:0;transform:translateX(70%) rotate(7deg)}to{opacity:1}}
+@keyframes comic-flip{from{opacity:0;transform:perspective(500px) rotateY(85deg)}to{opacity:1}}
+@keyframes comic-drop{from{opacity:0;transform:translateY(-80%)}to{opacity:1}}
+@keyframes comic-zoom{from{opacity:0;transform:scale(.55)}to{opacity:1}}
+@keyframes comic-fade{from{opacity:0}to{opacity:1}}
+@keyframes comic-pop{from{opacity:0;transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(.2)}to{opacity:1;transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(1)}}
+@keyframes comic-tremble{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(calc(-50% + 1.5px),calc(-50% - 1px))}}
+@keyframes comic-tumble{from{transform:translate(-160%,-140%) rotate(-140deg)}to{transform:translate(-50%,-50%) rotate(var(--rot,0deg))}}
+@keyframes comic-leap{from{transform:translate(-120%,-20%) rotate(-20deg)}to{transform:translate(-50%,-50%) rotate(var(--rot,0deg))}}
+@keyframes comic-fall{from{transform:translate(-50%,-140%) rotate(90deg)}to{transform:translate(-50%,40%) rotate(var(--rot,0deg))}}
+@keyframes comic-slip{from{transform:translate(-80%,-60%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(var(--rot,0deg))}}
+/* Reduced motion: the same page, nothing moves. Panels only fade in. */
+.dungeon-comic.is-reduced,.dungeon-comic.is-reduced.is-out{animation:comic-fade .2s ease-out both}
+.dungeon-comic.is-reduced.is-out{animation-direction:reverse}
+.dungeon-comic.is-reduced .comic-panel.is-in,.dungeon-comic.is-reduced .comic-panel.is-in .comic-sfx,.dungeon-comic.is-reduced .comic-panel.is-in .comic-rizo,.dungeon-comic.is-reduced .comic-panel.is-in .comic-balloon{animation:comic-fade .25s ease-out both!important}
+.dungeon-comic.is-reduced .comic-panel.is-in .comic-sfx{transform:translate(-50%,-50%) rotate(var(--rot,0deg))}
+.dungeon-comic.is-reduced .comic-panel[data-panel]{transform:none}
+.dungeon-comic.is-reduced.is-shake .comic-page{animation:none}
+@media (prefers-reduced-motion:reduce){.dungeon-comic .comic-panel.is-in,.dungeon-comic .comic-panel.is-in *{animation-duration:.01s!important;animation-iteration-count:1!important}}

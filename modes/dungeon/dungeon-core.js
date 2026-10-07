@@ -170,7 +170,17 @@
   // ===== SIMULATION =====
   function makeEnemy(item) {
     const def = C.ENEMIES[item.kind];
-    return { id: item.id, kind: item.kind, x: item.x, y: item.y, homeX: item.x, homeY: item.y, r: def.radius, hp: def.hp, maxHp: def.hp, state: item.kind === "porter" ? "waiting" : "idle", stateAt: 0, aimX: item.aimX ?? 0, aimY: item.aimY ?? 1, locked: false, aware: false, flashUntil: -1, goneAt: -1, lungeFromX: item.x, lungeFromY: item.y, durable: Boolean(item.durable) };
+    const enemy = { id: item.id, kind: item.kind, x: item.x, y: item.y, homeX: item.x, homeY: item.y, r: def.radius, hp: def.hp ?? 1, maxHp: def.hp ?? 1, state: item.kind === "porter" ? "waiting" : item.kind === "collector" ? "patrol" : "idle", stateAt: 0, aimX: item.aimX ?? 0, aimY: item.aimY ?? 1, locked: false, aware: false, flashUntil: -1, goneAt: -1, lungeFromX: item.x, lungeFromY: item.y, durable: Boolean(item.durable) };
+    if (item.kind === "collector") {
+      // A patrol is a loop of waypoints; he starts on the first, walking to the second.
+      enemy.patrol = (item.patrol || [[item.x, item.y]]).map(([x, y]) => ({ x, y }));
+      enemy.wp = enemy.patrol.length > 1 ? 1 : 0;
+      enemy.pauseUntil = 0;
+      enemy.soft = Boolean(item.soft);
+      const [ax, ay] = normalize(enemy.patrol[enemy.wp].x - item.x, enemy.patrol[enemy.wp].y - item.y);
+      if (ax || ay) { enemy.aimX = ax; enemy.aimY = ay; }
+    }
+    return enemy;
   }
   // Ordinary enemies cleared this leg stay cleared; durable defeats never return.
   function spawnEnemies(geo, cleared = [], defeated = []) {
@@ -199,7 +209,8 @@
   }
   const liveEnemies = sim => sim.enemies.filter(enemy => enemy.state !== "gone" && enemy.state !== "settled");
   // Primary means Flare while any noticed enemy remains in the room.
-  const encounterActive = sim => sim.enemies.some(enemy => enemy.kind !== "cargo" && enemy.state !== "gone" && enemy.state !== "settled" && enemy.aware);
+  // A collector is never fought: noticing him never turns Primary into Flare.
+  const encounterActive = sim => sim.enemies.some(enemy => enemy.kind !== "cargo" && enemy.kind !== "collector" && enemy.state !== "gone" && enemy.state !== "settled" && enemy.aware);
   const hurtWindow = sim => (sim.assist ? T.HURT_MS_ASSIST : T.HURT_MS);
   const anticipationScale = sim => (sim.assist ? T.ASSIST_ANTICIPATION : 1);
   const vulnerable = (sim, p) => sim.phase === "play" && sim.t >= p.hurtUntil && sim.t >= p.protectUntil;
@@ -402,11 +413,102 @@
       if (progress >= 1) { enemy.state = "gone"; enemy.goneAt = sim.t; events.push({ type: "cargo-done", id: enemy.id, dodged: !enemy.bumped }); }
     }
   }
+  // A collector walking through (Clatter's first lamp is soft: it never catches).
+  function spawnCollector(sim, { id, x, y, patrol, soft = false }) {
+    sim.enemies = sim.enemies.filter(enemy => enemy.id !== id);
+    const enemy = makeEnemy({ id, kind: "collector", x, y, patrol, soft });
+    sim.enemies.push(enemy);
+    return enemy;
+  }
   function spawnCargo(sim, { id = "cooler", x, y, aimX = 1, aimY = 0 }) {
     sim.enemies = sim.enemies.filter(enemy => enemy.id !== id);
     const enemy = makeEnemy({ id, kind: "cargo", x, y, aimX, aimY });
     sim.enemies.push(enemy);
     return enemy;
+  }
+
+  // ===== COLLECTORS (story spine v0.4) =====
+  // The Boss's collectors walk a patrol with a cold lamp. Inside its cone, in
+  // line of sight and not in shadow, Rizo is seen; seen for spotMs, he is
+  // caught (a flame-out by another name: back to the last hearth, nothing
+  // durable lost). A Flare is seen from twice as far, even in shadow.
+  function hiddenIn(sim) {
+    const p = sim.player, raw = room(sim.roomId);
+    if (p.act?.kind === "flare") return false;
+    return (raw.hides || []).some(rect => pointInRect(p.x, p.y, rect));
+  }
+  function collectorSees(sim, enemy) {
+    const def = C.ENEMIES.collector, p = sim.player;
+    const flaring = p.act?.kind === "flare";
+    const range = def.range * (flaring ? def.flareRange : 1);
+    const dx = p.x - enemy.x, dy = p.y - enemy.y, distance = Math.hypot(dx, dy);
+    if (distance > range + p.r) return false;
+    if (hiddenIn(sim)) return false;
+    if (distance > p.r + enemy.r && (dx * enemy.aimX + dy * enemy.aimY) / distance < Math.cos(def.halfAngle)) return false;
+    return lineOfSight(geoOf(sim), enemy.x, enemy.y, p.x, p.y);
+  }
+  function updateCollector(sim, enemy, events) {
+    const def = C.ENEMIES.collector, p = sim.player;
+    const elapsed = sim.t - enemy.stateAt;
+    const enter = state => { enemy.state = state; enemy.stateAt = sim.t; };
+    const sees = sim.phase === "play" && collectorSees(sim, enemy);
+    const turnToward = (tx, ty, rate) => {
+      const [nx, ny] = normalize(tx - enemy.x, ty - enemy.y);
+      if (!nx && !ny) return;
+      const [ax, ay] = normalize(enemy.aimX + (nx - enemy.aimX) * rate, enemy.aimY + (ny - enemy.aimY) * rate);
+      if (ax || ay) { enemy.aimX = ax; enemy.aimY = ay; } else { enemy.aimX = nx; enemy.aimY = ny; }
+    };
+    const walkToward = (tx, ty, speed) => {
+      const dx = tx - enemy.x, dy = ty - enemy.y, distance = Math.hypot(dx, dy);
+      const stepLength = Math.min(distance, (speed * STEP_MS) / 1000);
+      if (distance > 1e-6) { enemy.x += (dx / distance) * stepLength; enemy.y += (dy / distance) * stepLength; }
+      return distance - stepLength;
+    };
+    switch (enemy.state) {
+      case "patrol": {
+        if (sees) { enemy.aware = true; enemy.lastSeenAt = sim.t; enemy.seenX = p.x; enemy.seenY = p.y; enter("spot"); events.push({ type: "spotted", id: enemy.id }); break; }
+        const target = enemy.patrol[enemy.wp];
+        if (sim.t < enemy.pauseUntil) {
+          // At a corner he swings the lamp slowly across, then turns to the next leg.
+          const next = enemy.patrol[(enemy.wp) % enemy.patrol.length];
+          const k = 1 - (enemy.pauseUntil - sim.t) / def.pauseMs;
+          const [bx, by] = normalize(next.x - enemy.x, next.y - enemy.y);
+          const swing = Math.sin(k * Math.PI * 2) * 0.7;
+          const cos = Math.cos(swing), sin = Math.sin(swing);
+          if (bx || by) { const [ax, ay] = normalize(enemy.aimX + ((bx * cos - by * sin) - enemy.aimX) * 0.2, enemy.aimY + ((bx * sin + by * cos) - enemy.aimY) * 0.2); if (ax || ay) { enemy.aimX = ax; enemy.aimY = ay; } }
+          break;
+        }
+        turnToward(target.x, target.y, 0.14);
+        if (walkToward(target.x, target.y, def.speed) < 0.5 && enemy.patrol.length > 1) {
+          enemy.wp = (enemy.wp + 1) % enemy.patrol.length;
+          enemy.pauseUntil = sim.t + def.pauseMs;
+        }
+        break;
+      }
+      case "spot": {
+        if (sees) { enemy.lastSeenAt = sim.t; enemy.seenX = p.x; enemy.seenY = p.y; }
+        turnToward(enemy.seenX, enemy.seenY, 0.3);
+        walkToward(enemy.seenX, enemy.seenY, def.chase);
+        if (sim.t - enemy.lastSeenAt > def.loseMs) { enter("search"); events.push({ type: "lost", id: enemy.id }); break; }
+        if (elapsed + EPS >= def.spotMs * anticipationScale(sim)) {
+          if (enemy.soft) { enter("search"); events.push({ type: "lost", id: enemy.id }); break; }
+          sim.phase = "down";
+          sim.downUntil = sim.t + T.DOWN_MS;
+          sim.downReason = "caught";
+          p.act = null;
+          events.push({ type: "caught", id: enemy.id }, { type: "down", reason: "caught" });
+        }
+        break;
+      }
+      case "search": {
+        // He stares where Rizo was, then goes back to walking his line.
+        if (sees) { enemy.lastSeenAt = sim.t; enemy.seenX = p.x; enemy.seenY = p.y; enter("spot"); events.push({ type: "spotted", id: enemy.id }); break; }
+        turnToward(enemy.seenX + Math.sin(sim.t / 260) * 18, enemy.seenY + Math.cos(sim.t / 300) * 18, 0.12);
+        if (elapsed + EPS >= def.searchMs) { enemy.aware = false; enter("patrol"); events.push({ type: "resume", id: enemy.id }); }
+        break;
+      }
+      default: break;
+    }
   }
 
   // The Night Porter: alternates a lamp sweep and a queue charge. The closed
@@ -483,7 +585,7 @@
     if (flarePhase(act, sim.t) !== "active") return;
     const geo = geoOf(sim);
     for (const enemy of sim.enemies) {
-      if (enemy.state === "gone" || enemy.state === "settled" || enemy.kind === "cargo" || act.hit.includes(enemy.id)) continue;
+      if (enemy.state === "gone" || enemy.state === "settled" || enemy.kind === "cargo" || enemy.kind === "collector" || act.hit.includes(enemy.id)) continue;
       const dx = enemy.x - p.x, dy = enemy.y - p.y, distance = Math.hypot(dx, dy);
       if (distance > T.FLARE_RANGE + enemy.r) continue;
       if (distance > enemy.r && (dx * act.fx + dy * act.fy) / distance < FLARE_COS) continue;
@@ -599,6 +701,7 @@
       else if (enemy.kind === "needle") updateNeedle(sim, enemy, events);
       else if (enemy.kind === "cargo") updateCargo(sim, enemy, events);
       else if (enemy.kind === "porter") updatePorter(sim, enemy, events);
+      else if (enemy.kind === "collector") updateCollector(sim, enemy, events);
       if (sim.phase !== "play") break;
     }
     if (sim.phase !== "play") return events;
@@ -865,12 +968,15 @@
     lineOfSight,
     circleHitsRect,
     distanceToSegment,
+    collectorSees,
+    hiddenIn,
     createSim,
     step,
     respawn,
     rest,
     enterRoom,
     spawnCargo,
+    spawnCollector,
     porterPause,
     inAlcove,
     present,

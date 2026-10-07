@@ -75,6 +75,9 @@
     skin: ["#6f4a38", "#a3735a", "#cf9f7d"],
     danger: ["rgba(242,232,206,.5)", "#f2e8ce", "#fff8e6"],
     rain: "rgba(176,196,222,.42)",
+    // The Boss (story spine v0.4): cold light and black. His world is never warm.
+    cold: ["#1d2a33", "#5f7685", "#b8c9d4", "#eef5f9"],
+    suit: ["#0b0c0f", "#17191e", "#262a31", "#3a3f48"],
     a: Object.freeze({
       brass: "#c48f3e", brassLight: "#ecc77d", tape: "rgba(226,204,124,.82)", stamp: "#b0443a", umbrella: "#2f6fa5", umbrellaLight: "#4f8fc4",
       maroon: "#6a2e35", maroonLight: "#8c3f47", mustard: "#c79f3f", track: "#2f5b40", trackLight: "#447a58", rust: "#7d4127",
@@ -90,11 +93,11 @@
     // Light pools: [radius fraction, darkness removed], outer → inner. `flat`
     // squashes pools into the floor plane.
     light: Object.freeze({ bands: [[1, 0.34], [0.68, 0.42], [0.4, 0.55]], flat: 0.78 }),
-    scale: Object.freeze({ rizo: 28, latch: 38, keeper: 94, "hood-tall": 98, "hood-small": 66, "hood-cap": 84, porter: 84, draftling: 20, needle: 30, door: 40 }),
+    scale: Object.freeze({ rizo: 28, latch: 38, keeper: 94, "hood-tall": 98, "hood-small": 66, "hood-cap": 84, porter: 84, draftling: 20, needle: 30, door: 40, collector: 76 }),
     minDetail: 1.5
   });
   // How far above its feet an actor's head is (speech bubbles, prompts).
-  const HEIGHT = Object.freeze({ keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88, latch: 42, van: 84, porter: 90, nell: 86, orr: 82 });
+  const HEIGHT = Object.freeze({ keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88, latch: 42, van: 84, porter: 90, nell: 86, orr: 82, collector: 80 });
 
   // ===== 6. WOBBLE: seeded, never per frame =====
   function seedOf(value) {
@@ -1448,6 +1451,74 @@
     box(ctx, x + 2 + w, y - 3, 6, 5, P.a.mustard, { ink: 0.7, amp: 0.2 });
     ctx.globalAlpha = 0.5; oval(ctx, x - 5 + w, y, 3, 2, "#7e2420"); ctx.globalAlpha = 1;
   }
+
+  // ===== THE BOSS'S MARK (story spine v0.4) =====
+  // A bell jar with a light shut inside. No letters, no face, no Rizo "R",
+  // never Rizo-Signal blue. It is on his calling cards, his collectors and his
+  // caller ID, and it turns up wherever a Rizo goes missing.
+  function mark(ctx, x, y, size = 20, color = P.cold[3], o = {}) {
+    const k = size / 20;
+    ctx.save();
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(0.6, 1.7 * k); ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(x - 6 * k, y + 7 * k); ctx.lineTo(x - 6 * k, y - 1 * k);
+    ctx.quadraticCurveTo(x - 6 * k, y - 8 * k, x, y - 8 * k);
+    ctx.quadraticCurveTo(x + 6 * k, y - 8 * k, x + 6 * k, y - 1 * k);
+    ctx.lineTo(x + 6 * k, y + 7 * k);
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 8.5 * k, y + 8 * k); ctx.lineTo(x + 8.5 * k, y + 8 * k); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y - 9.6 * k, 1.3 * k, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = o.lightAlpha ?? 1;
+    ctx.beginPath(); ctx.arc(x, y + 1.5 * k, 2.3 * k, 0, Math.PI * 2); ctx.fillStyle = o.light || color; ctx.fill();
+    ctx.restore();
+  }
+  // The same mark as SVG markup inside a 0..40 box (portraits, the phone, comics).
+  const markSvg = (color = P.cold[3], light = color, width = 1.7) => `<g fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"><path d="M14 27 V19 Q14 12 20 12 Q26 12 26 19 V27"/><path d="M11.5 28 H28.5"/></g><circle cx="20" cy="10.4" r="1.3" fill="${color}"/><circle cx="20" cy="21.5" r="2.3" fill="${light}"/>`;
+  // His calling card: black, the mark, nothing else.
+  function callingCard(ctx, x, y, o = {}) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(o.angle ?? -0.18);
+    drop(ctx, 0, 3.4, 6.5, 1.6, 0.32);
+    box(ctx, -6.5, -4.2, 13, 8.4, P.suit[0], { ink: 0.9, amp: 0.08, seed: 211 });
+    rect(ctx, P.suit[2], -5.6, -3.4, 11.2, 0.6);
+    mark(ctx, 0, 0.2, 6.4, P.cold[3]);
+    ctx.restore();
+  }
+  // A collector: a cold, careful worker in a grey coverall with a hood and
+  // goggles, a glass jar on his back and a lamp on a pole held out in front.
+  // No face: the goggles are the only light that is his. ~76u. States:
+  // patrol (walking), spot (lamp up, leaning in), search (lamp swinging).
+  function collector(ctx, x, y, o = {}) {
+    const bob = o.bob || 0, t = o.t || 0, state = o.state || "patrol";
+    drop(ctx, x, y, 12, 3.4);
+    ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
+    legs(ctx, 0, 0, -30, 3.8, 5.6, P.metal[1], bob, P.suit[1]);
+    if (state === "spot") { ctx.translate(0, -30); ctx.rotate(0.12); ctx.translate(0, 30); }
+    // The jar on his back: what he came to fill.
+    ctx.globalAlpha = 0.62;
+    shape(ctx, [-21, -38, -21, -56, -18, -63, -12, -63, -9, -56, -9, -38], P.cold[0], { ink: 1.1, seed: 224, amp: 0.2, inkColor: P.cold[2] });
+    ctx.globalAlpha = 1;
+    line(ctx, -18, -58, -18, -44, P.cold[3], 0.9);
+    box(ctx, -23, -38, 16, 4, P.metal[2], { ink: 0.9, amp: 0.1, seed: 225 });
+    oval(ctx, -15, -64.5, 1.6, 1.4, P.metal[3]);
+    // Coverall: grey, a dark side, a belt, his mark on the chest.
+    shape(ctx, [-11, -61, 9, -61, 12, -37, 9, -28, -10, -28, -13, -38], P.metal[1], { ink: CH, seed: 221, amp: CA });
+    shape(ctx, [-11, -59, -3, -61, -5, -29, -10, -28, -13, -38], P.metal[0], { ink: false, seed: 222, amp: CA });
+    rect(ctx, P.suit[1], -12, -37, 24, 2.6);
+    line(ctx, -9, -61, 4, -38, P.suit[1], 1.6);
+    mark(ctx, 4, -49, 9, P.cold[3]);
+    // Hood and goggles: a shadowed face with two cold lenses.
+    shape(ctx, [-9, -60, -10, -72, -4, -80, 5, -80, 11, -72, 10, -60], P.suit[2], { ink: CH, seed: 223, amp: CA });
+    oval(ctx, 3, -69, 6.6, 6.2, P.suit[0]);
+    oval(ctx, 1, -70.5, 2.2, 1.9, P.cold[3], true, 0.8); oval(ctx, 6.4, -70.5, 2.2, 1.9, P.cold[3], true, 0.8);
+    box(ctx, 1.5, -66, 6.5, 4, P.metal[2], { ink: 0.8, amp: 0.1, seed: 226 });
+    // The lamp on its pole, out in front. Up when he has seen something.
+    const raise = state === "spot" ? -9 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
+    limb(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 4.6, P.suit[1]);
+    line(ctx, 17, -46, 30, -60 + raise, P.metal[3], 1.7);
+    box(ctx, 28, -65 + raise, 7, 6, P.suit[1], { ink: 1, amp: 0.1, seed: 227 });
+    oval(ctx, 34.5, -62 + raise, 2.4, 2.8, P.cold[3]);
+    ctx.restore();
+  }
   // A dog bowl. Steel, dented, with water in it or frost.
   function bowl(ctx, x, y, o = {}) {
     drop(ctx, x, y + 3, 9, 2.6);
@@ -1632,6 +1703,37 @@ ${mouth}
 <path d="M12 57 q-1 5 1 7 M15 56 q-1 5 1 8" stroke="${P.metal[2]}" stroke-width="1.4"/>`);
   }
 
+
+  // A frightened version of a hood's bust: sweat at the temple, the eyes
+  // pulled wide, a shake line. Same person, same light; only the fear is added.
+  const scared = (body, eyes) => `${body}<path d="${eyes}" stroke="${P.paper[3]}" stroke-width="1.4" fill="none"/><path d="M50 18 q2 4 0 6 q-2 -2 0 -6 Z M13 22 q2 4 0 6 q-2 -2 0 -6 Z" fill="${P.cold[3]}" stroke="${P.ink}" stroke-width=".8"/><path d="M8 40 l-3 2 l3 2 M56 40 l3 2 l-3 2" stroke="${P.paper[2]}" stroke-width="1.2" fill="none"/>`;
+  // THE BOSS: a voice before he is anything else. His "face" is his caller
+  // ID: the mark on a dark phone screen. calm = the glow held steady; cold =
+  // the screen flares white-blue and the signal shakes.
+  const bossPortrait = cold => svg(`<rect width="64" height="64" fill="${P.suit[0]}"/>
+<rect x="13" y="3" width="38" height="60" rx="7" fill="${P.suit[1]}" ${ink}/>
+<rect x="16.5" y="9" width="31" height="46" rx="2.5" fill="${cold ? P.cold[0] : "#0f161c"}"/>
+<circle cx="32" cy="31" r="${cold ? 15 : 11}" fill="${P.cold[1]}" opacity="${cold ? 0.42 : 0.26}"/>
+<g transform="translate(12 11)">${markSvg(P.cold[3], cold ? "#ffffff" : P.cold[2], cold ? 2 : 1.7)}</g>
+<path d="M28 6 h8" stroke="${P.suit[3]}" stroke-width="1.3"/>
+<circle cx="32" cy="59" r="1.8" fill="${P.suit[3]}"/>
+${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4 13 0 26" stroke="${P.cold[2]}" stroke-width="1.3" fill="none" opacity=".8"/>` : `<path d="M22 49 h20" stroke="${P.cold[1]}" stroke-width="1" opacity=".6"/>`}`);
+  // CAPPED HOOD: the quiet one. Backwards black cap over the hood, red
+  // bandana over his mouth, a nicked eyebrow, eyes that do not blink.
+  const capPortrait = svg(`${disc("#120f0d", "#2a1c10", P.sodium[0], 46, 14)}${rainLines}
+<path d="M4 64 L8 50 Q16 43 32 43 Q48 43 56 50 L60 64 Z" fill="${P.a.track}" ${ink}/>
+<path d="M4 64 L8 50 Q14 45 22 44 L24 64 Z" fill="#24472f"/>
+<path d="M45 46 L47 64" stroke="${P.a.white}" stroke-width="2.6"/><path d="M32 44 V64" stroke="${P.ink}" stroke-width="1.2"/>
+<circle cx="32" cy="29" r="15" fill="${P.cloth[1]}" ${ink}/>
+<path d="M17 25 Q18 11 32 10 Q46 11 47 25 Z" fill="${P.cloth[0]}" ${ink}/>
+<path d="M17 24 L6 27 L7 22 L18 19 Z" fill="${P.cloth[0]}" ${ink} stroke-width="1.8"/>
+<path d="M20 31 Q32 27 44 31 L42 43 Q32 48 22 43 Z" fill="${P.a.red}" ${ink} stroke-width="1.9"/>
+<path d="M24 37 Q32 35 40 37" stroke="${P.a.stamp}" stroke-width="1.2" fill="none"/>
+<path d="M42 40 L50 44 L46 48 Z" fill="${P.a.red}" ${ink} stroke-width="1.4"/>
+<path d="M22 26.5 L29 27.5 M35 27.5 L42 26" stroke="${P.ink}" stroke-width="2.2"/>
+<path d="M24 29.6 h4 M36 29.6 h4" stroke="${P.paper[3]}" stroke-width="1.6"/>
+<circle cx="26.5" cy="29.6" r=".9" fill="${P.ink}"/><circle cx="38.5" cy="29.6" r=".9" fill="${P.ink}"/>
+<path d="M38 24.5 L40 28" stroke="${P.paper[2]}" stroke-width="1.1"/>`);
   const PORTRAITS = Object.freeze({
     // YOU: the person who left. Never a face: the umbrella, a scarf, the night.
     you: Object.freeze({
@@ -1696,12 +1798,25 @@ ${mouth}
     })
   });
 
+  // v0.4: the hoods can be scared (of him); the capped hood has a face; the
+  // Boss has only his caller ID.
+  const fear = (art, brows) => art.replace("</svg>", `${scared("", brows)}</svg>`);
+  const CAST_PORTRAITS = Object.freeze({
+    ...PORTRAITS,
+    "hood-tall": Object.freeze({ ...PORTRAITS["hood-tall"], scared: fear(PORTRAITS["hood-tall"].neutral, "M21 21 q4 -5 9 -1 M34 20 q5 -4 9 1") }),
+    "hood-small": Object.freeze({ ...PORTRAITS["hood-small"], scared: fear(PORTRAITS["hood-small"].neutral, "M20 24 q5 -6 10 -2 M33 23 q5 -5 10 0") }),
+    driver: Object.freeze({ ...PORTRAITS.driver, scared: fear(PORTRAITS.driver.neutral, "M18 23 q5 -5 10 -1 M36 22 q5 -4 10 1") }),
+    "hood-cap": Object.freeze({ neutral: capPortrait }),
+    boss: Object.freeze({ calm: bossPortrait(false), cold: bossPortrait(true) })
+  });
+
   return Object.freeze({
     P, RULES, HEIGHT, rng, seedOf, trace, inkStroke, shape, box, oval, line, rect, drop,
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
     keeper, van, hood, seated, vanRide, CREW_HEIGHT, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
-    PORTRAITS
+    mark, markSvg, callingCard, collector,
+    PORTRAITS: CAST_PORTRAITS
   });
 });

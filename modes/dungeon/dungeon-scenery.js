@@ -667,6 +667,12 @@
     alpha(c, 0.35, () => { box(c, 56, 590, 104, 64, P.wet[2], { ink: false }); });
     box(c, 56, 590, 104, 64, null, { ink: 1.2, amp: 0.3 });
     line(c, 60, 596, 72, 640, P.paper[3], 0.6, 3, 0.4); label(c, "ok", 150, 640, { size: 6, color: P.paper[1], angle: -0.2 });
+    // Somebody else's LOST poster. Under its corner, a black card.
+    c.save(); c.translate(128, 594); c.rotate(0.05);
+    box(c, -9, -12, 18, 22, P.paper[3], { ink: 1, amp: 0.3 }); label(c, "LOST", 0, -5, { size: 4.6, weight: 900, color: P.a.red });
+    oval(c, 0, 2, 3.4, 3, P.sodium[2], true, 0.6); rect(c, P.paper[0], -6, 7, 12, 0.8);
+    c.restore();
+    A.callingCard(c, 137, 607, { angle: -0.5 });
     // A bin bag, torn; a deflated balloon tangled on the rail; a mile marker.
     drop(c, 165, 980, 12, 3.4);
     shape(c, [156, 980, 158, 968, 166, 963, 174, 967, 176, 980], P.cloth[0], { ink: 1.3, amp: 0.6 });
@@ -901,13 +907,18 @@
         break;
       }
       case "post": {
-        // Brass queue stanchions, their belts long gone.
-        const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
-        drop(c, cx, cy + 8, 11, 4);
-        oval(c, cx, cy + 7, 10, 4, P.a.brass, true, 1.2); oval(c, cx - 2, cy + 6, 5, 1.6, P.a.brassLight);
-        box(c, cx - 2.2, cy - 16, 4.4, 23, P.a.brass, { ink: 1.2, amp: 0.1 }); rect(c, P.a.brassLight, cx - 1.6, cy - 16, 1.2, 23);
-        oval(c, cx, cy - 17, 3.6, 2.4, P.a.brass, true, 1.1);
-        box(c, cx + 2, cy - 14, 5, 4, P.metal[1], { ink: 0.8, amp: 0.1 });
+        // The queue's ticket posts: squat stone pillars with a brass ticket
+        // slot and an empty lamp hook (the collectors took the lamps). Wide
+        // enough to hide behind: their shadow is the only cover in the Queue.
+        const cx = s.x + s.w / 2;
+        drop(c, cx, s.y + s.h + 2, 15, 4.4);
+        box(c, s.x, s.y - 10, s.w, s.h + 10, P.concrete[1], { ink: 1.3, amp: 0.3 });
+        rect(c, P.concrete[2], s.x + 1, s.y - 9, s.w - 2, 4);
+        rect(c, P.concrete[0], s.x + s.w - 6, s.y - 5, 5, s.h + 4);
+        box(c, cx - 5, s.y + 4, 10, 4, P.a.brass, { ink: 0.9, amp: 0.1 }); rect(c, P.ink, cx - 3.5, s.y + 5.5, 7, 1);
+        // Frost on the top edge; the hook, empty.
+        rect(c, P.cold[2], s.x + 2, s.y - 10, s.w - 4, 1.4);
+        line(c, cx, s.y - 10, cx, s.y - 18, P.metal[2], 1.4); line(c, cx, s.y - 18, cx + 5, s.y - 18, P.metal[2], 1.4); line(c, cx + 5, s.y - 18, cx + 5, s.y - 15, P.metal[2], 1.2);
         break;
       }
       default: if (SOLIDS[s.kind]) SOLIDS[s.kind](c, s, geo); else if (!s.openWhen && !s.when) rect(c, P.below[0], s.x, s.y, s.w, s.h);
@@ -1452,6 +1463,21 @@
   // Live pieces of the Rows: what she moves, what runs, what is left out.
   function rowsDynamicSolid(ctx, s, sim, t) {
     const open = !present(s, sim.flags);
+    if (s.kind === "frozen-load") {
+      // A crate of Nell's work hung on the ledge chain, frozen solid by the
+      // collectors' cold, right across the way to the table. Lowered, it sits on the floor.
+      if (open) { box(ctx, s.x - 22, s.y + s.h - 12, 22, 14, P.wood[2], { ink: 1.2, amp: 0.3 }); rect(ctx, P.wood[3], s.x - 21, s.y + s.h - 11, 20, 2); return true; }
+      line(ctx, s.x + s.w / 2, s.y - 70, s.x + s.w / 2, s.y + 4, P.metal[2], 1.6);
+      box(ctx, s.x - 2, s.y + 4, s.w + 4, s.h - 8, P.wood[2], { ink: 1.4, amp: 0.3 });
+      rect(ctx, P.wood[3], s.x - 1, s.y + 6, s.w + 2, 2);
+      // Frost: their cold, in his way.
+      ctx.save(); ctx.globalAlpha = 0.75;
+      box(ctx, s.x - 3, s.y + 2, s.w + 6, 6, P.cold[2], { ink: false, amp: 0.4 });
+      for (let y = s.y + 10; y < s.y + s.h - 6; y += 7) rect(ctx, P.cold[3], s.x + ((y * 3) % 9), y, 3, 1);
+      for (const ix of [1, 7, 12]) shape(ctx, [s.x + ix, s.y + s.h - 4, s.x + ix + 2, s.y + s.h - 4, s.x + ix + 1, s.y + s.h + 2], P.cold[3], { ink: false });
+      ctx.restore();
+      return true;
+    }
     if (s.kind === "load") {
       // Wet sheets on a rail right across the doorway; moved aside, they hang bunched at one end.
       box(ctx, s.x - 4, s.y + 2, s.w + 8, 3, P.wood[3], { ink: 1, amp: 0.1 });
@@ -1496,7 +1522,7 @@
       if (!present(prop, sim.flags)) continue;
       if (prop.kind === "warm" && prop.id !== "latch-jam") {
         // Each reachable catch visibly belongs to a load, door or brake.
-        const end = { "ledge-catch": [236, 42], "work-catch": [200, 158], "low-catch": [306, 66], "grille-catch": [14, 92], "brake-release": [284, 248], "shutter-release": [172, 16], "low-board": [150, 186] }[prop.id];
+        const end = { "ledge-catch": [292, 30], "work-catch": [200, 158], "low-catch": [306, 66], "grille-catch": [14, 92], "brake-release": [284, 248], "shutter-release": [172, 16], "low-board": [150, 186] }[prop.id];
         if (end) { line(ctx, prop.x, prop.y, end[0], end[1], P.ink, 4); line(ctx, prop.x, prop.y, end[0], end[1], P.metal[2], 1.6); rivet(ctx, end[0], end[1], 1.4); }
         warmCatch(ctx, prop, t);
       }
@@ -1677,7 +1703,9 @@
     }
     for (const prop of geo.props) {
       if (!present(prop, sim.flags)) continue;
-      if (prop.kind === "bowl") A.bowl(ctx, prop.x, prop.y, { frost: true });
+      // His calling card, wherever something was taken (story spine v0.4).
+      if (prop.id.startsWith("card-")) { A.callingCard(ctx, prop.x, prop.y, { angle: prop.x % 2 ? -0.3 : 0.25 }); continue; }
+      if (prop.kind === "bowl") { A.callingCard(ctx, prop.x + 7, prop.y + 4, { angle: 0.35 }); A.bowl(ctx, prop.x, prop.y, { frost: true }); }
       else if (prop.kind === "lever" || prop.id === "queue-lever-done") {
         const down = prop.id === "queue-lever-done";
         box(ctx, prop.x - 5, prop.y - 9, 10, 15, P.service[1], { ink: 1.2, amp: 0.2 }); rect(ctx, P.service[2], prop.x - 4, prop.y - 8, 8, 2);

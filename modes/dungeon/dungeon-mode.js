@@ -48,7 +48,7 @@
     GAP_AUTO_MS: 9000, GAP_PUSH_MS: 1500, GAP_JOLT_MS: 10000,
     // 9–10 Taillights, the ringing
     SEARCH_MS: 12000, LEAVE_MS: 9000, AFTER_MS: 6000, SEEN_HOLD_MS: 1200,
-    PHONE_DELAY_MS: 2000, PHONE_RING_MS: 40000, PHONE_CYCLE_MS: 4000, PHONE_CALL_MS: 5000, PHONE_REACH: 22,
+    PHONE_DELAY_MS: 2000, PHONE_RING_MS: 40000, PHONE_CYCLE_MS: 4000, PHONE_CALL_MS: 8600, PHONE_REACH: 22,
     // 11–12 The walk, the drain
     PASS_MS: 6000, MOUTH_MS: 30000,
     // 13 The fall
@@ -67,7 +67,7 @@
   //   home: HOME ↑ has been read, so its motif may come back (faintly) below.
   const MOOD = { danger: 0, home: false };
   // States in which something is about to happen to him.
-  const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep"]);
+  const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep", "spot"]);
   // Danger is restrained: a low pulse under whatever is playing, then a tick
   // when something commits. It never becomes a different song.
   function dangerLayer(step, play) {
@@ -146,7 +146,9 @@
     control: on => ({ type: "control", on }),
     // `line`: the line that asks it, kept on screen while the choice waits.
     choice: (key, options, line = null) => ({ type: "choice", key, options, line }),
-    bark: (id, line, ms = 1900) => ({ type: "bark", id, line, ms })
+    bark: (id, line, ms = 1900) => ({ type: "bark", id, line, ms }),
+    // An action cut to a comic page (dungeon-comic.js). Once per journey.
+    comic: id => ({ type: "comic", id })
   };
 
   // The page around the handheld must not scroll, rubber-band, zoom or
@@ -223,6 +225,7 @@
     let musicId = "";                 // the mode track now playing
     let roomTickAt = 0;
     let qaLog = [];
+    let comic = null;                 // the comic page (dungeon-comic.js), if this build has it
 
     const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
     // The hub's own setting, or the device's (the hub does not pass the OS preference to modes).
@@ -405,7 +408,7 @@
       const perf = holds.includes("performance") ? "Paused because the device fell behind. Nothing advanced while it caught up." : "";
       openPanel("pause", card({
         title: "PAUSED",
-        body: esc(`${waiting || updateNote || perf || `${pet?.name || "Your Rizo"} waits. Nothing moves until you resume.`}${unsaved && !updateNote ? " The last moment isn't saved yet; GO HOME tries again." : ""}`),
+        body: esc(`${waiting || updateNote || perf || `${pet?.name || "Your Rizo"} waits. Nothing moves until you resume.`}${unsaved && !updateNote ? " The last moment isn't saved yet; GO HOME tries again." : ""}`) + (objectiveNow() ? `<span class="dungeon-pause-goal">NOW: ${esc(objectiveNow())}</span>` : ""),
         actions: `<button type="button" class="primary" data-dungeon-action="resume" ${external.length ? "disabled" : ""}>RESUME</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
         fine: esc(Core.belowReached(data) ? "GO HOME saves the journey here. You'll come back to this spot." : "GO HOME saves. The night picks up from here next time."),
         tools: restartTool(external.length > 0),
@@ -598,6 +601,24 @@
             break;
           case "choice": current.waiting = "choice"; openChoice(step.options, value => { if (scene === current) { current.choice = value; step.onPick?.(value); current.waiting = null; advanceScene(); } }, step.line); break;
           case "bark": bark(step.id, step.line, step.ms); break;
+          case "comic": {
+            // Committed before it is shown: a comic never plays twice. While it
+            // is up the simulation and the scene clock stand still.
+            const beat = `comic:${step.id}`;
+            if (!comic || beats().includes(beat)) break;
+            commitBeat(beat);
+            const token = {};
+            current.waiting = "comic"; current.comicToken = token;
+            if (ui === "play") { ui = "scene"; input.clear("comic"); pending = { primary: false, secondary: false }; }
+            view.showPrompt(null);
+            comic.play(step.id, { onDone: () => {
+              if (scene !== current || current.waiting !== "comic" || current.comicToken !== token) return;
+              current.waiting = null;
+              if (current.control && ui === "scene") { ui = "play"; input.clear("comic"); pending = { primary: false, secondary: false }; }
+              advanceScene();
+            } });
+            break;
+          }
           default: break;
         }
         if (scene !== current) return;
@@ -927,6 +948,7 @@
         S.until(() => room.grabbed || sceneTime - room.hands.start >= BEAT.GRAB_MAX_MS),
         S.control(false),
         S.call(() => grab()),
+        S.comic("grab"),
         // Do not cut away on contact: physically drag him across the passenger
         // seat toward the forced door so the player sees the abduction happen.
         S.wait(850),
@@ -1202,6 +1224,10 @@
           sound("breath");
           setPose("pull-in", 900);
         }
+        // The Boss, in his own words, for the first time. Calm. Then not.
+        const said = phone.said || 0;
+        const at = [1900, 3900, 5800];
+        if (said < at.length && t > at[said]) { phone.said = said + 1; bark("boss", L.bossPhone[said], said === 2 ? 3800 : 2000); }
         if (!phone.listened && t > 3400) {
           phone.listened = true;
           sound("heart");
@@ -1222,6 +1248,7 @@
       if (outcome.status === "failed") renderSaveFailedPanel("moment");
       phone.state = "connected"; phone.connectAt = sceneTime; phone.ringing = false;
       room.phoneAnsweredAt = sceneTime;
+      npc("boss", "none", phone.x, phone.y, { barkLift: 20 });
       setMusic(SILENT_TRACK);
       flameMood("fear", BEAT.PHONE_CALL_MS + 500);
       sound("connect");
@@ -1373,11 +1400,72 @@
         case "hearth": return !rested ? { x: g.hearth.x, y: g.hearth.y, kind: "thing" } : fact("shortcutOpen") ? exit("hearth-to-queue") : exit("hearth-to-hem");
         case "queue": return exit("queue-to-porter");
         case "porter": return fact("porterDown") ? exit("porter-to-rows") : null;
-        default: return null;
+        default: {
+          if (!Content.isRows(g.id)) return null;
+          const way = ROWS_WAY[g.id]?.[rowsNext()];
+          if (!way) return null;
+          if (way.startsWith("thing:")) { const prop = g.props.find(item => item.id === way.slice(6)); return prop ? { x: prop.x, y: prop.y, kind: "thing" } : null; }
+          return exit(way);
+        }
       }
     }
+    // ===== WAYFINDING (v0.4): what he is trying to do, and which way it is =====
+    // One answer for the whole journey, read from what is already done. The
+    // HUD shows it; standing still, the room points the same way.
+    function rowsNext() {
+      const at = sim?.roomId;
+      if (!fact("rowsLedge")) return "ledge";
+      if (!done("rows:met")) return "toTable";
+      if (!fact("rowsCatch")) return "tableCatch";
+      if (!fact("rowsLowRoute")) return at === "hangrow" ? (fact("hangrowCrossed") || inZone("row-north") ? "lowCatch" : "rowLamp") : "toRows";
+      if (!done("rows:eyelet")) return "toEyelet";
+      if (!fact("rowsGrille")) return "grille";
+      if (!done("rows:meal")) return at === "drytable" ? "meal" : "toMeal";
+      if (!fact("rowsShutter")) return at === "press" ? (!fact("rowsPressStop") ? "stopPress" : !fact("rowsBrake") ? "brake" : "shutter") : "toPress";
+      if (!done("rows:wrap")) return at === "drytable" && done("rows:upper") ? "toNell" : "toStair";
+      if (!done("rows:boundary")) return at === "windowgate" ? "window" : "toWindow";
+      return "window";
+    }
+    // Per room: which exit (or thing) the next step is through.
+    const ROWS_WAY = {
+      receiving: { ledge: "thing:ledge-catch", toTable: "receiving-to-table", tableCatch: "receiving-to-table", toRows: "receiving-to-table", toEyelet: "receiving-to-table", toMeal: "receiving-to-table", toPress: "receiving-to-table", toStair: "receiving-to-table", toWindow: "receiving-to-table" },
+      drytable: { tableCatch: "thing:work-catch", toRows: "table-to-rows", toEyelet: "table-to-rows", grille: "table-to-rows", toPress: "table-to-tray", toStair: "table-to-tray", toWindow: "table-to-window" },
+      hangrow: { lowCatch: "thing:low-catch", toEyelet: "rows-to-lowrun", grille: "rows-to-lowrun", toMeal: "rows-to-table", toPress: "rows-to-lowrun", toStair: "rows-to-lowrun", toWindow: "rows-to-table" },
+      lowrun: { toEyelet: "lowrun-to-eyelet", grille: "lowrun-to-eyelet", toMeal: "lowrun-to-eyelet", toPress: "lowrun-to-eyelet", toStair: "lowrun-to-eyelet", toWindow: "lowrun-to-rows" },
+      eyelet: { grille: "thing:grille-catch", toMeal: "eyelet-to-tray", toPress: "eyelet-to-press", toStair: "eyelet-to-press", toWindow: "eyelet-to-tray" },
+      traypass: { toMeal: "tray-to-table", toPress: "tray-to-eyelet", toStair: "tray-to-eyelet", toWindow: "tray-to-table" },
+      press: { stopPress: null, brake: "thing:brake-release", shutter: "thing:shutter-release", toStair: "press-to-upper", toMeal: "press-to-eyelet", toWindow: "press-to-eyelet" },
+      upper: { toStair: "upper-to-stair", toNell: "upper-to-stair", toWindow: "upper-to-stair" },
+      stair: { toStair: "stair-to-table", toNell: "stair-to-table", toWindow: "stair-to-table" },
+      windowgate: {}
+    };
+    function objectiveKey() {
+      if (!sim || !data) return null;
+      const id = sim.roomId, beatsDone = beat => beats().includes(beat);
+      switch (id) {
+        case "car": return room.phase === "waiting" ? "wait" : null;
+        case "sack": return room.limitedAt && !room.freedAt ? "sack" : null;
+        case "van": return room.doorLoose ? "gap" : room.roadAt || room.cargoCount ? "van" : null;
+        case "roadside": return room.searchAt && !room.searchOver ? "hide" : room.walkStart || room.walkMode ? "shelter" : null;
+        case "drain": return room.deepWarmAt ? "deeper" : null;
+        case "slip": return scene?.id === "opening:landed" || (room.wakeAt != null && room.awakeAt == null) ? null : data.journal.discoveredEntryIds.includes("home-sign") ? "climb" : "findWay";
+        case "clatter": return sim.enemies.some(enemy => enemy.kind === "collector") ? "lamp" : "climb";
+        case "hem": return !fact("latchFreed") ? (room.approached || fact("jamInspected") ? "freeLatch" : "climb") : "toHearth";
+        case "hearth": return data.checkpoint.hearthId !== "threshold-hearth" ? "hearth" : "toQueue";
+        case "queue": return fact("porterDown") ? "porterDoor" : "queue";
+        case "porter": return fact("porterDown") ? "porterDoor" : "porter";
+        default: return Content.isRows(id) ? rowsNext() : beatsDone("opening:below") ? "climb" : null;
+      }
+    }
+    function objectiveNow() {
+      const key = objectiveKey();
+      return key ? Content.OBJECTIVES[key] || "" : "";
+    }
+    const objectiveShown = () => (ui === "play" || ui === "scene") && !comic?.playing() && !thoughtNow();
     function beckonTick() {
-      if (!quietMoment() || stillFor < BECKON_STILL_MS || sceneTime - (room.beckonAt ?? -Infinity) < BECKON_EVERY_MS) return;
+      // The Rows are a maze of work rooms: they point sooner, and more often.
+      const rows = Content.isRows(sim.roomId);
+      if (!quietMoment() || stillFor < (rows ? 4500 : BECKON_STILL_MS) || sceneTime - (room.beckonAt ?? -Infinity) < (rows ? 9000 : BECKON_EVERY_MS)) return;
       const way = wayOn();
       if (!way) return;
       room.beckonAt = sceneTime;
@@ -1446,7 +1534,8 @@
     const ROWS_WARM = {
       // Receiving: optional. The work lowers sooner, and Latch notices.
       "ledge-catch"() {
-        setFactNow("rowsLatchHelped");
+        const outcome = commitData(next => { next.story.facts.rowsLatchHelped = true; next.world.durableRoomFlags.rowsLedge = true; });
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
         setTransient("ledgeReady", false);
         sound("clunk"); taps();
         nellState("work");
@@ -1525,7 +1614,7 @@
 
     // ---- Receiving: Latch got here first; the delivery that would not fit.
     function receivingEnter() {
-      if (done("rows:arrived")) { room.dryPatch = sceneTime; return; }
+      if (done("rows:arrived")) { room.dryPatch = sceneTime; if (!fact("rowsLedge")) setRoomFlag("rowsLedge"); return; }
       npc("latch", "latch", 250, 86, { face: -1 });
       nell(150, 78, { face: 1, state: "support" });
       runScene("rows:arrival", [
@@ -1542,7 +1631,8 @@
         S.call(() => { nellState("clear"); room.dryPatch = sceneTime; sound("nell"); flameMood("warm", 2600); }),
         talk([...L.rowsDry, { hold: 400 }, ...L.rowsGoingUp]),
         S.until(() => room.ledgeDone || sceneTime - room.dryPatch > 14000),
-        S.call(() => { if (!room.ledgeDone) { setTransient("ledgeReady", false); nellState("work"); sound("clunk"); } }),
+        // Without his help she gets it down herself, slowly. Either way the way is open.
+        S.call(() => { if (!room.ledgeDone) { setTransient("ledgeReady", false); nellState("work"); sound("clunk"); setRoomFlag("rowsLedge"); bark("nell", L.rowsLedgeSelf[0], 1800); } }),
         S.wait(room.ledgeDone ? 400 : 200),
         S.until(() => !room.latchLine || sceneTime >= room.latchLine),
         S.call(() => { if (fact("rowsLatchHelped")) bark("latch", L.rowsLedgeHelp[1], 2200); }),
@@ -1682,7 +1772,9 @@
         S.control(true),
         S.until(() => sim.player.y < 400 || sceneTime - room.enteredAt > 2500),
         S.call(() => { walk("nell", 40, 262, 2600); room.nellStage = "refuge"; }),
-        S.until(() => rowDraftSettled() || inZone("row-north")),
+        talk([{ hold: 1200 }, ...L.rowsLamp]),
+        S.until(() => inZone("row-north")),
+        S.call(() => { if (!fact("hangrowCrossed")) setFactNow("hangrowCrossed"); relief(); bark("nell", L.rowsLampPast[0], 2200); }),
         S.call(() => { nellState("walk"); walk("nell", 50, 120, 1500); }),
         S.wait(1500),
         S.call(() => walk("nell", 252, 104, 2000)),
@@ -1692,7 +1784,6 @@
       ], { control: true });
       room.enteredAt = sceneTime;
     }
-    const rowDraftSettled = () => !sim.enemies.some(enemy => enemy.id === "row-draftling" && enemy.state !== "gone");
 
     // ---- Eyelet: somebody at the other end; a tray bigger than its hatch.
     function eyeletEnter() {
@@ -1849,6 +1940,7 @@
           talk([...(fact("rowsLatchHelped") ? L.rowsLatchAgainHelped : L.rowsLatchAgain)]),
           S.call(() => { leave("latch", 304, 120, 2400); room.latchGone = sceneTime; }),
           S.until(() => inZone("gate-window") || sceneTime - room.enteredAt > 26000),
+          S.comic("boss-glass"),
           S.call(() => boundary())
         ], { control: true });
         room.enteredAt = sceneTime;
@@ -1878,8 +1970,8 @@
         music: () => ROWS_TRACK,
         enter: hangrowEnter,
         tick() {
-          const draft = sim.enemies.find(enemy => enemy.id === "row-draftling");
-          if (draft?.aware && !room.drySaid && npcs.has("nell")) { room.drySaid = true; bark("nell", L.rowsDrySide[0], 1600); }
+          const lamp = sim.enemies.find(enemy => enemy.id === "row-collector");
+          if (lamp?.state === "spot" && !room.drySaid && npcs.has("nell")) { room.drySaid = true; bark("nell", L.rowsLamp[0], 1600); }
         }
       },
       lowrun: { music: () => ROWS_TRACK, enter() { if (!done("rows:eyelet")) setPose("look-back", 900); } },
@@ -1936,8 +2028,9 @@
             S.until(() => room.bursts >= BEAT.SACK_BURSTS || sceneTime - room.limitedAt >= BEAT.SACK_MAX_MS),
             S.control(false),
             S.call(() => { room.freedAt = sceneTime; room.shake = sceneTime; sound("cloth"); }),
-            S.wait(450),
-            S.fade(1, 250),
+            S.wait(300),
+            S.comic("sack"),
+            S.fade(1, 120),
             S.call(() => goToRoom("van", "start", { context: "sack" }))
           ]);
         },
@@ -2005,6 +2098,8 @@
               { hold: 900 },
               ...L.vanCooler, { hold: 1000 },
               ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
+              // What he wants, said once, as a fear joke. Why he wants it stays unsaid.
+              { hold: 500 }, ...L.vanEvery.slice(0, 1), weighted(L.vanEvery[1], 1.3), ...L.vanEvery.slice(2),
               // The job has a clock. Missing the check-in turns "Boss" from
               // vague talk into pressure that can reach the van.
               { hold: 650 }, ...L.vanCheckin,
@@ -2053,7 +2148,9 @@
               sound("wind");
             }),
             S.pose("fall", 1000),
-            S.wait(1000),
+            S.wait(450),
+            S.comic("van-leap"),
+            S.wait(250),
             S.fade(1, 300),
             S.call(() => commitBeat("opening:fell")),
             S.call(() => goToRoom("roadside", "fallen", { context: "fell" }))
@@ -2094,6 +2191,7 @@
             // Far up the road, the taillights stop. Brake red. Two doors.
             S.wait(2000),
             S.call(() => { room.brake = true; sound("brake"); }),
+            S.comic("taillights"),
             S.wait(700),
             S.call(() => sound("door")), S.wait(420), S.call(() => sound("door")),
             S.wait(900),
@@ -2175,9 +2273,10 @@
         tick: slipTick
       },
       clatter: {
-        enter() { room.sighted = false; },
+        enter() { room.sighted = false; if (!done("clatter:pass")) clatterPass(); },
         // The first Draftling is seen at the edge of his light before it notices him.
         tick() {
+          clatterPassTick();
           if (room.sighted || ui !== "play") return;
           const enemy = sim.enemies.find(item => item.kind === "draftling" && item.state !== "gone");
           if (!enemy || enemy.aware) { room.sighted = Boolean(enemy?.aware); return; }
@@ -2195,7 +2294,15 @@
           if (fact("latchFreed") && !fact("porterHelp")) npc("latch", "latch", 130, 196, { face: 1, seated: true });
         }
       },
-      queue: { enter() {} },
+      queue: {
+        enter() { room.crossed = false; },
+        tick() {
+          if (room.crossed || ui !== "play" || !inZone("queue-north")) return;
+          if (sim.enemies.some(enemy => enemy.kind === "collector" && enemy.state === "spot")) return;
+          room.crossed = true;
+          if (!fact("queueCrossed")) { setFactNow("queueCrossed"); relief(); }
+        }
+      },
       porter: {
         // Before: the hall tolls. After: the Rows, heard faintly through the open door.
         music: () => (fact("porterDown") ? ROWS_FAR_TRACK : PORTER_TRACK),
@@ -2259,6 +2366,7 @@
         S.call(() => { room.crack = sceneTime; sound("crack"); room.shake = sceneTime; }),
         S.pose("fall", 1200),
         S.wait(BEAT.CRACK_MS),
+        S.comic("fall"),
         // His flame streaking down in the black; three glimpses of the deep (none with reduced motion: a slow dim instead).
         S.call(() => { room.fallAt = sceneTime; sceneFade = { value: sceneFade.value, from: sceneFade.value, to: 1, start: sceneTime, ms: reducedMotion() ? 1500 : 200 }; sound("wind"); }),
         S.wait(BEAT.FALL_MS - BEAT.IMPACT_SILENCE_MS),
@@ -2286,6 +2394,38 @@
         // Still black: the landing scene holds the dark before he is seen.
         S.call(() => { enterSim("slip", "landing", Core.T.FLAME_MAX); onEnterRoom("slip", "landed"); })
       ]);
+    }
+
+    // ---- Clatter Passage (v0.4): the first collector. Meanwhile, up there, the
+    // Boss sends them down; here, a cold lamp comes in at the door he needs and
+    // looks for him. This one never catches (it teaches the lamp); the Boss's
+    // voice on its radio sends it on to the Cold Queue.
+    const CLATTER_DOOR = { x: 256, y: 4 };
+    function clatterPass() {
+      runScene("clatter:pass", [
+        S.comic("boss-hands"),
+        S.control(true),
+        S.wait(1400),
+        S.call(() => {
+          Core.spawnCollector(sim, { id: "clatter-collector", x: CLATTER_DOOR.x, y: CLATTER_DOOR.y, soft: true, patrol: [[256, 4], [256, 104], [176, 132], [104, 136], [176, 132], [256, 104], [256, 4]] });
+          npc("radio", "none", CLATTER_DOOR.x, CLATTER_DOOR.y, { barkLift: 86 });
+          room.lampAt = sceneTime; sound("notice"); flameMood("fear", 1800); setPose("pull-in", 1300);
+        }),
+        S.until(() => { const e = sim.enemies.find(item => item.id === "clatter-collector"); return !e || e.wp >= 4 || sceneTime - room.lampAt > 14000; }),
+        S.call(() => bark("radio", L.bossRadio[0], 2200)),
+        S.wait(2600),
+        S.call(() => bark("radio", L.bossRadio[1], 3000)),
+        S.until(() => !sim.enemies.some(item => item.id === "clatter-collector") || sceneTime - room.lampAt > 30000),
+        S.call(() => { sim.enemies = sim.enemies.filter(item => item.id !== "clatter-collector"); npcs.delete("radio"); commitBeat("clatter:pass"); relief(); })
+      ], { control: true });
+    }
+    function clatterPassTick() {
+      const lamp = sim.enemies.find(item => item.id === "clatter-collector");
+      if (!lamp) return;
+      const radio = npcs.get("radio");
+      if (radio) { radio.x = lamp.x; radio.y = lamp.y; }
+      // Back out of the door it came in by: gone.
+      if (lamp.wp === 0 && sceneTime - room.lampAt > 4000 && Math.hypot(lamp.x - CLATTER_DOOR.x, lamp.y - CLATTER_DOOR.y) < 2) sim.enemies = sim.enemies.filter(item => item !== lamp);
     }
 
     // ===== STORY BEATS (commit first, then present) =====
@@ -2344,7 +2484,7 @@
       if (data.checkpoint.hearthId !== geo().hearth.id) registerHearth(geo().hearth.id);
       if (geo().id !== "hearth" || !fact("latchFreed") || fact("seatChosen") || scene) return;
       runScene("hearth-seat", [
-        S.say(L.seatOffer),
+        S.say([...L.hearthLit, ...L.seatOffer]),
         S.choice("hearth-seat", [{ label: "SIT", value: "sit" }, { label: "GO", value: "go" }], L.seatOffer[0]),
         S.call(() => {})
       ]);
@@ -2473,7 +2613,7 @@
         S.call(() => { duck(2400, 0.08); setMusic(SILENT_TRACK); flameMood("relief", 2600); }),
         S.wait(1800),
         S.move("latch", clamp(sim.player.x - 22, 50, 300), clamp(sim.player.y, 50, 220), 1100),
-        S.say(L.gift),
+        S.say([...L.porterSettled, ...L.gift]),
         S.call(() => { showBanner("FIRST KNOT"); room.knotShown = sceneTime; sound("rest"); }),
         S.pose("settle", 1200),
         S.wait(1000),
@@ -2509,6 +2649,9 @@
           case "porter-wake": sound("porter"); break;
           case "sweep": sound("sweep"); break;
           case "charge": sound("lunge"); break;
+          case "spotted": sound("notice"); flameMood("fear", 1400); if (!poseOverride && !scene?.waiting) setPose("tremble", 900); break;
+          case "lost": sound("curious"); break;
+          case "caught": sound("hurt"); room.shake = sceneTime; room.caughtAt = sceneTime; break;
           case "porter-half": porterHelp(); break;
           case "porter-down": sound("calmed"); porterDown(); break;
           case "kindle-start": sound("kindle"); break;
@@ -2567,6 +2710,7 @@
       const outcome = commitData(next => {
         next.checkpoint = { hearthId, roomId: sim.roomId, spawnAnchorId: hearth.spawnAnchorId };
         next.story.facts.hearthArrived = true;
+        if (hearthId === "threshold-hearth") next.story.facts.hearthKindled = true;
         addBeat(next, "hearth-arrival:registered");
         setContinuation(next, sim.roomId, hearth.spawnAnchorId, Core.T.FLAME_MAX, "hearth");
       });
@@ -2594,6 +2738,7 @@
       } else if (outcome.status === "failed") renderSaveFailedPanel("moment");
     }
     function respawnAfterDown() {
+      const caught = sim.downReason === "caught";
       const target = Core.safeReturn(data);
       sim = Core.respawn(sim, { roomId: target.roomId, anchorId: target.anchorId });
       sim.flags = simFlags();
@@ -2603,7 +2748,8 @@
       pending = { primary: false, secondary: false };
       const outcome = commitData(next => setContinuation(next, target.roomId, target.anchorId, Core.T.FLAME_MAX, "respawn"));
       onEnterRoom(target.roomId, "respawn");
-      showBanner(target.resumeKind === "hearth" ? (deaths === 1 ? L.firstDown : L.rested) : L.downNoHearth);
+      showBanner(caught ? (target.resumeKind === "hearth" ? L.caught : L.caughtNoHearth) : target.resumeKind === "hearth" ? (deaths === 1 ? L.firstDown : L.rested) : L.downNoHearth);
+      if (caught && npcs.has("latch")) bark("latch", L.latchCaught[0], 3600);
       if (outcome.status === "failed") renderSaveFailedPanel("moment");
     }
     // A banner is never spent under something being read: one raised as a
@@ -2637,7 +2783,9 @@
         else if (panelKind === "restart" || panelKind === "restart-failed") cancelRestart();
         else if (ui === "play" || ui === "dialogue" || ui === "scene" || ui === "choice") { addHold("manual"); renderPausePanel(); }
       }
-      if (holds.length === 0 && !exitState) {
+      if (holds.length === 0 && !exitState && comic?.playing()) {
+        if (edges.primaryPressed) comic.skip(); else comic.tick(Math.min(dt, 100));
+      } else if (holds.length === 0 && !exitState) {
         sceneTime += Math.min(dt, 100);
         tickNpcs(Math.min(dt, 100) / 1000);
         tickScene();
@@ -2783,6 +2931,7 @@
       view.showPrompt(target, target ? `◆ ${target.prompt}` : null);
       view.setActionLabel(target ? target.prompt : ui === "dialogue" ? "NEXT" : ui === "choice" ? "PICK" : g.world ? "FLAME" : "FLARE");
       bannerTick(time);
+      view.setObjective(objectiveNow(), objectiveShown());
       // Control hints are physical and brief: keys wake, nothing explains.
       if (!g.world && cue.noticed && Core.encounterActive(sim) && (!cue.flare || !cue.tuck)) view.showCue(`<span class="${cue.flare ? "done" : ""}"><i class="cue-primary"></i>FLARE <kbd>Z</kbd></span><span class="${cue.tuck ? "done" : ""}"><i class="cue-secondary"></i>TUCK <kbd>X</kbd></span>`);
       else view.showCue(null);
@@ -2858,6 +3007,9 @@
       input.bind();
       view.el.panel.addEventListener("click", onPanelClick);
       view.el.choice.addEventListener("click", onChoiceClick);
+      // Action moments cut to a comic page drawn over the screen (story spine v0.4).
+      const ComicKit = root?.RizoDungeonComic;
+      if (ComicKit) comic = ComicKit.create({ mount: view.el.screen, reducedMotion: reducedMotion(), petMarkup: () => (pet ? host.petMarkup(pet, { context: "dungeon", extraClass: "comic-rizo-art", label: pet.name || "Rizo" }) : ""), lines: Content.LINES, speakers: Content.SPEAKERS });
       started = true;
       live = api;
       settings = { ...Core.SETTINGS_DEFAULTS, ...host.modeSettings() };
@@ -2969,6 +3121,8 @@
       if (rafId) root.cancelAnimationFrame(rafId);
       rafId = 0;
       input?.unbind();
+      comic?.destroy();
+      comic = null;
       view?.el.panel.removeEventListener("click", onPanelClick);
       view?.el.choice.removeEventListener("click", onChoiceClick);
       view?.destroy();
@@ -3027,7 +3181,7 @@
         barks: barks.map(entry => ({ id: entry.id, text: entry.text, quiet: Boolean(entry.quiet) })),
         depth: { mood: room.mood && sceneTime - room.mood.at <= room.mood.ms ? room.mood.kind : null, danger: Math.round(MOOD.danger * 100) / 100, home: MOOD.home, hush: room.hush ?? null, noticed: [...noticed], beckonAt: room.beckonAt ?? null, firstLookAt: room.firstLookAt ?? null, still: stillFor, facing: sim ? { x: sim.player.fx, y: sim.player.fy } : null, actors: [...npcs.values()].filter(actor => actor.visible).map(actor => ({ id: actor.id, state: actor.state, face: actor.face })) },
         sceneTime, silent: sceneTime < silentUntil, fade: sceneFade.value, impactAt: room.impactAt ?? null,
-        music: musicId, transient: { ...transient }, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
+        music: musicId, transient: { ...transient }, comic: comic?.playing() || null, objective: view?.el.objective && !view.el.objective.hidden ? view.el.objective.textContent.replace("▲", "").trim() : null, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
         opening: openingQA(),
         log: [...qaLog]
       }),
@@ -3070,6 +3224,7 @@
         while ((scene || dialogueState || choiceState) && guard-- > 0) {
           if (dialogueState) { dialogueState.shown = 1e9; advanceDialogue(); continue; }
           if (choiceState) { pickChoice(0); continue; }
+          if (scene?.waiting === "comic") { const current = scene; current.waiting = null; comic?.skip(); if (current.control && ui === "scene") ui = "play"; advanceScene(); continue; }
           if (scene?.waiting === "time") { sceneTime = scene.until; tickScene(); continue; }
           if (scene?.waiting === "pred") { if (scene.pred()) tickScene(); else break; continue; }
           break;
@@ -3080,6 +3235,7 @@
       qaSceneTime(ms) {
         for (let left = Math.max(0, ms); left > 0; left -= 100) {
           const slice = Math.min(100, left);
+          if (comic?.playing()) { comic.tick(slice); continue; }
           sceneTime += slice; tickNpcs(slice / 1000); tickScene(); tickRoom();
           if (poseOverride && sceneTime > poseOverride.until) poseOverride = null;
         }

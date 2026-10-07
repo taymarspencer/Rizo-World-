@@ -36,12 +36,10 @@
   const ACTOR_UNITS = 34;
   const STAGE_SCALE = { spark: 0.82, kid: 0.9, teen: 0.96, beast: 1, legend: 1.04 };
   const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
-  // CALLER_SYMBOL: PLACEHOLDER ONLY. The real glyph is an owner/art decision
-  // (narrative package v0.3 §3.6). This deliberately neutral dashed frame is
-  // not a letter, face, mark or the Rizo blue; replace this one function.
-  // On a phone lying in the rain it is seen through water on the glass, so the
-  // placeholder reads as a real screen, not a missing image.
-  const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-placeholder="true" viewBox="0 0 40 40" aria-hidden="true"><rect x="10" y="10" width="20" height="20" rx="4" fill="#d9d4c6"/></svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
+  // CALLER_SYMBOL is The Boss's mark (story spine v0.4): a bell jar with a
+  // light shut inside, the same mark on his cards and his collectors. No text.
+  // On a phone lying in the rain it is seen through water on the glass.
+  const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-mark="boss" viewBox="0 0 40 40" aria-hidden="true">${Art.markSvg("#eef5f9", "#ffffff", 2)}</svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
   function deviceMarkup() {
@@ -56,6 +54,7 @@
         <div class="dungeon-barks" aria-live="polite"></div>
         <div class="dungeon-thought" hidden aria-live="polite"></div>
         <div class="dungeon-hud" aria-hidden="true"><span class="dungeon-flame"></span><b class="dungeon-room-name"></b></div>
+        <div class="dungeon-objective" hidden aria-live="polite"><i aria-hidden="true">▲</i><span></span></div>
         <div class="dungeon-prompt" hidden aria-hidden="true"></div>
         <div class="dungeon-cue" hidden aria-hidden="true"></div>
         <div class="dungeon-banner" hidden aria-live="polite"></div>
@@ -86,7 +85,7 @@
     const $ = selector => arena.querySelector(selector);
     const el = {
       device: $(".dungeon-device"), slot: $(".dungeon-slot"), screen: $(".dungeon-screen"), canvas: $(".dungeon-canvas"), actors: $(".dungeon-actors"),
-      actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
+      actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), objective: $(".dungeon-objective"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
       prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), lineText: $(".dungeon-line-text"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
       fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), dpad: $(".dungeon-dpad"),
@@ -332,11 +331,47 @@
           cx = cooler.rest.x + (enemy.x - cooler.rest.x) * ease; cy = cooler.rest.y + (enemy.y - cooler.rest.y) * ease;
         }
         Art.cooler(ctx, cx, cy, { wobble: enemy.state === "windup" && !reducedMotion ? Math.sin(sim.t / 40) * 1.2 : 0 });
+      } else if (enemy.kind === "collector") {
+        const walking = enemy.state === "patrol" && sim.t >= (enemy.pauseUntil || 0);
+        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state, bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t });
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
         Art.porter(ctx, x, y, { t, open, settled: enemy.state === "settled", flash, lean, lampAim: enemy.state === "sweep-tell" || enemy.state === "sweep" ? enemy.sweepDir || 0 : 0 });
       }
+    }
+    // A collector's lamp: a cold fan on the floor, stopped by walls and posts.
+    // Seen, it locks bright on him; searching, it dims and wanders.
+    function paintLamp(enemy, sim, time) {
+      const def = Content.ENEMIES.collector, geo = Core.geoOf(sim);
+      const ox = enemy.x + enemy.aimX * 6, oy = enemy.y + enemy.aimY * 4 - 2;
+      const base = Math.atan2(enemy.aimY, enemy.aimX), rays = 16, pts = [];
+      for (let index = 0; index <= rays; index += 1) {
+        const a = base - def.halfAngle + (2 * def.halfAngle * index) / rays, dx = Math.cos(a), dy = Math.sin(a);
+        const length = Core.rayLength(geo, ox, oy, dx, dy, def.range);
+        pts.push([ox + dx * length, oy + dy * length]);
+      }
+      const spot = enemy.state === "spot", search = enemy.state === "search";
+      const flicker = reducedMotion ? 0 : Math.sin(time / 70) * 0.04;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const gradient = ctx.createRadialGradient(ox, oy, 2, ox, oy, def.range);
+      const a = (spot ? 0.34 : search ? 0.14 : 0.2) + flicker;
+      gradient.addColorStop(0, `rgba(214,232,244,${a})`); gradient.addColorStop(0.75, `rgba(170,198,218,${a * 0.45})`); gradient.addColorStop(1, "rgba(150,180,205,0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath(); ctx.moveTo(ox, oy); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.closePath(); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = spot ? "rgba(238,245,249,.75)" : "rgba(184,201,212,.32)"; ctx.lineWidth = spot ? 1.2 : 0.8;
+      ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(pts[0][0], pts[0][1]); ctx.moveTo(ox, oy); ctx.lineTo(pts[rays][0], pts[rays][1]); ctx.stroke();
+      if (spot) {
+        // The lamp has him: a hard ring and a closing bracket of time.
+        const k = Math.min(1, (sim.t - enemy.stateAt) / (def.spotMs * (sim.assist ? Core.T.ASSIST_ANTICIPATION : 1)));
+        const p = sim.player;
+        ctx.strokeStyle = "rgba(238,245,249,.9)"; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(p.x, p.y - 2, 16 - k * 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
+        Art.label(ctx, "!", enemy.x, enemy.y - 88, { size: 14, weight: 900, color: P.cold[3], align: "center" });
+      }
+      ctx.restore();
     }
     // Before the first jolt the cooler sits by the seats, at the front of the bay.
     const COOLER_HOME = Object.freeze({ x: 28, y: 104 });
@@ -636,8 +671,10 @@
       // Fire briefly lights what it reaches, using the existing bounded light
       // pass. A dying flame still shortens the ordinary pool after the action.
       if (lightScale > 0 && p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active") lit.list.push({ x: pos.x + p.act.fx * 18, y: pos.y + p.act.fy * 18, r: geo.world ? 38 : 64, strength: 0.65, warm: 1 });
+      for (const enemy of sim.enemies) if (enemy.kind === "collector") lit.list.push({ x: enemy.x + enemy.aimX * 30, y: enemy.y + enemy.aimY * 30 - 4, r: 44, strength: 0.5, warm: 0 });
       lighting.apply(ctx, view, lit.ambient, lit.list);
       Scenery.paintOver?.(ctx, geo, scene);
+      for (const enemy of sim.enemies) if (enemy.kind === "collector") paintLamp(enemy, sim, time);
       // Waking in the dark: a pinprick of his flame before anything else.
       const actorLight = extras.actorLight ?? 1;
       if (actorLight > 0 && actorLight < 0.6) { ctx.save(); ctx.globalAlpha = 1 - actorLight; Art.flame(ctx, pos.x, pos.y - 4, 1.4 + actorLight * 4, reducedMotion ? 0 : time); ctx.restore(); }
@@ -773,6 +810,7 @@
         if (!node) { node = document.createElement("div"); node.className = "dungeon-bark"; el.barks.appendChild(node); barkNodes.set(item.id, node); }
         if (node.textContent !== item.text) node.textContent = item.text;
         node.classList.toggle("is-quiet", Boolean(item.quiet));
+        if (node.dataset.speaker !== (item.speaker || "")) node.dataset.speaker = item.speaker || "";
         // Seated figures (the van) are short; they say where their heads are.
         const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
         // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.
@@ -814,6 +852,19 @@
       el.flame.setAttribute("aria-label", `Flame ${flame} of ${max}`);
     }
     function setRoomName(name) { el.roomName.textContent = name; }
+    // What he is trying to do now. A new one flashes once; the same one stays quiet.
+    // Hidden (a line being read, a comic) keeps the text: it does not flash again on return.
+    let objectiveText = "";
+    function setObjective(text, visible = true) {
+      const next = String(text || "");
+      const hide = !next || !visible;
+      if (el.objective.hidden !== hide) el.objective.hidden = hide;
+      if (next === objectiveText) return;
+      objectiveText = next;
+      el.objective.querySelector("span").textContent = next;
+      el.objective.classList.remove("is-new");
+      if (next && !hide && !reducedMotion) { void el.objective.offsetWidth; el.objective.classList.add("is-new"); }
+    }
     function setKeys(state) {
       if (state.dir !== lastDir) { el.dpad.dataset.dir = state.dir; lastDir = state.dir; }
       const signature = `${state.primary}${state.secondary}${state.system}`;
@@ -897,7 +948,7 @@
     function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
-    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
+    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
   return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });

@@ -1099,9 +1099,10 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
     check("the queue lever opens a real shortcut to the hearth (durable)", s["slice"]["world"]["durableRoomFlags"].get("shortcutOpen") and "hearth-queue" in s["slice"]["world"]["openedShortcuts"])
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(30,350)"); page.keyboard.down("a"); page.wait_for_timeout(500); page.keyboard.up("a"); page.wait_for_timeout(500)
     check("…and walking through it arrives at the hearth", page.evaluate(ST)["sim"]["roomId"] == "hearth")
-    goto(page, "queue")
+    # v0.4: the Cold Queue is a stealth room now; its Needle holds the Low Run.
+    goto(page, "lowrun")
     # One evaluate: a live frame between teleport and advance could see the lane first.
-    ev = page.evaluate("(RizoRuntimeQA.dungeonTeleportForQA(160,220), RizoRuntimeQA.dungeonAdvanceForQA(1400,{}))")
+    ev = page.evaluate("(RizoRuntimeQA.dungeonTeleportForQA(220,60), RizoRuntimeQA.dungeonAdvanceForQA(1400,{}))")
     check("the Needle shows its lane, then pulses it", "lane" in ev and "pulse" in ev, str(ev))
     goto(page, "porter")
     s = page.evaluate(STORED)
