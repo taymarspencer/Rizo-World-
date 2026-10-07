@@ -920,7 +920,7 @@
     function grab() {
       room.grabbed = true;
       const hands = room.hands;
-      if (hands) { hands.x = sim.player.x + 6; hands.y = sim.player.y - 2; hands.grabbed = true; }
+      if (hands) { hands.x = sim.player.x + 6; hands.y = sim.player.y - 10; hands.grabbed = true; }
       setPose("held", 6000);
       sound("grab");
       const cap = npcs.get("hood-cap");
@@ -978,7 +978,7 @@
         if (d > 0.5) { hands.x += (dx / d) * step; hands.y += (dy / d) * step; }
         if (d < 12) room.grabbed = true;
       }
-      if (room.grabbed && hands) { hands.x = p.x + 6; hands.y = p.y - 2; }
+      if (room.grabbed && hands) { hands.x = p.x + 6; hands.y = p.y - 10; }
       // The footwell is the darkest place in the car. Nothing is recorded.
       room.hiding = inZone("footwell") && !p.moving;
     }
