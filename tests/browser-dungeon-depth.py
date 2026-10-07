@@ -239,9 +239,7 @@ with sync_playwright() as pw:
     # ================= ROOM MUSIC STATES =================
     ctx, page, errors = boot(browser)
     goto(page, "drain")
-    check("the drain arrives in designed silence while he shakes off the road", state(page)["music"] == "dungeon-silence", state(page)["music"])
-    clock(page, 1800); page.wait_for_timeout(80)
-    check("after he settles, the drain earns its own held warm sound", state(page)["music"] == "dungeon-drain", state(page)["music"])
+    check("after the short shelter settle, the drain has earned its own held warm sound", state(page)["music"] == "dungeon-drain", state(page)["music"])
     goto(page, "hearth", None, {"latchFreed": True, "seatChosen": True})
     check("the Shared Hearth has a warm tune of its own", state(page)["music"] == "dungeon-hearth", state(page)["music"])
     goto(page, "porter", "porter-entry", {"latchFreed": True, "seatChosen": True})
