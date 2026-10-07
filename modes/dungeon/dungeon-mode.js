@@ -1414,7 +1414,7 @@
     // HUD shows it; standing still, the room points the same way.
     function rowsNext() {
       const at = sim?.roomId;
-      if (!fact("rowsLedge")) return "ledge";
+      if (!fact("rowsLedge")) return at === "receiving" && !transient.ledgeReady ? "rowsStart" : "ledge";
       if (!done("rows:met")) return "toTable";
       if (!fact("rowsCatch")) return "tableCatch";
       if (!fact("rowsLowRoute")) return at === "hangrow" ? (fact("hangrowCrossed") || inZone("row-north") ? "lowCatch" : "rowLamp") : "toRows";
@@ -1449,7 +1449,7 @@
         case "roadside": return room.searchAt && !room.searchOver ? "hide" : room.walkStart || room.walkMode ? "shelter" : null;
         case "drain": return room.deepWarmAt ? "deeper" : null;
         case "slip": return scene?.id === "opening:landed" || (room.wakeAt != null && room.awakeAt == null) ? null : data.journal.discoveredEntryIds.includes("home-sign") ? "climb" : "findWay";
-        case "clatter": return sim.enemies.some(enemy => enemy.kind === "collector") ? "lamp" : "climb";
+        case "clatter": return sim.enemies.some(enemy => enemy.kind === "collector") || (room.passAt != null && !room.lampAt) ? "lamp" : "climb";
         case "hem": return !fact("latchFreed") ? (room.approached || fact("jamInspected") ? "freeLatch" : "climb") : "toHearth";
         case "hearth": return data.checkpoint.hearthId !== "threshold-hearth" ? "hearth" : "toQueue";
         case "queue": return fact("porterDown") ? "porterDoor" : "queue";
@@ -2402,30 +2402,32 @@
     // voice on its radio sends it on to the Cold Queue.
     const CLATTER_DOOR = { x: 256, y: 4 };
     function clatterPass() {
-      runScene("clatter:pass", [
-        S.comic("boss-hands"),
-        S.control(true),
-        S.wait(1400),
-        S.call(() => {
-          Core.spawnCollector(sim, { id: "clatter-collector", x: CLATTER_DOOR.x, y: CLATTER_DOOR.y, soft: true, patrol: [[256, 4], [256, 104], [176, 132], [104, 136], [176, 132], [256, 104], [256, 4]] });
-          npc("radio", "none", CLATTER_DOOR.x, CLATTER_DOOR.y, { barkLift: 86 });
-          room.lampAt = sceneTime; sound("notice"); flameMood("fear", 1800); setPose("pull-in", 1300);
-        }),
-        S.until(() => { const e = sim.enemies.find(item => item.id === "clatter-collector"); return !e || e.wp >= 4 || sceneTime - room.lampAt > 14000; }),
-        S.call(() => bark("radio", L.bossRadio[0], 2200)),
-        S.wait(2600),
-        S.call(() => bark("radio", L.bossRadio[1], 3000)),
-        S.until(() => !sim.enemies.some(item => item.id === "clatter-collector") || sceneTime - room.lampAt > 30000),
-        S.call(() => { sim.enemies = sim.enemies.filter(item => item.id !== "clatter-collector"); npcs.delete("radio"); commitBeat("clatter:pass"); relief(); })
-      ], { control: true });
+      // The comic is the only part that holds the room. The lamp itself is a
+      // room event: nothing else (his own noticing, the air pointing north)
+      // waits for it.
+      runScene("clatter:boss", [S.comic("boss-hands")], { control: true });
+      room.passAt = sceneTime + 1400;
     }
     function clatterPassTick() {
+      if (room.passAt != null && !room.lampAt && !scene && sceneTime >= room.passAt) {
+        Core.spawnCollector(sim, { id: "clatter-collector", x: CLATTER_DOOR.x, y: CLATTER_DOOR.y, soft: true, patrol: [[256, 4], [256, 104], [176, 132], [104, 136], [176, 132], [256, 104], [256, 4]] });
+        npc("radio", "none", CLATTER_DOOR.x, CLATTER_DOOR.y, { barkLift: 86 });
+        room.lampAt = sceneTime; sound("notice"); flameMood("fear", 1800); if (!poseOverride) setPose("pull-in", 1300);
+      }
       const lamp = sim.enemies.find(item => item.id === "clatter-collector");
       if (!lamp) return;
       const radio = npcs.get("radio");
       if (radio) { radio.x = lamp.x; radio.y = lamp.y; }
+      // At the far end of his walk the Boss comes on the radio, and sends him on.
+      if (!room.radioAt && (lamp.wp >= 4 || sceneTime - room.lampAt > 14000)) { room.radioAt = sceneTime; bark("radio", L.bossRadio[0], 2200); }
+      if (room.radioAt && !room.radioSent && sceneTime - room.radioAt > 2600) { room.radioSent = true; bark("radio", L.bossRadio[1], 3000); }
       // Back out of the door it came in by: gone.
-      if (lamp.wp === 0 && sceneTime - room.lampAt > 4000 && Math.hypot(lamp.x - CLATTER_DOOR.x, lamp.y - CLATTER_DOOR.y) < 2) sim.enemies = sim.enemies.filter(item => item !== lamp);
+      if ((lamp.wp === 0 && sceneTime - room.lampAt > 4000 && Math.hypot(lamp.x - CLATTER_DOOR.x, lamp.y - CLATTER_DOOR.y) < 2) || sceneTime - room.lampAt > 30000) {
+        sim.enemies = sim.enemies.filter(item => item !== lamp);
+        npcs.delete("radio");
+        commitBeat("clatter:pass");
+        relief();
+      }
     }
 
     // ===== STORY BEATS (commit first, then present) =====
@@ -2874,6 +2876,7 @@
       if (!g.world && sim.phase === "play") for (const enemy of sim.enemies) {
         if (enemy.state === "gone" || enemy.state === "settled") continue;
         const near = clamp(1 - (Math.hypot(enemy.x - p.x, enemy.y - p.y) - 40) / 150, 0, 1);
+        if (enemy.soft && !DANGER_STATES.has(enemy.state)) continue;
         danger = Math.max(danger, near * (DANGER_STATES.has(enemy.state) ? 1 : enemy.aware ? 0.55 : 0.2));
       }
       MOOD.danger += (danger - MOOD.danger) * clamp(dt / (danger > MOOD.danger ? 260 : 900), 0, 1);

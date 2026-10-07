@@ -86,7 +86,7 @@
       states: [{ id: "standing (filming)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "phone off", o: { phoneOff: true } }, { id: "flinch", o: { flinch: true } }]
     },
     {
-      id: "hood-cap", name: "Cap hood", role: "kidnapping crew: track jacket, backwards cap, the pillowcase", shell: "open", units: Art.RULES.scale["hood-cap"],
+      id: "hood-cap", name: "Cap hood", role: "kidnapping crew: track jacket, backwards cap, the pillowcase; the quiet one who leaves the Boss's card", shell: "open", units: Art.RULES.scale["hood-cap"], portraits: "hood-cap",
       world: (ctx, x, y, o) => Art.hood(ctx, "hood-cap", x, y, o),
       states: [{ id: "standing (pillowcase on shoulder)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "grab (pillowcase out)", o: { state: "grab" } }, { id: "flinch", o: { flinch: true } }]
     },
@@ -118,6 +118,20 @@
         { id: "quiet (“What's he even want it for?”)", o: { talker: "hood-small", quiet: true } }, { id: "filming (“Say hi.”)", o: { phone: "film" } },
         { id: "freeze (the phone rings)", o: { state: "freeze", phone: "call" } }, { id: "stare (“It's listening.”)", o: { state: "stare" } }
       ]
+    },
+    {
+      // v0.4: The Boss's collectors. Grey coverall, hood and goggles, a glass jar
+      // on his back, a cold lamp on a pole. No face. They are never fought.
+      id: "collector", name: "Collector", role: "the Boss's hunter below: walks a patrol with a cold lamp; seen for a second, Rizo is caught", shell: "locked", units: Art.RULES.scale.collector, enemy: true,
+      world: (ctx, x, y, o) => Art.collector(ctx, x, y, o),
+      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }]
+    },
+    {
+      // The Boss is never drawn in the world before the finale. Here: his
+      // calling card and his mark, at world scale; his portrait is his caller ID.
+      id: "boss", name: "The Boss (mark and card)", role: "never seen: a voice on the phone, hands and a tie in a comic, a silhouette behind glass. His mark turns up wherever a Rizo goes missing", shell: "open", units: 30, portraits: "boss", facing: false,
+      world: (ctx, x, y, o) => (o.state === "mark" ? Art.mark(ctx, x, y - 14, 26) : Art.callingCard(ctx, x, y - 8, { angle: 0 })),
+      states: [{ id: "calling card", o: {} }, { id: "the mark", o: { state: "mark" } }]
     },
     {
       id: "draftling", name: "Draftling", role: "enemy: a torn paper dart; its nose is the attack", shell: "locked", units: Art.RULES.scale.draftling, enemy: true,

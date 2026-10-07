@@ -197,7 +197,9 @@ with sync_playwright() as pw:
     drive(page, lambda s: s["scene"] is None and s["sim"]["flags"].get("rowsCatch"))
     clock(page, 1400)
     walk_exit(page, "table-to-rows")
-    page.evaluate("RizoRuntimeQA.dungeonEnemyForQA('row-draftling',{state:'gone'})")
+    # v0.4: the Hanging Row's threat is a collector's lamp; he slips past it
+    # along the west wall to the north end, where Nell takes him to the split.
+    tp(page, 34, 120)
     drive(page, lambda s: s["scene"] is None and s["sim"]["flags"].get("lowReady"))
     warm(page, 278, 106)
     drive(page, lambda s: s["scene"] is None and s["sim"]["flags"].get("rowsLowRoute"))

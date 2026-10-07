@@ -101,7 +101,7 @@ with sync_playwright() as pw:
     art = page.evaluate("""(()=>({portraits: Object.fromEntries(Object.entries(RizoDungeonArt.PORTRAITS).map(([k,v])=>[k,Object.keys(v)])),
       scale: RizoDungeonArt.RULES.scale}))()""")
     cast = {c["id"]: c for c in lab["CAST"]}
-    for want in ["rizo", "latch", "nell", "orr", "porter", "hood-tall", "hood-small", "hood-cap", "keeper", "you-seated", "van-crew", "draftling", "needle"]:
+    for want in ["rizo", "latch", "nell", "orr", "porter", "hood-tall", "hood-small", "hood-cap", "keeper", "you-seated", "van-crew", "draftling", "needle", "collector", "boss"]:
         check(f"the lab has {want}", want in cast)
     check("every Nell state the art draws is in the lab", cast["nell"]["states"] == NELL_STATES, (cast["nell"]["states"], NELL_STATES))
     check("every Latch portrait expression is a world expression too", sorted(cast["latch"]["exprs"]) == sorted(art["portraits"]["latch"]),

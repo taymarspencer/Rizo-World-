@@ -395,3 +395,5 @@ html.dungeon-locked .minigame-overlay img,html.dungeon-locked .minigame-overlay 
 .dungeon-dialogue[data-speaker="boss"]{background:#0b0c0f;color:#eef5f9;border-color:#b8c9d4}
 .dungeon-dialogue[data-speaker="boss"] .dungeon-speaker{color:#b8c9d4}
 .dungeon-pause-goal{display:block;margin-top:6px;font-weight:900;letter-spacing:.06em;color:#ffaf4a}
+/* On a short landscape screen the pause card keeps its buttons; the HUD already shows the goal. */
+@media (max-height:520px){.dungeon-pause-goal{display:none}}

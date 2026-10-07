@@ -835,7 +835,8 @@ with sync_playwright() as p:
     check("on that first read a new motif enters and the music returns", st["music"] == "dungeon-home")
     press_until_closed(page)
     s = page.evaluate(STORED)
-    check("the opening's beats, in order, each once", [b for b in s["slice"]["story"]["committedSceneBeats"]] == ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home"], str(s["slice"]["story"]["committedSceneBeats"]))
+    # v0.4: each action comic is committed (once) just before it plays, between the opening's own beats.
+    check("the opening's beats, in order, each once", [b for b in s["slice"]["story"]["committedSceneBeats"]] == ["opening:left", "comic:grab", "opening:taken", "comic:sack", "comic:van-leap", "opening:fell", "comic:taillights", "opening:searched", "opening:phone", "comic:fall", "opening:below", "thought:home"], str(s["slice"]["story"]["committedSceneBeats"]))
     check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"] and s["slice"]["campaign"]["contentRevision"] == "threshold-v3")
     page.reload(); page.wait_for_timeout(1300)
     st = launch(page); page.wait_for_timeout(600)
