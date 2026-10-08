@@ -2165,7 +2165,13 @@
       if (!guard || !actor) return;
       const toward = Math.sign(sim.player.x - actor.x) || -1;
       actor.face = guard.state === "watch" ? toward : -toward;
-      actor.state = "phone";
+      // Visual pose only. The guard's detection/timing stays in DungeonCore.
+      // Match the hood's held torch, screen-reading and look-back silhouettes
+      // to the same watch/tell phases used by scenery's actual beam.
+      const elapsed = sim.t - guard.stateAt;
+      const def = Content.ENEMIES.guard;
+      actor.state = guard.state === "watch" ? "phone-watch" :
+        elapsed >= def.awayMs - def.tellMs ? "phone-tell" : "phone-away";
     }
 
     // ---- The collection: quiet. What he finds says it.
