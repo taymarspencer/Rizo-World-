@@ -39,6 +39,19 @@ The earlier survey listed desired improvements but did not commit its proposed a
 
 **Still required before merge/release:** the actual release workflow and a mobile Chromium + iPhone Safari gameplay pass. Syntax and stub-canvas calls do **not** verify visual quality, collisions in rendered frames, touch layout or real audio. In particular inspect Intake's phone alignment across watch/tell, Long Hall boots and gate slam, and the factory crate-vs-tray test in motion. The old 390/390 Dungeon and 88/88 escape results belong to **Claude's prior code**, not to the commits in this pass.
 
+## Final Chapter 3 art queue cleanup (October 8)
+
+After the first eight completion commits, four remaining visual items were implemented in-place:
+
+- Factory catwalk sentries now have a lowered lamp arm and downward-looking silhouette while patrolling. This selects a render state in `dungeon-view.js`, without changing collector AI or spotlight collisions.
+- The Long Hall's closed service windows now have metal sills and bracket supports. The previously implemented shutter movement and physically rimmed lamps remain.
+- Factory machines now include press-guide columns and a small output chute, complementing the already-connected utility line. The timed press strokes are unchanged.
+- `pose-curl` is smaller, slightly lower and has a slow held-breath squash; the existing reduced-motion rule disables that animation. This remains CSS posing, not hand-authored Rizo frame art.
+
+**Release check history:** GitHub's complete `Current release suites` check passed on commit `3fe76e2` (the eight-commit art pass). The four follow-up commits above were added **after that success** and require a new release-suite run. Cloudflare Pages had deployed `3fe76e2`; the separate Cloudflare Workers Builds check continued to fail independently. This note does not claim that the follow-up commits passed the full suite.
+
+**Integrity:** `BUILD-MANIFEST-SHA256.txt` is refreshed separately after this note and all code changes settle; the manifest tracks repository source files and is not part of the published 166-file package.
+
 ## Previously open owner decisions
 
 - FLARE can still be spammed during the chase; prior bot runs found no measurable advantage so no gameplay rule was changed.
