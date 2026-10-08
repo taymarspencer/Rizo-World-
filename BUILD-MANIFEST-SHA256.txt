@@ -376,7 +376,7 @@ a611531efcda4b3bef1a06b50e58cd4d4a0e4924a538e67fb5739a2e54e5f30d  ./modes/defens
 5922d2dbef877be852cf8b3476df92a18f9e10de968779106de171a894b73819  ./modes/dungeon/dungeon-input.js
 b36fd24d96d25a9ea33fdffbbcb33a858c896b2397aaf15785eac3163949939e  ./modes/dungeon/dungeon-mode.js
 e48a29033e8307c0664c3b32ed617a1ea31a3cc82e47d9d57ebf2bb61f96fa66  ./modes/dungeon/dungeon-scenery.js
-c5d4c1b397ad942ea4318c5a8bb82dfd2e387d09ce7d3c48e5c02af7976a4d14  ./modes/dungeon/dungeon-view.js
+920a5aba17009fd15af48857b4fea2a9e4f06b49edd9ee0bcfec406b4a751724  ./modes/dungeon/dungeon-view.js
 fcc4db0368d26121f0fd8876f2be937cdcf7de1a75045b14512c1e0da3b18026  ./modes/dungeon/kit/dungeon-kit.js
 03b132f35d9b715ec2e5d1655445de61381a155482e5d570745844b902454848  ./modes/dungeon/styles/dungeon-comic.css
 b02ce24bc394b43fa3a4454afe6947551fc12d7a6d49d08b3ee6043031dcc9a2  ./modes/dungeon/styles/dungeon.css
