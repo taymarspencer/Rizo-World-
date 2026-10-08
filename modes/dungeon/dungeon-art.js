@@ -1520,7 +1520,11 @@
     } else {
       legs(ctx, 0, 0, -30, 3.8, 5.6, P.metal[1], bob, P.suit[1]);
     }
-    if (state === "spot" || state === "grab") { ctx.translate(0, -30); ctx.rotate(state === "grab" ? 0.28 : 0.12); ctx.translate(0, 30); }
+    if (state === "spot" || state === "grab" || state === "watch-down") {
+      ctx.translate(0, -30);
+      ctx.rotate(state === "grab" ? 0.28 : state === "watch-down" ? 0.1 : 0.12);
+      ctx.translate(0, 30);
+    }
     if (state === "slam") { ctx.translate(0, -30); ctx.rotate(-0.1); ctx.translate(0, 30); }
     // Running (the Long Hall): a forward lean and a visibly swinging jar.
     if (state === "run") { ctx.translate(0, -30); ctx.rotate(0.24 + Math.sin(t / 70) * 0.04); ctx.translate(0, 30); }
@@ -1543,9 +1547,16 @@
     oval(ctx, 1, -70.5, 2.2, 1.9, P.cold[3], true, 0.8); oval(ctx, 6.4, -70.5, 2.2, 1.9, P.cold[3], true, 0.8);
     box(ctx, 1.5, -66, 6.5, 4, P.metal[2], { ink: 0.8, amp: 0.1, seed: 226 });
     // The lamp on its pole, out in front. Up when he has seen something.
-    const raise = state === "spot" ? -9 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
-    limb(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 4.6, P.suit[1]);
-    line(ctx, 17, -46, 30, -60 + raise, P.metal[3], 1.7);
+    const raise = state === "spot" ? -9 : state === "watch-down" ? 24 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
+    if (state === "watch-down") {
+      // Factory catwalk sentries peer over the railing at the moving floor.
+      // Light geometry stays owned by the core; this is a drawing-only pose.
+      limb(ctx, [6, -57, 17, -47, 20, -38], P.metal[1], 4.6, P.suit[1]);
+      line(ctx, 20, -39, 30, -60 + raise, P.metal[3], 1.7);
+    } else {
+      limb(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 4.6, P.suit[1]);
+      line(ctx, 17, -46, 30, -60 + raise, P.metal[3], 1.7);
+    }
     box(ctx, 28, -65 + raise, 7, 6, P.suit[1], { ink: 1, amp: 0.1, seed: 227 });
     oval(ctx, 34.5, -62 + raise, 2.4, 2.8, P.cold[3]);
     if (state === "grab") {
