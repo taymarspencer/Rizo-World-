@@ -324,7 +324,10 @@ html.dungeon-locked .minigame-overlay img,html.dungeon-locked .minigame-overlay 
    scrambling, held, loosening by a fire. Each has a still version under reduced motion. */
 .dungeon-pose.pose-press-glass{--lean:-8deg;--sx:.94;--sy:1.08}
 .dungeon-pose.pose-pull-in{--sx:.86;--sy:.84;animation:dungeonPullIn .4s ease-out}
-.dungeon-pose.pose-curl{--sx:.9;--sy:.72;--lean:4deg}
+/* Holding his breath: feet stay in place, flame tucks into itself.
+   Only a slow almost-still squeeze; reduced-motion disables it below. */
+.dungeon-pose.pose-curl{--sx:.86;--sy:.67;--lean:6deg;translate:0 2px;animation:dungeonHeldBreath 3.4s ease-in-out infinite}
+@keyframes dungeonHeldBreath{0%,100%{scale:1 1}50%{scale:.985 .97}}
 .dungeon-pose.pose-lean-back{--lean:-11deg;--sx:.92;--sy:.98}
 .dungeon-pose.pose-edge{--lean:9deg;--sx:1.04;--sy:.94;animation:dungeonShiver .12s linear infinite}
 .dungeon-pose.pose-tremble{--sx:.9;--sy:.84;animation:dungeonShiver .09s linear infinite}
