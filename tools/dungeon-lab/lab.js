@@ -83,7 +83,7 @@
     {
       id: "hood-small", name: "Small hood", role: "kidnapping crew: puffer jacket, mustard beanie, filming on his phone", shell: "open", units: Art.RULES.scale["hood-small"], portraits: "hood-small",
       world: (ctx, x, y, o) => Art.hood(ctx, "hood-small", x, y, o),
-      states: [{ id: "standing (filming)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "phone off", o: { phoneOff: true } }, { id: "flinch", o: { flinch: true } }]
+      states: [{ id: "standing (filming)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "phone off", o: { phoneOff: true } }, { id: "phone watching (Intake)", o: { state: "phone-watch" } }, { id: "reading screen (Intake)", o: { state: "phone-away" } }, { id: "look-back tell (Intake)", o: { state: "phone-tell" } }, { id: "flinch", o: { flinch: true } }]
     },
     {
       id: "hood-cap", name: "Cap hood", role: "kidnapping crew: track jacket, backwards cap, the pillowcase; the quiet one who leaves the Boss's card", shell: "open", units: Art.RULES.scale["hood-cap"], portraits: "hood-cap",
@@ -124,7 +124,7 @@
       // on his back, a cold lamp on a pole. No face. They are never fought.
       id: "collector", name: "Collector", role: "the Boss's hunter below: walks a patrol with a cold lamp; seen for a second, Rizo is caught", shell: "locked", units: Art.RULES.scale.collector, enemy: true,
       world: (ctx, x, y, o) => Art.collector(ctx, x, y, o),
-      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { state: "run", bob: 2 } }]
+      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { state: "run", bob: 2, t: 600 } }, { id: "grab (caught)", o: { state: "grab" } }, { id: "slam (night gate)", o: { state: "slam" } }]
     },
     {
       // v0.5: the Boss's people in white coats, heard through a vent grate. Their
