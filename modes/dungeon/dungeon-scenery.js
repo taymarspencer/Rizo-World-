@@ -1874,6 +1874,12 @@
       rect(c, P.metal[3], s.x + 1, s.y + 1, s.w - 2, 2);
       for (let k = 0; k < 3; k += 1) box(c, s.x + 6 + k * 9, s.y + 5 - k, 7, 5, P.paper[2], { ink: 0.6, amp: 0.05 });
       box(c, s.x + 40, s.y + 8, 10, 6, P.suit[1], { ink: 0.8, amp: 0.05 }); box(c, s.x + 54, s.y + 4, 6, 10, P.wood[2], { ink: 0.8, amp: 0.1 }); rect(c, P.suit[0], s.x + 53, s.y + 13, 8, 2);
+      // LOOK: the tag roll feeds this desk; blank strips are being stamped.
+      const tx = s.x + Math.min(s.w - 9, 66);
+      oval(c, tx, s.y + 7, 5, 4.4, P.paper[2], true, 0.8);
+      oval(c, tx, s.y + 7, 2, 1.7, P.suit[1]);
+      rect(c, P.paper[2], tx - 2, s.y + 10, Math.min(14, s.w / 3), 2.2);
+      for (let k = 0; k < 3; k += 1) line(c, tx + k * 3, s.y + 10, tx + k * 3, s.y + 12.2, P.metal[1], 0.6);
     },
     cage() {},
     "crate-cold"(c, s) {
@@ -1884,11 +1890,22 @@
       stencil(c, "1,2", s.x + s.w / 2, s.y + s.h - 2, { size: 3.6, color: P.cold[3], alpha: 0.4 });
     },
     "jar-shelf"(c, s) {
-      // A steel shelf. Two rows of jars: a small light holding still in each.
+      // Identical jars in an actual catalogued rack, not floating on a block.
       drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 4);
       box(c, s.x, s.y, s.w, s.h, P.suit[2], { ink: 1.3, amp: 0.05 });
-      rect(c, P.metal[2], s.x + 1, s.y + s.h - 3, s.w - 2, 2);
+      rect(c, P.metal[0], s.x + 3, s.y + 4, s.w - 6, s.h - 8);
+      for (const sy of [s.y + 10, s.y + s.h - 3]) {
+        rect(c, P.metal[2], s.x + 1, sy, s.w - 2, 2);
+        rect(c, P.metal[3], s.x + 1, sy, s.w - 2, 0.75);
+      }
       for (const jar of shelfJars(s)) A.jar(c, jar.x, jar.y, { size: jar.size, t: 0, tag: jar.tag, dim: true });
+      for (const sx of [s.x + 1.5, s.x + s.w - 4]) {
+        rect(c, P.metal[1], sx, s.y, 2.5, s.h);
+        for (const sy of [s.y + 5, s.y + s.h / 2, s.y + s.h - 4]) rivet(c, sx + 1, sy, 0.65);
+      }
+      rect(c, P.metal[2], s.x, s.y, s.w, 2);
+      box(c, s.x + 4, s.y + s.h - 8, Math.min(22, s.w - 8), 5, P.paper[2], { ink: 0.6, amp: 0.03 });
+      stencil(c, "NO.", s.x + Math.min(15, s.w / 2), s.y + s.h - 4, { size: 3.2, color: P.suit[1], alpha: 0.9 });
     },
     "ledger-desk"(c, s) {
       drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 4);
@@ -1903,7 +1920,17 @@
     },
     "vent-grate"() {},
     "vent-hatch"(c, s) { box(c, s.x, s.y, s.w, s.h, P.metal[1], { ink: 1.2, amp: 0.05 }); for (let x = s.x + 3; x < s.x + s.w - 2; x += 4) rect(c, P.suit[0], x, s.y + 3, 2, s.h - 6); },
-    "rail-cold"(c, s) { line(c, s.x, s.y + 2, s.x + s.w, s.y + 2, P.metal[3], 2); for (let x = s.x + 2; x < s.x + s.w; x += 18) line(c, x, s.y + 2, x, s.y + s.h + 6, P.metal[2], 1.4); alpha(c, 0.3, () => rect(c, P.ink, s.x, s.y + s.h + 4, s.w, 3)); },
+    "rail-cold"(c, s) {
+      line(c, s.x, s.y + 2, s.x + s.w, s.y + 2, P.metal[3], 2);
+      for (let x = s.x + 2; x < s.x + s.w; x += 18) line(c, x, s.y + 2, x, s.y + s.h + 6, P.metal[2], 1.4);
+      alpha(c, 0.3, () => rect(c, P.ink, s.x, s.y + s.h + 4, s.w, 3));
+      // LOOK: a worn clipboard left by the factory landing.
+      const cx = s.x + s.w - 26, cy = s.y - 10;
+      box(c, cx, cy, 13, 15, P.wood[1], { ink: 0.8, amp: 0.05 });
+      box(c, cx + 2, cy + 2, 9, 11, P.paper[2], { ink: 0.4, amp: 0.02 });
+      box(c, cx + 4.5, cy - 2, 4, 3, P.metal[2], { ink: 0.4, amp: 0.02 });
+      for (let k = 0; k < 3; k += 1) line(c, cx + 4, cy + 5 + k * 2.5, cx + 10, cy + 5 + k * 2.5, P.inkSoft, 0.6);
+    },
     machine(c, s) {
       // A machine nobody explains: a steel housing, a cold white window, pipes going up.
       drop(c, s.x + s.w / 2, s.y + s.h + 3, s.w / 2 + 3, 5);
@@ -1920,7 +1947,16 @@
       drop(c, s.x + s.w / 2, s.y + s.h + 3, s.w / 2 + 3, 5);
       for (const [dx, dy, w, h] of [[0, 14, s.w * 0.55, s.h - 14], [s.w * 0.45, 18, s.w * 0.55, s.h - 18], [s.w * 0.2, 0, s.w * 0.55, 18]]) A.beltCrate(c, s.x + dx + w / 2, s.y + dy + h / 2 + 6, w, h, { seed: s.x + dx });
     },
-    "loading-door"(c, s) { box(c, s.x - 20, s.y - 6, s.w + 40, 8, P.metal[2], { ink: 1.2, amp: 0.05 }); stencil(c, "LOADING", s.x + s.w / 2, s.y - 8, { size: 6, color: P.a.mustard }); },
+    "loading-door"(c, s) {
+      // An overhead roller shutter with a clear view of the rainy outdoors.
+      box(c, s.x - 20, s.y - 11, s.w + 40, 11, P.metal[2], { ink: 1.2, amp: 0.05 });
+      for (const side of [s.x - 8, s.x + s.w + 5]) {
+        box(c, side, s.y - 9, 3, s.h + 9, P.metal[1], { ink: 0.8, amp: 0.03 });
+        rivet(c, side + 1, s.y - 6, 0.7);
+      }
+      for (let sy = s.y - 7; sy < s.y; sy += 3) rect(c, P.metal[0], s.x - 7, sy, s.w + 14, 0.9);
+      stencil(c, "LOADING", s.x + s.w / 2, s.y - 13, { size: 6, color: P.a.mustard });
+    },
     duct(c, s) {
       rect(c, P.suit[1], s.x, s.y, s.w, s.h);
       alpha(c, 0.55, () => { for (let x = s.x + 10; x < s.x + s.w; x += 20) rect(c, P.suit[2], x, s.y + 9, 1, 2); });
@@ -1954,8 +1990,14 @@
           frostedPane(c, side === "w" ? 6 : 302, y, 12, 22, { sign: (y / 62) % 3 < 1 ? "SHUT" : null });
         }
         for (const win of geo.lampWindows || []) frostedPane(c, win.side === "w" ? 4 : 300, win.y - 2, 16, win.h + 4);
-        // The gate housing over the hall.
-        box(c, 16, 436, 288, 6, P.suit[1], { ink: 1.1, amp: 0.05 });
+        // A heavy roller-gate housing whose shutter drops from real tracks.
+        box(c, 16, 430, 288, 12, P.metal[1], { ink: 1.2, amp: 0.05 });
+        rect(c, P.metal[3], 20, 433, 280, 1.5);
+        for (let gx = 30; gx < 292; gx += 22) rivet(c, gx, 438, 1);
+        for (const gx of [16, 298]) {
+          box(c, gx, 430, 6, 33, P.suit[1], { ink: 1.1, amp: 0.05 });
+          rect(c, P.metal[3], gx + 2, 432, 1, 29);
+        }
         label(c, "THE LONG HALL", 80, -30, { size: 8, color: P.suit[2] });
       }
     },
@@ -1991,6 +2033,14 @@
         for (let y = 96; y < 150; y += 8) { box(c, 22, y, 40, 7, P.metal[1], { ink: 0.9, amp: 0.05 }); rect(c, P.metal[2], 23, y + 1, 38, 1.2); }
         // Walkways for the staff, painted yellow, and their stencils.
         for (const y of [112, 272, 424]) { rect(c, P.a.mustard, 64, y - 1, 220, 1.6); rect(c, P.a.mustard, 64, y + 17, 220, 1.6); stencil(c, "WALKWAY", 250, y + 12, { size: 5 }); }
+        // Connecting utility line: all three machines receive from one run.
+        const pipe = [[64, 243], [250, 241], [160, 391]];
+        for (let k = 1; k < pipe.length; k += 1) {
+          const a = pipe[k - 1], b = pipe[k];
+          line(c, a[0], a[1], b[0], b[1], P.metal[0], 6);
+          line(c, a[0], a[1], b[0], b[1], P.metal[2], 2);
+          rivet(c, a[0], a[1], 1.6);
+        }
         // The loading bay: tyre marks and wet under the door.
         alpha(c, 0.35, () => { rect(c, P.wet[2], 130, 640, 60, 60); for (const x of [128, 182]) rect(c, P.ink, x, 560, 6, 140); });
         // His jars come in here empty.
