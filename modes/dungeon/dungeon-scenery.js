@@ -2084,8 +2084,18 @@
       for (const win of geo.lampWindows || []) {
         const state = Core.lampWindowState(win, sim.t), x = win.side === "w" ? 4 : 300;
         const jitter = state === "tell" && !s.reduced ? Math.sin(s.time / 30) * 1.2 : 0;
-        if (state === "on") { box(ctx, x, win.y - 2, 16, win.h + 4, P.cold[3], { ink: 1.2, amp: 0.05 }); oval(ctx, x + 8, win.y + win.h / 2, 4, 4, "#ffffff"); }
-        else { box(ctx, x, win.y - 2 + jitter, 16, (win.h + 4) * (state === "tell" ? 0.82 : 1), P.metal[1], { ink: 1.2, amp: 0.05 }); for (let y = win.y; y < win.y + win.h; y += 3) rect(ctx, P.metal[0], x + 1, y + jitter, 14, 1); if (state === "tell") alpha(ctx, 0.9, () => rect(ctx, P.cold[3], x + 1, win.y + win.h * 0.82 + jitter, 14, 1.6)); }
+        if (state === "on") {
+          box(ctx, x, win.y - 2, 16, win.h + 4, P.metal[2], { ink: 1.2, amp: 0.05 });
+          rect(ctx, P.cold[3], x + 1.5, win.y + 1, 13, win.h - 2);
+          // Lens, rim, bolts: its light has a physical source.
+          oval(ctx, x + 8, win.y + win.h / 2, 5.2, 5.2, P.metal[0], true, 0.7);
+          oval(ctx, x + 8, win.y + win.h / 2, 3.5, 3.5, "#ffffff");
+          rivet(ctx, x + 2, win.y, 0.7); rivet(ctx, x + 14, win.y, 0.7);
+        } else {
+          box(ctx, x, win.y - 2 + jitter, 16, (win.h + 4) * (state === "tell" ? 0.82 : 1), P.metal[1], { ink: 1.2, amp: 0.05 });
+          for (let y = win.y; y < win.y + win.h; y += 3) rect(ctx, P.metal[0], x + 1, y + jitter, 14, 1);
+          if (state === "tell") alpha(ctx, 0.9, () => rect(ctx, P.cold[3], x + 1, win.y + win.h * 0.82 + jitter, 14, 1.6));
+        }
       }
       // The night gate: housing lights, then the shutter coming down.
       const gate = geo.dropGate, g = sim.gate;
@@ -2111,7 +2121,7 @@
           const away = Math.max(0, (age - 600) / 800), shake = !s.reduced && age < 300 ? Math.sin(age / 20) * 2 : 0;
           const y = Math.max(gate.y + gate.h + 16, room.slamY - Math.min(age, 300) * 0.1);
           ctx.save(); ctx.globalAlpha = 1 - away;
-          A.collector(ctx, room.slamX + shake - away * 40, y + away * 50, { face: away > 0 ? -1 : 1, state: away > 0 ? "run" : "spot", bob: 0, t });
+          A.collector(ctx, room.slamX + shake - away * 40, y + away * 50, { face: away > 0 ? -1 : 1, state: away > 0 ? "run" : "slam", bob: 0, t });
           ctx.restore();
         }
       }
@@ -2143,9 +2153,14 @@
       }
       // His voice in every speaker: they light while he talks.
       if (room.speakerOn) for (const y of [200, 420, 620]) { alpha(ctx, 0.35, () => { oval(ctx, 12, y, 9, 7, P.cold[3]); oval(ctx, 308, y + 60, 9, 7, P.cold[3]); }); }
-      // The loading door: half up, and the rain blowing in under it.
-      box(ctx, 140, 690, 40, 10, P.metal[2], { ink: 1.2, amp: 0.05 });
-      alpha(ctx, 0.85, () => rect(ctx, P.wet[1], 142, 700, 36, 20));
+      // Half-open shutter framing real rain, not a black end-of-level wall.
+      // The playable escape geometry is untouched.
+      rect(ctx, P.ink, 142, 696, 36, 24);
+      alpha(ctx, 0.92, () => rect(ctx, P.wet[1], 143, 701, 34, 19));
+      box(ctx, 140, 688, 40, 12, P.metal[2], { ink: 1.2, amp: 0.05 });
+      for (let sy = 690; sy < 698; sy += 3) rect(ctx, P.metal[0], 142, sy, 36, 1);
+      rect(ctx, P.cold[2], 143, 700, 34, 1);
+      alpha(ctx, 0.35, () => { for (let ix = 0; ix < 4; ix += 1) line(ctx, 145 + ix * 9, 707, 149 + ix * 7, 720, P.cold[3], 0.7); });
       if (!s.reduced) alpha(ctx, 0.6, () => { for (let index = 0; index < 8; index += 1) { const k = ((s.time / 600) + index * 0.13) % 1; rect(ctx, P.wet[3], 144 + ((index * 11) % 32), 700 - k * 26, 0.8, 3); } });
       void time;
     }
@@ -2349,8 +2364,18 @@
     for (let y = 0; y < geo.h; y += 20) for (let x = 0; x < geo.w; x += 40) { box(c, x, y, 40, 20, (x / 40 + y / 20) % 2 ? P.metal[0] : "#2c353c", { ink: 0.5, amp: 0.02 }); rivet(c, x + 3, y + 3, 0.7); rivet(c, x + 37, y + 3, 0.7); }
     alpha(c, 0.25, () => { const random = rng("dust"); for (let index = 0; index < 220; index += 1) rect(c, P.paper[0], random() * geo.w, random() * geo.h, 1.2, 0.8); });
     for (const solid of geo.solids) {
+      // A bevel, separate sheet faces and riveted seams read as ductwork,
+      // while the actual open passages remain untouched.
       rect(c, P.suit[1], solid.x, solid.y, solid.w, solid.h);
-      alpha(c, 0.7, () => rect(c, P.metal[1], solid.x, solid.y + solid.h - 1.4, solid.w, 1.4));
+      rect(c, P.metal[0], solid.x + 1, solid.y + 1, Math.max(0, solid.w - 2), Math.max(0, solid.h - 2));
+      alpha(c, 0.72, () => {
+        rect(c, P.metal[2], solid.x, solid.y, solid.w, 1.4);
+        rect(c, P.metal[1], solid.x, solid.y + solid.h - 2, solid.w, 2);
+        if (solid.w >= 12 && solid.h >= 8) for (let sx = solid.x + 10; sx < solid.x + solid.w - 5; sx += 22) {
+          line(c, sx, solid.y + 2, sx, solid.y + solid.h - 2, P.metal[2], 1);
+          rivet(c, sx, solid.y + 3, 0.7);
+        }
+      });
     }
     // Duct walls catch his light: a lit lip along every open edge.
     for (const solid of geo.solids) {
@@ -2417,9 +2442,17 @@
         const k = Math.pow(row / 14, 0.62), ry = y + h - 6 - k * (h - 18), spread = (1 - k) * 0.95 + 0.05;
         line(c, vx - (w / 2) * spread, ry + 2, vx + (w / 2) * spread, ry + 2, "#1c2530", 1.2 * (1 - k) + 0.3);
         const count = Math.round(10 + k * 30);
+        // Uprights converge and jars thin toward the darkness behind the slats.
+        for (const edge of [-1, 1]) {
+          const sx = vx + edge * (w / 2) * spread;
+          line(c, sx, ry - 4, sx + edge * 4, ry + 9, P.metal[2], 0.9 * (1 - k) + 0.3);
+        }
         for (let index = 0; index < count; index += 1) {
           const jx = vx - (w / 2) * spread + ((index + 0.5) / count) * w * spread, size = 2.2 * (1 - k) + 0.5;
-          alpha(c, 0.35 + 0.5 * (1 - k), () => oval(c, jx, ry - size, size, size, P.cold[2]));
+          alpha(c, 0.35 + 0.5 * (1 - k), () => {
+            oval(c, jx, ry - size, size, size, P.cold[2]);
+            rect(c, P.cold[3], jx - size * 0.6, ry - size * 1.5, size * 0.3, size);
+          });
         }
       }
       alpha(c, 0.5, () => rect(c, "#05070b", vx - 6, vy - 6, 12, 6));
@@ -2446,8 +2479,11 @@
       alpha(c, 0.18, () => oval(c, x + w / 2, y + h * 0.6, w * 0.4, h * 0.35, P.cold[3]));
       box(c, x + w * 0.34, y + h * 0.4, w * 0.3, h * 0.48, P.paper[3], { ink: 0.9, amp: 0.05 });
       for (let k = 0; k < 8; k += 1) { rect(c, P.ink, x + w * 0.37, y + h * (0.45 + k * 0.05), w * 0.12, 0.7); rect(c, P.ink, x + w * 0.52, y + h * (0.45 + k * 0.05), w * 0.08, 0.7); }
-      rect(c, P.a.red, x + w * 0.36, y + h * 0.82, w * 0.25, 0.9);
+      rect(c, P.a.red, x + w * 0.36, y + h * 0.82, w * 0.25, 1.2);
       box(c, x + w * 0.72, y + h * 0.5, w * 0.12, h * 0.3, P.suit[0], { ink: 1, amp: 0.05 });
+      // Paperweight + unlit phone behind the numbered list. Only hands/wrists.
+      oval(c, x + w * 0.63, y + h * 0.2, 6, 3, P.metal[2], true, 0.7);
+      rect(c, P.metal[2], x + w * 0.73, y + h * 0.53, w * 0.09, 1);
       for (const [sx, dir] of [[0.26, 1], [0.66, -1]]) {
         const hx = x + w * sx;
         shape(c, [hx - 8, y, hx + 8, y, hx + 7 + dir * 2, y + h * 0.42, hx - 7 + dir * 2, y + h * 0.42], P.suit[1], { ink: 1.2, amp: 0.05 });
