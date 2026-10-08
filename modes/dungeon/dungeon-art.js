@@ -576,7 +576,14 @@
         shape(ctx, [6, -50, 11, -49, 9, -35, 4, -33], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
         oval(ctx, 4, -32, 2.1, 2, P.skin[1], true, 0.8);
       } else {
-        shape(ctx, [6, -50, 12, -52, 18, -44, 14, -41], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
+        // In Intake the torch stays at the same world-space point as its beam.
+        // He changes *how he holds it*: stretched out while watching, tucked
+        // against his mask when he reads, half raised during the look-back tell.
+        const away = o.state === "phone-away", tell = o.state === "phone-tell";
+        const elbowY = away ? -42 : tell ? -48 : -52;
+        shape(ctx, [6, -50, 12, elbowY, 19, -47, 14, -42], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
+        if (away) limb(ctx, [7, -50, 12, -40, 17, -49], P.a.maroon, 4.1, P.skin[1]);
+        else if (tell) limb(ctx, [7, -50, 15, -44, 19, -49], P.a.maroon, 4.1, P.skin[1]);
         box(ctx, 15, -54, 5, 8, P.ink, { ink: 1, amp: 0.1 });
         rect(ctx, o.phoneOff ? P.cloth[2] : P.fluoro[2], 16, -53, 3, 6);
         oval(ctx,16.5,-46.5,2.3,1.8,P.skin[1],true,.7);
@@ -585,7 +592,18 @@
       // Beanie with a fold and a pom; the mask's eye slot is on crooked.
       oval(ctx, 0, -63, 9.5, 8, P.ink);
       ctx.save(); ctx.rotate(-0.12); rect(ctx, P.cloth[0], -6, -65, 13, 4); ctx.restore();
-      oval(ctx, -2.5, -64.6, 1.4, 1.4, P.paper[3]); oval(ctx, 3, -65.4, 1.4, 1.4, P.paper[3]);
+      if (o.state === "phone-away") {
+        // Eyes down to the screen; no extra face detail at phone scale.
+        line(ctx, -4.3, -63.8, -1, -62.8, P.paper[3], 1);
+        line(ctx, 1.6, -63.8, 4.6, -62.8, P.paper[3], 1);
+      } else if (o.state === "phone-tell") {
+        // A glance up before the light lands (the existing tell still drives timing).
+        oval(ctx, -2.5, -64.6, 1.4, 1.4, P.paper[3]);
+        line(ctx, 1, -65.8, 4.5, -65.8, P.paper[3], 1.1);
+      } else {
+        oval(ctx, -2.5, -64.6, 1.4, 1.4, P.paper[3]);
+        oval(ctx, 3, -65.4, 1.4, 1.4, P.paper[3]);
+      }
       shape(ctx, [-9.5, -66, -8, -74, 0, -77, 8, -74, 9.5, -66], P.a.mustard, { ink: 1.3, seed: 43, amp: 0.3 });
       rect(ctx, P.ink, -9, -68, 18, 0.8);
       oval(ctx, 1, -78.5, 2.6, 2.4, P.a.mustard, true, 1);
@@ -1491,9 +1509,20 @@
     const bob = o.bob || 0, t = o.t || 0, state = o.state || "patrol";
     drop(ctx, x, y, 12, 3.4);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
-    legs(ctx, 0, 0, -30, 3.8, 5.6, P.metal[1], bob, P.suit[1]);
-    if (state === "spot") { ctx.translate(0, -30); ctx.rotate(0.12); ctx.translate(0, 30); }
-    // Running (the Long Hall): bent into it, lamp thrust out in front.
+    if (state === "run") {
+      // Two separate, planted boots: a real stride rather than a sliding body.
+      // No animation when t=0 (reduced motion), but the silhouette still runs.
+      const stride = Math.sin(t / 96 + 0.75) * 8;
+      limb(ctx, [-6, -30, -10 + stride * 0.35, -16, -11 + stride, -2], P.metal[1], 5.5);
+      limb(ctx, [6, -30, 8 - stride * 0.35, -17, 9 - stride, -2 - Math.max(0, stride) * 0.45], P.metal[0], 5.5);
+      oval(ctx, -9 + stride, -1, 5.7, 2.4, P.suit[0], true, 0.8);
+      oval(ctx, 11 - stride, -1 - Math.max(0, stride) * 0.45, 5.7, 2.4, P.suit[0], true, 0.8);
+    } else {
+      legs(ctx, 0, 0, -30, 3.8, 5.6, P.metal[1], bob, P.suit[1]);
+    }
+    if (state === "spot" || state === "grab") { ctx.translate(0, -30); ctx.rotate(state === "grab" ? 0.28 : 0.12); ctx.translate(0, 30); }
+    if (state === "slam") { ctx.translate(0, -30); ctx.rotate(-0.1); ctx.translate(0, 30); }
+    // Running (the Long Hall): a forward lean and a visibly swinging jar.
     if (state === "run") { ctx.translate(0, -30); ctx.rotate(0.24 + Math.sin(t / 70) * 0.04); ctx.translate(0, 30); }
     // The jar on his back: what he came to fill.
     ctx.globalAlpha = 0.62;
@@ -1519,6 +1548,15 @@
     line(ctx, 17, -46, 30, -60 + raise, P.metal[3], 1.7);
     box(ctx, 28, -65 + raise, 7, 6, P.suit[1], { ink: 1, amp: 0.1, seed: 227 });
     oval(ctx, 34.5, -62 + raise, 2.4, 2.8, P.cold[3]);
+    if (state === "grab") {
+      // Reaches across the actual catch ring; never changes that ring's size.
+      limb(ctx, [9, -51, 24, -48, 37, -42], P.metal[1], 5, P.suit[2]);
+      line(ctx, 35, -44, 42, -45, P.metal[3], 1);
+    } else if (state === "slam") {
+      // Both hands collide with the shutter; the face stays concealed.
+      limb(ctx, [7, -56, 22, -61, 36, -60], P.metal[1], 6, P.suit[2]);
+      limb(ctx, [8, -47, 24, -44, 36, -42], P.metal[1], 5.5, P.suit[2]);
+    }
     ctx.restore();
   }
   // ===== THE COLLECTION (v0.5) =====
@@ -1560,6 +1598,23 @@
       if (soul.rim) { ctx.globalAlpha = fade * 0.55; oval(ctx, lx, -7.6 + ly, 3.3 * rr, 3.7 * rr, soul.rim); ctx.globalAlpha = fade * Math.min(1, dim); }
       oval(ctx, lx, -7.6 + ly, 2.8 * rr, 3.2 * rr, soul.core);
       oval(ctx, lx, -7.2 + ly - (soul.flicker ? 0.6 : 0), 1.4 * soul.r, 1.7 * soul.r * flick, soul.hot);
+      // Six souls, six silhouettes *inside the identical glass*. Readable
+      // differences without labels or a different jar model.
+      if (o.soul === "moth") {
+        oval(ctx, lx - 2.3, -8.1 + ly, 1.6, 1.1, soul.hot);
+        oval(ctx, lx + 2.3, -8.1 + ly, 1.6, 1.1, soul.hot);
+      } else if (o.soul === "pip") {
+        oval(ctx, lx, -5.9 + ly, 1.7, 1.3, soul.hot);
+        oval(ctx, lx - 1.1, -5.4 + ly, 0.7, 0.7, soul.core);
+      } else if (o.soul === "bean") {
+        oval(ctx, lx, -5.8 + ly, 3.2, 1.2, soul.core);
+      } else if (o.soul === "spark") {
+        shape(ctx, [lx - 1.6, -8 + ly, lx, -12 + ly, lx + 1.9, -9 + ly, lx + 0.5, -5.5 + ly], soul.hot, { ink: false, amp: 0.05 });
+      } else if (o.soul === "wick") {
+        oval(ctx, lx, -5.4 + ly, 2.2, 0.9, soul.core);
+      } else if (o.soul === "old") {
+        shape(ctx, [lx - 2.2, -6.4 + ly, lx - 0.6, -10 + ly, lx + 1, -8.6 + ly, lx + 2.3, -6.4 + ly], soul.hot, { ink: false, amp: 0.03 });
+      }
       ctx.globalAlpha = fade;
       const ex = lx + look * 0.7;
       if (soul.blink?.(t + seed * 13)) { rect(ctx, P.ink, ex - 1.8, -8.0 + ly, 1.3, 0.5); rect(ctx, P.ink, ex + 0.6, -8.0 + ly, 1.3, 0.5); }
@@ -1640,18 +1695,32 @@
   function beltCrate(ctx, x, y, w, h, o = {}) {
     drop(ctx, x, y + h / 2 + 2, w / 2 + 1, 3);
     box(ctx, x - w / 2, y - h / 2 - 6, w, h, P.wood[2], { ink: 1.3, amp: 0.25, seed: Math.round(o.seed || 321) });
-    rect(ctx, P.wood[3], x - w / 2 + 1, y - h / 2 - 5, w - 2, 3);
-    for (const dx of [-w / 2 + 5, w / 2 - 7]) rect(ctx, P.metal[1], x + dx, y - h / 2 - 6, 2, h);
+    // Opaque face, heavy lid and a dark side: this is COVER, never a jar tray.
+    rect(ctx, P.wood[1], x + w / 2 - 6, y - h / 2 - 5, 5, h - 2);
+    rect(ctx, P.wood[3], x - w / 2 + 1, y - h / 2 - 5, w - 2, 5);
+    line(ctx, x - w / 2 + 2, y - h / 2 + 2, x + w / 2 - 2, y - h / 2 + 2, P.wood[1], 1);
+    for (const dx of [-w / 2 + 5, w / 2 - 7]) {
+      rect(ctx, P.metal[1], x + dx, y - h / 2 - 6, 2, h);
+      rect(ctx, P.metal[3], x + dx, y - h / 2 - 6, 2, 2);
+    }
+    for (const dy of [-h / 2 + 2, h / 2 - 9]) {
+      rivet(ctx, x - w / 2 + 6, y + dy, 0.7); rivet(ctx, x + w / 2 - 6, y + dy, 0.7);
+    }
     mark(ctx, x, y - 4, 9, P.suit[1]);
   }
   function jarTray(ctx, x, y, w, h) {
     drop(ctx, x, y + h / 2 + 1, w / 2, 2);
-    box(ctx, x - w / 2, y - h / 2, w, h, P.metal[1], { ink: 1, amp: 0.1, seed: 331 });
+    // Open wire rack: the floor and the spaces between bottles remain visible.
+    // Low frame and exposed glass should never read as a hiding crate.
+    rect(ctx, P.metal[2], x - w / 2, y + h / 2 - 4, w, 2.8);
+    line(ctx, x - w / 2, y - h / 2 + 3, x + w / 2, y - h / 2 + 3, P.metal[3], 1);
+    for (const dx of [-w / 2 + 1, w / 2 - 1]) line(ctx, x + dx, y - h / 2 + 3, x + dx, y + h / 2 - 1, P.metal[2], 1.2);
     for (let index = 0; index < 4; index += 1) {
       const jx = x - w / 2 + 4 + index * ((w - 8) / 3), jy = y - 2;
       ctx.globalAlpha = 0.45; shape(ctx, [jx - 2.6, jy, jx - 2.6, jy - 6, jx, jy - 8, jx + 2.6, jy - 6, jx + 2.6, jy], P.cold[3], { ink: 0.5, amp: 0.02 }); ctx.globalAlpha = 1;
       rect(ctx, P.cold[3], jx - 1.6, jy - 6, 0.6, 3);
     }
+    line(ctx, x - w / 2 + 1, y + h / 2 - 1, x + w / 2 - 1, y + h / 2 - 1, P.metal[3], 1.1);
   }
   // A wall speaker: a grille and his mark. His voice comes out of these.
   function speaker(ctx, x, y, o = {}) {
