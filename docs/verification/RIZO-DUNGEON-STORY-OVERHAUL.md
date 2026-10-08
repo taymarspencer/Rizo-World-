@@ -1,9 +1,9 @@
 # Rizo Dungeon — story overhaul verification
 
 **Branch:** `claude/dungeon-story-overhaul` → `develop`
-**Integration commit (code):** `b4c86ea` (this document and the SHA manifest follow it)
+**Integration commits (code):** `b4c86ea` (story overhaul), `ce14ae3` + `00dd8fa` (director's expansion: Chapter 3)
 **Canon:** [Story Spine v0.4](../dungeon/story/Rizo-Dungeon-Story-Spine-v0.4.md) · [Contracts v0.4](../dungeon/story/Rizo-Dungeon-Contracts-v0.4.md)
-**Build marker:** `v96-dungeon-story` · **Save:** `threshold-v4` (the one revision bump; v1/v2/v3 journeys carried forward untouched)
+**Build marker:** `v97-dungeon-collection` (was v96) · **Save:** `threshold-v4` (the one revision bump; v1/v2/v3 journeys carried forward untouched; Chapter 3 only adds rooms and facts)
 
 Evidence below is Chromium at 390×844 unless stated. It is not Safari or physical-phone evidence.
 
@@ -152,7 +152,7 @@ What the tests now say on purpose:
 
 What changed, why, and every autonomous fix are in [RIZO-DUNGEON-EXPANSION-LOG.md](RIZO-DUNGEON-EXPANSION-LOG.md); the story is in the spine's §Chapter 3. Summary:
 
-![Chapter 3 at 390 px: the bell, the window opens, the chase and the night gate, the cage, the jars, the vents over his office, the factory floor, the loading door](rizo-dungeon-story-overhaul/chapter3.webp)
+![Chapter 3 at 390 px: the bell after the card; the window opens (comic); Nell holds the collector while the staff door opens; a window lamp in his eyes with the runner behind; the night gate shut (“Go round.”); the hoods remember the phone; the jars he woke; the Boss's desk through a vent grate](rizo-dungeon-story-overhaul/chapter3.webp)
 
 | Room | What the player does | Fails how, back to where |
 |---|---|---|
@@ -162,6 +162,23 @@ What changed, why, and every autonomous fix are in [RIZO-DUNGEON-EXPANSION-LOG.m
 | The Collection | wakes jars; three lights open the frozen grate | the grate explains it is too cold for one |
 | The Vents | stops on grates to look; freezes when light comes up | heard: the start of that duct |
 | The Factory Floor | rides belts; hides behind crates from walkway lamps | caught: the vent landing |
+
+**Tests on `00dd8fa`** (this container, Chromium 141, the release workflow's full list run locally):
+
+| Suite | Result |
+|---|---|
+| syntax (`node --check`), `git diff --check` | clean |
+| every `node tests/*.test.js` | green; `dungeon-core` 86/86 (10 new: the window, runner, window lamps, night gate, cage, guard, belts and crates, listening grates, the tin bell, save bounds), `dungeon-kit` 6/6, `dungeon-input` 26/26 |
+| `browser-dungeon-escape` (new) | 78/78: every new room with real keys, success and failure, reloads, 320/375/430 px, reduced motion |
+| `browser-dungeon` | 390/390 (unchanged assertions: the Rows card, STAY A WHILE, the resume at the closed window) |
+| `browser-dungeon-controls` / `-cohesion` / `-depth` / `-gamefeel` | 185/185 · 67/67 · 45/45 · 63/63 |
+| `browser-dungeon-character-lab` | 98/98 (white coats and jars added to the lab) |
+| `browser-home-world` / `-home-alive` / `-visual-uphaul` | 115/115 · 57/57 · 72/72 |
+| `save-safety` / `browser-defense-integration` / `mode-contract` / `training-contract` | 37/37 · 78/78 · 25/25 · 22/22 |
+| `browser-launch-recovery` / `-v88-training-fixes` / `-v88-authored` / `-v87-arcade-freeze` | 5/5 · 13/13 · 25/25 · 66/66 |
+| `browser-public-product` / `browser-world-first` (built `dist`) | 150/150 · 77/77 (still 166 files; v97 shell cache) |
+
+No test was skipped, deleted or loosened. The only edited assertions are the build marker (v96 → v97) in `browser-world-first`.
 
 **Cloudflare:** Pages deployed the branch. The red "Workers Builds" check is a separate Worker integration that fails in 0 s on every PR, including PRs without this code. The repo has no Worker config. Details and the remedy are in the log, §1.
 
