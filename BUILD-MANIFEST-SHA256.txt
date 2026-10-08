@@ -375,7 +375,7 @@ a611531efcda4b3bef1a06b50e58cd4d4a0e4924a538e67fb5739a2e54e5f30d  ./modes/defens
 0ecb3140a39f798a0d047db2c927bab01297cad7a1bb140b1f819923ccb331fc  ./modes/dungeon/dungeon-core.js
 5922d2dbef877be852cf8b3476df92a18f9e10de968779106de171a894b73819  ./modes/dungeon/dungeon-input.js
 b36fd24d96d25a9ea33fdffbbcb33a858c896b2397aaf15785eac3163949939e  ./modes/dungeon/dungeon-mode.js
-072eb9293217d28f012ccd35fe5ea4581421f3219bcd0e43a897d544ea34c4be  ./modes/dungeon/dungeon-scenery.js
+e48a29033e8307c0664c3b32ed617a1ea31a3cc82e47d9d57ebf2bb61f96fa66  ./modes/dungeon/dungeon-scenery.js
 c5d4c1b397ad942ea4318c5a8bb82dfd2e387d09ce7d3c48e5c02af7976a4d14  ./modes/dungeon/dungeon-view.js
 fcc4db0368d26121f0fd8876f2be937cdcf7de1a75045b14512c1e0da3b18026  ./modes/dungeon/kit/dungeon-kit.js
 03b132f35d9b715ec2e5d1655445de61381a155482e5d570745844b902454848  ./modes/dungeon/styles/dungeon-comic.css
@@ -741,7 +741,7 @@ c15e66b8ccee76ffee4ec983a95148fed6a0f18eeb209aba1e53dd58928785c3  ./tools/dungeo
 c2d89ed77e0e39bf88c2076fc8fe2c040eb6c7f937d54543f9281dcf41aa80bd  ./tools/dungeon-lab/hub-bridge.js
 f357591a6783b31e16971fbfb36c80956c60782208aaad5bc0c7cdf950e7fb81  ./tools/dungeon-lab/index.html
 1f2161e801ccecf371cf9bee4f34197761d9bd5cf2753190b295c8f7ee1008e9  ./tools/dungeon-lab/lab.css
-5558b3c581b0d9645504aa62d642aea7cfbfe23fa288d1289a7fb84175b4571c  ./tools/dungeon-lab/lab.js
+0f13c3f7901527812177dc63468b2e24dfddde41b6365ca7e7fb6592811749e5  ./tools/dungeon-lab/lab.js
 8334ec2f13634c2be655c3335ea7e93876342534aa79ba093ef28f9a362be5a4  ./tools/dungeon-lab/serve.py
 b57e06708813b129dd8678d6cb42eaa28f488fc4711999a7d8be73af042a938a  ./tools/serve-site.py
 9e71cc0547bf266ab81a399478ef0ac4148b9140b46e20e834afdc06a6239ae2  ./tools/static_site.py
