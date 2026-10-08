@@ -349,7 +349,7 @@
       } else if (enemy.kind === "runner") {
         // On his trail: not drawn until it is through the door, or while it goes round.
         if (enemy.state === "waiting" || enemy.state === "detour") return;
-        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state === "caught" ? "spot" : "run", bob: !reducedMotion ? Math.sin(sim.t / 70) * 2.6 : 0, t });
+        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state === "caught" ? "grab" : "run", bob: !reducedMotion ? Math.sin(sim.t / 70) * 2.6 : 0, t });
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
