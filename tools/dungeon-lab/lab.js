@@ -124,7 +124,7 @@
       // on his back, a cold lamp on a pole. No face. They are never fought.
       id: "collector", name: "Collector", role: "the Boss's hunter below: walks a patrol with a cold lamp; seen for a second, Rizo is caught", shell: "locked", units: Art.RULES.scale.collector, enemy: true,
       world: (ctx, x, y, o) => Art.collector(ctx, x, y, o),
-      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { state: "run", bob: 2, t: 600 } }, { id: "grab (caught)", o: { state: "grab" } }, { id: "slam (night gate)", o: { state: "slam" } }]
+      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { state: "run", bob: 2, t: 600 } }, { id: "grab (caught)", o: { state: "grab" } }, { id: "slam (night gate)", o: { state: "slam" } }, { id: "catwalk: lamp down", o: { state: "watch-down" } }]
     },
     {
       // v0.5: the Boss's people in white coats, heard through a vent grate. Their
