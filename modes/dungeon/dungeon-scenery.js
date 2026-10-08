@@ -1825,6 +1825,13 @@
     box(c, x, y, w, h, P.suit[1], { ink: 1, amp: 0.05 });
     alpha(c, 0.8, () => rect(c, P.cold[1], x + 1.5, y + 1.5, w - 3, h - 3));
     alpha(c, 0.35, () => { for (let k = 0; k < 3; k += 1) rect(c, P.cold[3], x + 2 + k * (w / 3), y + 2, 1, h - 4); });
+    // The service opening has a real steel counter with a shadow beneath it;
+    // this remains scenery, not a new ledge or collision surface.
+    rect(c, P.metal[0], x - 2, y + h - 1, w + 4, 3);
+    rect(c, P.metal[3], x - 2, y + h - 1.6, w + 4, 1);
+    for (const side of [x - 1, x + w]) {
+      line(c, side, y + h + 2, side, y + h + 5, P.metal[2], 1.2);
+    }
     if (o.sign) { box(c, x + w / 2 - 7, y + h / 2 - 3, 14, 6, P.paper[3], { ink: 0.6, amp: 0.05 }); label(c, o.sign, x + w / 2, y + h / 2 + 1.6, { size: 3.2, color: P.a.red, weight: 900 }); }
   }
   function steelDoor(c, x, y, w, h, o = {}) {
@@ -1942,6 +1949,22 @@
       box(c, s.x + 5, s.y + s.h - 12, 8, 8, P.suit[1], { ink: 0.8, amp: 0.05 }); line(c, s.x + 9, s.y + s.h - 8, s.x + 11, s.y + s.h - 10, P.a.red, 0.8);
       A.mark(c, s.x + s.w - 12, s.y + s.h - 9, 8, P.cold[3]);
       for (let x = s.x + 3; x < s.x + s.w - 3; x += 8) rect(c, P.a.mustard, x, s.y + s.h - 2.4, 4, 2);
+      // Heavy press assembly; its animated piston is drawn separately by
+      // buildingDynamic, so this guide never changes stroke timing.
+      const mx = s.x + s.w / 2;
+      for (const px of [mx - 17, mx + 17]) {
+        rect(c, P.metal[0], px - 1.5, s.y + 4, 3, 24);
+        rivet(c, px, s.y + 6, 0.9);
+      }
+      box(c, mx - 17, s.y + 25, 34, 5, P.metal[2], { ink: 0.8, amp: 0.04 });
+      rect(c, P.suit[0], mx - 15, s.y + 26, 30, 1.2);
+      // A narrow output chute points toward the belt below. What comes
+      // out remains deliberately unexplained.
+      shape(c, [s.x + s.w - 9, s.y + s.h - 9,
+        s.x + s.w + 12, s.y + s.h - 6,
+        s.x + s.w + 12, s.y + s.h - 2,
+        s.x + s.w - 9, s.y + s.h - 4], P.metal[1], { ink: 0.7, amp: 0.04 });
+      line(c, s.x + s.w - 8, s.y + s.h - 5, s.x + s.w + 10, s.y + s.h - 3, P.metal[3], 1.1);
     },
     "crate-stack"(c, s) {
       drop(c, s.x + s.w / 2, s.y + s.h + 3, s.w / 2 + 3, 5);
