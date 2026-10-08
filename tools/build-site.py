@@ -61,4 +61,4 @@ DEV_ONLY = shutil.ignore_patterns('kit')
 for folder in ['assets','core','providers','training','modes']:
     shutil.copytree(ROOT/folder,out/folder,dirs_exist_ok=True,ignore=DEV_ONLY if folder == 'modes' else None)
 fingerprints = {str(p.relative_to(out)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(out.rglob('*')) if p.is_file()}
-print(json.dumps({'output':str(out),'files':len(fingerprints),'build':'v96-dungeon-story','ads_txt':(out/'ads.txt').exists(),'fingerprint':hashlib.sha256(json.dumps(fingerprints,sort_keys=True).encode()).hexdigest()},indent=2))
+print(json.dumps({'output':str(out),'files':len(fingerprints),'build':'v97-dungeon-collection','ads_txt':(out/'ads.txt').exists(),'fingerprint':hashlib.sha256(json.dumps(fingerprints,sort_keys=True).encode()).hexdigest()},indent=2))

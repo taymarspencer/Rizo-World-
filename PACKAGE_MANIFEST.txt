@@ -1,3 +1,32 @@
+RIZO V97 — DUNGEON CHAPTER 3: THE COLLECTION
+Build marker: v97-dungeon-collection (bumped because sw.js serves same-origin files
+  cache-first: a v96 visitor would otherwise keep the old Dungeon scripts)
+Branch: claude/dungeon-story-overhaul → develop (PR #33)
+Save: still threshold-v4 (rooms and facts only added; no second revision bump)
+Story: Story Spine v0.4 §Chapter 3; Contracts §7; docs/verification/RIZO-DUNGEON-EXPANSION-LOG.md
+
+NEW FILES
+  tests/browser-dungeon-escape.py       — the chapter played with real keys, success and failure
+  docs/verification/RIZO-DUNGEON-EXPANSION-LOG.md
+  No new shipped files: the package is still 166 files; sw.js lists are unchanged.
+
+CHANGED
+  dungeon-content.js  five rooms (longhall, intake, collection, vents, factory), Window
+                      Hall's bell and staff door, the Hanging Row's tin bell, lines, goals,
+                      runner/guard tuning, new facts
+  dungeon-core.js     runner (rubber-banding chase), window lamps, night gate, cage and
+                      guard, belts and crate cover, walkway watchers, listening grates,
+                      lure; save bounds widened (a full journey no longer fits the old ones)
+  dungeon-art.js      bell jars, the wire crate, belt goods, speakers, a running
+                      collector, the white coat's faceless portrait
+  dungeon-scenery.js  the building and vents themes, five rooms, grate views
+  dungeon-view.js     a front layer above Rizo, belt goods by depth, dazzle glare
+  dungeon-comic.js    window-opens, chute
+  dungeon-mode.js     the chapter's scenes, retries in place, music, sounds, goals
+  .github/workflows/release-candidate.yml  runs browser-dungeon-escape
+
+------------------------------------------------------------------------------
+
 RIZO V96 — DUNGEON STORY OVERHAUL
 Build marker: v96-dungeon-story
 Branch: claude/dungeon-story-overhaul → develop

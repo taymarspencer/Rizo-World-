@@ -68,7 +68,10 @@
   // Chapter 1 (v0.2 "Mending Rows", condensed): the campaign edition goes on
   // past the Porter (owner decision N-12 / P-01).
   const ROWS_ROOMS = ["receiving", "drytable", "hangrow", "lowrun", "eyelet", "traypass", "press", "upper", "stair", "windowgate"];
-  const BUILT_ROOMS = [...OPENING_ROOMS, ...ROOM_IDS, ...ROWS_ROOMS];
+  // Chapter 3 (story spine v0.5, "The Collection"): the window opens on
+  // collectors. Same campaign, same revision: v4 only ever adds rooms and facts.
+  const BUILDING_ROOMS = ["longhall", "intake", "collection", "vents", "factory"];
+  const BUILT_ROOMS = [...OPENING_ROOMS, ...ROOM_IDS, ...ROWS_ROOMS, ...BUILDING_ROOMS];
   const wallSet = (w, h, t, gaps) => {
     // Like walls(), but any side may have several gaps: gaps.n = [[x0, x1], …].
     const out = [];
@@ -81,6 +84,22 @@
     side("s", w, gaps.s, (a, l) => ({ id: `wall-s-${a}`, x: a, y: h - t, w: l, h: t, kind: "wall" }));
     side("w", h, gaps.w, (a, l) => ({ id: `wall-w-${a}`, x: 0, y: a, w: t, h: l, kind: "wall" }));
     side("e", h, gaps.e, (a, l) => ({ id: `wall-e-${a}`, x: w - t, y: a, w: t, h: l, kind: "wall" }));
+    return out;
+  };
+
+  // The vents are ducts cut out of solid metal: every 20-unit cell not inside
+  // a duct is wall. Solid runs along a row are merged into one rectangle.
+  const carve = (w, h, ducts, cell = 20) => {
+    const out = [];
+    const open = (x, y) => ducts.some(d => x >= d.x && x + cell <= d.x + d.w && y >= d.y && y + cell <= d.y + d.h);
+    for (let y = 0; y < h; y += cell) {
+      let start = -1;
+      for (let x = 0; x <= w; x += cell) {
+        const solid = x < w && !open(x, y);
+        if (solid && start < 0) start = x;
+        if (!solid && start >= 0) { out.push({ id: `duct-${start}-${y}`, x: start, y, w: x - start, h: cell, kind: "duct" }); start = -1; }
+      }
+    }
     return out;
   };
 
@@ -436,7 +455,9 @@
       entryAnchor: "hangrow-entry",
       props: [
         { id: "low-catch", kind: "warm", x: 278, y: 92, r: 7, prompt: "WARM", when: { rowsLowRoute: false, lowReady: true } },
-        { id: "sheets", kind: "inspect", x: 230, y: 380, r: 9, prompt: "LOOK", lines: ["Sheets drying in rows. Somebody counted them; the chalk tally is on the post."] }
+        { id: "sheets", kind: "inspect", x: 230, y: 380, r: 9, prompt: "LOOK", lines: ["Sheets drying in rows. Somebody counted them; the chalk tally is on the post."] },
+        // v0.5: Nell's tin bell on the west post. Rung, it sends the lamp to look (Core.lure).
+        { id: "row-bell", kind: "bell", x: 30, y: 300, r: 7, prompt: "RING", lure: { x: 40, y: 300 } }
       ],
       zones: [{ id: "split", x: 190, y: 20, w: 110, h: 100 }, { id: "row-north", x: 20, y: 20, w: 280, h: 150 }],
       exits: [
@@ -574,19 +595,212 @@
     windowgate: {
       id: "windowgate", name: "WINDOW HALL", w: 320, h: 300, theme: "below",
       solids: [
-        ...wallSet(320, 300, 20, { s: [[140, 180]] }),
+        ...wallSet(320, 300, 20, { s: [[140, 180]], e: [[170, 210]] }),
         { id: "counter", x: 100, y: 20, w: 120, h: 34, kind: "counter" },
-        { id: "gate-bench", x: 30, y: 130, w: 54, h: 14, kind: "bench" }
+        { id: "gate-bench", x: 30, y: 130, w: 54, h: 14, kind: "bench" },
+        // The staff door east, down the long hall. Shut until the window opens.
+        { id: "hall-door", x: 300, y: 170, w: 20, h: 40, kind: "shutter-door", openWhen: "windowOpen" }
       ],
       anchors: { "gate-entry": { x: 160, y: 270 } },
       entryAnchor: "gate-entry",
       props: [
         { id: "closed-window", kind: "inspect", x: 160, y: 62, r: 9, prompt: "LOOK", lines: ["CLOSED. Under it, in older writing: BACK SOON."] },
-        { id: "far-windows", kind: "inspect", x: 284, y: 120, r: 8, prompt: "LOOK", lines: ["The hall goes on past this window. More counters, more lamps, all the way along."] }
+        { id: "far-windows", kind: "inspect", x: 284, y: 120, r: 8, prompt: "LOOK", lines: ["The hall goes on past this window. More counters, more lamps, all the way along."] },
+        // v0.5: the service bell. The way up goes past this counter; it calls the window.
+        { id: "counter-bell", kind: "bell", x: 206, y: 64, r: 7, prompt: "RING", when: { windowOpen: false, bellReady: true } }
       ],
-      zones: [{ id: "gate-window", x: 90, y: 54, w: 140, h: 70 }],
-      exits: [{ id: "gate-to-table", x: 140, y: 290, w: 40, h: 10, to: "drytable", anchor: "drytable-onward" }],
+      zones: [{ id: "gate-window", x: 90, y: 54, w: 140, h: 70 }, { id: "gate-east", x: 250, y: 150, w: 50, h: 80 }],
+      exits: [
+        { id: "gate-to-table", x: 140, y: 290, w: 40, h: 10, to: "drytable", anchor: "drytable-onward" },
+        { id: "gate-to-hall", x: 308, y: 170, w: 12, h: 40, to: "longhall", anchor: "hall-entry", openWhen: "windowOpen" }
+      ],
       encounters: []
+    },
+
+    // ===== THE COLLECTION (story spine v0.5: the window opens on collectors) =====
+    // The building behind the windows is The Boss's: cold white tile, steel,
+    // his mark on everything. Every room asks for a different kind of nerve.
+
+    // The long hall of service windows: the chase. A collector is on his
+    // trail; windows snap open and their lamps dazzle; a gate comes down.
+    longhall: {
+      id: "longhall", name: "THE LONG HALL", w: 320, h: 1120, theme: "building",
+      solids: [
+        ...wallSet(320, 1120, 20, { w: [[1040, 1080]], n: [[140, 180]] }),
+        // The staff door he came through, slammed behind him.
+        { id: "hall-west-door", x: 0, y: 1040, w: 20, h: 40, kind: "cold-door" },
+        { id: "chute-hatch", x: 140, y: 0, w: 40, h: 20, kind: "chute" },
+        // Queue rails: the hall was built for waiting in line.
+        { id: "rail-1", x: 20, y: 958, w: 214, h: 6, kind: "queue-rail" },
+        { id: "rail-2", x: 86, y: 858, w: 214, h: 6, kind: "queue-rail" },
+        // After the gate: rows of benches nobody sits on, a gap at alternate ends.
+        { id: "bench-1", x: 20, y: 360, w: 180, h: 12, kind: "steel-bench" },
+        { id: "bench-2", x: 120, y: 280, w: 180, h: 12, kind: "steel-bench" }
+      ],
+      anchors: { "hall-entry": { x: 44, y: 1060 }, "hall-gate": { x: 160, y: 414 } },
+      entryAnchor: "hall-entry",
+      // Service windows along both walls. Each opens on a rhythm: a rattle (tell),
+      // then its lamp shines straight across the hall. In it, he is dazzled.
+      lampWindows: [
+        { id: "win-a", side: "e", y: 690, h: 22, period: 2600, onMs: 650, tellMs: 700, offset: 0 },
+        { id: "win-b", side: "w", y: 626, h: 22, period: 2600, onMs: 650, tellMs: 700, offset: 1300 },
+        { id: "win-c", side: "e", y: 586, h: 22, period: 3100, onMs: 650, tellMs: 700, offset: 2000 },
+        { id: "win-d", side: "w", y: 214, h: 22, period: 2400, onMs: 600, tellMs: 650, offset: 600 }
+      ],
+      // The night gate: it starts down when he passes the trigger line and is
+      // shut closeMs later. Under it in time, it is shut on whatever follows.
+      dropGate: { id: "night-gate", x: 20, y: 440, w: 280, h: 12, trigger: 548, closeMs: 1900, detour: { x: 26, y: 400 } },
+      props: [],
+      zones: [{ id: "chute", x: 132, y: 20, w: 56, h: 40 }, { id: "hall-gate-line", x: 20, y: 452, w: 280, h: 96 }],
+      exits: [],
+      encounters: []
+    },
+    // Intake: where the collected are tagged. The two hoods are on duty for losing him.
+    intake: {
+      id: "intake", name: "INTAKE", w: 320, h: 320, theme: "building",
+      solids: [
+        ...wallSet(320, 320, 20, { e: [[240, 280]] }),
+        { id: "stamp-desk", x: 226, y: 34, w: 74, h: 30, kind: "stamp-desk" },
+        { id: "cage-top", x: 30, y: 104, w: 64, h: 4, kind: "cage" },
+        { id: "cage-bottom", x: 30, y: 164, w: 64, h: 4, kind: "cage" },
+        { id: "cage-back", x: 30, y: 104, w: 4, h: 64, kind: "cage" },
+        { id: "cage-door", x: 90, y: 104, w: 4, h: 64, kind: "cage-door", openWhen: "cageOpen" },
+        { id: "intake-crate-a", x: 120, y: 214, w: 34, h: 26, kind: "crate-cold" },
+        { id: "intake-crate-b", x: 226, y: 170, w: 32, h: 26, kind: "crate-cold" }
+      ],
+      anchors: { "intake-cage": { x: 62, y: 136 } },
+      entryAnchor: "intake-cage",
+      // The wire crate he landed in. Primary rattles its door from inside.
+      cage: { x: 34, y: 108, w: 56, h: 56 },
+      props: [
+        { id: "intake-rules", kind: "inspect", x: 52, y: 30, r: 7, prompt: "LOOK", lines: ["A sign: DO NOT FEED. DO NOT NAME. DO NOT LOOK AT IT TOO LONG.", "Somebody wrote under it in pen: too late (bean)."] },
+        { id: "intake-board", kind: "inspect", x: 150, y: 30, r: 7, prompt: "LOOK", lines: ["EMPLOYEE OF THE MONTH. Every month, the same photo: the one in the cap, not smiling."] },
+        { id: "tag-roll", kind: "inspect", x: 216, y: 82, r: 6, prompt: "LOOK", lines: ["A roll of paper tags, his mark on each. The next number on the roll: 1,204."] }
+      ],
+      // Shadow behind the cold crates, on the far side from the stool.
+      hides: [{ id: "crate-a-shadow", x: 106, y: 240, w: 62, h: 22 }, { id: "crate-b-shadow", x: 232, y: 196, w: 46, h: 24 }],
+      zones: [{ id: "intake-out", x: 96, y: 100, w: 30, h: 72 }],
+      exits: [{ id: "intake-to-collection", x: 308, y: 240, w: 12, h: 40, to: "collection", anchor: "coll-entry" }],
+      encounters: [{ id: "intake-guard", kind: "guard", x: 186, y: 132 }]
+    },
+    // The collection: shelves of bell jars, a small light in every one.
+    collection: {
+      id: "collection", name: "THE COLLECTION", w: 320, h: 560, theme: "building",
+      solids: [
+        ...wallSet(320, 560, 20, { w: [[500, 540]], n: [[250, 290]] }),
+        { id: "coll-west-door", x: 0, y: 500, w: 20, h: 40, kind: "cold-door" },
+        { id: "coll-grate", x: 250, y: 0, w: 40, h: 20, kind: "vent-grate", openWhen: "ventGrate" },
+        { id: "shelf-1", x: 20, y: 420, w: 210, h: 18, kind: "jar-shelf" },
+        { id: "shelf-2", x: 90, y: 320, w: 210, h: 18, kind: "jar-shelf" },
+        { id: "shelf-3", x: 20, y: 220, w: 210, h: 18, kind: "jar-shelf" },
+        { id: "shelf-4", x: 90, y: 120, w: 210, h: 18, kind: "jar-shelf" },
+        { id: "coll-desk", x: 30, y: 36, w: 70, h: 24, kind: "ledger-desk" }
+      ],
+      anchors: { "coll-entry": { x: 40, y: 520 } },
+      entryAnchor: "coll-entry",
+      // Six jars sit low enough to reach. WARM wakes the light inside; its tag says where it was taken.
+      jars: [
+        { id: "jar-moth", flag: "jarMoth", x: 70, y: 448, tag: "MOTH. Taken from a porch light." },
+        { id: "jar-pip", flag: "jarPip", x: 186, y: 448, tag: "PIP. Taken from a bus stop, in the rain." },
+        { id: "jar-bean", flag: "jarBean", x: 160, y: 348, tag: "BEAN. Taken from the back seat of a school bus." },
+        { id: "jar-spark", flag: "jarSpark", x: 84, y: 248, tag: "SPARK. Taken from a birthday. The third candle." },
+        { id: "jar-wick", flag: "jarWick", x: 196, y: 248, tag: "WICK. Taken from a night-light, left on." },
+        { id: "jar-old", flag: "jarOld", x: 230, y: 148, tag: "No name. Just a number, and a date from a long time ago." }
+      ],
+      props: [
+        { id: "jar-moth", kind: "warm", x: 70, y: 448, r: 7, prompt: "WARM", when: { jarMoth: false } },
+        { id: "jar-pip", kind: "warm", x: 186, y: 448, r: 7, prompt: "WARM", when: { jarPip: false } },
+        { id: "jar-bean", kind: "warm", x: 160, y: 348, r: 7, prompt: "WARM", when: { jarBean: false } },
+        { id: "jar-spark", kind: "warm", x: 84, y: 248, r: 7, prompt: "WARM", when: { jarSpark: false } },
+        { id: "jar-wick", kind: "warm", x: 196, y: 248, r: 7, prompt: "WARM", when: { jarWick: false } },
+        { id: "jar-old", kind: "warm", x: 230, y: 148, r: 7, prompt: "WARM", when: { jarOld: false } },
+        { id: "grate-catch", kind: "warm", x: 270, y: 32, r: 8, prompt: "WARM", when: { ventGrate: false } },
+        { id: "ledger", kind: "inspect", x: 60, y: 68, r: 7, prompt: "LOOK", lines: ["A ledger. A number, a name if it had one, and where it was taken. Pages of them.", "The last line is fresh ink: 1,204. A parked car outside the late store. Tonight."] },
+        { id: "name-jar", kind: "inspect", x: 112, y: 52, r: 7, prompt: "LOOK", lines: ["A clean jar, lid off, waiting. The tag is already filled in.", "1,204. {name}."] },
+        { id: "card-coll", kind: "inspect", x: 140, y: 504, r: 6, prompt: "LOOK", lines: ["His card, face up on the floor, as if it was left for whoever walked in."] }
+      ],
+      zones: [{ id: "coll-top", x: 20, y: 20, w: 280, h: 100 }],
+      exits: [{ id: "coll-to-vents", x: 250, y: 0, w: 40, h: 10, to: "vents", anchor: "vent-start", openWhen: "ventGrate" }],
+      encounters: []
+    },
+    // The vents: ducts cut out of solid metal. Three grates look down on his
+    // rooms; three more lie over a guard post, where light comes up through them.
+    vents: {
+      id: "vents", name: "THE VENTS", w: 320, h: 560, theme: "vents",
+      solids: carve(320, 560, [
+        { x: 260, y: 460, w: 40, h: 80 },   // up from the collection's grate
+        { x: 40, y: 460, w: 260, h: 40 },   // west, over the shelves
+        { x: 40, y: 280, w: 40, h: 220 },   // north
+        { x: 40, y: 280, w: 260, h: 40 },   // east, over the lab (a dead end past it)
+        { x: 200, y: 60, w: 40, h: 260 },   // north again: over the guard post
+        { x: 40, y: 60, w: 200, h: 40 }     // west, over his office, to the hatch
+      ]),
+      anchors: { "vent-start": { x: 280, y: 516 }, "vent-listen": { x: 220, y: 300 } },
+      entryAnchor: "vent-start",
+      // Grates: still on one for a moment, the room below shows through the slats.
+      grates: [
+        { id: "grate-scale", view: "scale", x: 100, y: 460, w: 40, h: 40 },
+        { id: "grate-lab", view: "lab", x: 120, y: 280, w: 40, h: 40 },
+        { id: "grate-office", view: "office", x: 120, y: 60, w: 40, h: 40 }
+      ],
+      // Over the guard post: a lamp below walks DOWN the duct toward him, grate
+      // by grate. Moving on a lit grate is heard; heard long enough, he is caught.
+      listens: [
+        { id: "listen-1", x: 200, y: 126, w: 40, h: 30 },
+        { id: "listen-2", x: 200, y: 186, w: 40, h: 30 },
+        { id: "listen-3", x: 200, y: 246, w: 40, h: 30 }
+      ],
+      listen: { period: 3300, litMs: 950, stepMs: 700, hearMs: 260 },
+      props: [
+        { id: "vent-tag", kind: "inspect", x: 288, y: 300, r: 6, prompt: "LOOK", lines: ["A torn tag in the dust: No. 31.", "Whatever wore it got this far."] },
+        { id: "vent-scratch", kind: "inspect", x: 92, y: 96, r: 6, prompt: "LOOK", lines: ["Someone scratched it into the duct with a key: HOME, and an arrow. This way."] }
+      ],
+      zones: [{ id: "vent-listen-in", x: 200, y: 100, w: 40, h: 190 }],
+      exits: [{ id: "vents-to-factory", x: 46, y: 66, w: 28, h: 28, to: "factory", anchor: "fac-top" }],
+      encounters: []
+    },
+    // The factory floor: belts of empty jars, crates to hide behind, and
+    // lamps on the catwalks. All the way down to the loading door.
+    factory: {
+      id: "factory", name: "THE FACTORY FLOOR", w: 320, h: 720, theme: "building",
+      solids: [
+        ...wallSet(320, 720, 20, { n: [[140, 180]], s: [[140, 180]] }),
+        { id: "fac-hatch", x: 140, y: 0, w: 40, h: 20, kind: "vent-hatch" },
+        { id: "landing-rail", x: 64, y: 90, w: 236, h: 6, kind: "rail-cold" },
+        { id: "machine-1", x: 34, y: 222, w: 62, h: 40, kind: "machine" },
+        { id: "machine-2", x: 214, y: 216, w: 70, h: 46, kind: "machine" },
+        { id: "machine-3", x: 118, y: 370, w: 84, h: 48, kind: "machine" },
+        { id: "stack-1", x: 36, y: 548, w: 52, h: 40, kind: "crate-stack" },
+        { id: "stack-2", x: 232, y: 566, w: 52, h: 40, kind: "crate-stack" },
+        { id: "loading-door", x: 140, y: 700, w: 40, h: 20, kind: "loading-door" }
+      ],
+      anchors: { "fac-top": { x: 160, y: 50 }, "fac-door": { x: 160, y: 676 } },
+      entryAnchor: "fac-top",
+      // Conveyor belts: anything on one is carried. Crates hide him; jar trays don't.
+      belts: [
+        { id: "belt-a", y: 150, h: 46, dir: 1, speed: 20, items: ["crate", "jars", "crate", "jars"], phase: 20 },
+        { id: "belt-b", y: 300, h: 46, dir: -1, speed: 24, items: ["crate", "jars", "jars", "crate"], phase: 140 },
+        { id: "belt-c", y: 450, h: 46, dir: 1, speed: 28, items: ["crate", "jars", "crate", "jars"], phase: 70 }
+      ],
+      hides: [
+        { id: "machine-1-shadow", x: 34, y: 262, w: 62, h: 22 }, { id: "machine-2-shadow", x: 214, y: 262, w: 70, h: 22 },
+        { id: "machine-3-shadow", x: 118, y: 418, w: 84, h: 22 },
+        { id: "stack-1-shadow", x: 36, y: 588, w: 52, h: 24 }, { id: "stack-2-shadow", x: 232, y: 606, w: 52, h: 24 },
+        { id: "door-shadow", x: 120, y: 650, w: 80, h: 50 }
+      ],
+      props: [
+        { id: "fac-clipboard", kind: "inspect", x: 270, y: 70, r: 6, prompt: "LOOK", lines: ["A clipboard: TONIGHT: 1. PRIORITY.", "Under it, in different handwriting: it's small, it's warm, it bites (it doesn't bite)."] },
+        { id: "fac-machine", kind: "inspect", x: 160, y: 426, r: 8, prompt: "LOOK", lines: ["A machine with a cold white window. It hums. Nothing says what it does."] },
+        { id: "fac-jars", kind: "inspect", x: 110, y: 124, r: 7, prompt: "LOOK", lines: ["Empty jars going by on the belt. Hundreds. All the same size, all waiting."] }
+      ],
+      zones: [{ id: "fac-door", x: 128, y: 664, w: 64, h: 36 }, { id: "fac-floor", x: 20, y: 140, w: 280, h: 560 }],
+      exits: [],
+      // Lamps on the catwalks, looking down at the belts as they walk.
+      encounters: [
+        { id: "fac-w1", kind: "collector", x: 70, y: 120, patrol: [[70, 120], [262, 120]], look: [0, 1], sweep: 0.5, sweepMs: 3400, range: 116 },
+        { id: "fac-w2", kind: "collector", x: 258, y: 280, patrol: [[258, 280], [60, 280]], look: [0, 1], sweep: 0.55, sweepMs: 3000, range: 116 },
+        { id: "fac-w3", kind: "collector", x: 70, y: 432, patrol: [[70, 432], [262, 432]], look: [0, 1], sweep: 0.5, sweepMs: 2800, range: 120 }
+      ]
     }
   };
 
@@ -597,7 +811,16 @@
     cargo: { hp: 1, radius: 9, windupMs: 900, slideMs: 320, slideDistance: 150 },
     // The Boss's collectors (v0.4): a cold lamp on a patrol. They cannot be hurt;
     // they can only be avoided. Seen long enough (spotMs) means caught.
-    collector: { radius: 9, speed: 24, range: 92, halfAngle: 0.46, spotMs: 1000, loseMs: 350, searchMs: 1600, pauseMs: 900, chase: 30, flareRange: 2 },
+    collector: { radius: 9, speed: 24, range: 92, halfAngle: 0.46, spotMs: 1000, loseMs: 350, searchMs: 1600, pauseMs: 900, chase: 30, flareRange: 2, lureSpeed: 1.4, lureStayMs: 2800 },
+    // v0.5. The runner: a collector on his trail in the Long Hall. It follows
+    // where he has been, a little slower than he runs; it gains when he stops.
+    // It rubber-bands: slower than him when close (speed), quicker when it has
+    // fallen back (catchUp, beyond far) — always on his heels, only a real stop is caught.
+    runner: { radius: 9, speed: 66, catchUp: 86, far: 170, startGapMs: 1300, crumbEvery: 6, catchRadius: 13, detourMs: 2400, dazzleMs: 450, dazzleFactor: 0.15 },
+    // The intake guard (the small hood): looks at the cage, then away. A rattle
+    // while he looks away loosens the door a notch; under his eye it costs two.
+    // Out of the cage, moving while he looks (after a short turn) is seen.
+    guard: { radius: 10, watchMs: 2600, awayMs: 2400, tellMs: 650, graceMs: 260, notches: 5, rattleGapMs: 240, noticedMs: 1200 },
     porter: { hp: 28, radius: 18, helpAt: 14, sweepTellMs: 950, sweepMs: 350, sweepOpenMs: 900, chargeTellMs: 850, chargeMs: 400, chargeDistance: 80, chargeOpenMs: 1200, repositionMs: 450, bandHeight: 44, beamWidth: 36 }
   };
 
@@ -616,7 +839,9 @@
     orr: { name: "ORR", portrait: "orr" },
     // v0.4: the capped hood finally gets a face; The Boss never does (his mark stands in).
     "hood-cap": { name: "CAPPED HOOD", portrait: "hood-cap" },
-    boss: { name: "THE BOSS", portrait: "boss" }
+    boss: { name: "THE BOSS", portrait: "boss" },
+    // v0.5: the people in white coats, heard through a grate. Their portrait is a coat and a pen; never a face.
+    coat: { name: "WHITE COAT", portrait: "coat" }
   };
 
   // ===== LINES =====
@@ -745,6 +970,47 @@
     rowsStayNear: [L("nell", "work", "Stay where I can see you. They call in order.")],
     rowsLatchAgainHelped: [L("latch", "procedural", "Notice delivered. Your catch held."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
     rowsLatchAgain: [L("latch", "dry", "You two opened the rows. It shows."), L("latch", "soft", "I've got the next window. Sit. It's allowed.")],
+    // ===== THE COLLECTION (story spine v0.5) =====
+    // Window Hall: the bell calls the window. It opens on a collector.
+    rowsBellOffer: [L("nell", "tired", "They call in order.")],
+    rowsOrThat: [L("nell", "amused", "…Or that.")],
+    comicWindow: [L("nell", "work", "Run. I've got the heavy bit.")],
+    hallRadio: [L("boss", "cold", "Don't lose it.")],
+    hallGate: [L("boss", "calm", "Go round.")],
+    comicChute: [L("collector", "neutral", "It took the chute."), L("boss", "calm", "Good. Then it's already here.")],
+    // Intake: the two hoods, on tagging duty for losing him. They remember.
+    intakeSeen: [L("hood-small", "scared", "It's IT. It's the one from the van!"), L("hood-tall", "scared", "Don't look at it.")],
+    intakePhone: [L("hood-small", "scared", "It answered my phone. HE was on my phone. You know what that did to my week?")],
+    intakeDitch: [L("hood-small", "scared", "I dropped my phone in a ditch 'cause of you. He made me pay for the ditch.")],
+    intakeCoat: [L("hood-tall", "neutral", "Why's it wearing a little coat?"), L("hood-small", "neutral", "…Somebody loves it.")],
+    intakeBoss: [L("boss", "calm", "Is it the one from the car?"), L("hood-tall", "scared", "Yes, Boss. Caught it ourselves."), L("boss", "cold", "Tag it. Then bring it up."), L("hood-tall", "scared", "Up up? Like, to you?"), L("hood-small", "neutral", "…He hung up on you.")],
+    intakeTags: [L("hood-tall", "neutral", "I'm getting the tags. Watch it."), L("hood-small", "scared", "Watch it how?"), L("hood-tall", "neutral", "With your eyes.")],
+    guardAway: [L("hood-small", "neutral", "Don't look at it, he says. It's looking at ME."), L("hood-small", "neutral", "Yes Boss. No Boss. It was like that when I got it, Boss."), L("hood-small", "neutral", "Say hi. …No? Fine."), L("hood-small", "scared", "Every one. Like, every EVERY one.")],
+    guardTell: [L("hood-small", "neutral", "…hm?")],
+    guardNoticed: [L("hood-small", "scared", "HEY. No. Stay."), L("hood-small", "scared", "Don't do that. He'll do a thing to me.")],
+    guardPutBack: [L("hood-small", "scared", "Back you go. Please. He'll do a thing to me.")],
+    intakeLie: [L("hood-tall", "neutral", "Got the tags. Where's the—"), L("hood-small", "scared", "…It's in there. It's tagged. It's fine.")],
+    // The collection: quiet. What he finds says it.
+    collectionIn: ["Jars. Rows and rows of them. In every one, a small light, holding very still."],
+    jarsTooCold: ["The grate is frozen to its frame. It won't turn for one small light."],
+    jarsWarmEnough: ["With theirs, it's warm enough."],
+    promise: ["He looks back once, so they know."],
+    // The vents: three grates over his rooms.
+    ventScale: ["Below: shelves going back further than his light. More jars than he can count."],
+    ventLab: [L("coat", "neutral", "Holding at four."), L("coat", "neutral", "Write it down. He'll ask.")],
+    ventOffice: [L("boss", "calm", "One short."), L("boss", "calm", "Count them again."), L("boss", "cold", "Then find the one who said it was fine.")],
+    ventHeard: [L("collector", "neutral", "?")],
+    // The factory: his voice everywhere at once.
+    factoryPA: [L("boss", "calm", "Everyone. Lamps up."), L("boss", "cold", "It's small, and it's warm. Find it.")],
+    factoryDoor: ["Under the loading door: rain. Real rain, from the real sky."],
+    // The Hanging Row: Nell's tin bell, and the voice on the collector's radio.
+    rowsBellTip: [L("nell", "work", "Or ring my tin bell on the post. He'll go and look.")],
+    rowsBellRadio: [L("boss", "cold", "That's a bell. Bells don't glow.")],
+    caughtHall: "CAUGHT! BACK TO THE HALL DOOR. RUN AGAIN.",
+    caughtGate: "CAUGHT! BACK TO THE GATE. RUN AGAIN.",
+    putBack: "PUT BACK IN THE CAGE",
+    caughtVents: "HEARD! BACK DOWN THE DUCT.",
+    caughtFactory: "CAUGHT IN THE LAMP. BACK TO THE VENT.",
     rested: "WARM AGAIN",
     hearthKnows: "THE HEARTH KNOWS YOU NOW",
     firstDown: "THE FLAME WENT LOW. THE HEARTH KEPT IT.",
@@ -780,7 +1046,7 @@
     toTable: "FOLLOW NELL (EAST)",
     tableCatch: "WARM THE LOW CATCH NELL CAN'T REACH",
     toRows: "INTO THE ROWS (NORTH DOOR)",
-    rowLamp: "SLIP PAST THE COLLECTOR'S LAMP",
+    rowLamp: "SLIP PAST THE LAMP, OR RING THE TIN BELL (WEST)",
     lowCatch: "WARM THE LOW CATCH AT THE SPLIT",
     toEyelet: "LOW ROUTE (EAST) TO EYELET LANDING",
     grille: "WARM THE GRILLE CATCH SO ORR'S TRAY FITS",
@@ -793,7 +1059,20 @@
     toStair: "TAKE THE STAIR DOWN TO THE TABLE (WEST)",
     toNell: "MEET NELL AT THE TABLE",
     toWindow: "THROUGH THE DOORWAY TO WINDOW HALL",
-    window: "WAIT AT THE WINDOW WITH NELL"
+    window: "WAIT AT THE WINDOW WITH NELL",
+    bell: "THE WAY UP IS PAST THE COUNTER. RING THE BELL.",
+    run: "RUN! THE STAFF DOOR, EAST!",
+    chase: "RUN! DON'T LET IT CATCH YOU. TUCK TO DASH.",
+    cage: "RATTLE THE DOOR WHILE HE LOOKS AWAY",
+    sneak: "OUT THE EAST DOOR. FREEZE WHEN HE LOOKS.",
+    findOut: "FIND A WAY OUT",
+    jars: "WAKE THE JARS. TOGETHER YOU'RE WARM ENOUGH.",
+    grate: "WARM THE GRATE (NORTH-EAST CORNER)",
+    vents: "CRAWL THROUGH THE VENTS",
+    listen: "LIGHT UNDER A GRATE? FREEZE UNTIL IT PASSES.",
+    hatch: "THE HATCH AT THE WEST END. DOWN.",
+    factory: "DOWN TO THE LOADING DOOR. CRATES HIDE YOU.",
+    promise: "COME BACK FOR THEM"
   };
   // Short acknowledgements for a committed beat whose scene was interrupted.
   const ACKS = {
@@ -821,6 +1100,7 @@
     OBJECTIVES,
     START_ROOM: "car",
     ROWS_ROOMS,
+    BUILDING_ROOMS,
     BELOW_START: "slip",
     // Durable flags a campaign may hold (world.durableRoomFlags / story.facts).
     // callerConnected (v0.3): Rizo touched the ringing phone and the call
@@ -829,9 +1109,12 @@
       // Mending Rows: work that stays done (routes), and two small remembered kindnesses.
       "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLatchHelped", "rowsChalk",
       // v0.4 (threshold-v4): the hearth he brought back, the collectors he got past, the ledge lowered.
-      "hearthKindled", "queueCrossed", "hangrowCrossed", "rowsLedge"],
+      "hearthKindled", "queueCrossed", "hangrowCrossed", "rowsLedge",
+      // v0.5 (still threshold-v4: only additions): the window, the escape, the jars he woke, the promise.
+      "windowOpen", "hallEscaped", "intakeOut", "jarMoth", "jarPip", "jarBean", "jarSpark", "jarWick", "jarOld", "ventGrate", "ventsOut", "factoryOut", "promised"],
     // Durable room work lives in world.durableRoomFlags; the rest in story.facts.
-    ROOM_FLAGS: ["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown", "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLedge"],
+    ROOM_FLAGS: ["latchFreed", "shortcutOpen", "alcoveOpen", "porterDown", "rowsCatch", "rowsLowRoute", "rowsGrille", "rowsPressOpen", "rowsPressStop", "rowsBrake", "rowsShutter", "rowsStair", "rowsOnward", "rowsLedge",
+      "windowOpen", "jarMoth", "jarPip", "jarBean", "jarSpark", "jarWick", "jarOld", "ventGrate"],
     // Story choices and their allowed values (the save keeps nothing else).
     CHOICES: { "hearth-seat": ["sit", "go"], "rows-meal": ["sit", "go"], "rows-wrap": ["worn", "folded", "peg"] },
     // The caller's symbol is an owner/art decision. Until it exists, the phone
@@ -840,6 +1123,7 @@
     knownRoom: id => BUILT_ROOMS.includes(id),
     isOpening: id => OPENING_ROOMS.includes(id),
     isRows: id => ROWS_ROOMS.includes(id),
+    isBuilding: id => BUILDING_ROOMS.includes(id),
     knownAnchor: (roomId, anchorId) => Boolean(ROOMS[roomId]?.anchors?.[anchorId]),
     knownHearth: id => Object.values(ROOMS).some(room => room.hearth?.id === id),
     knownEncounter: id => Object.values(ROOMS).some(room => room.encounters.some(item => item.id === id)),

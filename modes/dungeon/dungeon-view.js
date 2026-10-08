@@ -51,6 +51,7 @@
       <div class="dungeon-screen" aria-label="Rizo Dungeon screen">
         <canvas class="dungeon-canvas" aria-hidden="true"></canvas>
         <div class="dungeon-actors" aria-hidden="true"><div class="dungeon-actor"><div class="dungeon-pose"></div></div></div>
+        <canvas class="dungeon-front" aria-hidden="true"></canvas>
         <div class="dungeon-barks" aria-live="polite"></div>
         <div class="dungeon-thought" hidden aria-live="polite"></div>
         <div class="dungeon-hud" aria-hidden="true"><span class="dungeon-flame"></span><b class="dungeon-room-name"></b></div>
@@ -89,10 +90,14 @@
       prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), lineText: $(".dungeon-line-text"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
       fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), dpad: $(".dungeon-dpad"),
-      thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"),
+      thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"), front: $(".dungeon-front"),
       keys: { primary: $('[data-dungeon-key="primary"]'), secondary: $('[data-dungeon-key="secondary"]'), system: $('[data-dungeon-key="system"]') }
     };
     const ctx = el.canvas.getContext("2d");
+    // What stands in front of him (cage bars, the crate he is pressed behind):
+    // a second canvas above the DOM Rizo, drawn only in rooms that need it.
+    const frontCtx = el.front.getContext("2d");
+    let frontLive = false;
     const metrics = { cssW: 0, cssH: 0, dpr: 1, scale: 1, viewW: CAMERA_WIDTH, viewH: 200 };
     const camera = { x: 0, y: 0, ready: false };
     const effects = [];
@@ -136,6 +141,11 @@
       el.canvas.height = Math.round(cssH * dpr);
       el.canvas.style.width = `${cssW}px`;
       el.canvas.style.height = `${cssH}px`;
+      el.front.width = Math.round(cssW * dpr);
+      el.front.height = Math.round(cssH * dpr);
+      el.front.style.width = `${cssW}px`;
+      el.front.style.height = `${cssH}px`;
+      frontLive = true;
       camera.ready = false;
       el.dialogue.dataset.placed = "";
       sizeActor();
@@ -262,6 +272,8 @@
         case "latch": Art.latch(ctx, actor.x, actor.y, o); break;
         case "nell": Art.nell(ctx, actor.x, actor.y, o); break;
         case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
+        // v0.5: a collector as a figure in a scene (held at the counter by Nell).
+        case "collector": Art.collector(ctx, actor.x, actor.y, { face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor, time), t }); break;
         default: break;
       }
     }
@@ -334,6 +346,10 @@
       } else if (enemy.kind === "collector") {
         const walking = enemy.state === "patrol" && sim.t >= (enemy.pauseUntil || 0);
         Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state, bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t });
+      } else if (enemy.kind === "runner") {
+        // On his trail: not drawn until it is through the door, or while it goes round.
+        if (enemy.state === "waiting" || enemy.state === "detour") return;
+        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state === "caught" ? "spot" : "run", bob: !reducedMotion ? Math.sin(sim.t / 70) * 2.6 : 0, t });
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
@@ -652,6 +668,7 @@
       // The van's sort point is its near side, so people climbing out stand in front of it.
       for (const actor of extras.npcs || []) bodies.push({ y: actor.kind === "van" ? actor.y - 30 : actor.y, draw: () => paintNpc(actor, time) });
       for (const enemy of sim.enemies) bodies.push({ y: enemy.y + (enemy.kind === "porter" ? 20 : enemy.r), draw: () => paintEnemy(enemy, sim, time) });
+      for (const body of Scenery.bodies(geo, scene)) bodies.push({ y: body.y, draw: () => body.draw(ctx) });
       if (geo.theme === "van") {
         if (cooler.sim !== sim) { cooler.sim = sim; cooler.rest = null; }
         if (!latestCargo(sim)) { cooler.rest = { ...COOLER_HOME }; bodies.push({ y: COOLER_HOME.y + 9, draw: () => Art.cooler(ctx, COOLER_HOME.x, COOLER_HOME.y, {}) }); }
@@ -671,7 +688,7 @@
       // Fire briefly lights what it reaches, using the existing bounded light
       // pass. A dying flame still shortens the ordinary pool after the action.
       if (lightScale > 0 && p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active") lit.list.push({ x: pos.x + p.act.fx * 18, y: pos.y + p.act.fy * 18, r: geo.world ? 38 : 64, strength: 0.65, warm: 1 });
-      for (const enemy of sim.enemies) if (enemy.kind === "collector") lit.list.push({ x: enemy.x + enemy.aimX * 30, y: enemy.y + enemy.aimY * 30 - 4, r: 44, strength: 0.5, warm: 0 });
+      for (const enemy of sim.enemies) if (enemy.kind === "collector" || (enemy.kind === "runner" && enemy.state === "run")) lit.list.push({ x: enemy.x + enemy.aimX * 30, y: enemy.y + enemy.aimY * 30 - 4, r: 44, strength: 0.5, warm: 0 });
       lighting.apply(ctx, view, lit.ambient, lit.list);
       Scenery.paintOver?.(ctx, geo, scene);
       for (const enemy of sim.enemies) if (enemy.kind === "collector") paintLamp(enemy, sim, time);
@@ -679,6 +696,11 @@
       const actorLight = extras.actorLight ?? 1;
       if (actorLight > 0 && actorLight < 0.6) { ctx.save(); ctx.globalAlpha = 1 - actorLight; Art.flame(ctx, pos.x, pos.y - 4, 1.4 + actorLight * 4, reducedMotion ? 0 : time); ctx.restore(); }
       setActorLight(actorLight);
+      // A window lamp in his eyes: a cold white glare where he stands.
+      if (sim.t < (p.dazzledUntil ?? -1)) {
+        const k = (p.dazzledUntil - sim.t) / Content.ENEMIES.runner.dazzleMs;
+        ctx.save(); ctx.globalAlpha = 0.55 * k; Art.oval(ctx, pos.x, pos.y - 6, 22, 16, P.cold[3]); ctx.globalAlpha = 0.8 * k; Art.oval(ctx, pos.x, pos.y - 6, 9, 7, "#ffffff"); ctx.restore();
+      }
       paintTelegraphs(sim, geo);
       paintFocus(extras.focus);
       paintKindle(sim, geo);
@@ -690,6 +712,13 @@
       // In the van he sways with everyone else.
       const sway = geo.theme === "van" && !reducedMotion ? ` rotate(${(Art.vanRide(time, false).surge * 3).toFixed(2)}deg)` : "";
       el.actor.style.transform = `translate3d(${(ax - size / 2).toFixed(1)}px, ${(ay - size * 0.84).toFixed(1)}px, 0)${sway}`;
+      if (Scenery.hasFront(geo)) {
+        frontCtx.setTransform(1, 0, 0, 1, 0, 0);
+        frontCtx.clearRect(0, 0, el.front.width, el.front.height);
+        frontCtx.setTransform(s, 0, 0, s, (-camera.x + ox) * s, (-camera.y + oy) * s);
+        Scenery.paintFront(frontCtx, geo, scene);
+        frontLive = true;
+      } else if (frontLive) { frontCtx.setTransform(1, 0, 0, 1, 0, 0); frontCtx.clearRect(0, 0, el.front.width, el.front.height); frontLive = false; }
       // Full-line space is reserved before the typewriter starts. Choose the
       // end of the screen that leaves Rizo and the speaking body most visible.
       if (!el.dialogue.hidden && !el.dialogue.dataset.placed) {

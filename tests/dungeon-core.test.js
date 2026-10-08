@@ -884,6 +884,242 @@ test("v0.4 story: the van says what the Boss wants; nobody says why; the cave fo
 
 // ---------- RESTART DUNGEON ----------
 // A journey deep in the Rows: every kind of story state the slice can hold.
+// ---------- Chapter 3: The Collection (story spine v0.5) ----------
+// Steers toward each waypoint in turn, the way a thumb on the stick would.
+function steer(sim, points, ms, extra = {}) {
+  const events = [];
+  let index = 0;
+  for (let elapsed = 0; elapsed < ms - 1e-6; elapsed += D.STEP_MS) {
+    while (index < points.length && Math.hypot(points[index][0] - sim.player.x, points[index][1] - sim.player.y) < 4) index += 1;
+    const target = points[index];
+    const input = target ? { moveX: target[0] - sim.player.x, moveY: target[1] - sim.player.y, ...extra } : { ...extra };
+    events.push(...D.step(sim, input).map(event => ({ ...event, t: sim.t })));
+    if (sim.phase !== "play") break;
+  }
+  return events;
+}
+const HALL_PATH = [[270, 1050], [270, 910], [50, 910], [50, 810], [270, 810], [270, 730], [160, 720], [160, 470], [160, 420], [240, 360], [160, 260], [240, 170], [160, 60]];
+test("v0.5: the window opens east into the Long Hall; the building rooms run one way, every one known and saved", () => {
+  const gate = Content.ROOMS.windowgate;
+  const east = gate.exits.find(exit => exit.id === "gate-to-hall");
+  assert.deepStrictEqual([east.to, east.anchor, east.openWhen], ["longhall", "hall-entry", "windowOpen"]);
+  assert.ok(gate.solids.some(rect => rect.id === "hall-door" && rect.openWhen === "windowOpen"), "a shut staff door until the window opens");
+  assert.deepStrictEqual(gate.props.find(prop => prop.id === "counter-bell").when, { windowOpen: false, bellReady: true });
+  assert.deepStrictEqual(Content.BUILDING_ROOMS, ["longhall", "intake", "collection", "vents", "factory"]);
+  for (const id of Content.BUILDING_ROOMS) assert.ok(Content.knownRoom(id) && Content.isBuilding(id), id);
+  assert.deepStrictEqual(Content.ROOMS.longhall.exits, [], "no door out of the chase: the chute ends it");
+  const link = (roomId, exitId) => { const exit = Content.ROOMS[roomId].exits.find(item => item.id === exitId); return [exit.to, exit.openWhen || null]; };
+  assert.deepStrictEqual(link("intake", "intake-to-collection"), ["collection", null]);
+  assert.deepStrictEqual(link("collection", "coll-to-vents"), ["vents", "ventGrate"]);
+  assert.deepStrictEqual(link("vents", "vents-to-factory"), ["factory", null]);
+  for (const flag of ["windowOpen", "hallEscaped", "intakeOut", "jarMoth", "jarPip", "jarBean", "jarSpark", "jarWick", "jarOld", "ventGrate", "ventsOut", "factoryOut", "promised"]) assert.ok(Content.FLAGS.includes(flag), flag);
+  for (const flag of ["windowOpen", "ventGrate", "jarPip"]) assert.ok(Content.ROOM_FLAGS.includes(flag), flag);
+  assert.ok(!Content.FLAGS.includes("cageOpen"), "the cage door is the room's own business: reloading puts him back in it");
+  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v4", "no second revision bump: v4 only gained rooms and facts");
+});
+test("the runner: kept running, he stays ahead of it; standing still, it catches him", () => {
+  const sim = D.createSim({ roomId: "longhall" });
+  const runner = D.spawnRunner(sim, { x: 40, y: 1064, startGapMs: Content.ENEMIES.runner.startGapMs });
+  const start = steer(sim, HALL_PATH.slice(0, 4), 3200);
+  assert.ok(start.some(event => event.type === "runner-in"), "it comes through the door after him");
+  assert.strictEqual(sim.phase, "play");
+  const gap = Math.hypot(runner.x - sim.player.x, runner.y - sim.player.y);
+  assert.ok(gap > 40, `still ahead after the rails (${gap.toFixed(1)})`);
+  assert.ok(runner.y > sim.player.y - 1 || runner.x !== sim.player.x, "it follows the way he went, round the rails");
+  const stop = run(sim, 4000, {});
+  const caught = stop.find(event => event.type === "caught");
+  assert.ok(caught, "standing still, it reaches him");
+  assert.ok(stop.some(event => event.type === "down" && event.reason === "caught"), "caught: down, like a lamp catch");
+  assert.notStrictEqual(sim.phase, "play");
+  assert.strictEqual(sim.downReason, "caught");
+  assert.strictEqual(D.encounterActive(sim), false, "it is never fought: Primary stays his own");
+});
+test("the service windows: a rattle, then a lamp across the hall; in it he staggers and it gains", () => {
+  const win = Content.ROOMS.longhall.lampWindows[0];
+  const states = [];
+  for (let t = 0; t < win.period; t += 50) states.push(D.lampWindowState(win, t));
+  const first = kind => states.indexOf(kind);
+  assert.ok(first("tell") > 0 && first("on") > first("tell"), "closed, then the tell, then the lamp");
+  near((first("on") - first("tell")) * 50, win.tellMs, 50, "tell length");
+  const sim = D.createSim({ roomId: "longhall" });
+  sim.player.x = 160; sim.player.y = win.y + win.h / 2;
+  while (D.lampWindowState(win, sim.t) !== "tell") D.step(sim, {});
+  const events = run(sim, win.tellMs + 60, {});
+  assert.ok(events.some(event => event.type === "dazzled" && event.id === win.id), "in the lamp, dazzled");
+  const y0 = sim.player.y;
+  run(sim, 300, { moveY: -1 });
+  assert.ok(y0 - sim.player.y < 0.3 * 0.3 * 80, `he staggers (${(y0 - sim.player.y).toFixed(1)} units in 0.3 s)`);
+  while (D.lampWindowState(win, sim.t) !== "off") D.step(sim, {});
+  run(sim, Content.ENEMIES.runner.dazzleMs, {});
+  const y1 = sim.player.y;
+  run(sim, 300, { moveY: -1 });
+  assert.ok(y1 - sim.player.y > 20, "then runs again");
+});
+test("the night gate: under it in time, it shuts on the runner, who must go round; too slow, it shuts in his face", () => {
+  const sim = D.createSim({ roomId: "longhall" });
+  sim.player.x = 160; sim.player.y = 470;
+  const runner = D.spawnRunner(sim, { x: 160, y: 600, startGapMs: 0 });
+  runner.crumbs = [{ x: 160, y: 560 }, { x: 160, y: 520 }, { x: 160, y: 480 }];
+  sim.player.y = 560;
+  const events = steer(sim, [[160, 380], [240, 360]], 2600);
+  const shut = events.find(event => event.type === "gate-shut");
+  assert.ok(events.some(event => event.type === "gate-start") && shut && shut.ahead === true, "it starts down as he passes and shuts behind him");
+  assert.ok(events.some(event => event.type === "runner-blocked"), "the runner is shut out");
+  const round = run(sim, Content.ENEMIES.runner.detourMs + 200, {});
+  assert.ok(round.some(event => event.type === "runner-round"), "it comes round by the side door");
+  const detour = Content.ROOMS.longhall.dropGate.detour;
+  assert.ok(Math.hypot(runner.x - detour.x, runner.y - detour.y) < 60 && runner.y < Content.ROOMS.longhall.dropGate.y, "on his side now, by the side door");
+  const slow = D.createSim({ roomId: "longhall" });
+  slow.player.x = 160; slow.player.y = 540;
+  const wait = run(slow, Content.ROOMS.longhall.dropGate.closeMs + 100, {});
+  assert.ok(wait.some(event => event.type === "gate-shut" && event.ahead === false), "it shuts with him on the wrong side");
+  run(slow, 2000, { moveY: -1 });
+  assert.ok(slow.player.y > Content.ROOMS.longhall.dropGate.y + Content.ROOMS.longhall.dropGate.h, "and it is a wall now");
+});
+test("the cage: a rattle while he looks away loosens it; under his eye it costs two and he looks longer; five opens it", () => {
+  const sim = D.createSim({ roomId: "intake" });
+  const guard = sim.enemies.find(enemy => enemy.kind === "guard");
+  assert.ok(guard && D.inCage(sim), "the small hood on his stool; Rizo in the crate");
+  const def = Content.ENEMIES.guard;
+  sim.cage.loose = 1;
+  const seen = run(sim, 20, { primaryPressed: true });
+  assert.ok(seen.some(event => event.type === "noticed"), "he was looking");
+  assert.strictEqual(sim.cage.loose, 0, "two notches back (never below none)");
+  assert.ok(!seen.some(event => event.type === "flare"), "in the cage, Primary rattles: it never Flares");
+  const away = run(sim, def.watchMs + def.noticedMs + 100, {});
+  const turned = away.find(event => event.type === "guard-away");
+  assert.ok(turned && turned.t >= def.watchMs + def.noticedMs - 1, "noticing made him look longer");
+  const opened = [];
+  for (let index = 0; index < def.notches; index += 1) opened.push(...run(sim, def.rattleGapMs + 20, { primaryPressed: true }));
+  assert.strictEqual(opened.filter(event => event.type === "loosened").length, def.notches);
+  assert.ok(opened.some(event => event.type === "cage-open") && sim.cage.open && sim.flags.cageOpen, "the door gives");
+  assert.ok(!D.geoOf(sim).solids.some(rect => rect.id === "cage-door"), "and swings open");
+  const tells = run(sim, def.awayMs, {});
+  assert.ok(tells.some(event => event.type === "guard-tell") && tells.some(event => event.type === "guard-back"), "a readable tell before he looks back");
+});
+test("out of the cage: moving while he looks gets him put back; frozen, or behind a crate, he is not seen", () => {
+  const def = Content.ENEMIES.guard;
+  const outSim = () => {
+    const sim = D.createSim({ roomId: "intake", flags: { cageOpen: true } });
+    assert.ok(sim.cage.open, "the door is already open");
+    sim.player.x = 150; sim.player.y = 160;
+    return sim;
+  };
+  const moving = outSim();
+  const caught = run(moving, def.graceMs + 200, { moveX: 1 });
+  assert.ok(caught.some(event => event.type === "seen") && moving.downReason === "put-back", "seen moving: put back");
+  const frozen = outSim();
+  run(frozen, def.watchMs - 100, {});
+  assert.strictEqual(frozen.phase, "play", "frozen while he looks: not seen");
+  const away = outSim();
+  run(away, def.watchMs + 50, {});
+  run(away, 600, { moveX: 1 });
+  assert.strictEqual(away.phase, "play", "moving while he looks away is safe");
+  const hidden = outSim();
+  const shadow = Content.ROOMS.intake.hides[0];
+  hidden.player.x = shadow.x + 6; hidden.player.y = shadow.y + shadow.h / 2;
+  run(hidden, def.graceMs + 300, { moveX: 1 });
+  assert.ok(D.hiddenIn(hidden), "still in the shadow");
+  assert.strictEqual(hidden.phase, "play", "behind a crate he can move under his eye");
+});
+test("factory: the belts carry him; a crate on the belt hides him, a tray of jars does not; catwalk lamps watch the floor", () => {
+  const sim = D.createSim({ roomId: "factory" });
+  sim.enemies = [];
+  const belt = Content.ROOMS.factory.belts[0];
+  sim.player.x = 100; sim.player.y = belt.y + belt.h / 2;
+  run(sim, 1000, {});
+  near(sim.player.x - 100, belt.speed, 1.5, "carried one second of belt");
+  assert.strictEqual(sim.player.moving, false, "riding is not walking");
+  const items = D.beltItems(belt, sim.t, Content.ROOMS.factory.w);
+  const crate = items.find(item => item.kind === "crate" && item.x > 40 && item.x < 280) || items.find(item => item.kind === "crate");
+  const tray = items.find(item => item.kind === "jars" && item.x > 40 && item.x < 280) || items.find(item => item.kind === "jars");
+  sim.player.x = crate.x; sim.player.y = crate.y;
+  assert.strictEqual(D.hiddenIn(sim), true, "pressed to a crate");
+  sim.player.x = tray.x; sim.player.y = tray.y;
+  assert.strictEqual(D.hiddenIn(sim), false, "jars are see-through");
+  const watch = D.createSim({ roomId: "factory" });
+  const w1 = watch.enemies.find(enemy => enemy.id === "fac-w1");
+  watch.player.x = 160; watch.player.y = 60;
+  let south = 0, samples = 0;
+  for (let index = 0; index < 240; index += 1) { D.step(watch, {}); samples += 1; if (w1.aimY > 0.8) south += 1; }
+  assert.ok(south / samples > 0.95, "his lamp stays on the floor below, swinging");
+  assert.ok(w1.x > 70.5, "while he walks his catwalk");
+  assert.strictEqual(w1.y, 120, "never stepping off it");
+});
+test("vents: moving on a lit grate is heard and he is caught; frozen on it, or on a dark one, he is not", () => {
+  const geo = Content.ROOMS.vents;
+  const grate = geo.listens[0];
+  const onGrate = t => { const sim = D.createSim({ roomId: "vents" }); sim.t = t; sim.player.x = grate.x + 12; sim.player.y = grate.y + grate.h / 2; return sim; };
+  assert.ok(D.listenLit(geo, 0, 10) && !D.listenLit(geo, 2, 10), "the light comes up under the far grate first");
+  assert.ok(D.listenLit(geo, 2, 2 * geo.listen.stepMs + 10), "and walks down the duct toward him");
+  assert.ok(geo.listens[0].y < geo.listens[2].y, "the far grate is the top one: the light comes at him");
+  const loud = onGrate(10);
+  const heard = steer(loud, [[grate.x + 30, grate.y + 15], [grate.x + 10, grate.y + 15], [grate.x + 30, grate.y + 15]], 700);
+  assert.ok(heard.some(event => event.type === "heard") && loud.downReason === "heard", "heard: caught");
+  const across = onGrate(10);
+  across.player.y = grate.y + grate.h + 8;
+  steer(across, [[grate.x + 20, grate.y - 10]], 700);
+  // Walking straight up the duct, he is caught most of the time (the rest hear a "?" and can still freeze);
+  // freezing whenever a grate under him or just ahead is lit always gets him through.
+  let walkedInto = 0, starts = 0;
+  for (let offset = 0; offset < geo.listen.period; offset += 150) {
+    starts += 1;
+    const walker = D.createSim({ roomId: "vents" });
+    walker.t = offset; walker.player.x = 220; walker.player.y = 300;
+    for (let index = 0; index < 300 && walker.phase === "play"; index += 1) D.step(walker, { moveY: -1 });
+    if (walker.downReason === "heard") walkedInto += 1;
+    const careful = D.createSim({ roomId: "vents" });
+    careful.t = offset; careful.player.x = 220; careful.player.y = 300;
+    for (let index = 0; index < 900 && careful.phase === "play" && careful.player.y > 100; index += 1) {
+      const p = careful.player;
+      const danger = geo.listens.some((item, at) => D.listenLit(geo, at, careful.t) && p.y + p.r + 2 >= item.y && p.y - p.r - 2 <= item.y + item.h);
+      D.step(careful, danger ? {} : { moveY: -1 });
+    }
+    assert.strictEqual(careful.phase, "play", `freezing for the light gets him through (start ${offset})`);
+    assert.ok(careful.player.y <= 100, `and up the duct (start ${offset})`);
+  }
+  assert.ok(walkedInto / starts >= 0.6, `most straight walks are caught (${walkedInto}/${starts})`);
+  assert.strictEqual(across.downReason, "heard", "walking straight over a lit grate is heard");
+  const still = onGrate(10);
+  run(still, 900, {});
+  assert.strictEqual(still.phase, "play", "frozen on a lit grate: nothing heard");
+  const dark = onGrate(geo.listen.litMs + 100);
+  steer(dark, [[grate.x + 30, grate.y + 15], [grate.x + 10, grate.y + 15]], 600);
+  assert.strictEqual(dark.phase, "play", "a dark grate is just a grate");
+});
+test("the tin bell: a lured collector walks over to the sound, looks at it a while, then goes back to his line", () => {
+  const sim = D.createSim({ roomId: "hangrow" });
+  const lamp = sim.enemies.find(enemy => enemy.id === "row-collector");
+  sim.player.x = 250; sim.player.y = 60;
+  const bell = Content.ROOMS.hangrow.props.find(prop => prop.id === "row-bell");
+  assert.strictEqual(bell.kind, "bell");
+  const lured = D.lure(sim, bell.lure.x, bell.lure.y);
+  assert.deepStrictEqual(lured.map(event => event.type), ["lured"]);
+  const events = run(sim, 13000, {});
+  assert.ok(events.some(event => event.type === "resume"), "he gives up on it");
+  assert.ok(!events.some(event => event.type === "spotted"), "he never looked the other way");
+  const sim2 = D.createSim({ roomId: "hangrow" });
+  const lamp2 = sim2.enemies[0];
+  sim2.player.x = 250; sim2.player.y = 60;
+  D.lure(sim2, bell.lure.x, bell.lure.y);
+  let closest = Infinity;
+  for (let index = 0; index < 480; index += 1) { D.step(sim2, {}); closest = Math.min(closest, Math.hypot(lamp2.x - bell.lure.x, lamp2.y - bell.lure.y)); }
+  assert.ok(closest < 20, `he walks right up to the bell (${closest.toFixed(1)})`);
+  assert.ok(lamp.kind === "collector" && lamp2.lured !== undefined);
+});
+test("save bounds: every room, beat and find of a whole journey survives a reload", () => {
+  const data = D.newCampaign({ pet, id: "threshold-long01" });
+  data.world.visitedRooms = [...Content.BUILT_ROOMS];
+  data.story.committedSceneBeats = Array.from({ length: 90 }, (_, index) => `beat:${index}`);
+  data.journal.discoveredEntryIds = Array.from({ length: 60 }, (_, index) => `find-${index}`);
+  for (const flag of Content.ROOM_FLAGS) data.world.durableRoomFlags[flag] = true;
+  const out = D.normalizeSlice(clone(data)).data;
+  assert.deepStrictEqual(out.world.visitedRooms, Content.BUILT_ROOMS, "the last rooms of the Rows were being dropped after sixteen");
+  assert.strictEqual(out.story.committedSceneBeats.length, 90);
+  assert.strictEqual(out.journal.discoveredEntryIds.length, 60);
+  assert.strictEqual(Object.keys(out.world.durableRoomFlags).length, Content.ROOM_FLAGS.length);
+  assert.strictEqual(D.summary(data).bestLabel, `ESCAPE ${Content.BUILDING_ROOMS.length}/${Content.BUILDING_ROOMS.length}`);
+});
 function deepJourney() {
   const data = D.newCampaign({ pet, id: "threshold-old111" });
   data.settings = { assist: true, textSpeed: "instant" };

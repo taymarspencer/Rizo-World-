@@ -75,10 +75,27 @@ Still the funniest people in the game. Incompetent, and terrified of The Boss; t
 | stair | The way back down to the table | Take the stair | Chalk bowl and arrow |
 | windowgate | The edge of what's built | Reach the window; wait with Nell | `boss-glass`: "Be at the window when it opens." |
 
+## Chapter 3 — The Collection (v0.5, built)
+
+The arc that was "ahead" in v0.4 is now playable, in the order the owner set: chase → cage → the building → a room of Rizos → escape alone → vents with grate views → the factory. Same campaign and save revision (`threshold-v4` only gained rooms and facts). Each room asks for a different kind of nerve, so no stealth rule repeats.
+
+| Room | Story purpose | What the player DOES | How The Boss presses in |
+|---|---|---|---|
+| windowgate (after the card) | The way up goes past this counter | Ring the bell. The window opens on a collector; Nell swings her board: "Run. I've got the heavy bit." (comic `window-opens`) | The collector was waiting behind the window he told them to watch |
+| longhall | Run | A chase: a collector on his trail (faster when he stops); service windows rattle, then their lamps dazzle; the night gate drops — under it in time and it shuts on the runner. TUCK is a dash. Caught = back to the hall door | Radio: "Don't lose it." / "Go round." Comic `chute`: he dives into RETURNS — the Boss's own chute. "Good. Then it's already here." |
+| intake | Caged; the hoods again | Rattle the crate only while the small hood looks away (a tell before he looks back; under his eye a rattle costs two notches). Out: freeze when he looks, or move behind crates. Seen = put back (keeps two notches) | The speaker: "Is it the one from the car?" "Tag it. Then bring it up." He hangs up on them. |
+| collection | The disturbing discovery | Wake jars by warming them (each tag says where its Rizo was taken: Pip from the roadside poster's bus stop). The vent grate is frozen too hard for one light; three woken lights together open it. He looks back once, so they know (fact `promised`) | A ledger whose last line is tonight's car; a clean jar already tagged with his own name |
+| vents | Escape alone, and see what he is up against | Grate views when still: the scale of the collection, the lab, his office. Over the guard post a lamp walks DOWN the duct toward him: moving on a lit grate is heard ("?"), caught = back to that duct | His office: hands, cufflinks, a list. "One short. Count them again. Then find the one who said it was fine." (the small hood lied) |
+| factory | The way out is down | Conveyor belts carry him; a crate on a belt hides him, a tray of jars does not; catwalk lamps sweep the floor below them | His voice in every speaker: "It's small, and it's warm. Find it." Empty jars by the hundred |
+
+Characters remember: the hoods know him from the van; the small one remembers the phone he answered ("HE was on my phone") or the ditch it fell in; if he wears Nell's wrap: "Why's it wearing a little coat?" / "…Somebody loves it." Nell's last line is a callback to the table ("I've got the heavy bit"); her fate stays open.
+
+Also in v0.5: the Hanging Row's collector can be lured with Nell's tin bell (a different verb from hiding); the first time, the Boss on the radio: "That's a bell. Bells don't glow."
+
 ## Arc ahead (set up, not built)
 
-Chase (the window opens on collectors) → caught and caged → The Boss's building → a room full of other Rizos → escape alone, a promise to come back → vents: each grate a darker room (The Boss, his scientists, the scale of the collection) → stealth descent into the factory. The late-game kit (`modes/dungeon/kit/`) proves these systems in a dev-only greybox.
+Out under the loading door into the rain → home to YOU → coming back for them. The factory's purpose, the lab's numbers and the Boss's face stay unexplained. The dev-only kit (`modes/dungeon/kit/`) remains the greybox sandbox for systems not yet in the game.
 
 ## Open (not invented here)
 
-Why The Boss collects Rizos. His name and face. What the mark means beyond "his". What a connected call changes. Who scratched HOME ↑. Whether Eda is still alive. Whether the capped hood is closer to The Boss.
+Why The Boss collects Rizos. His name and face. What the mark means beyond "his". What a connected call changes. Who scratched HOME ↑ (and HOME → in the vents: the same hand? No. 31, whose torn tag lies in the duct?). Whether Eda is still alive. Whether the capped hood is closer to The Boss. What the factory makes, and what "holding at four" measures. What happens to Nell after the window.

@@ -1493,6 +1493,8 @@
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     legs(ctx, 0, 0, -30, 3.8, 5.6, P.metal[1], bob, P.suit[1]);
     if (state === "spot") { ctx.translate(0, -30); ctx.rotate(0.12); ctx.translate(0, 30); }
+    // Running (the Long Hall): bent into it, lamp thrust out in front.
+    if (state === "run") { ctx.translate(0, -30); ctx.rotate(0.24 + Math.sin(t / 70) * 0.04); ctx.translate(0, 30); }
     // The jar on his back: what he came to fill.
     ctx.globalAlpha = 0.62;
     shape(ctx, [-21, -38, -21, -56, -18, -63, -12, -63, -9, -56, -9, -38], P.cold[0], { ink: 1.1, seed: 224, amp: 0.2, inkColor: P.cold[2] });
@@ -1512,12 +1514,96 @@
     oval(ctx, 1, -70.5, 2.2, 1.9, P.cold[3], true, 0.8); oval(ctx, 6.4, -70.5, 2.2, 1.9, P.cold[3], true, 0.8);
     box(ctx, 1.5, -66, 6.5, 4, P.metal[2], { ink: 0.8, amp: 0.1, seed: 226 });
     // The lamp on its pole, out in front. Up when he has seen something.
-    const raise = state === "spot" ? -9 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
+    const raise = state === "spot" ? -9 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
     limb(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 4.6, P.suit[1]);
     line(ctx, 17, -46, 30, -60 + raise, P.metal[3], 1.7);
     box(ctx, 28, -65 + raise, 7, 6, P.suit[1], { ink: 1, amp: 0.1, seed: 227 });
     oval(ctx, 34.5, -62 + raise, 2.4, 2.8, P.cold[3]);
     ctx.restore();
+  }
+  // ===== THE COLLECTION (v0.5) =====
+  // A bell jar on a black base: glass, a stopper, a tag on string, and a small
+  // light inside, holding very still (cold) or awake (warm, looking out at him).
+  function jar(ctx, x, y, o = {}) {
+    const t = o.t || 0, awake = Boolean(o.awake), size = o.size || 1;
+    ctx.save(); ctx.translate(x, y); ctx.scale(size, size);
+    drop(ctx, 0, 1.5, 7, 1.8, 0.4);
+    box(ctx, -6.5, -2, 13, 3.4, P.suit[1], { ink: 0.9, amp: 0.05, seed: 301 });
+    const breathe = awake ? 1 + Math.sin(t / 260) * 0.08 : 1 + Math.sin(t / 1400 + x) * 0.04;
+    // The light inside.
+    ctx.globalAlpha = awake ? 0.5 : 0.35; oval(ctx, 0, -8, 6.2 * breathe, 6.2 * breathe, awake ? P.ember[3] : P.cold[1]); ctx.globalAlpha = 1;
+    oval(ctx, 0, -7.6, 2.8 * breathe, 3.2 * breathe, awake ? P.ember[3] : P.cold[2]);
+    oval(ctx, 0, -7.2, 1.4, 1.7, awake ? P.ember[4] : P.cold[3]);
+    if (awake) { rect(ctx, P.ink, -1.6, -8.6, 0.9, 1.2); rect(ctx, P.ink, 0.8, -8.6, 0.9, 1.2); }
+    // The glass dome, with a highlight and a little frost at its foot. On a
+    // shelf (o.dim) the glass is only a glint; the light inside is what you see.
+    const glass = o.dim ? 0.38 : 1;
+    ctx.globalAlpha = 0.28 * glass; shape(ctx, [-5.5, -2, -5.5, -11, -3.5, -15, 3.5, -15, 5.5, -11, 5.5, -2], P.cold[3], { ink: false, seed: 302, amp: 0.05 }); ctx.globalAlpha = glass;
+    ctx.strokeStyle = P.cold[2]; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(-5.5, -2); ctx.lineTo(-5.5, -11); ctx.quadraticCurveTo(-5.5, -15.5, 0, -15.5); ctx.quadraticCurveTo(5.5, -15.5, 5.5, -11); ctx.lineTo(5.5, -2); ctx.stroke();
+    rect(ctx, P.cold[3], -4, -12, 0.8, 6);
+    ctx.globalAlpha = 1;
+    oval(ctx, 0, -16.6, 1.6, 1.2, P.suit[2], true, 0.6);
+    if (!awake && o.frost !== false) { ctx.globalAlpha = 0.7; for (let index = 0; index < 4; index += 1) rect(ctx, P.cold[3], -5 + index * 3, -3.2 - (index % 2), 1.4, 0.7); ctx.globalAlpha = 1; }
+    if (o.tag) { line(ctx, 4.6, -6, 7.4, -3.4, P.paper[1], 0.5); box(ctx, 6.4, -3.6, 3.4, 2.4, P.paper[2], { ink: 0.5, amp: 0.05 }); }
+    ctx.restore();
+  }
+  // The wire crate in Intake. Its door shows how loose it is (notches) and the
+  // frost his warmth has melted off the latch.
+  function cage(ctx, r, o = {}) {
+    const loose = o.loose || 0, notches = o.notches || 5, open = Boolean(o.open), t = o.t || 0;
+    drop(ctx, r.x + r.w / 2, r.y + r.h + 4, r.w / 2 + 6, 4);
+    // Pallet under it.
+    box(ctx, r.x - 6, r.y + r.h - 2, r.w + 12, 8, P.wood[1], { ink: 1.1, amp: 0.2, seed: 311 });
+    rect(ctx, P.wood[2], r.x - 5, r.y + r.h - 1, r.w + 10, 2);
+    ctx.strokeStyle = P.metal[3]; ctx.lineWidth = 1;
+    for (let x = r.x; x <= r.x + r.w; x += 7) { ctx.beginPath(); ctx.moveTo(x, r.y - 4); ctx.lineTo(x, r.y + r.h); ctx.stroke(); }
+    for (let y = r.y - 4; y <= r.y + r.h; y += 8) { ctx.beginPath(); ctx.moveTo(r.x, y); ctx.lineTo(r.x + r.w - (open ? 0 : 0), y); ctx.stroke(); }
+    box(ctx, r.x - 1, r.y - 6, r.w + 2, 3, P.metal[2], { ink: 0.9, amp: 0.05 });
+    // His tag, wired to the top: the number from the roll.
+    line(ctx, r.x + 10, r.y - 4, r.x + 12, r.y + 4, P.paper[1], 0.6);
+    box(ctx, r.x + 9, r.y + 3, 9, 6, P.paper[2], { ink: 0.6, amp: 0.05 }); mark(ctx, r.x + 13.5, r.y + 6, 3.4, P.suit[1]);
+    // The door on the right side: shut (latched) or swung out.
+    const dx = r.x + r.w;
+    if (open) {
+      ctx.save(); ctx.translate(dx, r.y - 4); ctx.rotate(-1.1);
+      for (let y = 0; y <= r.h + 4; y += 8) line(ctx, 0, y, 14, y, P.metal[3], 1);
+      line(ctx, 0, 0, 0, r.h + 4, P.metal[3], 1.4); line(ctx, 14, 0, 14, r.h + 4, P.metal[3], 1.2);
+      ctx.restore();
+      return;
+    }
+    line(ctx, dx, r.y - 4, dx, r.y + r.h, P.metal[3], 2);
+    const ly = r.y + r.h / 2;
+    const shake = o.rattleAt != null && t - o.rattleAt < 220 ? Math.sin((t - o.rattleAt) / 18) * 1.4 : 0;
+    box(ctx, dx - 3 + shake, ly - 6, 8, 12, P.metal[2], { ink: 1.1, amp: 0.05, seed: 312 });
+    // Notches on the latch bar: how far it has slid.
+    for (let index = 0; index < notches; index += 1) rect(ctx, index < loose ? P.ember[3] : P.metal[0], dx - 1.5 + shake, ly - 5 + index * 2.2, 5, 1.2);
+    // Frost on the latch until he has warmed it loose.
+    const frost = 1 - loose / notches;
+    if (frost > 0) { ctx.globalAlpha = 0.8 * frost; for (let index = 0; index < 4; index += 1) shape(ctx, [dx - 3 + index * 2.4, ly - 6, dx - 2 + index * 2.4, ly - 9 - (index % 2) * 2, dx - 1 + index * 2.4, ly - 6], "#e8f2ff", { ink: 0.3, amp: 0.05 }); ctx.globalAlpha = 1; }
+  }
+  // Factory belt goods: a steel-banded crate with his stencil; a tray of empty jars.
+  function beltCrate(ctx, x, y, w, h, o = {}) {
+    drop(ctx, x, y + h / 2 + 2, w / 2 + 1, 3);
+    box(ctx, x - w / 2, y - h / 2 - 6, w, h, P.wood[2], { ink: 1.3, amp: 0.25, seed: Math.round(o.seed || 321) });
+    rect(ctx, P.wood[3], x - w / 2 + 1, y - h / 2 - 5, w - 2, 3);
+    for (const dx of [-w / 2 + 5, w / 2 - 7]) rect(ctx, P.metal[1], x + dx, y - h / 2 - 6, 2, h);
+    mark(ctx, x, y - 4, 9, P.suit[1]);
+  }
+  function jarTray(ctx, x, y, w, h) {
+    drop(ctx, x, y + h / 2 + 1, w / 2, 2);
+    box(ctx, x - w / 2, y - h / 2, w, h, P.metal[1], { ink: 1, amp: 0.1, seed: 331 });
+    for (let index = 0; index < 4; index += 1) {
+      const jx = x - w / 2 + 4 + index * ((w - 8) / 3), jy = y - 2;
+      ctx.globalAlpha = 0.45; shape(ctx, [jx - 2.6, jy, jx - 2.6, jy - 6, jx, jy - 8, jx + 2.6, jy - 6, jx + 2.6, jy], P.cold[3], { ink: 0.5, amp: 0.02 }); ctx.globalAlpha = 1;
+      rect(ctx, P.cold[3], jx - 1.6, jy - 6, 0.6, 3);
+    }
+  }
+  // A wall speaker: a grille and his mark. His voice comes out of these.
+  function speaker(ctx, x, y, o = {}) {
+    box(ctx, x - 9, y - 7, 18, 14, P.suit[1], { ink: 1.1, amp: 0.05, seed: 341 });
+    for (let index = 0; index < 4; index += 1) rect(ctx, P.suit[3], x - 6, y - 4 + index * 2.6, 12, 1);
+    mark(ctx, x, y + 11, 6, P.cold[3]);
+    if (o.on) { ctx.globalAlpha = 0.35; oval(ctx, x, y, 14, 10, P.cold[3]); ctx.globalAlpha = 1; }
   }
   // A dog bowl. Steel, dented, with water in it or frost.
   function bowl(ctx, x, y, o = {}) {
@@ -1798,6 +1884,14 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     })
   });
 
+  const coatPortrait = svg(`${disc("#0e1418", "#1d2a33", "#2c3d48", 32, 44)}
+<path d="M4 64 L10 22 Q20 14 32 16 Q44 14 54 22 L60 64 Z" fill="${P.cold[3]}" ${ink}/>
+<path d="M32 16 L24 40 L32 64 L40 40 Z" fill="${P.cold[1]}" ${ink} stroke-width="1.8"/>
+<path d="M32 16 L27 30 M32 16 L37 30" stroke="${P.cold[2]}" stroke-width="1.6"/>
+<path d="M44 26 h7 v14 h-7 Z" fill="${P.cold[2]}" ${ink} stroke-width="1.4"/><path d="M47 22 v12" stroke="${P.ink}" stroke-width="2.4"/>
+<path d="M8 50 L30 46 L32 64 L10 64 Z" fill="${P.paper[2]}" ${ink} stroke-width="1.8"/><path d="M14 52 h12 M14 56 h10 M14 60 h12" stroke="${P.metal[1]}" stroke-width="1.2"/>
+<g transform="translate(16 46) scale(.22)">${markSvg(P.suit[1], P.cold[3], 3).replace(/^<svg[^>]*>|<\/svg>$/g, "")}</g>
+<path d="M0 0 H64 V6 H0 Z" fill="#0e1418"/>`);
   // v0.4: the hoods can be scared (of him); the capped hood has a face; the
   // Boss has only his caller ID.
   const fear = (art, brows) => art.replace("</svg>", `${scared("", brows)}</svg>`);
@@ -1807,7 +1901,10 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     "hood-small": Object.freeze({ ...PORTRAITS["hood-small"], scared: fear(PORTRAITS["hood-small"].neutral, "M20 24 q5 -6 10 -2 M33 23 q5 -5 10 0") }),
     driver: Object.freeze({ ...PORTRAITS.driver, scared: fear(PORTRAITS.driver.neutral, "M18 23 q5 -5 10 -1 M36 22 q5 -4 10 1") }),
     "hood-cap": Object.freeze({ neutral: capPortrait }),
-    boss: Object.freeze({ calm: bossPortrait(false), cold: bossPortrait(true) })
+    boss: Object.freeze({ calm: bossPortrait(false), cold: bossPortrait(true) }),
+    // v0.5: a white coat seen through a grate: lapels, a pen, a clipboard with
+    // his mark. The head is out of frame. The Boss's people never get a face.
+    coat: Object.freeze({ neutral: coatPortrait })
   });
 
   return Object.freeze({
@@ -1816,7 +1913,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
     keeper, van, hood, seated, vanRide, CREW_HEIGHT, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
-    mark, markSvg, callingCard, collector,
+    mark, markSvg, callingCard, collector, jar, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });
 });

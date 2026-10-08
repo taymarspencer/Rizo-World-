@@ -35,6 +35,7 @@
   const { P, rect, box, oval, line, shape, drop, tape, stitches, rivet, worn, label, rng } = A;
   const TAU = Math.PI * 2;
   const present = (item, flags) => Core.present(item, flags);
+  const Content = () => globalThis.RizoDungeonContent || { ENEMIES: { guard: { notches: 5 } } };
   const alpha = (c, a, fn) => { const prev = c.globalAlpha; c.globalAlpha = prev * a; fn(); c.globalAlpha = prev; };
 
   // ===================== OUTSIDE =====================
@@ -1758,7 +1759,498 @@
     return { ambient, list };
   }
 
+  // ===================== THE COLLECTION: HIS BUILDING (v0.5) =====================
+  // Cold white tile, steel, black trim, his mark on everything. Nothing here
+  // has been mended and nothing is warm: Rizo is the only warm colour in it.
+  //   longhall   a hall built for waiting in line, every window shut on you
+  //   intake     a clean room for tagging things, two hoods on a bad shift
+  //   collection shelves of bell jars, a small light holding still in each
+  //   vents      the only dirty place in the building, and the only way out
+  //   factory    belts of empty jars, lamps on the walkways, rain at the door
+  const COLD = Object.freeze({ tile: ["#28313a", "#2e3841"], grout: "#1a2128", wall: ["#9aa9b3", "#b8c9d4", "#d6e1e8", "#eef5f9"], trim: P.suit[1], floorDark: ["#13161b", "#171b21"] });
+  const COLD_FACE = { upper: [COLD.wall[0], COLD.wall[1], COLD.wall[2], COLD.wall[3]], lower: [P.suit[0], P.suit[1], P.suit[2], P.suit[3]], dado: 0.72, edge: COLD.wall[2] };
+  function coldTileWall(c, x, y, w, h, seed) {
+    // Glazed white tile, a black skirting: clean enough to see your breath on.
+    A.tiles(c, x, y, w, h, `wall${seed}`, { size: 8, colors: [COLD.wall[1], COLD.wall[2]], grout: COLD.wall[0] });
+    rect(c, P.suit[1], x, y + h - 3, w, 3);
+    alpha(c, 0.2, () => rect(c, "#ffffff", x, y + 1, w, 1));
+  }
+  function coldWall(c, s, geo) {
+    rect(c, P.suit[1], s.x, s.y, s.w, s.h);
+    const bottom = s.y + s.h;
+    if (bottom < geo.h - 1 && s.w >= 12) {
+      const face = Math.min(12, s.h - 2);
+      coldTileWall(c, s.x, bottom - face, s.w, face, s.x * 7 + s.y);
+      alpha(c, 0.32, () => rect(c, P.ink, s.x, bottom, s.w, 4));
+    } else rect(c, COLD.wall[0], s.x, s.y, s.w, 1.2);
+    if (s.h > s.w * 1.6) { const inner = s.x + s.w / 2 < geo.w / 2 ? s.x + s.w - 1.4 : s.x; rect(c, COLD.wall[1], inner, s.y, 1.4, s.h); }
+  }
+  // The back wall in cutaway above every room, and the dark around it.
+  function buildingSurround(c, geo, m) {
+    const depth = Math.min(80, m.my - 4);
+    coldTileWall(c, 0, -depth, geo.w, depth, `back${geo.id}`);
+    rect(c, P.suit[0], 0, -depth, geo.w, 4);
+    // His mark as a frieze, cold on the tile.
+    for (let x = 40; x < geo.w; x += 120) A.mark(c, x, -depth / 2, 14, P.cold[1]);
+    for (const x of [-12, geo.w + 4]) { box(c, x, -depth, 8, geo.h + depth + 20, P.metal[1], { ink: 1, amp: 0.05 }); rect(c, P.metal[2], x + 1.5, -depth, 1.2, geo.h + depth + 20); }
+    rect(c, P.suit[0], 0, geo.h, geo.w, 30);
+  }
+  function stencil(c, text, x, y, o = {}) { alpha(c, o.alpha ?? 0.55, () => label(c, text, x, y, { size: o.size || 6, color: o.color || P.a.mustard, weight: 900, jitter: 0.3, angle: o.angle || 0 })); }
+  function frostedPane(c, x, y, w, h, o = {}) {
+    box(c, x, y, w, h, P.suit[1], { ink: 1, amp: 0.05 });
+    alpha(c, 0.8, () => rect(c, P.cold[1], x + 1.5, y + 1.5, w - 3, h - 3));
+    alpha(c, 0.35, () => { for (let k = 0; k < 3; k += 1) rect(c, P.cold[3], x + 2 + k * (w / 3), y + 2, 1, h - 4); });
+    if (o.sign) { box(c, x + w / 2 - 7, y + h / 2 - 3, 14, 6, P.paper[3], { ink: 0.6, amp: 0.05 }); label(c, o.sign, x + w / 2, y + h / 2 + 1.6, { size: 3.2, color: P.a.red, weight: 900 }); }
+  }
+  function steelDoor(c, x, y, w, h, o = {}) {
+    box(c, x, y, w, h, P.metal[1], { ink: 1.3, amp: 0.05 });
+    rect(c, P.metal[2], x + 1, y + 1, w - 2, 1.4);
+    if (w < h) { rect(c, P.metal[0], x + w / 2 - 0.5, y + 3, 1, h - 6); A.mark(c, x + w / 2, y + h / 2, 7, P.cold[2]); }
+    else { rect(c, P.metal[0], x + 3, y + h / 2 - 0.5, w - 6, 1); A.mark(c, x + w / 2, y + h / 2, 7, P.cold[2]); }
+    if (o.shut) for (let k = 0; k < 3; k += 1) rect(c, P.a.mustard, x + (w < h ? 1 : 3 + k * (w - 6) / 3), y + (w < h ? 3 + k * (h - 6) / 3 : 1), w < h ? w - 2 : 2, w < h ? 2 : h - 2);
+  }
+  // Where each shelf's jars stand (the same for the cached shelf and its lights).
+  const SHELF_JARS = new Map();
+  function shelfJars(s) {
+    if (SHELF_JARS.has(s.id)) return SHELF_JARS.get(s.id);
+    const random = rng(`jars${s.id}`), out = [];
+    for (let x = s.x + 7; x < s.x + s.w - 5; x += 11) out.push({ x: x + random() * 2, y: s.y + 5, size: 0.55, tag: false, glow: -6.2 * 0.55 });
+    for (let x = s.x + 6; x < s.x + s.w - 5; x += 12) out.push({ x: x + random() * 2, y: s.y + s.h - 2, size: 0.68, tag: random() < 0.5, glow: -7.4 * 0.68 });
+    SHELF_JARS.set(s.id, out);
+    return out;
+  }
+  const BUILDING_SOLIDS = {
+    "cold-door"(c, s) { steelDoor(c, s.x, s.y, s.w, s.h, { shut: true }); },
+    chute(c, s) {
+      // RETURNS: a steel flap in the wall at the end of the hall, polished by use.
+      box(c, s.x - 4, s.y - 2, s.w + 8, s.h + 6, P.metal[1], { ink: 1.3, amp: 0.05 });
+      box(c, s.x + 2, s.y + 2, s.w - 4, s.h - 2, P.suit[0], { ink: 1, amp: 0.05 });
+      rect(c, P.metal[3], s.x + 3, s.y + 3, s.w - 6, 2);
+      label(c, "RETURNS", s.x + s.w / 2, s.y - 5, { size: 5, color: P.cold[3], weight: 900 });
+      A.mark(c, s.x + s.w / 2, s.y + s.h / 2 + 2, 7, P.cold[1]);
+    },
+    "queue-rail"(c, s) {
+      // Chrome stanchions and a black belt: a line for waiting in, nobody in it.
+      alpha(c, 0.3, () => rect(c, P.ink, s.x, s.y + s.h, s.w, 4));
+      line(c, s.x + 2, s.y + 1, s.x + s.w - 2, s.y + 1, P.suit[0], 3);
+      for (let x = s.x + 3; x <= s.x + s.w - 3; x += 26) { oval(c, x, s.y + s.h, 3.4, 1.6, P.metal[1], true, 0.8); line(c, x, s.y + s.h, x, s.y - 8, P.metal[3], 1.8); oval(c, x, s.y - 8, 1.6, 1.4, P.metal[3], true, 0.6); }
+      line(c, s.x + 3, s.y - 6, s.x + s.w - 3, s.y - 6, P.suit[1], 1.6);
+    },
+    "steel-bench"(c, s) {
+      drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 3);
+      box(c, s.x, s.y, s.w, s.h, P.metal[2], { ink: 1.2, amp: 0.05 });
+      for (let x = s.x + 3; x < s.x + s.w - 2; x += 5) rect(c, P.metal[1], x, s.y + 2, 2, s.h - 4);
+      for (const x of [s.x + 4, s.x + s.w - 7]) rect(c, P.suit[1], x, s.y + s.h, 3, 4);
+    },
+    "stamp-desk"(c, s) {
+      // The capped one's desk: a stamp, an ink pad, tags stacked square.
+      drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 4);
+      box(c, s.x, s.y, s.w, s.h, P.metal[2], { ink: 1.3, amp: 0.05 });
+      rect(c, P.metal[3], s.x + 1, s.y + 1, s.w - 2, 2);
+      for (let k = 0; k < 3; k += 1) box(c, s.x + 6 + k * 9, s.y + 5 - k, 7, 5, P.paper[2], { ink: 0.6, amp: 0.05 });
+      box(c, s.x + 40, s.y + 8, 10, 6, P.suit[1], { ink: 0.8, amp: 0.05 }); box(c, s.x + 54, s.y + 4, 6, 10, P.wood[2], { ink: 0.8, amp: 0.1 }); rect(c, P.suit[0], s.x + 53, s.y + 13, 8, 2);
+    },
+    cage() {},
+    "crate-cold"(c, s) {
+      drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2 + 2, 4);
+      box(c, s.x, s.y, s.w, s.h, P.metal[1], { ink: 1.3, amp: 0.05, seed: s.x });
+      rect(c, P.metal[2], s.x + 1, s.y + 1, s.w - 2, s.h * 0.3);
+      A.mark(c, s.x + s.w / 2, s.y + s.h * 0.62, 8, P.cold[2]);
+      stencil(c, "1,2", s.x + s.w / 2, s.y + s.h - 2, { size: 3.6, color: P.cold[3], alpha: 0.4 });
+    },
+    "jar-shelf"(c, s) {
+      // A steel shelf. Two rows of jars: a small light holding still in each.
+      drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 4);
+      box(c, s.x, s.y, s.w, s.h, P.suit[2], { ink: 1.3, amp: 0.05 });
+      rect(c, P.metal[2], s.x + 1, s.y + s.h - 3, s.w - 2, 2);
+      for (const jar of shelfJars(s)) A.jar(c, jar.x, jar.y, { size: jar.size, t: 0, tag: jar.tag, dim: true });
+    },
+    "ledger-desk"(c, s) {
+      drop(c, s.x + s.w / 2, s.y + s.h + 2, s.w / 2, 4);
+      box(c, s.x, s.y, s.w, s.h, P.suit[2], { ink: 1.3, amp: 0.05 });
+      // The ledger, open: columns and columns.
+      box(c, s.x + 10, s.y + 3, 30, 16, P.paper[2], { ink: 0.9, amp: 0.05 }); line(c, s.x + 25, s.y + 3, s.x + 25, s.y + 19, P.paper[0], 0.8);
+      for (let y = s.y + 6; y < s.y + 18; y += 2.4) { rect(c, P.ink, s.x + 12, y, 10, 0.5); rect(c, P.ink, s.x + 27, y, 10, 0.5); }
+      // A cold desk lamp.
+      line(c, s.x + 58, s.y + 18, s.x + 54, s.y + 4, P.metal[2], 1.4); shape(c, [s.x + 48, s.y + 2, s.x + 58, s.y, s.x + 60, s.y + 5, s.x + 50, s.y + 7], P.suit[1], { ink: 0.8, amp: 0.05 });
+      // The jar with his name on it, clean, lid off, waiting.
+      A.jar(c, s.x + 82, s.y + 18, { size: 1.05, t: 0, tag: true, frost: false });
+    },
+    "vent-grate"() {},
+    "vent-hatch"(c, s) { box(c, s.x, s.y, s.w, s.h, P.metal[1], { ink: 1.2, amp: 0.05 }); for (let x = s.x + 3; x < s.x + s.w - 2; x += 4) rect(c, P.suit[0], x, s.y + 3, 2, s.h - 6); },
+    "rail-cold"(c, s) { line(c, s.x, s.y + 2, s.x + s.w, s.y + 2, P.metal[3], 2); for (let x = s.x + 2; x < s.x + s.w; x += 18) line(c, x, s.y + 2, x, s.y + s.h + 6, P.metal[2], 1.4); alpha(c, 0.3, () => rect(c, P.ink, s.x, s.y + s.h + 4, s.w, 3)); },
+    machine(c, s) {
+      // A machine nobody explains: a steel housing, a cold white window, pipes going up.
+      drop(c, s.x + s.w / 2, s.y + s.h + 3, s.w / 2 + 3, 5);
+      box(c, s.x, s.y, s.w, s.h, P.metal[1], { ink: 1.5, amp: 0.05, seed: s.x });
+      rect(c, P.metal[2], s.x + 1, s.y + 1, s.w - 2, 4);
+      box(c, s.x + s.w / 2 - 12, s.y + 9, 24, 14, P.cold[2], { ink: 1.1, amp: 0.05 });
+      alpha(c, 0.5, () => rect(c, P.cold[3], s.x + s.w / 2 - 10, s.y + 11, 20, 3));
+      for (const dx of [6, s.w - 10]) { line(c, s.x + dx, s.y, s.x + dx, s.y - 18, P.metal[2], 3); rivet(c, s.x + dx, s.y - 8, 1); }
+      box(c, s.x + 5, s.y + s.h - 12, 8, 8, P.suit[1], { ink: 0.8, amp: 0.05 }); line(c, s.x + 9, s.y + s.h - 8, s.x + 11, s.y + s.h - 10, P.a.red, 0.8);
+      A.mark(c, s.x + s.w - 12, s.y + s.h - 9, 8, P.cold[3]);
+      for (let x = s.x + 3; x < s.x + s.w - 3; x += 8) rect(c, P.a.mustard, x, s.y + s.h - 2.4, 4, 2);
+    },
+    "crate-stack"(c, s) {
+      drop(c, s.x + s.w / 2, s.y + s.h + 3, s.w / 2 + 3, 5);
+      for (const [dx, dy, w, h] of [[0, 14, s.w * 0.55, s.h - 14], [s.w * 0.45, 18, s.w * 0.55, s.h - 18], [s.w * 0.2, 0, s.w * 0.55, 18]]) A.beltCrate(c, s.x + dx + w / 2, s.y + dy + h / 2 + 6, w, h, { seed: s.x + dx });
+    },
+    "loading-door"(c, s) { box(c, s.x - 20, s.y - 6, s.w + 40, 8, P.metal[2], { ink: 1.2, amp: 0.05 }); stencil(c, "LOADING", s.x + s.w / 2, s.y - 8, { size: 6, color: P.a.mustard }); },
+    duct(c, s) {
+      rect(c, P.suit[1], s.x, s.y, s.w, s.h);
+      alpha(c, 0.55, () => { for (let x = s.x + 10; x < s.x + s.w; x += 20) rect(c, P.suit[2], x, s.y + 9, 1, 2); });
+    },
+    "shutter-door"() {}
+  };
+  Object.assign(SOLIDS, BUILDING_SOLIDS);
+
+  const BUILDING = {
+    longhall: {
+      floor(c, geo) {
+        A.tiles(c, 0, 0, geo.w, geo.h, "longhall", { size: 20, colors: COLD.tile, grout: COLD.grout });
+        // Polished down the middle by a lot of waiting.
+        alpha(c, 0.07, () => rect(c, "#ffffff", 120, 0, 80, geo.h));
+        // The queue line painted on the floor, and the hall's instructions.
+        alpha(c, 0.45, () => {
+          c.save(); c.strokeStyle = P.a.mustard; c.lineWidth = 2; c.setLineDash([8, 6]); c.beginPath();
+          c.moveTo(44, 1060); c.lineTo(266, 1010); c.lineTo(266, 912); c.lineTo(52, 908); c.lineTo(52, 810); c.lineTo(266, 808); c.lineTo(266, 740); c.lineTo(160, 700); c.lineTo(160, 60); c.stroke(); c.restore();
+        });
+        for (const [y, text] of [[1004, "PLEASE WAIT"], [900, "PLEASE WAIT"], [800, "KEEP MOVING"], [520, "STAND CLEAR"], [140, "RETURNS"]]) stencil(c, text, 160, y, { size: 7 });
+        // The night gate's track across the hall, with hazard paint.
+        for (let x = 20; x < 300; x += 12) { rect(c, P.a.mustard, x, 452, 6, 4); rect(c, P.suit[0], x + 6, 452, 6, 4); }
+        // The side door the gate leaves open for staff (west, away from his way on).
+        steelDoor(c, 0, 384, 20, 30);
+      },
+      walls(c, geo) {
+        // Service windows all the way along both walls, every one shut.
+        for (let y = 80; y < 1040; y += 62) for (const side of ["w", "e"]) {
+          if ((geo.lampWindows || []).some(win => win.side === side && Math.abs(win.y - y) < 40)) continue;
+          if (side === "w" && y > 360 && y < 430) continue;
+          frostedPane(c, side === "w" ? 6 : 302, y, 12, 22, { sign: (y / 62) % 3 < 1 ? "SHUT" : null });
+        }
+        for (const win of geo.lampWindows || []) frostedPane(c, win.side === "w" ? 4 : 300, win.y - 2, 16, win.h + 4);
+        // The gate housing over the hall.
+        box(c, 16, 436, 288, 6, P.suit[1], { ink: 1.1, amp: 0.05 });
+        label(c, "THE LONG HALL", 80, -30, { size: 8, color: P.suit[2] });
+      }
+    },
+    intake: {
+      floor(c, geo) {
+        A.tiles(c, 0, 0, geo.w, geo.h, "intake", { size: 16, colors: ["#2f3a42", "#35414a"], grout: COLD.grout });
+        // A floor drain in the middle of the room. For hosing down.
+        oval(c, 170, 220, 9, 6, P.suit[1], true, 1); for (let k = -6; k <= 6; k += 3) rect(c, P.metal[2], 170 + k - 0.5, 216, 1, 8);
+        // Yellow at the door: KEEP CLEAR.
+        for (let y = 236; y < 286; y += 10) { rect(c, P.a.mustard, 284, y, 16, 5); }
+        stencil(c, "INTAKE", 160, 300, { size: 8, color: P.cold[2], alpha: 0.35 });
+      },
+      walls(c) {
+        // The rules, and the employee of every month.
+        box(c, 36, 2, 32, 15, P.paper[3], { ink: 0.8, amp: 0.1 }); label(c, "DO NOT FEED", 52, 8, { size: 3.2, color: P.a.red, weight: 900 }); label(c, "DO NOT NAME", 52, 12.4, { size: 3.2, color: P.a.red, weight: 900 }); label(c, "too late (bean)", 52, 16, { size: 2.6, color: P.wood[1], jitter: 0.6 });
+        box(c, 136, 1, 28, 17, P.metal[2], { ink: 0.8, amp: 0.05 }); box(c, 143, 3, 14, 10, P.paper[1], { ink: 0.6, amp: 0.05 }); oval(c, 150, 7, 3, 3, P.cloth[1]); rect(c, P.cloth[0], 146, 4, 8, 2); label(c, "EMPLOYEE OF THE MONTH", 150, 16.6, { size: 2.2, color: P.paper[3], weight: 900 });
+        A.speaker(c, 104, 10);
+        label(c, "INTAKE", 260, -30, { size: 8, color: P.suit[2] });
+      }
+    },
+    collection: {
+      floor(c, geo) {
+        A.tiles(c, 0, 0, geo.w, geo.h, "collection", { size: 40, colors: COLD.floorDark, grout: "#0d0f13" });
+        alpha(c, 0.06, () => { for (let y = 60; y < geo.h; y += 100) rect(c, P.cold[3], 20, y, 280, 1); });
+        stencil(c, "QUIET", 160, 540, { size: 7, color: P.cold[2], alpha: 0.3 });
+      },
+      walls(c) { label(c, "THE COLLECTION", 90, -30, { size: 8, color: P.suit[2] }); }
+    },
+    factory: {
+      floor(c, geo) {
+        A.concrete(c, 0, 0, geo.w, geo.h, "factory", { tone: ["#1c2024", "#24292e", "#2e343a", "#3d444b"], joint: 60 });
+        // The stair down from the vent landing.
+        for (let y = 96; y < 150; y += 8) { box(c, 22, y, 40, 7, P.metal[1], { ink: 0.9, amp: 0.05 }); rect(c, P.metal[2], 23, y + 1, 38, 1.2); }
+        // Walkways for the staff, painted yellow, and their stencils.
+        for (const y of [112, 272, 424]) { rect(c, P.a.mustard, 64, y - 1, 220, 1.6); rect(c, P.a.mustard, 64, y + 17, 220, 1.6); stencil(c, "WALKWAY", 250, y + 12, { size: 5 }); }
+        // The loading bay: tyre marks and wet under the door.
+        alpha(c, 0.35, () => { rect(c, P.wet[2], 130, 640, 60, 60); for (const x of [128, 182]) rect(c, P.ink, x, 560, 6, 140); });
+        // His jars come in here empty.
+        stencil(c, "OUTBOUND", 160, 630, { size: 7, color: P.cold[2], alpha: 0.4 });
+      },
+      walls(c, geo) {
+        for (const y of [200, 420, 620]) { A.speaker(c, 12, y); A.speaker(c, 308, y + 60); }
+        label(c, "THE FACTORY FLOOR", 90, -30, { size: 8, color: P.suit[2] });
+      }
+    }
+  };
+  // Belts: rails both sides, slats that move, and what rides on them.
+  function belt(ctx, b, w, t) {
+    rect(ctx, P.suit[1], 20, b.y, w - 40, b.h);
+    const shift = ((b.dir * b.speed * t) / 1000) % 10;
+    alpha(ctx, 0.8, () => { for (let x = 20 + ((shift % 10) + 10) % 10; x < w - 20; x += 10) rect(ctx, P.metal[0], x, b.y + 3, 2, b.h - 6); });
+    for (const y of [b.y, b.y + b.h - 3]) { rect(ctx, P.metal[2], 20, y, w - 40, 3); for (let x = 26; x < w - 20; x += 24) rivet(ctx, x, y + 1.5, 0.8); }
+    // Direction chevrons on the rail.
+    for (let x = 40; x < w - 30; x += 60) { const cx = x + (b.dir > 0 ? 0 : 6); line(ctx, cx, b.y - 4, cx + 4 * b.dir, b.y - 2, P.a.mustard, 1.2); line(ctx, cx + 4 * b.dir, b.y - 2, cx, b.y, P.a.mustard, 1.2); }
+  }
+  function buildingStatic(c, geo, m) {
+    rect(c, P.suit[0], -m.mx, -m.my, geo.w + m.mx * 2, geo.h + m.my * 2);
+    const decor = BUILDING[geo.id] || {};
+    buildingSurround(c, geo, m);
+    decor.floor?.(c, geo, m);
+    for (const solid of geo.solids) if (!solid.openWhen && !solid.when && solid.kind === "wall") coldWall(c, solid, geo);
+    decor.walls?.(c, geo, m);
+    for (const solid of geo.solids) if (!solid.openWhen && !solid.when && solid.kind !== "wall") solidStatic(c, solid, geo, COLD_FACE);
+  }
+  function buildingDynamic(ctx, geo, s) {
+    const sim = s.sim, t = s.reduced ? 0 : s.time, room = s.extras.room || {};
+    for (const solid of geo.solids) {
+      if (!solid.openWhen && !solid.when) continue;
+      const open = !present(solid, sim.flags);
+      if (solid.kind === "vent-grate") {
+        if (open) { rect(ctx, P.suit[0], solid.x, solid.y, solid.w, solid.h); alpha(ctx, 0.5, () => rect(ctx, P.metal[0], solid.x + 3, solid.y + 3, solid.w - 6, solid.h - 6)); }
+        else { box(ctx, solid.x, solid.y, solid.w, solid.h, P.metal[2], { ink: 1.2, amp: 0.05 }); for (let x = solid.x + 3; x < solid.x + solid.w - 2; x += 4) rect(ctx, P.suit[0], x, solid.y + 3, 2, solid.h - 6); alpha(ctx, 0.85, () => { for (let x = solid.x + 2; x < solid.x + solid.w - 2; x += 5) shape(ctx, [x, solid.y + solid.h, x + 1.4, solid.y + solid.h + 4, x + 2.8, solid.y + solid.h], "#e8f2ff", { ink: 0.3, amp: 0.05 }); }); }
+      }
+    }
+    if (geo.id === "longhall") {
+      for (const win of geo.lampWindows || []) {
+        const state = Core.lampWindowState(win, sim.t), x = win.side === "w" ? 4 : 300;
+        const jitter = state === "tell" && !s.reduced ? Math.sin(s.time / 30) * 1.2 : 0;
+        if (state === "on") { box(ctx, x, win.y - 2, 16, win.h + 4, P.cold[3], { ink: 1.2, amp: 0.05 }); oval(ctx, x + 8, win.y + win.h / 2, 4, 4, "#ffffff"); }
+        else { box(ctx, x, win.y - 2 + jitter, 16, (win.h + 4) * (state === "tell" ? 0.82 : 1), P.metal[1], { ink: 1.2, amp: 0.05 }); for (let y = win.y; y < win.y + win.h; y += 3) rect(ctx, P.metal[0], x + 1, y + jitter, 14, 1); if (state === "tell") alpha(ctx, 0.9, () => rect(ctx, P.cold[3], x + 1, win.y + win.h * 0.82 + jitter, 14, 1.6)); }
+      }
+      // The night gate: housing lights, then the shutter coming down.
+      const gate = geo.dropGate, g = sim.gate;
+      const k = g?.closed ? 1 : g?.startAt != null ? Math.min(1, (sim.t - g.startAt) / gate.closeMs) : 0;
+      if (k > 0) {
+        const blink = Math.floor((s.time || 0) / 200) % 2;
+        for (const x of [24, 296]) oval(ctx, x, gate.y - 6, 3, 3, blink && k < 1 ? P.a.red : P.ember[1]);
+        const face = 18 * k;
+        box(ctx, gate.x, gate.y - face + gate.h * k, gate.w, face + 2, P.metal[1], { ink: 1.2, amp: 0.05 });
+        for (let y = gate.y - face + gate.h * k + 3; y < gate.y + gate.h * k; y += 3) rect(ctx, P.metal[0], gate.x + 1, y, gate.w - 2, 1);
+        if (k >= 1) { for (let x = gate.x; x < gate.x + gate.w; x += 14) rect(ctx, P.a.mustard, x, gate.y + gate.h - 3, 7, 3); A.mark(ctx, 160, gate.y + 2, 9, P.cold[2]); }
+      }
+      // The side door swings when the runner comes round.
+      if (room.sideDoorAt != null && (s.extras.sceneTime || 0) - room.sideDoorAt < 900) { rect(ctx, P.ink, 0, 384, 20, 30); alpha(ctx, 0.5, () => rect(ctx, P.cold[2], 16, 386, 4, 26)); }
+      // The staff door behind him bursts open once, then swings shut.
+      if (room.westDoorAt != null && (s.extras.sceneTime || 0) - room.westDoorAt < 700) { rect(ctx, P.ink, 0, 1040, 20, 40); alpha(ctx, 0.6, () => rect(ctx, P.cold[2], 14, 1042, 6, 36)); }
+    }
+    if (geo.id === "intake" && sim.cage) {
+      A.cage(ctx, geo.cage, { loose: sim.cage.loose, notches: Content().ENEMIES.guard.notches, open: sim.cage.open, t: s.extras.sceneTime || 0, rattleAt: room.rattleAt });
+    }
+    if (geo.id === "collection") {
+      for (const item of geo.jars) {
+        const awake = Boolean(sim.flags[item.flag]);
+        A.jar(ctx, item.x, item.y + 2, { size: 1.15, t, awake, tag: true });
+      }
+    }
+    if (geo.id === "factory") {
+      const time = s.reduced ? sim.t : sim.t;
+      for (const b of geo.belts) belt(ctx, b, geo.w, s.reduced ? 0 : sim.t);
+      // The loading door: half up, and the rain blowing in under it.
+      box(ctx, 140, 690, 40, 10, P.metal[2], { ink: 1.2, amp: 0.05 });
+      alpha(ctx, 0.85, () => rect(ctx, P.wet[1], 142, 700, 36, 20));
+      if (!s.reduced) alpha(ctx, 0.6, () => { for (let index = 0; index < 8; index += 1) { const k = ((s.time / 600) + index * 0.13) % 1; rect(ctx, P.wet[3], 144 + ((index * 11) % 32), 700 - k * 26, 0.8, 3); } });
+      void time;
+    }
+    for (const prop of geo.props) {
+      if (!present(prop, sim.flags)) continue;
+      if (prop.id.startsWith("card-")) A.callingCard(ctx, prop.x, prop.y, { angle: -0.4 });
+      else if (prop.id === "grate-catch") warmCatch(ctx, prop, t);
+    }
+  }
+  // Belt goods are bodies: they sort with everyone else by depth.
+  function buildingBodies(geo, s) {
+    if (!geo.belts) return [];
+    const out = [];
+    for (const b of geo.belts) for (const item of Core.beltItems(b, s.sim.t, geo.w)) {
+      if (item.x < -30 || item.x > geo.w + 30) continue;
+      out.push({ y: item.y + item.h / 2, draw: ctx => (item.kind === "crate" ? A.beltCrate(ctx, item.x, item.y, item.w, item.h, { seed: item.id.length + b.y }) : A.jarTray(ctx, item.x, item.y, item.w, item.h)) });
+    }
+    return out;
+  }
+  // Drawn over Rizo (the front canvas): cage bars and crate fronts he is behind.
+  function buildingFront(ctx, geo, s) {
+    const p = s.pos;
+    if (geo.id === "intake" && s.sim.cage && !s.sim.cage.open && Core.inCage(s.sim)) {
+      const r = geo.cage;
+      ctx.strokeStyle = P.metal[3]; ctx.lineWidth = 1.1; ctx.globalAlpha = 0.9;
+      for (let x = r.x + 3.5; x < r.x + r.w; x += 7) { ctx.beginPath(); ctx.moveTo(x, r.y - 4); ctx.lineTo(x, r.y + r.h); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    }
+    if (geo.belts) for (const b of geo.belts) for (const item of Core.beltItems(b, s.sim.t, geo.w)) {
+      if (item.kind !== "crate" || Math.abs(item.x - p.x) > item.w / 2 + 4 || p.y > item.y + item.h / 2 || p.y < item.y - item.h) continue;
+      // He is pressed behind it: the crate's front hides his lower half.
+      ctx.save(); ctx.beginPath(); ctx.rect(item.x - item.w / 2 - 2, item.y - item.h / 2 - 2, item.w + 4, item.h + 6); ctx.clip();
+      A.beltCrate(ctx, item.x, item.y, item.w, item.h, { seed: item.id.length + b.y });
+      ctx.restore();
+    }
+  }
+  function buildingOver(ctx, geo, s) {
+    if (geo.id === "collection") {
+      // Every jar's small light, cold, breathing very slowly: what the dark is full of.
+      const t = s.reduced ? 0 : s.time;
+      for (const solid of geo.solids) if (solid.kind === "jar-shelf") for (const [index, jar] of shelfJars(solid).entries()) {
+        const breathe = 0.55 + 0.25 * Math.sin(t / 1700 + index * 1.7 + solid.y);
+        alpha(ctx, 0.35 * breathe, () => oval(ctx, jar.x, jar.y + jar.glow, 2.6 * jar.size * 2, 2.6 * jar.size * 2, P.cold[2]));
+        alpha(ctx, 0.85 * breathe, () => oval(ctx, jar.x, jar.y + jar.glow, 1.1 * jar.size * 2, 1.2 * jar.size * 2, "#d6e6f0"));
+      }
+      for (const item of geo.jars) {
+        const awake = Boolean(s.sim.flags[item.flag]);
+        alpha(ctx, awake ? 0.9 : 0.6, () => oval(ctx, item.x, item.y - 7, awake ? 2.6 : 1.8, awake ? 3 : 2, awake ? P.ember[4] : "#d6e6f0"));
+      }
+      return;
+    }
+    if (geo.id !== "longhall") return;
+    // A window lamp straight across the hall: bright enough to make anyone stop.
+    for (const win of geo.lampWindows || []) {
+      if (Core.lampWindowState(win, s.sim.t) !== "on") continue;
+      alpha(ctx, 0.2, () => rect(ctx, P.cold[3], 20, win.y - 4, geo.w - 40, win.h + 8));
+      alpha(ctx, 0.42, () => rect(ctx, "#ffffff", 20, win.y + 3, geo.w - 40, win.h - 6));
+    }
+  }
+  function buildingLights(geo, s) {
+    const sim = s.sim, list = [], room = s.extras.room || {};
+    let ambient = { color: [5, 8, 11], alpha: 0.5 };
+    if (geo.id === "longhall") {
+      for (let y = 100; y < geo.h; y += 150) list.push({ x: 160, y, r: 96, strength: 0.55, warm: 0 });
+      for (const win of geo.lampWindows || []) {
+        const state = Core.lampWindowState(win, sim.t), x = win.side === "w" ? 12 : 308;
+        if (state === "on") list.push({ x, y: win.y + win.h / 2, r: 300, strength: 1, warm: 0, cone: { angle: win.side === "w" ? 0 : Math.PI, half: 0.12 } });
+        else if (state === "tell") list.push({ x, y: win.y + win.h / 2, r: 30, strength: 0.6, warm: 0 });
+      }
+    }
+    if (geo.id === "intake") { ambient = { color: [5, 8, 11], alpha: 0.4 }; list.push({ x: 90, y: 120, r: 120, strength: 0.7, warm: 0 }, { x: 230, y: 200, r: 120, strength: 0.6, warm: 0 }); if (room.speakerOn) list.push({ x: 104, y: 14, r: 40, strength: 0.6, warm: 0 }); }
+    if (geo.id === "collection") {
+      ambient = { color: [3, 5, 8], alpha: 0.66 };
+      for (const solid of geo.solids) if (solid.kind === "jar-shelf") for (let x = solid.x + 30; x < solid.x + solid.w; x += 75) list.push({ x, y: solid.y + 6, r: 54, strength: 0.32, warm: 0 });
+      for (const item of geo.jars) if (sim.flags[item.flag]) list.push({ x: item.x, y: item.y - 8, r: 46, strength: 0.75, warm: 1 });
+      list.push({ x: 84, y: 40, r: 60, strength: 0.45, warm: 0 });
+    }
+    if (geo.id === "factory") {
+      ambient = { color: [5, 8, 11], alpha: 0.48 };
+      for (const y of [70, 240, 400, 560]) list.push({ x: 160, y, r: 120, strength: 0.42, warm: 0 });
+      for (const solid of geo.solids) if (solid.kind === "machine") list.push({ x: solid.x + solid.w / 2, y: solid.y + 16, r: 46, strength: 0.6, warm: 0 });
+      list.push({ x: 160, y: 700, r: 70, strength: 0.6, warm: 0 });
+    }
+    return { ambient, list };
+  }
+  const BUILDING_THEME = { paintStatic: buildingStatic, paintDynamic: buildingDynamic, paintOver: buildingOver, paintFront: buildingFront, bodies: buildingBodies, lights: buildingLights };
+
+  // ===== THE VENTS: ducts in cutaway, the only dirty place in the building =====
+  function ventsStatic(c, geo, m) {
+    rect(c, P.suit[0], -m.mx, -m.my, geo.w + m.mx * 2, geo.h + m.my * 2);
+    // Duct floor: riveted sheet, dusty, with drag marks down the middle.
+    for (let y = 0; y < geo.h; y += 20) for (let x = 0; x < geo.w; x += 40) { box(c, x, y, 40, 20, (x / 40 + y / 20) % 2 ? P.metal[0] : "#2c353c", { ink: 0.5, amp: 0.02 }); rivet(c, x + 3, y + 3, 0.7); rivet(c, x + 37, y + 3, 0.7); }
+    alpha(c, 0.25, () => { const random = rng("dust"); for (let index = 0; index < 220; index += 1) rect(c, P.paper[0], random() * geo.w, random() * geo.h, 1.2, 0.8); });
+    for (const solid of geo.solids) {
+      rect(c, P.suit[1], solid.x, solid.y, solid.w, solid.h);
+      alpha(c, 0.7, () => rect(c, P.metal[1], solid.x, solid.y + solid.h - 1.4, solid.w, 1.4));
+    }
+    // Duct walls catch his light: a lit lip along every open edge.
+    for (const solid of geo.solids) {
+      const below = solid.y + solid.h;
+      if (below < geo.h && !geo.solids.some(other => other !== solid && other.y === below && other.x <= solid.x && other.x + other.w >= solid.x + solid.w)) alpha(c, 0.5, () => rect(c, P.metal[2], solid.x, below - 3, solid.w, 3));
+    }
+    for (const grate of [...(geo.grates || []), ...(geo.listens || [])]) {
+      box(c, grate.x + 4, grate.y + 4, grate.w - 8, grate.h - 8, P.suit[0], { ink: 1.1, amp: 0.05 });
+      for (let x = grate.x + 7; x < grate.x + grate.w - 6; x += 4) rect(c, P.metal[2], x, grate.y + 5, 1.6, grate.h - 10);
+    }
+    // HOME, scratched with a key, and an arrow: this way.
+    alpha(c, 0.8, () => { label(c, "HOME", 98, 92, { size: 6, color: P.paper[2], weight: 600, jitter: 0.8 }); line(c, 112, 90, 124, 90, P.paper[2], 0.9); line(c, 112, 90, 116, 87, P.paper[2], 0.9); line(c, 112, 90, 116, 93, P.paper[2], 0.9); });
+    // The hatch down, open, a ladder in it.
+    oval(c, 60, 80, 13, 10, P.suit[0], true, 1.4);
+    for (let y = 74; y < 90; y += 4) rect(c, P.metal[2], 53, y, 14, 1.2);
+    label(c, "↓", 60, 70, { size: 7, color: P.cold[2], weight: 900 });
+  }
+  function ventsDynamic(ctx, geo, s) {
+    const sim = s.sim;
+    for (const [index, grate] of (geo.listens || []).entries()) {
+      if (!Core.listenLit(geo, index, sim.t)) continue;
+      alpha(ctx, 0.75, () => { for (let x = grate.x + 7; x < grate.x + grate.w - 6; x += 4) rect(ctx, P.cold[3], x - 0.4, grate.y + 5, 2.4, grate.h - 10); });
+    }
+    const view = s.extras.room?.ventView;
+    for (const grate of geo.grates || []) if (view === grate.view) alpha(ctx, 0.6, () => { for (let x = grate.x + 7; x < grate.x + grate.w - 6; x += 4) rect(ctx, P.cold[2], x, grate.y + 5, 1.6, grate.h - 10); });
+    for (const prop of geo.props) if (prop.id === "vent-tag") { ctx.save(); ctx.translate(prop.x, prop.y); ctx.rotate(0.5); box(ctx, -3, -2, 6, 4, P.paper[2], { ink: 0.6, amp: 0.05 }); line(ctx, 3, 0, 7, 3, P.paper[1], 0.5); ctx.restore(); }
+  }
+  function ventsLights(geo, s) {
+    const sim = s.sim, list = [];
+    for (const [index, grate] of (geo.listens || []).entries()) if (Core.listenLit(geo, index, sim.t)) list.push({ x: grate.x + grate.w / 2, y: grate.y + grate.h / 2, r: 46, strength: 1, warm: 0 });
+    for (const grate of geo.grates || []) list.push({ x: grate.x + grate.w / 2, y: grate.y + grate.h / 2, r: 26, strength: 0.45, warm: 0 });
+    list.push({ x: 60, y: 80, r: 30, strength: 0.4, warm: 0 });
+    return { ambient: { color: [3, 4, 6], alpha: 0.78 }, list };
+  }
+  // What a grate looks down on (quiet moments stay in-engine): drawn through
+  // the slats in a frame beside the grate while he stays still on it.
+  const VIEW_ART = {
+    // The true size of the collection: shelves going back further than his light.
+    scale(c, x, y, w, h) {
+      rect(c, "#05070b", x, y, w, h);
+      const vx = x + w / 2, vy = y + 8;
+      for (let row = 0; row < 14; row += 1) {
+        const k = Math.pow(row / 14, 0.62), ry = y + h - 6 - k * (h - 18), spread = (1 - k) * 0.95 + 0.05;
+        line(c, vx - (w / 2) * spread, ry + 2, vx + (w / 2) * spread, ry + 2, "#1c2530", 1.2 * (1 - k) + 0.3);
+        const count = Math.round(10 + k * 30);
+        for (let index = 0; index < count; index += 1) {
+          const jx = vx - (w / 2) * spread + ((index + 0.5) / count) * w * spread, size = 2.2 * (1 - k) + 0.5;
+          alpha(c, 0.35 + 0.5 * (1 - k), () => oval(c, jx, ry - size, size, size, P.cold[2]));
+        }
+      }
+      alpha(c, 0.5, () => rect(c, "#05070b", vx - 6, vy - 6, 12, 6));
+    },
+    // White coats around a jar on a steel table: measuring, writing it down.
+    lab(c, x, y, w, h) {
+      A.tiles(c, x, y, w, h, "labview", { size: 10, colors: ["#c9d6df", "#d6e1e8"], grout: "#9aa9b3" });
+      box(c, x + w * 0.28, y + h * 0.3, w * 0.44, h * 0.44, P.metal[3], { ink: 1.2, amp: 0.05 });
+      A.jar(c, x + w / 2, y + h * 0.58, { size: 1.5, t: 0, frost: true });
+      // Sleeves and hands from the top edge: calipers, and a pen over a clipboard.
+      shape(c, [x + w * 0.3, y, x + w * 0.42, y, x + w * 0.46, y + h * 0.36, x + w * 0.38, y + h * 0.38], "#eef5f9", { ink: 1.2, amp: 0.1 });
+      oval(c, x + w * 0.43, y + h * 0.4, 4, 3.4, P.skin[2], true, 0.9);
+      line(c, x + w * 0.44, y + h * 0.42, x + w * 0.49, y + h * 0.5, P.metal[3], 1.4); line(c, x + w * 0.44, y + h * 0.42, x + w * 0.52, y + h * 0.46, P.metal[3], 1.4);
+      shape(c, [x + w * 0.74, y, x + w * 0.86, y, x + w * 0.84, y + h * 0.42, x + w * 0.74, y + h * 0.4], "#eef5f9", { ink: 1.2, amp: 0.1 });
+      box(c, x + w * 0.7, y + h * 0.44, w * 0.18, h * 0.3, P.paper[2], { ink: 0.9, amp: 0.05 });
+      for (let k = 0; k < 4; k += 1) rect(c, P.ink, x + w * 0.72, y + h * (0.5 + k * 0.05), w * 0.12, 0.6);
+      oval(c, x + w * 0.79, y + h * 0.44, 3.6, 3, P.skin[2], true, 0.9); line(c, x + w * 0.79, y + h * 0.44, x + w * 0.76, y + h * 0.56, P.ink, 1);
+    },
+    // His desk from above: a list of numbers, a phone face down, and his hands.
+    // The frame stops at his wrists. There is no face in it, and never will be here.
+    office(c, x, y, w, h) {
+      rect(c, "#0c0d10", x, y, w, h);
+      box(c, x + 6, y + 10, w - 12, h - 14, "#17191e", { ink: 1.2, amp: 0.05 });
+      alpha(c, 0.18, () => oval(c, x + w / 2, y + h * 0.6, w * 0.4, h * 0.35, P.cold[3]));
+      box(c, x + w * 0.34, y + h * 0.4, w * 0.3, h * 0.48, P.paper[3], { ink: 0.9, amp: 0.05 });
+      for (let k = 0; k < 8; k += 1) { rect(c, P.ink, x + w * 0.37, y + h * (0.45 + k * 0.05), w * 0.12, 0.7); rect(c, P.ink, x + w * 0.52, y + h * (0.45 + k * 0.05), w * 0.08, 0.7); }
+      rect(c, P.a.red, x + w * 0.36, y + h * 0.82, w * 0.25, 0.9);
+      box(c, x + w * 0.72, y + h * 0.5, w * 0.12, h * 0.3, P.suit[0], { ink: 1, amp: 0.05 });
+      for (const [sx, dir] of [[0.26, 1], [0.66, -1]]) {
+        const hx = x + w * sx;
+        shape(c, [hx - 8, y, hx + 8, y, hx + 7 + dir * 2, y + h * 0.42, hx - 7 + dir * 2, y + h * 0.42], P.suit[1], { ink: 1.2, amp: 0.05 });
+        rect(c, "#e9e4d8", hx - 7 + dir * 2, y + h * 0.4, 14, 4);
+        oval(c, hx + dir * 3, y + h * 0.42 + 2, 2.4, 2.4, P.cold[2], true, 0.7);
+        A.mark(c, hx + dir * 3, y + h * 0.42 + 2, 3, P.suit[0]);
+        shape(c, [hx - 6 + dir * 2, y + h * 0.44, hx + 7 + dir * 2, y + h * 0.44, hx + 8 + dir * 6, y + h * 0.58, hx - 4 + dir * 6, y + h * 0.6], "#cf9f7d", { ink: 1.1, amp: 0.05 });
+      }
+    }
+  };
+  function ventsOver(ctx, geo, s) {
+    const view = s.extras.room?.ventView;
+    if (!view) return;
+    const grate = (geo.grates || []).find(item => item.view === view.kind);
+    if (!grate) return;
+    const k = Math.min(1, ((s.extras.sceneTime || 0) - view.at) / 360);
+    const w = 172, h = 104;
+    const x = Math.max(6, Math.min(geo.w - w - 6, grate.x + grate.w / 2 - w / 2));
+    const y = grate.y < 140 ? grate.y + grate.h + 8 : grate.y - h - 8;
+    ctx.save(); ctx.globalAlpha = k;
+    drop(ctx, x + w / 2, y + h + 4, w / 2 + 6, 6, 0.6);
+    box(ctx, x - 4, y - 4, w + 8, h + 8, P.suit[1], { ink: 1.6, amp: 0.05 });
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    VIEW_ART[view.kind]?.(ctx, x, y, w, h);
+    // Through the slats.
+    ctx.globalAlpha = k * 0.6;
+    for (let sx = x + 6; sx < x + w; sx += 14) rect(ctx, P.suit[0], sx, y, 4, h);
+    ctx.restore();
+    // A line from the grate to what it shows.
+    ctx.save(); ctx.globalAlpha = k * 0.5; line(ctx, grate.x + grate.w / 2, grate.y + (grate.y < 140 ? grate.h : 0), x + w / 2, grate.y < 140 ? y : y + h, P.cold[2], 1); ctx.restore();
+  }
+  const VENTS_THEME = { paintStatic: ventsStatic, paintDynamic: ventsDynamic, paintOver: ventsOver, lights: ventsLights };
+
   const THEMES = {
+    building: BUILDING_THEME,
+    vents: VENTS_THEME,
     car: { paintStatic: carStatic, paintDynamic: carDynamic, lights: carLights },
     sack: { paintStatic: sackStatic, paintOver: sackOver, lights: sackLights },
     van: { paintStatic: vanStatic, paintUnder: vanUnder, paintDynamic: vanDynamic, lights: vanLights, transparent: true },
@@ -1775,6 +2267,10 @@
     paintDynamic: (ctx, geo, s) => themeOf(geo).paintDynamic?.(ctx, geo, s),
     paintOver: (ctx, geo, s) => themeOf(geo).paintOver?.(ctx, geo, s),
     lights: (geo, s) => themeOf(geo).lights(geo, s),
+    // v0.5: art drawn over Rizo (the front layer), and scenery that sorts with bodies.
+    paintFront: (ctx, geo, s) => themeOf(geo).paintFront?.(ctx, geo, s),
+    hasFront: geo => Boolean(themeOf(geo).paintFront),
+    bodies: (geo, s) => themeOf(geo).bodies?.(geo, s) || [],
     transparent: geo => Boolean(themeOf(geo).transparent),
     // Where rain outside stops (the van's body), for the view's rain pass.
     shelterOf: geo => (geo.theme === "van" ? [VAN_SHELTER] : null)

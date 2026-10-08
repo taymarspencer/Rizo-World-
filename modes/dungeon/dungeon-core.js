@@ -95,8 +95,12 @@
   const isOpen = (item, flags) => !item.openWhen || flagOn(flags, item.openWhen);
   function geoOf(sim) {
     const geo = room(sim.roomId);
-    return { w: geo.w, h: geo.h, solids: geo.solids.filter(rect => present(rect, sim.flags)) };
+    const solids = geo.solids.filter(rect => present(rect, sim.flags));
+    // The Long Hall's night gate is a wall once it is down.
+    if (sim.gate?.closed && geo.dropGate) solids.push(gateRect(geo));
+    return { w: geo.w, h: geo.h, solids };
   }
+  const gateRect = geo => ({ id: geo.dropGate.id, x: geo.dropGate.x, y: geo.dropGate.y, w: geo.dropGate.w, h: geo.dropGate.h, kind: "gate" });
   function closestOnRect(x, y, rect) { return [clamp(x, rect.x, rect.x + rect.w), clamp(y, rect.y, rect.y + rect.h)]; }
   function circleHitsRect(x, y, r, rect) {
     const [cx, cy] = closestOnRect(x, y, rect);
@@ -179,7 +183,12 @@
       enemy.soft = Boolean(item.soft);
       const [ax, ay] = normalize(enemy.patrol[enemy.wp].x - item.x, enemy.patrol[enemy.wp].y - item.y);
       if (ax || ay) { enemy.aimX = ax; enemy.aimY = ay; }
+      // A watcher on a catwalk keeps his lamp on the floor below (look), swinging it (sweep).
+      if (Array.isArray(item.look)) { [enemy.lookX, enemy.lookY] = normalize(item.look[0], item.look[1]); enemy.sweep = finite(item.sweep, 0); enemy.sweepMs = Math.max(400, finite(item.sweepMs, 3000)); enemy.aimX = enemy.lookX; enemy.aimY = enemy.lookY; }
+      if (item.range) enemy.range = finite(item.range, def.range);
     }
+    if (item.kind === "runner") { enemy.state = "waiting"; enemy.crumbs = []; enemy.startGapMs = finite(item.startGapMs, def.startGapMs); }
+    if (item.kind === "guard") { enemy.state = "watch"; enemy.extra = 0; enemy.told = false; }
     return enemy;
   }
   // Ordinary enemies cleared this leg stay cleared; durable defeats never return.
@@ -203,14 +212,20 @@
       exitArmed: false,
       cleared: [...cleared],
       defeated: [...defeated],
-      player: { x: anchor.x, y: anchor.y, r: T.PLAYER_RADIUS, fx: 0, fy: -1, flame: clamp(Math.round(finite(flame, T.FLAME_MAX)), 1, T.FLAME_MAX), act: null, attackSeq: 0, tuckReadyAt: 0, protectUntil: -1, hurtUntil: -1, bufferUntil: -1, moving: false, leashed: false, vx: 0, vy: 0 },
-      enemies: spawnEnemies(geo, cleared, defeated)
+      player: { x: anchor.x, y: anchor.y, r: T.PLAYER_RADIUS, fx: 0, fy: -1, flame: clamp(Math.round(finite(flame, T.FLAME_MAX)), 1, T.FLAME_MAX), act: null, attackSeq: 0, tuckReadyAt: 0, protectUntil: -1, hurtUntil: -1, bufferUntil: -1, moving: false, leashed: false, vx: 0, vy: 0, dazzledUntil: -1 },
+      enemies: spawnEnemies(geo, cleared, defeated),
+      // Room machinery (v0.5): the Long Hall's gate, Intake's cage, the vents' hearing.
+      gate: geo.dropGate ? { startAt: null, closed: false } : null,
+      cage: geo.cage ? { loose: 0, open: flagOn(flags, "cageOpen"), lastRattle: -1e9 } : null,
+      heard: 0
     };
   }
   const liveEnemies = sim => sim.enemies.filter(enemy => enemy.state !== "gone" && enemy.state !== "settled");
   // Primary means Flare while any noticed enemy remains in the room.
   // A collector is never fought: noticing him never turns Primary into Flare.
-  const encounterActive = sim => sim.enemies.some(enemy => enemy.kind !== "cargo" && enemy.kind !== "collector" && enemy.state !== "gone" && enemy.state !== "settled" && enemy.aware);
+  // Nor is the runner or the intake guard: Rizo can only get away from them.
+  const UNFOUGHT = ["cargo", "collector", "runner", "guard"];
+  const encounterActive = sim => sim.enemies.some(enemy => !UNFOUGHT.includes(enemy.kind) && enemy.state !== "gone" && enemy.state !== "settled" && enemy.aware);
   const hurtWindow = sim => (sim.assist ? T.HURT_MS_ASSIST : T.HURT_MS);
   const anticipationScale = sim => (sim.assist ? T.ASSIST_ANTICIPATION : 1);
   const vulnerable = (sim, p) => sim.phase === "play" && sim.t >= p.hurtUntil && sim.t >= p.protectUntil;
@@ -435,12 +450,14 @@
   function hiddenIn(sim) {
     const p = sim.player, raw = room(sim.roomId);
     if (p.act?.kind === "flare") return false;
-    return (raw.hides || []).some(rect => pointInRect(p.x, p.y, rect));
+    if ((raw.hides || []).some(rect => pointInRect(p.x, p.y, rect))) return true;
+    // On the factory belts a crate hides him; a tray of empty jars does not.
+    return (raw.belts || []).some(belt => beltItems(belt, sim.t, raw.w).some(item => item.kind === "crate" && pointInRect(p.x, p.y, item.cover)));
   }
   function collectorSees(sim, enemy) {
     const def = C.ENEMIES.collector, p = sim.player;
     const flaring = p.act?.kind === "flare";
-    const range = def.range * (flaring ? def.flareRange : 1);
+    const range = (enemy.range || def.range) * (flaring ? def.flareRange : 1);
     const dx = p.x - enemy.x, dy = p.y - enemy.y, distance = Math.hypot(dx, dy);
     if (distance > range + p.r) return false;
     if (hiddenIn(sim)) return false;
@@ -464,10 +481,20 @@
       if (distance > 1e-6) { enemy.x += (dx / distance) * stepLength; enemy.y += (dy / distance) * stepLength; }
       return distance - stepLength;
     };
+    // A watcher's lamp swings across the floor below him while he walks his catwalk.
+    const sweepAim = () => {
+      const a = Math.atan2(enemy.lookY, enemy.lookX) + Math.sin((sim.t / enemy.sweepMs) * Math.PI * 2) * enemy.sweep;
+      enemy.aimX = Math.cos(a); enemy.aimY = Math.sin(a);
+    };
     switch (enemy.state) {
       case "patrol": {
         if (sees) { enemy.aware = true; enemy.lastSeenAt = sim.t; enemy.seenX = p.x; enemy.seenY = p.y; enter("spot"); events.push({ type: "spotted", id: enemy.id }); break; }
         const target = enemy.patrol[enemy.wp];
+        if (enemy.lookX !== undefined) {
+          sweepAim();
+          if (sim.t >= enemy.pauseUntil && walkToward(target.x, target.y, def.speed) < 0.5 && enemy.patrol.length > 1) { enemy.wp = (enemy.wp + 1) % enemy.patrol.length; enemy.pauseUntil = sim.t + def.pauseMs; }
+          break;
+        }
         if (sim.t < enemy.pauseUntil) {
           // At a corner he swings the lamp slowly across, then turns to the next leg.
           const next = enemy.patrol[(enemy.wp) % enemy.patrol.length];
@@ -488,7 +515,8 @@
       case "spot": {
         if (sees) { enemy.lastSeenAt = sim.t; enemy.seenX = p.x; enemy.seenY = p.y; }
         turnToward(enemy.seenX, enemy.seenY, 0.3);
-        walkToward(enemy.seenX, enemy.seenY, def.chase);
+        // A watcher stays on his catwalk; only his lamp follows.
+        if (enemy.lookX === undefined) walkToward(enemy.seenX, enemy.seenY, def.chase);
         if (sim.t - enemy.lastSeenAt > def.loseMs) { enter("search"); events.push({ type: "lost", id: enemy.id }); break; }
         if (elapsed + EPS >= def.spotMs * anticipationScale(sim)) {
           if (enemy.soft) { enter("search"); events.push({ type: "lost", id: enemy.id }); break; }
@@ -502,13 +530,149 @@
       }
       case "search": {
         // He stares where Rizo was, then goes back to walking his line.
-        if (sees) { enemy.lastSeenAt = sim.t; enemy.seenX = p.x; enemy.seenY = p.y; enter("spot"); events.push({ type: "spotted", id: enemy.id }); break; }
+        if (sees) { enemy.lastSeenAt = sim.t; enemy.seenX = p.x; enemy.seenY = p.y; enemy.lured = null; enter("spot"); events.push({ type: "spotted", id: enemy.id }); break; }
+        if (enemy.lured) {
+          // Lured by a sound: he walks over to look at it, lamp on it, and stays a while.
+          const lure = enemy.lured;
+          turnToward(lure.x, lure.y, 0.2);
+          if (lure.arrivedAt == null && walkToward(lure.x, lure.y, def.speed * C.ENEMIES.collector.lureSpeed) < 16) lure.arrivedAt = sim.t;
+          if (lure.arrivedAt != null) turnToward(lure.x + Math.sin(sim.t / 300) * 14, lure.y + Math.cos(sim.t / 340) * 10, 0.1);
+          if (lure.arrivedAt != null && sim.t - lure.arrivedAt + EPS >= def.lureStayMs) { enemy.lured = null; enemy.aware = false; enter("patrol"); events.push({ type: "resume", id: enemy.id }); }
+          break;
+        }
         turnToward(enemy.seenX + Math.sin(sim.t / 260) * 18, enemy.seenY + Math.cos(sim.t / 300) * 18, 0.12);
         if (elapsed + EPS >= def.searchMs) { enemy.aware = false; enter("patrol"); events.push({ type: "resume", id: enemy.id }); }
         break;
       }
       default: break;
     }
+  }
+
+  // A sound somewhere else (Nell's tin bell): every collector that is not
+  // already on to him walks over to look at it, and stays a while.
+  function lure(sim, x, y) {
+    const events = [];
+    for (const enemy of sim.enemies) {
+      if (enemy.kind !== "collector" || enemy.soft || enemy.state === "spot" || enemy.state === "gone") continue;
+      enemy.state = "search"; enemy.stateAt = sim.t; enemy.aware = true;
+      enemy.lured = { x, y, arrivedAt: null }; enemy.seenX = x; enemy.seenY = y;
+      events.push({ type: "lured", id: enemy.id });
+    }
+    return events;
+  }
+
+  // ===== THE COLLECTION (story spine v0.5) =====
+  // The runner: a collector on his trail. It runs along the crumbs he leaves
+  // (so it never cuts through walls), a little slower than he does. Standing
+  // still or being dazzled lets it gain; inside catchRadius, he is caught.
+  function spawnRunner(sim, { id = "runner", x, y, startGapMs }) {
+    sim.enemies = sim.enemies.filter(enemy => enemy.id !== id);
+    const enemy = makeEnemy({ id, kind: "runner", x, y, startGapMs });
+    enemy.stateAt = sim.t;
+    sim.enemies.push(enemy);
+    return enemy;
+  }
+  function updateRunner(sim, enemy, events) {
+    const def = C.ENEMIES.runner, p = sim.player, geo = room(sim.roomId);
+    const last = enemy.crumbs[enemy.crumbs.length - 1];
+    if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= def.crumbEvery) enemy.crumbs.push({ x: p.x, y: p.y });
+    if (enemy.state === "waiting") {
+      if (sim.t - enemy.stateAt + EPS >= enemy.startGapMs) { enemy.state = "run"; enemy.stateAt = sim.t; events.push({ type: "runner-in", id: enemy.id }); }
+      return;
+    }
+    const gate = sim.gate?.closed ? geo.dropGate : null;
+    if (enemy.state === "detour") {
+      if (sim.t >= enemy.detourUntil) {
+        // Round by the side door, back on his trail on the far side of the gate.
+        enemy.x = gate.detour.x; enemy.y = gate.detour.y;
+        enemy.crumbs = enemy.crumbs.filter(crumb => crumb.y < gate.y);
+        enemy.state = "run"; enemy.stateAt = sim.t;
+        events.push({ type: "runner-round", id: enemy.id });
+      }
+      return;
+    }
+    if (gate && enemy.y > gate.y + gate.h && p.y < gate.y) {
+      enemy.state = "detour"; enemy.stateAt = sim.t; enemy.detourUntil = sim.t + def.detourMs;
+      events.push({ type: "runner-blocked", id: enemy.id });
+      return;
+    }
+    const behind = Math.hypot(p.x - enemy.x, p.y - enemy.y);
+    let budget = ((behind > def.far ? def.catchUp : def.speed) * STEP_MS) / 1000;
+    const fromX = enemy.x, fromY = enemy.y;
+    while (budget > 0 && enemy.crumbs.length) {
+      const next = enemy.crumbs[0], dx = next.x - enemy.x, dy = next.y - enemy.y, length = Math.hypot(dx, dy);
+      if (length <= budget) { enemy.x = next.x; enemy.y = next.y; budget -= length; enemy.crumbs.shift(); }
+      else { enemy.x += (dx / length) * budget; enemy.y += (dy / length) * budget; budget = 0; }
+    }
+    const [ax, ay] = normalize(enemy.x - fromX, enemy.y - fromY);
+    if (ax || ay) { enemy.aimX = ax; enemy.aimY = ay; }
+    if (sim.phase === "play" && Math.hypot(p.x - enemy.x, p.y - enemy.y) <= def.catchRadius + p.r) {
+      enemy.state = "caught"; enemy.stateAt = sim.t;
+      sim.phase = "down"; sim.downUntil = sim.t + T.DOWN_MS; sim.downReason = "caught"; p.act = null;
+      events.push({ type: "caught", id: enemy.id }, { type: "down", reason: "caught" });
+    }
+  }
+  // The Long Hall's service windows: closed, then a rattle (the tell), then a
+  // lamp straight across the hall. Pure time; every window keeps its rhythm.
+  function lampWindowState(win, t) {
+    const k = (((t + win.offset) % win.period) + win.period) % win.period;
+    if (k >= win.period - win.onMs) return "on";
+    if (k >= win.period - win.onMs - win.tellMs) return "tell";
+    return "off";
+  }
+  // The intake guard looks at the cage (watch), then away. Out of the cage,
+  // moving while he looks is seen, after the moment it takes him to turn.
+  function inCage(sim) {
+    const geo = room(sim.roomId);
+    return Boolean(geo.cage) && pointInRect(sim.player.x, sim.player.y, geo.cage);
+  }
+  function updateGuard(sim, enemy, events) {
+    const def = C.ENEMIES.guard, p = sim.player;
+    const elapsed = sim.t - enemy.stateAt + EPS;
+    if (enemy.state === "watch" && elapsed >= def.watchMs + enemy.extra) {
+      enemy.state = "away"; enemy.stateAt = sim.t; enemy.extra = 0; enemy.told = false;
+      events.push({ type: "guard-away", id: enemy.id });
+    } else if (enemy.state === "away") {
+      if (!enemy.told && elapsed >= def.awayMs - def.tellMs) { enemy.told = true; events.push({ type: "guard-tell", id: enemy.id }); }
+      if (elapsed >= def.awayMs) { enemy.state = "watch"; enemy.stateAt = sim.t; events.push({ type: "guard-back", id: enemy.id }); }
+    }
+    if (sim.cage?.open && !inCage(sim) && enemy.state === "watch" && sim.t - enemy.stateAt + EPS >= def.graceMs && p.moving && !hiddenIn(sim)) {
+      sim.phase = "down"; sim.downUntil = sim.t + T.DOWN_MS; sim.downReason = "put-back"; p.act = null;
+      events.push({ type: "seen", id: enemy.id }, { type: "down", reason: "put-back" });
+    }
+  }
+  // Primary inside the cage rattles its door instead of Flaring.
+  function rattle(sim, events) {
+    const def = C.ENEMIES.guard, cage = sim.cage;
+    if (sim.t - cage.lastRattle < def.rattleGapMs) return;
+    cage.lastRattle = sim.t;
+    const guard = sim.enemies.find(enemy => enemy.kind === "guard");
+    if (!guard || guard.state === "away") {
+      cage.loose += 1;
+      events.push({ type: "loosened", loose: cage.loose });
+      if (cage.loose >= def.notches) { cage.open = true; sim.flags.cageOpen = true; events.push({ type: "cage-open" }); }
+    } else {
+      cage.loose = Math.max(0, cage.loose - 2);
+      guard.extra += def.noticedMs;
+      events.push({ type: "noticed", id: guard.id, loose: cage.loose });
+    }
+  }
+  // Belt items ride the belt and wrap round. A crate covers whoever is pressed to it.
+  function beltItems(belt, t, width) {
+    const span = width + 80, spacing = span / belt.items.length;
+    return belt.items.map((kind, index) => {
+      const base = belt.phase + index * spacing + (belt.dir * belt.speed * t) / 1000;
+      const x = (((base % span) + span) % span) - 40, y = belt.y + belt.h / 2;
+      const w = kind === "crate" ? 30 : 26, h = kind === "crate" ? 24 : 14;
+      return { id: `${belt.id}-${index}`, kind, x, y, w, h, cover: { x: x - w / 2 - 3, y: y - h / 2 - 4, w: w + 6, h: h + 8 } };
+    });
+  }
+  const beltUnder = (geo, x, y) => (geo.belts || []).find(belt => y >= belt.y && y <= belt.y + belt.h && x >= 20 && x <= geo.w - 20) || null;
+  // The vents over the guard post: the lamp below walks along the duct grate by grate (listens[0] first).
+  function listenLit(geo, index, t) {
+    const l = geo.listen;
+    const k = ((t % l.period) + l.period) % l.period;
+    return k >= index * l.stepMs && k < index * l.stepMs + l.litMs;
   }
 
   // The Night Porter: alternates a lamp sweep and a queue charge. The closed
@@ -585,7 +749,7 @@
     if (flarePhase(act, sim.t) !== "active") return;
     const geo = geoOf(sim);
     for (const enemy of sim.enemies) {
-      if (enemy.state === "gone" || enemy.state === "settled" || enemy.kind === "cargo" || enemy.kind === "collector" || act.hit.includes(enemy.id)) continue;
+      if (enemy.state === "gone" || enemy.state === "settled" || UNFOUGHT.includes(enemy.kind) || act.hit.includes(enemy.id)) continue;
       const dx = enemy.x - p.x, dy = enemy.y - p.y, distance = Math.hypot(dx, dy);
       if (distance > T.FLARE_RANGE + enemy.r) continue;
       if (distance > enemy.r && (dx * act.fx + dy * act.fy) / distance < FLARE_COS) continue;
@@ -653,7 +817,9 @@
     } else if (p.bufferUntil >= 0 && sim.t <= p.bufferUntil && tuckLegal(sim)) { startTuck(sim, moveX, moveY, events); tucked = true; }
     if (p.bufferUntil >= 0 && sim.t > p.bufferUntil) p.bufferUntil = -1;
 
-    if (!tucked && !p.act) {
+    if (!tucked && !p.act && input.primaryPressed && sim.cage && !sim.cage.open && inCage(sim)) {
+      rattle(sim, events);
+    } else if (!tucked && !p.act) {
       const danger = encounterActive(sim);
       if (input.primaryPressed) {
         const target = danger ? null : focusTarget(sim);
@@ -678,11 +844,17 @@
     } else if (p.act?.kind !== "kindle") {
       const [nx, ny] = normalize(moveX, moveY);
       const phase = flarePhase(p.act, sim.t);
-      const factor = phase === "anticipation" || phase === "active" ? T.FLARE_MOVE_FACTOR : 1;
+      // A window lamp in the eyes: he staggers for a moment.
+      const dazzled = sim.t < p.dazzledUntil ? C.ENEMIES.runner.dazzleFactor : 1;
+      const factor = (phase === "anticipation" || phase === "active" ? T.FLARE_MOVE_FACTOR : 1) * dazzled;
       const perStep = (T.MOVE_SPEED * sim.edges.speed * factor * STEP_MS) / 1000;
       vx = nx * perStep; vy = ny * perStep;
       if ((nx || ny) && !p.act) { p.fx = nx; p.fy = ny; }
     }
+    // A conveyor carries whatever stands on it.
+    const belt = beltUnder(raw, p.x, p.y);
+    const carryX = belt ? (belt.dir * belt.speed * STEP_MS) / 1000 : 0;
+    vx += carryX;
     const [lx, ly, leashed] = applyLeash(raw, p, vx, vy);
     vx = lx; vy = ly;
     if (leashed && !p.leashed) events.push({ type: "leash" });
@@ -691,7 +863,37 @@
     if (vx || vy) [p.x, p.y] = moveCircle(geo, p.x, p.y, p.r, vx, vy);
     if (tuckDone) p.act = null;
     p.vx = p.x - beforeX; p.vy = p.y - beforeY;
-    p.moving = Math.hypot(p.vx, p.vy) > 0.05;
+    // Riding a belt is not walking: only his own steps count as moving.
+    p.moving = Math.hypot(p.vx - carryX, p.vy) > 0.05;
+    p.carried = Boolean(belt);
+
+    // Room machinery that reacts to where he is (v0.5).
+    if (raw.lampWindows) for (const win of raw.lampWindows) {
+      if (lampWindowState(win, sim.t) === "on" && p.y + p.r > win.y && p.y - p.r < win.y + win.h && sim.t >= p.dazzledUntil) {
+        p.dazzledUntil = sim.t + C.ENEMIES.runner.dazzleMs;
+        events.push({ type: "dazzled", id: win.id });
+      }
+    }
+    if (sim.gate && raw.dropGate) {
+      if (sim.gate.startAt == null && p.y < raw.dropGate.trigger) { sim.gate.startAt = sim.t; events.push({ type: "gate-start" }); }
+      if (sim.gate.startAt != null && !sim.gate.closed && sim.t - sim.gate.startAt + EPS >= raw.dropGate.closeMs) {
+        sim.gate.closed = true;
+        [p.x, p.y] = resolveCircle(geoOf(sim), p.x, p.y, p.r);
+        events.push({ type: "gate-shut", ahead: p.y < raw.dropGate.y });
+      }
+    }
+    if (raw.listens) {
+      const lit = raw.listens.some((grate, index) => listenLit(raw, index, sim.t) && pointInRect(p.x, p.y, grate));
+      if (lit && p.moving) {
+        if (sim.heard <= 0) events.push({ type: "heard" });
+        sim.heard += STEP_MS;
+        if (sim.heard + EPS >= raw.listen.hearMs) {
+          sim.phase = "down"; sim.downUntil = sim.t + T.DOWN_MS; sim.downReason = "heard"; p.act = null; sim.heard = 0;
+          events.push({ type: "caught", id: "below" }, { type: "down", reason: "heard" });
+          return events;
+        }
+      } else sim.heard = Math.max(0, sim.heard - STEP_MS * 0.5);
+    }
 
     // The player's attack lands before any enemy attack in the same step.
     resolveFlare(sim, events);
@@ -702,6 +904,8 @@
       else if (enemy.kind === "cargo") updateCargo(sim, enemy, events);
       else if (enemy.kind === "porter") updatePorter(sim, enemy, events);
       else if (enemy.kind === "collector") updateCollector(sim, enemy, events);
+      else if (enemy.kind === "runner") updateRunner(sim, enemy, events);
+      else if (enemy.kind === "guard") updateGuard(sim, enemy, events);
       if (sim.phase !== "play") break;
     }
     if (sim.phase !== "play") return events;
@@ -720,11 +924,14 @@
     return events;
   }
 
+  // A guard's look starts when he does: on arrival, not at the leg's first step.
+  function startClocks(sim) { for (const enemy of sim.enemies) if (enemy.kind === "guard") enemy.stateAt = sim.t; }
   // Death and rest both bring the leg back to a safe hearth: full Flame,
   // ordinary enemies return. Nothing durable is lost.
   function respawn(sim, { roomId, anchorId }) {
     const fresh = createSim({ roomId, anchorId, flame: T.FLAME_MAX, edges: sim.edges, assist: sim.assist, cleared: [], defeated: sim.defeated, flags: sim.flags });
     fresh.t = sim.t;
+    startClocks(fresh);
     return fresh;
   }
   function rest(sim) {
@@ -738,6 +945,7 @@
   function enterRoom(sim, { roomId, anchorId, flame }) {
     const next = createSim({ roomId, anchorId, flame: flame ?? sim.player.flame, edges: sim.edges, assist: sim.assist, cleared: sim.cleared, defeated: sim.defeated, flags: sim.flags });
     next.t = sim.t;
+    startClocks(next);
     next.player.fx = sim.player.fx; next.player.fy = sim.player.fy;
     next.player.tuckReadyAt = Math.min(sim.player.tuckReadyAt, sim.t);
     return next;
@@ -792,7 +1000,7 @@
   }
   const knownFlag = key => C.FLAGS.includes(key);
   function boolMap(raw, keep) {
-    return isObject(raw) ? Object.fromEntries(Object.entries(raw).filter(([key, value]) => keep(key) && typeof value === "boolean").slice(0, 32)) : {};
+    return isObject(raw) ? Object.fromEntries(Object.entries(raw).filter(([key, value]) => keep(key) && typeof value === "boolean").slice(0, 64)) : {};
   }
   function freshParts(pet, id, settings) {
     const start = room(C.START_ROOM);
@@ -873,7 +1081,7 @@
         chapterId: C.CHAPTER_ID
       },
       world: {
-        visitedRooms: uniqueKnown(data.world?.visitedRooms, C.knownRoom, 16),
+        visitedRooms: uniqueKnown(data.world?.visitedRooms, C.knownRoom, 48),
         openedShortcuts: uniqueKnown(data.world?.openedShortcuts, value => ID_TOKEN.test(value), 12),
         durableRoomFlags: boolMap(data.world?.durableRoomFlags, knownFlag),
         defeatedEncounters: uniqueKnown(data.world?.defeatedEncounters, C.knownEncounter, 32)
@@ -881,7 +1089,7 @@
       story: {
         facts: boolMap(data.story?.facts, knownFlag),
         choices: isObject(data.story?.choices) ? Object.fromEntries(Object.entries(data.story.choices).filter(([key, value]) => (C.CHOICES?.[key] || []).includes(value))) : {},
-        committedSceneBeats: uniqueKnown(data.story?.committedSceneBeats, value => BEAT_TOKEN.test(value), 64),
+        committedSceneBeats: uniqueKnown(data.story?.committedSceneBeats, value => BEAT_TOKEN.test(value), 128),
         resumeScene: isObject(data.story?.resumeScene) && typeof data.story.resumeScene.id === "string" && typeof data.story.resumeScene.beatId === "string" && BEAT_TOKEN.test(data.story.resumeScene.id) ? { id: data.story.resumeScene.id.slice(0, 32), beatId: data.story.resumeScene.beatId.slice(0, 32) } : null
       },
       npcs: { latch: { state: LATCH_STATES.includes(latch.state) ? latch.state : "unmet", locationAnchor: typeof latch.locationAnchor === "string" ? latch.locationAnchor.slice(0, 40) : null, evidence: uniqueKnown(latch.evidence, value => ID_TOKEN.test(value), 12) } },
@@ -889,7 +1097,7 @@
       checkpoint: { hearthId: null, roomId: null, spawnAnchorId: null },
       continuation: null,
       legProfile: { edges: normalizeEdges(data.legProfile?.edges), bondBand: ["new", "familiar", "attached"].includes(data.legProfile?.bondBand) ? data.legProfile.bondBand : "new", cues: { favoriteFoodId: typeof data.legProfile?.cues?.favoriteFoodId === "string" ? data.legProfile.cues.favoriteFoodId.slice(0, 32) : null, favoriteGameId: typeof data.legProfile?.cues?.favoriteGameId === "string" ? data.legProfile.cues.favoriteGameId.slice(0, 32) : null } },
-      journal: { discoveredEntryIds: uniqueKnown(data.journal?.discoveredEntryIds, value => ID_TOKEN.test(value), 32) },
+      journal: { discoveredEntryIds: uniqueKnown(data.journal?.discoveredEntryIds, value => ID_TOKEN.test(value), 96) },
       pendingRewards: Array.isArray(data.pendingRewards) ? data.pendingRewards.filter(item => isObject(item) && typeof item.receiptId === "string" && Array.isArray(item.entitlements)).slice(0, 4).map(item => ({ receiptId: item.receiptId.slice(0, 120), entitlements: item.entitlements.filter(id => typeof id === "string").slice(0, 4) })) : [],
       proofComplete: data.proofComplete === true,
       storyComplete: data.storyComplete === true
@@ -945,12 +1153,13 @@
     if (result.status === "unsupported") return { ...base, bestLabel: "SAVED", badge: null, journey: null };
     const below = data.world.visitedRooms.filter(id => C.ROOM_IDS.includes(id)).length;
     const rows = data.world.visitedRooms.filter(id => (C.ROWS_ROOMS || []).includes(id)).length;
+    const escape = data.world.visitedRooms.filter(id => (C.BUILDING_ROOMS || []).includes(id)).length;
     // A proof journey that walked home is complete. In the campaign edition the
     // Porter's door leads on, so the First Knot alone no longer means "home".
     const complete = data.campaign.status === "complete";
     return {
       ...base,
-      bestLabel: rows ? `ROWS ${rows}/${C.ROWS_ROOMS.length}` : complete ? "HOME" : below ? `ROOM ${below}/${C.ROOM_IDS.length}` : "OUTSIDE",
+      bestLabel: escape ? `ESCAPE ${escape}/${C.BUILDING_ROOMS.length}` : rows ? `ROWS ${rows}/${C.ROWS_ROOMS.length}` : complete ? "HOME" : below ? `ROOM ${below}/${C.ROOM_IDS.length}` : "OUTSIDE",
       badge: complete || data.proofComplete === true ? { text: "KNOT", title: complete ? "Came home from The Threshold" : "Carries Latch's First Knot" } : data.checkpoint.hearthId ? { text: "HEARTH", title: "A hearth remembers this Rizo" } : null,
       journey: { petId: data.campaign.petId, petName: data.campaign.petName, status: data.campaign.status, complete }
     };
@@ -970,6 +1179,13 @@
     distanceToSegment,
     collectorSees,
     hiddenIn,
+    lure,
+    spawnRunner,
+    lampWindowState,
+    beltItems,
+    listenLit,
+    inCage,
+    gateRect,
     createSim,
     step,
     respawn,

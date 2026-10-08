@@ -65,9 +65,9 @@
   // the live instance writes it each frame (presentation only, never saved).
   //   danger 0..1: something below is aware of him, or committing to him.
   //   home: HOME ↑ has been read, so its motif may come back (faintly) below.
-  const MOOD = { danger: 0, home: false };
+  const MOOD = { danger: 0, home: false, woken: 0 };
   // States in which something is about to happen to him.
-  const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep", "spot"]);
+  const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep", "spot", "run"]);
   // Danger is restrained: a low pulse under whatever is playing, then a tick
   // when something commits. It never becomes a different song.
   function dangerLayer(step, play) {
@@ -118,6 +118,25 @@
       belowBeat(step - HOME_MOTIF.length, play);
     }
   });
+  // ===== THE COLLECTION (v0.5): his building has its own music =====
+  // The chase: a fast low pulse and a tick, the danger layer over it.
+  const CHASE_TRACK = Object.freeze({ id: "dungeon-chase", tempo: 210, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 2 === 0) play(step % 8 === 0 ? 29 : 31, 0.2, 0.022, 0, "triangle"); if (step % 4 === 3) play(64, 0.05, 0.006, 0, "square"); if (step % 16 === 14) play(67, 0.1, 0.007, 0, "square"); dangerLayer(step, play); } });
+  // His building: a cold hum under a slow, slightly wrong two-note figure.
+  const BUILDING_TRACK = Object.freeze({ id: "dungeon-building", tempo: 760, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 8 === 0) play(35, 1.8, 0.013, 0, "sine"); if (step % 8 === 4) play(34, 1.4, 0.01, 0, "sine"); if (step % 16 === 6) play(71, 0.5, 0.005, 0, "sine"); if (step % 32 === 22) play(70, 0.6, 0.004, 0, "sine"); dangerLayer(step, play); } });
+  // The collection: a music box nobody wound. Woken jars hum HOME's notes back to him.
+  const COLLECTION_LEAD = [76, null, 79, null, 74, null, null, null, 72, null, 74, null, null, null, null, null];
+  const COLLECTION_TRACK = Object.freeze({ id: "dungeon-collection", tempo: 900, lead: COLLECTION_LEAD, bass: [null], wave: "sine",
+    beat(step, play) {
+      const note = COLLECTION_LEAD[step % 16];
+      if (note != null) play(note, 1.2, 0.007, 0, "sine");
+      if (step % 16 === 0) play(40, 3, 0.008, 0, "sine");
+      if (MOOD.woken > 0 && step % 64 >= 48) { const motif = HOME_MOTIF[step % 16]; if (motif != null) play(motif, 1.2, 0.004 * Math.min(3, MOOD.woken), 0, "triangle"); }
+    } });
+  // The vents: nothing, and now and then the duct ticks.
+  const VENTS_TRACK = Object.freeze({ id: "dungeon-vents", tempo: 1100, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 16 === 0) play(28, 2.4, 0.009, 0, "sine"); if (step % 24 === 13) play(88, 0.03, 0.003, 0, "square"); dangerLayer(step, play); } });
   const FAILED = Object.freeze({ status: "failed", rewardApplied: false, duplicateReward: false, backupSynced: false, reason: "error" });
   const L = Content.LINES;
   const isObject = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -227,7 +246,7 @@
     let qaLog = [];
     let comic = null;                 // the comic page (dungeon-comic.js), if this build has it
     // One hit per comic panel, from the Dungeon's own sounds. The fall ends in silence.
-    const COMIC_HITS = { grab: ["grab", "heart", "tap"], sack: ["cloth", "cloth", "thud"], "van-leap": ["crack", "wind", "bump"], taillights: ["brake", "door", "click"], fall: ["slip", "wind", null], "boss-hands": ["buzz", "click", "cloth", "hangup"], "boss-glass": [null, "connect", "chime"] };
+    const COMIC_HITS = { grab: ["grab", "heart", "tap"], sack: ["cloth", "cloth", "thud"], "van-leap": ["crack", "wind", "bump"], taillights: ["brake", "door", "click"], fall: ["slip", "wind", null], "boss-hands": ["buzz", "click", "cloth", "hangup"], "boss-glass": [null, "connect", "chime"], "window-opens": ["chime", "shutter", "clank"], chute: ["slide", "wind", "clank", "hangup"] };
 
     const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
     // The hub's own setting, or the device's (the hub does not pass the OS preference to modes).
@@ -312,6 +331,19 @@
         else if (kind === "relief") { a.noise?.(0.45, 0.005); a.tone?.(392, 0.5, "sine", 0.009, 0.05, -60); }
         // Nell: three warm notes, the first time she makes room for him and when she gives.
         else if (kind === "nell") { a.tone?.(523, 0.5, "triangle", 0.011); a.tone?.(659, 0.55, "triangle", 0.01, 0.24); a.tone?.(587, 0.8, "triangle", 0.009, 0.5); }
+        // v0.5: his building. Steel, wire, cold lamps, his voice in the walls.
+        else if (kind === "rattle") { for (let i = 0; i < 3; i += 1) a.tone?.(1400 + i * 120, 0.03, "square", 0.008, i * 0.05); a.noise?.(0.12, 0.012); a.haptic?.(8); }
+        else if (kind === "clank") { a.tone?.(160, 0.16, "square", 0.03, 0, -60); a.tone?.(1100, 0.08, "triangle", 0.01); a.noise?.(0.12, 0.03); a.haptic?.(25); }
+        else if (kind === "shutter") { for (let i = 0; i < 8; i += 1) a.tone?.(240 + i * 20, 0.03, "square", 0.008, i * 0.04); a.noise?.(0.35, 0.02); }
+        else if (kind === "shutter-tick") a.tone?.(320, 0.02, "square", 0.005);
+        else if (kind === "glare") { a.tone?.(2600, 0.06, "sine", 0.01, 0, -400); a.noise?.(0.06, 0.012); }
+        else if (kind === "alarm") { a.tone?.(880, 0.12, "square", 0.012); a.tone?.(660, 0.12, "square", 0.012, 0.16); a.tone?.(880, 0.12, "square", 0.012, 0.32); }
+        else if (kind === "stamp") { a.tone?.(90, 0.05, "square", 0.01, 0, -20); a.noise?.(0.04, 0.01); }
+        else if (kind === "speaker") { a.noise?.(0.18, 0.01); a.tone?.(60, 0.18, "sawtooth", 0.006); }
+        else if (kind === "wake") { a.tone?.(392, 0.3, "sine", 0.012, 0, 120); a.tone?.(523, 0.4, "triangle", 0.01, 0.2); a.tone?.(659, 0.5, "sine", 0.008, 0.4); }
+        else if (kind === "tin") { a.tone?.(1760, 0.3, "triangle", 0.014); a.tone?.(2090, 0.25, "sine", 0.008, 0.02); a.tone?.(1760, 0.2, "triangle", 0.008, 0.3); }
+        else if (kind === "belt") a.noise?.(0.25, 0.004);
+        else if (kind === "duct") a.tone?.(2200 + Math.random() * 400, 0.015, "square", 0.004);
       } catch (error) {}
     };
     const duck = (ms, level) => { try { host.audio.duck?.(ms, level); } catch (error) {} };
@@ -1403,6 +1435,8 @@
         case "queue": return exit("queue-to-porter");
         case "porter": return fact("porterDown") ? exit("porter-to-rows") : null;
         default: {
+          if (Content.isBuilding(g.id)) return buildingWay();
+          if (g.id === "windowgate" && done("rows:boundary")) return fact("windowOpen") ? exit("gate-to-hall") : { x: 206, y: 64, kind: "thing" };
           if (!Content.isRows(g.id)) return null;
           const way = ROWS_WAY[g.id]?.[rowsNext()];
           if (!way) return null;
@@ -1426,7 +1460,9 @@
       if (!fact("rowsShutter")) return at === "press" ? (!fact("rowsPressStop") ? "stopPress" : !fact("rowsBrake") ? "brake" : "shutter") : "toPress";
       if (!done("rows:wrap")) return at === "drytable" && done("rows:upper") ? "toNell" : "toStair";
       if (!done("rows:boundary")) return at === "windowgate" ? "window" : "toWindow";
-      return "window";
+      // v0.5: the card was a chapter break. The way up goes past the counter.
+      if (at !== "windowgate") return "toWindow";
+      return fact("windowOpen") ? "run" : "bell";
     }
     // Per room: which exit (or thing) the next step is through.
     const ROWS_WAY = {
@@ -1457,7 +1493,7 @@
         case "hearth": return data.checkpoint.hearthId !== "threshold-hearth" ? "hearth" : fact("shortcutOpen") ? "toQueueShort" : "toQueueBack";
         case "queue": return fact("porterDown") ? "porterDoor" : "queue";
         case "porter": return fact("porterDown") ? "porterDoor" : "porter";
-        default: return Content.isRows(id) ? rowsNext() : beatsDone("opening:below") ? "climb" : null;
+        default: return Content.isBuilding(id) ? buildingNext() : Content.isRows(id) ? rowsNext() : beatsDone("opening:below") ? "climb" : null;
       }
     }
     function objectiveNow() {
@@ -1531,6 +1567,8 @@
     // A Kindle on a warm prop: the jammed latch, or Rows work.
     function warmTarget(id) {
       if (id === "latch-jam") { rescueLatch(); return; }
+      if (id.startsWith("jar-")) { wakeJar(id); return; }
+      if (id === "grate-catch") { warmGrate(); return; }
       const handler = ROWS_WARM[id];
       if (handler) handler();
     }
@@ -1775,7 +1813,7 @@
         S.control(true),
         S.until(() => sim.player.y < 400 || sceneTime - room.enteredAt > 2500),
         S.call(() => { walk("nell", 40, 262, 2600); room.nellStage = "refuge"; }),
-        talk([{ hold: 1200 }, ...L.rowsLamp]),
+        talk([{ hold: 1200 }, ...L.rowsLamp, { hold: 300 }, ...L.rowsBellTip]),
         S.until(() => inZone("row-north")),
         S.call(() => { if (!fact("hangrowCrossed")) setFactNow("hangrowCrossed"); relief(); bark("nell", L.rowsLampPast[0], 2200); }),
         S.call(() => { nellState("walk"); walk("nell", 50, 120, 1500); }),
@@ -1949,18 +1987,279 @@
         room.enteredAt = sceneTime;
         return;
       }
+      if (fact("windowOpen")) {
+        // The window is open: Nell is holding a collector at the counter with her board.
+        nell(132, 78, { face: 1, state: "brace" });
+        npc("held", "collector", 160, 70, { face: -1, state: "spot" });
+        return;
+      }
       nell(62, 124, { face: 1, state: "sit" });
+      setTransient("bellReady", true);
+    }
+    // ---- After the card: the bell on the counter calls the window. It opens on a collector.
+    function ringBell() {
+      if (fact("windowOpen") || scene) return;
+      setTransient("bellReady", false);
+      runScene("window:open", [
+        S.call(() => { sound("chime"); setPose("approach-stop", 900); if (npcs.has("nell")) bark("nell", L.rowsOrThat[0], 1800); }),
+        S.wait(1500),
+        S.call(() => { sound("shutter"); room.shake = sceneTime; }),
+        S.wait(450),
+        S.comic("window-opens"),
+        S.call(() => {
+          setRoomFlag("windowOpen");
+          npc("held", "collector", 160, 70, { face: -1, state: "spot" });
+          if (npcs.has("nell")) { walk("nell", 132, 78, 500); nellState("brace"); }
+          sound("door"); room.shake = sceneTime;
+          flameMood("fear", 2200);
+          setPose("tremble", 600);
+        })
+      ]);
     }
     function boundary() {
       if (!done("rows:boundary")) commitBeat("rows:boundary");
+      setTransient("bellReady", true);
       openPanel("boundary", card({
         kicker: "MENDING ROWS",
         title: "WINDOW HALL IS NEXT",
         body: esc("The window says BACK SOON. Nell sits down to wait, and leaves him the dry end of the bench. Somebody behind that counter is going to open it."),
         actions: `<button type="button" class="primary" data-dungeon-action="stay">STAY A WHILE</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
-        fine: esc("End of what's built so far. The journey is saved here, and picks up at this window when the next part opens.")
+        fine: esc("Mending Rows is done, and saved here. When he's ready, the bell on the counter calls the window.")
       }));
     }
+
+    // ===== CHAPTER 3 — THE COLLECTION (story spine v0.5) =====
+    // The window opens on a collector. A chase, a cage, a room of jars, the
+    // vents, the factory floor: each room a different kind of nerve, and The
+    // Boss closer in each (a radio, a speaker, through a grate, every wall).
+    const woken = () => Content.ROOMS.collection.jars.filter(item => fact(item.flag)).length;
+    function buildingNext() {
+      switch (sim?.roomId) {
+        case "longhall": return "chase";
+        case "intake": return sim.cage && !sim.cage.open ? "cage" : "sneak";
+        case "collection": return fact("ventGrate") ? "promise" : woken() >= 3 ? "grate" : transient.grateTried ? "jars" : "findOut";
+        case "vents": return room.listenDone ? "hatch" : inZone("vent-listen-in") || room.listenSeen ? "listen" : "vents";
+        case "factory": return done("esc:boundary") ? "promise" : "factory";
+        default: return null;
+      }
+    }
+    function buildingWay() {
+      const g = geo(), key = buildingNext(), p = sim.player;
+      const exit = id => { const e = (g.exits || []).find(item => item.id === id); return e ? { x: e.x + e.w / 2, y: e.y + e.h / 2, kind: "air" } : null; };
+      if (g.id === "intake") return key === "sneak" ? exit("intake-to-collection") : null;
+      if (g.id === "collection") {
+        if (key === "promise") return exit("coll-to-vents");
+        if (key === "jars") { const next = g.jars.filter(item => !fact(item.flag)).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0]; return next ? { x: next.x, y: next.y - 8, kind: "thing" } : null; }
+        return { x: 270, y: 32, kind: "thing" };
+      }
+      if (g.id === "vents") return exit("vents-to-factory");
+      if (g.id === "factory") return { x: 160, y: 690, kind: "air" };
+      return null;
+    }
+
+    // ---- The Long Hall: the chase. It came through the staff door after him.
+    function longhallEnter() {
+      room.hallAt = sceneTime;
+      room.windows = {};
+      sound("clunk"); room.shake = sceneTime;
+      // It comes through the door behind him: later the first time, so he can see where he is.
+      const first = !done("hall:started");
+      if (first) commitBeat("hall:started");
+      // Once he has made it under the night gate, a catch starts him there: the gate
+      // is already down behind him and it comes round by the side door again.
+      const gate = geo().dropGate, atGate = sim.player.y < gate.y;
+      if (atGate) { room.gatePassed = true; sim.gate.startAt = sim.t - gate.closeMs; sim.gate.closed = true; }
+      const from = atGate ? gate.detour : { x: -18, y: 1060 };
+      Core.spawnRunner(sim, { id: "runner", x: from.x, y: from.y, startGapMs: Content.ENEMIES.runner.startGapMs + (first || atGate ? 900 : 200) });
+      npc("radio", "none", from.x, from.y, { barkLift: 74 });
+      flameMood("fear", 1600);
+      setPose("look-back", 700);
+    }
+    function longhallTick() {
+      const runner = sim.enemies.find(enemy => enemy.kind === "runner");
+      const radio = npcs.get("radio");
+      if (runner && radio) { radio.x = runner.x; radio.y = runner.y; }
+      // The windows near him rattle before their lamps come on.
+      for (const win of geo().lampWindows || []) {
+        const state = Core.lampWindowState(win, sim.t), was = room.windows[win.id];
+        room.windows[win.id] = state;
+        if (state === was || Math.abs(win.y - sim.player.y) > 220) continue;
+        if (state === "tell") sound("shutter-tick"); else if (state === "on") sound("glare");
+      }
+      if (inZone("chute") && room.chuteAt == null && sim.phase === "play") reachChute();
+    }
+    // RETURNS: he dives through the flap to get away from it. It is the Boss's own chute.
+    function reachChute() {
+      room.chuteAt = sceneTime;
+      sim.enemies = sim.enemies.filter(enemy => enemy.kind !== "runner");
+      runScene("hall:chute", [
+        S.call(() => { sound("slide"); }),
+        S.comic("chute"),
+        S.call(() => { setFactNow("hallEscaped"); goToRoom("intake", "intake-cage", { context: "chute" }); })
+      ]);
+    }
+
+    // ---- Intake: the cage. The hoods are on tagging duty for losing him.
+    function intakeEnter() {
+      const guard = sim.enemies.find(enemy => enemy.kind === "guard");
+      if (guard) npc("hood-small", "hood-small", guard.x, guard.y, { face: -1, barkLift: 80, state: "phone-dropped" });
+      npc("hood-cap", "hood-cap", 262, 88, { face: 1 });
+      npc("boss", "none", 104, 26, { barkLift: 4 });
+      room.awayLine = 0; room.noticed = 0;
+      if (done("intake:arrived")) return;
+      npc("hood-tall", "hood-tall", 140, 96, { face: -1 });
+      const memory = [...(fact("callerConnected") ? L.intakePhone : L.intakeDitch), ...(choice("rows-wrap") === "worn" ? L.intakeCoat : [])];
+      runScene("intake:arrived", [
+        S.control(true),
+        talk([{ hold: 700 }, ...L.intakeSeen, ...memory]),
+        S.call(() => { room.speakerOn = true; sound("speaker"); }),
+        talk(L.intakeBoss.slice(0, 4)),
+        S.call(() => { room.speakerOn = false; sound("hangup"); }),
+        talk([L.intakeBoss[4], { hold: 300 }, ...L.intakeTags]),
+        S.call(() => { leave("hood-tall", 278, 24, 1600); commitBeat("intake:arrived"); })
+      ], { control: true });
+    }
+    function intakeTick() {
+      const guard = sim.enemies.find(enemy => enemy.kind === "guard");
+      const actor = npcs.get("hood-small");
+      if (!guard || !actor) return;
+      // While the hoods talk he watches the crate; his look starts after.
+      if (scene?.id === "intake:arrived") { guard.state = "watch"; guard.stateAt = sim.t; guard.extra = 0; }
+      const watching = guard.state === "watch";
+      actor.face = watching ? -1 : 1;
+      actor.state = watching ? "phone-dropped" : "phone";
+      if (sceneTime - (room.stampAt || 0) > 2600) { room.stampAt = sceneTime; sound("stamp"); }
+      room.hidden = !sim.cage?.open || Core.inCage(sim) ? false : Core.hiddenIn(sim);
+    }
+
+    // ---- The collection: quiet. What he finds says it.
+    function collectionEnter() {
+      if (!fact("intakeOut")) setFactNow("intakeOut");
+      MOOD.woken = woken();
+      for (const item of geo().jars) npc(item.id, "none", item.x, item.y, { barkLift: 24 });
+      if (done("coll:in")) return;
+      // Through the door behind him, muffled: the small one lies to save his own neck.
+      npc("hood-tall", "none", 12, 506, { barkLift: 24 });
+      npc("hood-small", "none", 12, 530, { barkLift: 24 });
+      runScene("coll:in", [
+        S.control(true),
+        talk([{ hold: 500 }, ...L.intakeLie.map(line => ({ ...line, quiet: true }))]),
+        S.call(() => { commitBeat("coll:in"); setPose("approach-stop", 1100); }),
+        S.say(L.collectionIn, 2600)
+      ], { control: true });
+    }
+    function wakeJar(id) {
+      const item = geo().jars.find(jar => jar.id === id);
+      if (!item) return;
+      setRoomFlag(item.flag);
+      MOOD.woken = woken();
+      sound("wake");
+      view.addEffect("glint", item.x, item.y - 12, 1);
+      flameMood("warm", 1600);
+      setPose("settle", 900);
+      bark(id, item.tag, 3600);
+    }
+    function warmGrate() {
+      if (woken() < 3) { setTransient("grateTried", true); sound("curious"); openDialogue(L.jarsTooCold); return; }
+      sound("clunk"); room.shake = sceneTime;
+      setRoomFlag("ventGrate");
+      runScene("coll:promise", [
+        S.say(L.jarsWarmEnough, 1600),
+        S.call(() => { faceToward(160, 300); setPose("look-back", 1600); flameMood("warm", 2400); sound("rest"); }),
+        S.wait(900),
+        S.say(L.promise, 2400),
+        S.call(() => { setFactNow("promised"); commitBeat("coll:promise"); })
+      ]);
+    }
+
+    // ---- The vents: three grates over his rooms, three over a guard post.
+    function ventsEnter(context) {
+      room.ventView = null;
+      // Heard over the guard post, he goes back only to the start of that duct.
+      if (context === "respawn" && sim.player.y < 400) room.listenSeen = true;
+    }
+    const VENT_LINES = { office: "ventOffice", lab: "ventLab", scale: "ventScale" };
+    function ventsTick(dt) {
+      const p = sim.player, g = geo();
+      // Still on a grate a moment, the room below shows; his office shows the moment he is over it.
+      const grate = (g.grates || []).find(item => p.x >= item.x && p.x <= item.x + item.w && p.y >= item.y && p.y <= item.y + item.h);
+      if (!grate) { if (room.ventView) room.ventView = null; }
+      else if (!room.ventView || room.ventView.kind !== grate.view) {
+        if (grate.view === "office" || stillFor >= 450) {
+          room.ventView = { kind: grate.view, at: sceneTime };
+          sound("speaker");
+          if (!room.heardView?.[grate.view]) {
+            room.heardView = { ...(room.heardView || {}), [grate.view]: true };
+            const w = 172, x = Math.max(6, Math.min(g.w - w - 6, grate.x + grate.w / 2 - w / 2)) + w / 2, y = grate.y < 140 ? grate.y + grate.h + 60 : grate.y - 60;
+            const lines = L[VENT_LINES[grate.view]];
+            if (typeof lines[0] === "string") { npc("view", "none", x, y, { barkLift: 0 }); bark("view", lines[0], 4200); }
+            else { for (const id of new Set(lines.map(line => line.speaker))) npc(id, "none", x, y, { barkLift: 0 }); runScene(`vents:${grate.view}`, [S.control(true), talk(lines)], { control: true }); }
+          }
+        }
+      }
+      if (!room.listenSeen && inZone("vent-listen-in")) room.listenSeen = true;
+      if (room.listenSeen && !room.listenDone && p.x < 240 && p.y < 104) room.listenDone = true;
+      if (p.moving && sceneTime - (room.ductAt || 0) > 340) { room.ductAt = sceneTime; sound("duct"); }
+      void dt;
+    }
+
+    // ---- The factory floor: belts, lamps on the walkways, and the door.
+    function factoryEnter(context) {
+      if (!fact("ventsOut")) setFactNow("ventsOut");
+      npc("boss", "none", 160, 36, { barkLift: 0 });
+      if (done("esc:pa") || context === "respawn") return;
+      runScene("esc:pa", [
+        S.control(true),
+        S.call(() => { sound("speaker"); room.speakerOn = true; }),
+        talk([{ hold: 600 }, ...L.factoryPA]),
+        S.call(() => { room.speakerOn = false; commitBeat("esc:pa"); })
+      ], { control: true });
+    }
+    function factoryTick() {
+      room.hidden = Core.hiddenIn(sim);
+      if (sim.player.carried && sceneTime - (room.beltAt || 0) > 600) { room.beltAt = sceneTime; sound("belt"); }
+      if (inZone("fac-door") && !done("esc:boundary") && room.doorAt == null && sim.phase === "play") reachDoor();
+    }
+    function reachDoor() {
+      room.doorAt = sceneTime;
+      runScene("esc:door", [
+        S.call(() => { setPose("settle", 1400); sound("rain-muffled"); }),
+        S.say(L.factoryDoor, 2600),
+        S.call(() => escapeBoundary())
+      ]);
+    }
+    function escapeBoundary() {
+      const outcome = commitData(next => {
+        next.story.facts.factoryOut = true;
+        addBeat(next, "esc:boundary");
+        setContinuation(next, "factory", "fac-door", Core.T.FLAME_MAX, "room-entry");
+      });
+      if (outcome.status === "failed") renderSaveFailedPanel("moment");
+      openPanel("boundary", card({
+        kicker: "THE COLLECTION",
+        title: "THE NIGHT IS NEXT",
+        body: esc("Under the loading door, the rain. Behind him, a building full of small lights, and a jar with his name on it. He got out alone. He'll come back for them. First, home."),
+        actions: `<button type="button" class="primary" data-dungeon-action="stay">STAY A WHILE</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
+        fine: esc("End of what's built so far. The journey is saved here, at the loading door.")
+      }));
+    }
+    // Where a catch in his building sends him: the start of the same trial, never back to the Rows.
+    function buildingRetry(reason) {
+      switch (sim.roomId) {
+        case "longhall": return room.gatePassed ? { roomId: "longhall", anchorId: "hall-gate", banner: L.caughtGate } : { roomId: "longhall", anchorId: "hall-entry", banner: L.caughtHall };
+        case "intake": return { roomId: "intake", anchorId: "intake-cage", banner: L.putBack };
+        case "vents": return { roomId: "vents", anchorId: room.listenSeen ? "vent-listen" : "vent-start", banner: L.caughtVents };
+        case "factory": return { roomId: "factory", anchorId: "fac-top", banner: L.caughtFactory };
+        default: return null;
+      }
+    }
+    const BUILDING_LOGIC = {
+      longhall: { music: () => CHASE_TRACK, enter: longhallEnter, tick: longhallTick },
+      intake: { music: () => BUILDING_TRACK, enter: intakeEnter, tick: intakeTick },
+      collection: { music: () => COLLECTION_TRACK, enter: collectionEnter },
+      vents: { music: () => VENTS_TRACK, enter: ventsEnter, tick: ventsTick },
+      factory: { music: () => BUILDING_TRACK, enter: factoryEnter, tick: factoryTick }
+    };
 
     const ROWS_LOGIC = {
       receiving: { music: () => ROWS_TRACK, enter: receivingEnter, tick() { if (!room.near && inZone("receiving-near")) room.near = true; } },
@@ -1975,6 +2274,9 @@
         tick() {
           const lamp = sim.enemies.find(enemy => enemy.id === "row-collector");
           if (lamp?.state === "spot" && !room.drySaid && npcs.has("nell")) { room.drySaid = true; bark("nell", L.rowsLamp[0], 1600); }
+          // The voice on his radio walks with him.
+          const radio = npcs.get("radio");
+          if (radio && lamp) { radio.x = lamp.x; radio.y = lamp.y; }
         }
       },
       lowrun: { music: () => ROWS_TRACK, enter() { if (!done("rows:eyelet")) setPose("look-back", 900); } },
@@ -1987,7 +2289,12 @@
         music: () => ROWS_TRACK,
         enter: windowgateEnter,
         // The first time he drifts toward the rest of the hall, she keeps him close. Kindly.
-        tick() { if (!room.farSaid && npcs.has("nell") && sim.player.x > 248 && (room.latchGone || done("rows:boundary"))) { room.farSaid = true; bark("nell", L.rowsStayNear[0], 2600); } }
+        tick() {
+          if (fact("windowOpen")) return;
+          if (!room.farSaid && npcs.has("nell") && sim.player.x > 248 && (room.latchGone || done("rows:boundary"))) { room.farSaid = true; bark("nell", L.rowsStayNear[0], 2600); }
+          // Near the bell, after the card: she would rather wait her turn.
+          if (!room.orderSaid && done("rows:boundary") && npcs.has("nell") && Math.hypot(sim.player.x - 206, sim.player.y - 70) < 40) { room.orderSaid = true; bark("nell", L.rowsBellOffer[0], 2200); }
+        }
       }
     };
 
@@ -2315,7 +2622,7 @@
         }
       }
     };
-    Object.assign(ROOM_LOGIC, ROWS_LOGIC);
+    Object.assign(ROOM_LOGIC, ROWS_LOGIC, BUILDING_LOGIC);
     // ---- The van's staging. Accepted lines stay word-for-word; the missed
     // check-in is now an authored connective beat that makes Boss pressure causal.
     // A line can be given more time on screen or said quietly.
@@ -2445,6 +2752,15 @@
       // HOME ↑, found by his own light: only now does a new motif enter, and the music below returns.
       if (id === "home-sign" && first) { room.motifAt = sceneTime; MOOD.home = true; setMusic(HOME_TRACK); }
       if (kind === "npc") return talkToLatch();
+      // v0.5: bells. Nell's tin bell sends the lamp to look; the counter bell calls the window.
+      if (kind === "bell") {
+        if (id === "counter-bell") return ringBell();
+        if (sceneTime - (room.bellAt ?? -1e9) < 2500) return;
+        room.bellAt = sceneTime; sound("tin"); view.addEffect("glint", prop.x, prop.y - 10, 1);
+        if (prop.lure) handleEvents(Core.lure(sim, prop.lure.x, prop.lure.y));
+        return;
+      }
+      if (id === "name-jar") { openDialogue([prop.lines[0], prop.lines[1].replace("{name}", petCallName().toUpperCase())]); return; }
       if (kind === "bowl") return coldBowl();
       if (kind === "lever") return pullLever();
       if (id === "bowl-road") setPose("approach-stop", 1100);
@@ -2657,6 +2973,31 @@
           case "spotted": sound("notice"); flameMood("fear", 1400); if (!poseOverride && !scene?.waiting) setPose("tremble", 900); break;
           case "lost": sound("curious"); break;
           case "caught": sound("hurt"); room.shake = sceneTime; room.caughtAt = sceneTime; break;
+          // v0.5: his building.
+          case "dazzled": sound("glare"); setPose("tremble", 450); break;
+          case "gate-start": sound("alarm"); break;
+          case "gate-shut":
+            sound("clank"); room.shake = sceneTime;
+            // Under it in time: that much of the hall is his now (a reload or a catch starts here).
+            if (event.ahead && !room.gatePassed) { room.gatePassed = true; commitData(next => setContinuation(next, "longhall", "hall-gate", Core.T.FLAME_MAX, "room-entry")); }
+            break;
+          case "runner-in": room.westDoorAt = sceneTime; sound("door"); if (!room.radioSaid) { room.radioSaid = true; bark("radio", L.hallRadio[0], 2200); } break;
+          case "runner-blocked": sound("clank"); bark("radio", L.hallGate[0], 2000); relief(); break;
+          case "runner-round": room.sideDoorAt = sceneTime; sound("door"); break;
+          case "loosened": sound("rattle"); room.rattleAt = sceneTime; view.addEffect("spark", 94, 136, 2); break;
+          case "noticed": {
+            sound("rattle"); room.rattleAt = sceneTime;
+            const actor = npcs.get("hood-small");
+            if (actor) actor.flinchUntil = sceneTime + 500;
+            bark("hood-small", L.guardNoticed[(room.noticed = (room.noticed || 0) + 1) % 2], 2000);
+            break;
+          }
+          case "cage-open": sound("clank"); setTransient("cageOpen", true); room.shake = sceneTime; relief(); break;
+          case "guard-away": if (Math.random() < 0.7 && !scene) bark("hood-small", L.guardAway[(room.awayLine = (room.awayLine || 0) + 1) % L.guardAway.length], 2600); break;
+          case "guard-tell": { const actor = npcs.get("hood-small"); if (actor) actor.flinchUntil = sceneTime + 450; bark("hood-small", L.guardTell[0], 900); sound("curious"); break; }
+          case "seen": sound("notice"); bark("hood-small", L.guardPutBack[0], 2400); break;
+          case "heard": { const grate = (geo().listens || []).find(item => sim.player.y >= item.y - 4 && sim.player.y <= item.y + item.h + 4); npc("below", "none", grate ? grate.x + grate.w / 2 : sim.player.x, (grate ? grate.y : sim.player.y) + 30, { barkLift: 0 }); bark("below", L.ventHeard[0], 900); sound("notice"); break; }
+          case "lured": if (!room.lureSaid && sim.roomId === "hangrow") { room.lureSaid = true; const lamp = sim.enemies.find(enemy => enemy.id === event.id); if (lamp) { npc("radio", "none", lamp.x, lamp.y, { barkLift: 74 }); room.radioFollow = lamp.id; } bark("radio", L.rowsBellRadio[0], 2600); } break;
           case "porter-half": porterHelp(); break;
           case "porter-down": sound("calmed"); porterDown(); break;
           case "kindle-start": sound("kindle"); break;
@@ -2744,6 +3085,26 @@
     }
     function respawnAfterDown() {
       const caught = sim.downReason === "caught";
+      // In his building a catch starts the same trial again, right there.
+      const local = buildingRetry(sim.downReason);
+      if (local) {
+        const loose = sim.cage?.open ? 2 : 0;
+        // Put back means the crate is shut again: the open door was only this attempt's.
+        if (transient.cageOpen) setTransient("cageOpen", false);
+        sim = Core.respawn(sim, { roomId: local.roomId, anchorId: local.anchorId });
+        sim.flags = simFlags();
+        deaths += 1;
+        enterSim(local.roomId, local.anchorId, Core.T.FLAME_MAX);
+        // Put back in the crate, he keeps a little of what he loosened.
+        if (sim.cage) sim.cage.loose = loose;
+        input.clear("respawn");
+        pending = { primary: false, secondary: false };
+        const outcome = commitData(next => setContinuation(next, local.roomId, local.anchorId, Core.T.FLAME_MAX, "respawn"));
+        onEnterRoom(local.roomId, "respawn");
+        showBanner(local.banner);
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
+        return;
+      }
       const target = Core.safeReturn(data);
       sim = Core.respawn(sim, { roomId: target.roomId, anchorId: target.anchorId });
       sim.flags = simFlags();
@@ -2935,7 +3296,8 @@
       // The highlighted thing Primary would use, and the key label that says so.
       // While a thought is up nothing else speaks over it, not even a prompt.
       view.showPrompt(target, target ? `◆ ${target.prompt}` : null);
-      view.setActionLabel(target ? target.prompt : ui === "dialogue" ? "NEXT" : ui === "choice" ? "PICK" : g.world ? "FLAME" : "FLARE");
+      const rattle = ui === "play" && sim.cage && !sim.cage.open && Core.inCage(sim);
+      view.setActionLabel(target ? target.prompt : ui === "dialogue" ? "NEXT" : ui === "choice" ? "PICK" : rattle ? "RATTLE" : g.world ? "FLAME" : "FLARE");
       bannerTick(time);
       view.setObjective(objectiveNow(), objectiveShown());
       // Control hints are physical and brief: keys wake, nothing explains.
@@ -2968,12 +3330,14 @@
       if (housed) return card({ kicker: "JOURNEY SAVED", title: `${data.campaign.petName} IS IN THE HOUSE`, body: `This journey belongs to ${name}. Make ${name} your active Rizo from the House to continue it.`, actions: `<button type="button" class="primary" data-dungeon-action="leave">GO HOME</button>` });
       return card({ kicker: "JOURNEY SAVED", title: `${data.campaign.petName}'S JOURNEY`, body: `This journey belongs to ${name}, who isn't with you any more. It stays saved here and can't move to another Rizo.`, actions: `<button type="button" class="primary" data-dungeon-action="leave">GO HOME</button>` });
     }
+    // Rooms beyond the Porter's door: the Rows, and (v0.5) his building.
+    const pastPorter = id => Content.isRows(id) || Content.isBuilding(id);
     // Where a saved journey resumes. Opening rooms restart their own scene.
     function resumeJourney(fromMigration) {
       let cont = data.continuation;
       // A proof save parked at the Porter's homecoming (or one that came home and
       // chose to go on) picks up in the Porter's room, where the door is open.
-      if (data.proofComplete && (data.campaign.status === "homecoming-ready" || data.campaign.status === "complete") && !Content.isRows(cont.roomId)) cont = { roomId: "porter", safeAnchorId: "porter-entry", roomEntryFlame: Core.T.FLAME_MAX };
+      if (data.proofComplete && (data.campaign.status === "homecoming-ready" || data.campaign.status === "complete") && !pastPorter(cont.roomId)) cont = { roomId: "porter", safeAnchorId: "porter-entry", roomEntryFlame: Core.T.FLAME_MAX };
       const opening = Content.isOpening(cont.roomId);
       // Opening rooms resume at the last committed beat's own start: nothing
       // committed replays, and nobody resumes in a room that no longer exists.
@@ -3041,7 +3405,7 @@
         settings = { ...settings, ...data.settings };
         const problem = bindingProblem();
         if (problem) { sim = Core.createSim({ roomId: "slip" }); ui = "blocked"; view.setShell("locked"); view.panel(problem); }
-        else if (data.proofComplete && data.campaign.status === "complete" && !Content.isRows(data.continuation.roomId)) {
+        else if (data.proofComplete && data.campaign.status === "complete" && !pastPorter(data.continuation.roomId)) {
           // The homecoming stays true. The campaign edition opens the Porter's door, so it can go on from there.
           retryPendingRewards();
           sim = Core.createSim({ roomId: "slip" });
@@ -3189,6 +3553,7 @@
         sceneTime, silent: sceneTime < silentUntil, fade: sceneFade.value, impactAt: room.impactAt ?? null,
         music: musicId, transient: { ...transient }, comic: comic?.playing() || null, objective: view?.el.objective && !view.el.objective.hidden ? view.el.objective.textContent.replace("▲", "").trim() : null, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
         opening: openingQA(),
+        escape: sim && Content.isBuilding(sim.roomId) ? { cage: sim.cage ? { ...sim.cage } : null, gate: sim.gate ? { ...sim.gate } : null, heard: sim.heard, ventView: room.ventView?.kind || null, hidden: Boolean(room.hidden), dazzled: sim.t < (sim.player.dazzledUntil ?? -1), runner: (({ x, y, state } = {}) => (state ? { x, y, state } : null))(sim.enemies.find(enemy => enemy.kind === "runner")), guard: (({ state } = {}) => state || null)(sim.enemies.find(enemy => enemy.kind === "guard")), woken: woken(), listenSeen: Boolean(room.listenSeen), listenDone: Boolean(room.listenDone) } : null,
         log: [...qaLog]
       }),
       qaTeleport(x, y) { if (!sim) return false; sim.player.x = x; sim.player.y = y; prev = { x, y }; return true; },
@@ -3209,7 +3574,8 @@
         return all;
       },
       // Skips to a room as if walked there (QA only). Flags may be set first.
-      qaGoto(roomId, anchorId, setFlags = {}) {
+      // `withBeats` (QA only) commits story beats first, as if those scenes had played.
+      qaGoto(roomId, anchorId, setFlags = {}, withBeats = []) {
         if (!host.debug || !Content.ROOMS[roomId]) return false;
         scene = null; dialogueState = null; choiceState = null; view.dialogue(null); view.choice(null);
         if (ui !== "blocked") ui = "play";
@@ -3220,6 +3586,7 @@
             if (Content.ROOM_FLAGS.includes(key)) next.world.durableRoomFlags[key] = value; else next.story.facts[key] = value;
           }
           if (!Content.isOpening(roomId)) addBeat(next, "opening:below");
+          for (const beat of withBeats || []) addBeat(next, beat);
         });
         goToRoom(roomId, anchorId || Content.ROOMS[roomId].entryAnchor, { context: "walk" });
         return true;
@@ -3293,7 +3660,7 @@
       dungeonStateForQA: () => (live ? live.qaState() : null),
       dungeonTeleportForQA: (x, y) => need().qaTeleport(x, y),
       dungeonAdvanceForQA: (ms, input) => need().qaAdvance(ms, input),
-      dungeonGotoForQA: (roomId, anchorId, flags) => need().qaGoto(roomId, anchorId, flags),
+      dungeonGotoForQA: (roomId, anchorId, flags, beats) => need().qaGoto(roomId, anchorId, flags, beats),
       dungeonSkipSceneForQA: () => need().qaSkipScene(),
       dungeonSceneTimeForQA: ms => need().qaSceneTime(ms),
       dungeonStillForQA: ms => need().qaStill(ms),

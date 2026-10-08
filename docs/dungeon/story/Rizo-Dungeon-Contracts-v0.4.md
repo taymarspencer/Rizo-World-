@@ -67,3 +67,24 @@ New durable flags (allowlisted in `FLAGS`; room flags also in `ROOM_FLAGS`):
 New beats (free-form, no schema change): `comic:<id>`, `boss:phone`, `objective:<key>` are presentation and are **not** persisted unless listed above; `comic:<id>` is.
 
 No new rooms in the live flow. The late-game kit's greybox rooms live in its own table (`modes/dungeon/kit/`), are never in `BUILT_ROOMS`, never saved, and never loaded by `index.html`.
+
+## 7. Chapter 3, The Collection (v0.5)
+
+Same revision (`threshold-v4`): rooms and facts only added. `Content.BUILDING_ROOMS = ["longhall", "intake", "collection", "vents", "factory"]`, theme `building` (cold tile, steel, his mark) and `vents`.
+
+| Rule (core) | Data | Events |
+|---|---|---|
+| **Runner** (`kind: "runner"`, `Core.spawnRunner`) follows his crumbs a little slower than he runs; inside `catchRadius` he is caught (`downReason: "caught"`). A shut gate between them sends it round by a side door (`detourMs`). | `ENEMIES.runner` | `runner-in`, `runner-blocked`, `runner-round`, `caught` |
+| **Window lamps** (`room.lampWindows`): off → tell → on, pure time (`Core.lampWindowState`). In an "on" band he is dazzled (`dazzleMs`, `dazzleFactor`). | `longhall.lampWindows` | `dazzled` |
+| **Drop gate** (`room.dropGate`): starts down when he crosses `trigger`, a wall `closeMs` later (`Core.gateRect`). | `longhall.dropGate` | `gate-start`, `gate-shut {ahead}` |
+| **Cage + guard** (`room.cage`, `kind: "guard"`): Primary inside the cage rattles (never Flares). Away → +1 notch; watching → −2 and he looks `noticedMs` longer. `notches` opens it (`sim.flags.cageOpen`, transient). Out of the cage, moving while he watches (after `graceMs`) and not hidden → `downReason: "put-back"`. | `ENEMIES.guard` | `loosened`, `noticed`, `cage-open`, `guard-away/tell/back`, `seen` |
+| **Belts** (`room.belts`): carry whoever stands on them (`player.carried`; riding is not `moving`). `Core.beltItems` places crates (cover) and jar trays (no cover). | `factory.belts` | — |
+| **Watchers**: collectors with `look`, `sweep`, `sweepMs`, `range` keep their lamp on the floor below their walkway and never step off it. | `factory.encounters` | as collectors |
+| **Listening grates** (`room.listens`, `room.listen`): one lit at a time, walking from `listens[0]`; moving on a lit grate fills `sim.heard`; at `hearMs` → `downReason: "heard"`. | `vents` | `heard`, `caught` |
+| **Lure** (`Core.lure(sim, x, y)`): collectors not already on him walk over to a sound and look at it `lureStayMs`. | `hangrow` `row-bell` (`kind: "bell"`, `lure`) | `lured`, `resume` |
+
+Mode: a catch in a building room restarts that trial in place (`buildingRetry`): hall door, the crate (two notches kept), the start of the listening duct, the vent landing. Never back to the Rows. Comics `window-opens` and `chute` (committed once). Chapter card at the loading door (`esc:boundary`), continuation `factory/fac-door`. New beats: `hall:started`, `intake:arrived`, `coll:in`, `coll:promise`, `esc:pa`, `esc:boundary`. New facts/room flags: `windowOpen`, `hallEscaped`, `intakeOut`, `jarMoth…jarOld`, `ventGrate`, `ventsOut`, `factoryOut`, `promised`.
+
+Save bounds widened (a whole journey no longer fits the old ones): visited rooms 48, beats 128, journal 96, flags 64 per map. Shelf label `ESCAPE n/5`. A journey past the Porter resumes in place in the Rows **or** the building.
+
+View: a `.dungeon-front` canvas above the DOM Rizo draws what stands in front of him (cage bars, the crate he is pressed behind). `Scenery.bodies()` lets belt goods sort by depth with everyone else.

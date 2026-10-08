@@ -124,7 +124,15 @@
       // on his back, a cold lamp on a pole. No face. They are never fought.
       id: "collector", name: "Collector", role: "the Boss's hunter below: walks a patrol with a cold lamp; seen for a second, Rizo is caught", shell: "locked", units: Art.RULES.scale.collector, enemy: true,
       world: (ctx, x, y, o) => Art.collector(ctx, x, y, o),
-      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }]
+      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { state: "run", bob: 2 } }]
+    },
+    {
+      // v0.5: the Boss's people in white coats, heard through a vent grate. Their
+      // portrait is a coat, a pen and a clipboard: never a face. In the world,
+      // what they measure: a bell jar with a small light holding still in it.
+      id: "coat", name: "White coats (and the jars)", role: "heard through a grate in the vents: 'Holding at four.' In the world, the collection's bell jars, asleep or woken by his warmth", shell: "locked", units: 34, portraits: "coat", facing: false,
+      world: (ctx, x, y, o) => Art.jar(ctx, x, y, { size: 1.8, t: 0, awake: o.state === "awake", tag: true }),
+      states: [{ id: "a jar, asleep", o: {} }, { id: "a jar, woken", o: { state: "awake" } }]
     },
     {
       // The Boss is never drawn in the world before the finale. Here: his

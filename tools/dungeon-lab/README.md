@@ -79,7 +79,8 @@ python3 tools/dungeon-lab/capture.py --out /tmp/lab --format png
 - **YOU (Keeper)**: standing, walking. **YOU in the car**: idle, reach, keys, turn, look, look-back, reach-up.
 - **The van crew, seated** (where they sit in the van; fixed facings): idle, talking (small, driver), quiet, filming, freeze (the phone), stare (the capped one points).
 - **Draftling, Needle**: their idle, telegraph, attack, recover and hit states.
-- **Collector** (v0.4, the Boss's hunter below): patrol, walking, spot (lamp up), search (lamp swinging). Never fought.
+- **Collector** (v0.4, the Boss's hunter below): patrol, walking, spot (lamp up), search (lamp swinging), run (v0.5: the Long Hall chase). Never fought.
+- **White coats and the jars** (v0.5): a bell jar asleep, and woken by his warmth.
 - **The Boss**: only his calling card and his mark at world scale. He is never drawn in the world before the finale; comics show his hands, cufflinks, tie and silhouette.
 - **Portraits**:
   - YOU: neutral;
@@ -89,6 +90,7 @@ python3 tools/dungeon-lab/capture.py --out /tmp/lab --format png
   - tall hood, small hood, driver: neutral, scared;
   - capped hood: neutral (his face, finally);
   - The Boss: calm, cold — his caller ID, the mark on a dark phone screen. No face.
+  - White coat (v0.5): a coat, a pen and a clipboard with his mark; the head is out of frame.
 
 ## Limits
 
