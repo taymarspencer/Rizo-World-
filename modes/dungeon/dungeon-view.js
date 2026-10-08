@@ -345,7 +345,7 @@
         Art.cooler(ctx, cx, cy, { wobble: enemy.state === "windup" && !reducedMotion ? Math.sin(sim.t / 40) * 1.2 : 0 });
       } else if (enemy.kind === "collector") {
         const walking = enemy.state === "patrol" && sim.t >= (enemy.pauseUntil || 0);
-        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state, bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t });
+        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: geo.id === "factory" && walking ? "watch-down" : enemy.state, bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t });
       } else if (enemy.kind === "runner") {
         // On his trail: not drawn until it is through the door, or while it goes round.
         if (enemy.state === "waiting" || enemy.state === "detour") return;
