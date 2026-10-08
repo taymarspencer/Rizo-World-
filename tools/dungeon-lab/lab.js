@@ -83,7 +83,7 @@
     {
       id: "hood-small", name: "Small hood", role: "kidnapping crew: puffer jacket, mustard beanie, filming on his phone", shell: "open", units: Art.RULES.scale["hood-small"], portraits: "hood-small",
       world: (ctx, x, y, o) => Art.hood(ctx, "hood-small", x, y, o),
-      states: [{ id: "standing (filming)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "phone off", o: { phoneOff: true } }, { id: "phone watching (Intake)", o: { state: "phone-watch" } }, { id: "reading screen (Intake)", o: { state: "phone-away" } }, { id: "look-back tell (Intake)", o: { state: "phone-tell" } }, { id: "flinch", o: { flinch: true } }]
+      states: [{ id: "standing (filming)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "phone off", o: { phoneOff: true } }, { id: "reading screen (Intake)", o: { state: "phone-away" } }, { id: "look-back tell (Intake)", o: { state: "phone-tell" } }, { id: "flinch", o: { flinch: true } }]
     },
     {
       id: "hood-cap", name: "Cap hood", role: "kidnapping crew: track jacket, backwards cap, the pillowcase; the quiet one who leaves the Boss's card", shell: "open", units: Art.RULES.scale["hood-cap"], portraits: "hood-cap",
