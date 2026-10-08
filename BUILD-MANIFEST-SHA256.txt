@@ -7,7 +7,7 @@ d12bb85ef13ddf5102e1eaf54494b816f5f6008728654ea964a02ad79749fb94  ./ASTRA_CONTEX
 3d1f46e396f4e7539bc4d4859f21857864f7ed51dc78cf5c53995c77372d2bb6  ./AUDIT.md
 307b7be8b6f89067a193b0d771721e95d1e1ba3fdebd5048a422f41645b3c828  ./INTEGRATION_RISK_MAP.md
 6083cea88ddabaab2455b49f36f68e73de9413749f65245cb54cfb59632d7a8d  ./MASTER_INTEGRATION_MANIFEST.md
-c29532706bab5f8c5592cb811fd83ae820a2ad76781cc172e14f88bca011f103  ./PACKAGE_MANIFEST.txt
+762ea603244302873f33c511b87db3f59c9c7d08320e52ed5b38d2dc7f7b809b  ./PACKAGE_MANIFEST.txt
 6b5b33525164472df77d42db3e2651c3772d0f6db6f2436b896410b15baa218f  ./README-V65.md
 7ad5be89b12bdaec54fd1c0ecc7f3a2bb45b815a1bd7c158f7f452014f29ec9f  ./README-V66.md
 da49be92e6c3d2945ea0ceacfb8fb1a60e3d1b848d1a69ec1b50401532acb11b  ./README-V67.md
@@ -268,6 +268,7 @@ ccd06a4307e7a7fc5cb264790328318c37c529434ad3bf1c639bba7692e6d7a8  ./docs/current
 df4b2f547096018148779605205d931678496db66043988c979b9ac4c7e1d593  ./docs/current/RIZO-DIGITAL-DESIGN-SYSTEM.md
 505a8c6dcaee4a5c5c9647f0bd3725eee3121caf2d271f2feafceb62b43ba82d  ./docs/current/RIZO-WORLD-PUBLIC-PRODUCT.md
 5177fec219278cdb416e5ee8215ce8745662696beb0c886196168c746f23cd24  ./docs/current/V86-LAUNCH-HOTFIX.md
+3c3adbd62992eae6a7fe3961582059b761194aac9a7330033c7c5e084e037048  ./docs/dungeon/ASTRA-HANDOFF-CHAPTER3.md
 67d74683382777917a19cafc22e240e3e778d6b65fb277d60adb47a055882ac2  ./docs/dungeon/character-lab/inspect-latch.webp
 12056a1a6c641c8feb04f9da4387e3f7a8736f78c1cc11c5563ff64735b09bb4  ./docs/dungeon/character-lab/lineup-320.webp
 14a6dd8cee74f1d39191cd6e503f58b071de0211b963836aba1fda1b623c1f59  ./docs/dungeon/character-lab/lineup-390.webp
@@ -293,7 +294,7 @@ b15b5a238532d0dec8b3207bc3e6170abe56181bd1182bf24c3933633fdf4a67  ./docs/dungeon
 94adf0a4c7b49afc85a78652a8d80f7301c1368382db80accb46f0264e981ab3  ./docs/dungeon/character-lab/sheet-van-crew.webp
 ea9822ee30ceb41d44de0ba60f07bfb78cc6cc1b6ca843c2b1c2b5596b1c6c62  ./docs/dungeon/character-lab/sheet-you-seated.webp
 03f8c1517aa8f049e139a0a18b203c11fefda423ea96321f3ccf1888cfc05449  ./docs/dungeon/story/README.md
-fb53ea349507161ba051aeafe3994b6a5e82299d23e460fe1d031f937d2b1358  ./docs/dungeon/story/Rizo-Dungeon-Contracts-v0.4.md
+ad4c421fdbaa4f85acb6bb0f421f1ae53ddef170d6d80ead0b650050dd1b5d00  ./docs/dungeon/story/Rizo-Dungeon-Contracts-v0.4.md
 953e6d9c869c992681a6c69b169808f2a02c2ba8e828aca1b21960d702c01105  ./docs/dungeon/story/Rizo-Dungeon-Narrative-Package-v0.1.md
 4c0f3bc4a145649a113f689bfc25357f15b43af287c02d1ebf8e9a6b3b078b96  ./docs/dungeon/story/Rizo-Dungeon-Narrative-Package-v0.2.md
 10cf5f0eb0cd2fd6a91c2b9ee98836a2bc87d37fb8c49cc56fa6bf90bfc330b3  ./docs/dungeon/story/Rizo-Dungeon-Narrative-Package-v0.3.md
@@ -326,6 +327,7 @@ fcd6b4ba13a2feed4d1218ca6fa6543411c419d98243386f80f122446e037247  ./docs/referen
 752aa51ddc1b5b8e8e1e46c27a3a7382d997ff70e0341647ab2f5aa302a2ad42  ./docs/reference/V85-HANDMADE-UI.md
 80bf5e0bda76367dce51c58ff0fda4dbeb97f0f27231235826bc84c466727017  ./docs/verification/PUBLIC-FOUNDATION-VERIFICATION.md
 ad92dd70bc4bcf95bb1d7689efda23380c9dae3a88f603ec38797bf10bf9b5ee  ./docs/verification/RELEASE-ENGINEERING-VERIFICATION.md
+68517173b50ee70b6280d76c16a1a9515b972cf01de7033f3548e307a469bab1  ./docs/verification/RIZO-DUNGEON-CHAPTER3-POLISH.md
 2f3890964e038bca7698053f3ae0d94f42a843cb2e011511b582b8a7331666f5  ./docs/verification/RIZO-DUNGEON-CHARACTER-LAB.md
 40f8c3b44c95182e992559f9192226be46bdb795888efa48d1a13ad448492e62  ./docs/verification/RIZO-DUNGEON-COHESION-POLISH.md
 18e175143eeb683316340661863652e226f1d921a85ac785af5267a8f24f3f19  ./docs/verification/RIZO-DUNGEON-DEPTH-IMMERSION.md
@@ -334,6 +336,8 @@ bfe3dfcb4df7fefccc795c05b8b36e3b02452200ed76f0f2d4ba0d58fe63b43f  ./docs/verific
 6cdf2fec95c11e81caa83646a95b1c34a7495eb39e52a532ebe664a04456627b  ./docs/verification/RIZO-DUNGEON-STORY-OVERHAUL.md
 574c3a52936542786e704f1339777c8504ee8b6edf327cf6ec2266c9995d1723  ./docs/verification/RIZO-DUNGEON-VISUAL-LOGIC.md
 edf26364525775cbabc51f136e8de61e4089acec65f87a132fb1739015d4a9db  ./docs/verification/WORLD-FIRST-RC2-VERIFICATION.md
+86f44a45a94283f4526ed30f1516e29395f10ad4c7bd3e54696a3a3545e60464  ./docs/verification/rizo-dungeon-chapter3-polish/before-after-1.webp
+6af996c45524fed700244a04aa7ba57e32a8ebc31e7dc006abf341e2dfea174b  ./docs/verification/rizo-dungeon-chapter3-polish/before-after-2.webp
 758701136d7b046549d2bb1b7dde21b084f11b37b79b61651d65ea0e90e39651  ./docs/verification/rizo-dungeon-story-overhaul/before-after.webp
 49e6a21edc9614eff2f86a171b589405c3a1706963e8b43aa29b54dc6776c9a6  ./docs/verification/rizo-dungeon-story-overhaul/below.webp
 e1fb74d64154ac35eeb778c62a5876b73c263a6bd6c8a4919267643f987e5af1  ./docs/verification/rizo-dungeon-story-overhaul/chapter3.webp
@@ -364,14 +368,14 @@ fdd8a08eb0d1724b8690b204f60ce53c5cf3949bfa260f11cd22fddd84bcfac8  ./modes/defens
 1d9e55ba69c0f8905fae69b8b05610cf393640279fece2d88513435da73332d7  ./modes/defense/styles/worker-d-towers.css
 9f06bf97b99f820ce8a42e713fc5ada6a6478204a11d37aeb889b2ee7d69ab4f  ./modes/defense/styles/worker-e-abilities-depth.css
 a611531efcda4b3bef1a06b50e58cd4d4a0e4924a538e67fb5739a2e54e5f30d  ./modes/defense/styles/worker-h-ui.css
-76abd20bb23bfa74e7a71cc30d4d95a1cdefb17205ef7fdb4232976c3bfe2f8b  ./modes/dungeon/dungeon-art.js
+b4f9c6edf8cdce280e5c72df27e1683901cefdd21654823c2a9f4bf14b2408e0  ./modes/dungeon/dungeon-art.js
 190d66d060f502dbfe8a93311fec8858054c67ba98d1bf312dbd33968c6a7840  ./modes/dungeon/dungeon-comic.js
-b487a57c09efef89794a20f8a128caf28ffd56324c4b96d4f233efde8bc3e8e1  ./modes/dungeon/dungeon-content.js
+22aa16f4daf6a074bf1cf0dfe6e314022377bbd332c1dea648f3b5cbc96d9308  ./modes/dungeon/dungeon-content.js
 0ecb3140a39f798a0d047db2c927bab01297cad7a1bb140b1f819923ccb331fc  ./modes/dungeon/dungeon-core.js
 5922d2dbef877be852cf8b3476df92a18f9e10de968779106de171a894b73819  ./modes/dungeon/dungeon-input.js
-acff8bf8dec998ab282bad349f764903471fa437619f7a8b9a765ae353ce3042  ./modes/dungeon/dungeon-mode.js
-b863d9ea0c10d786f74b4b306ae0bacfb1d26e5501503451acdd188aae0724e4  ./modes/dungeon/dungeon-scenery.js
-eab63fd50af3339a964c9c5c203b1a7e96971060d2780e8b5c59e2f6d0eb6763  ./modes/dungeon/dungeon-view.js
+c3b87d4b28659092554c1b1146ab4404a9043bad04e29f683d0d76ad5dc91740  ./modes/dungeon/dungeon-mode.js
+3a4cd7d850c0913a8e0758545561d5e18e8eecb0589952d12074c3b51dbfee37  ./modes/dungeon/dungeon-scenery.js
+77bffa18266cddf4564ba12fd548b8a5ebaababe712112d9776c020d5de131fe  ./modes/dungeon/dungeon-view.js
 fcc4db0368d26121f0fd8876f2be937cdcf7de1a75045b14512c1e0da3b18026  ./modes/dungeon/kit/dungeon-kit.js
 03b132f35d9b715ec2e5d1655445de61381a155482e5d570745844b902454848  ./modes/dungeon/styles/dungeon-comic.css
 45195804b7a502f37535ccf7d002a149604dd7439c1a32e65ae208f3b2608487  ./modes/dungeon/styles/dungeon.css
@@ -647,7 +651,7 @@ f4bfab181129b002917d39f949b0544d2b53e892d3bf9204e7746ca2c1e66f76  ./tests/browse
 024a2790fb87319f0870623b6ce80dfef263fc804cb0820f7cf6407ebca775c7  ./tests/browser-dungeon-cohesion.py
 fb31c84822292af7e7ee175e00d9903e75aebdc3f65b267456681cdbf8b84ae5  ./tests/browser-dungeon-controls.py
 f20e1b7d31c4f463f065a75a0ba5e98897554f8fab7e857fd700d7ea39f885ca  ./tests/browser-dungeon-depth.py
-a25bf4e6a60aede2d407238a6cff3f152cdf320661594e7b5482064ab92bea53  ./tests/browser-dungeon-escape.py
+618e816e14045176dfae89c534016f49ffb71f8a75782f089af10fb660773a03  ./tests/browser-dungeon-escape.py
 6602fa677d12e406d0619f891cb493e01a483017e9ce434096c01ca96b315e83  ./tests/browser-dungeon-gamefeel.py
 2db824a88837b3c3af2ab3496c4ff36cfe98e9d6ba34f2b71fb18c904f307816  ./tests/browser-dungeon.py
 34c7996c139c32053c164fd853305186871af88acdf8401f390bcffdd2fe629d  ./tests/browser-first-ten.py
@@ -736,7 +740,7 @@ c15e66b8ccee76ffee4ec983a95148fed6a0f18eeb209aba1e53dd58928785c3  ./tools/dungeo
 c2d89ed77e0e39bf88c2076fc8fe2c040eb6c7f937d54543f9281dcf41aa80bd  ./tools/dungeon-lab/hub-bridge.js
 f357591a6783b31e16971fbfb36c80956c60782208aaad5bc0c7cdf950e7fb81  ./tools/dungeon-lab/index.html
 1f2161e801ccecf371cf9bee4f34197761d9bd5cf2753190b295c8f7ee1008e9  ./tools/dungeon-lab/lab.css
-20057e14307860bf58e790fed6e365215f85cc7496ccdc963ff899b28195af31  ./tools/dungeon-lab/lab.js
+fd7c01866afa45b2984c2231788b82edaaad313233cda7c0468bef3a9177ab07  ./tools/dungeon-lab/lab.js
 8334ec2f13634c2be655c3335ea7e93876342534aa79ba093ef28f9a362be5a4  ./tools/dungeon-lab/serve.py
 b57e06708813b129dd8678d6cb42eaa28f488fc4711999a7d8be73af042a938a  ./tools/serve-site.py
 9e71cc0547bf266ab81a399478ef0ac4148b9140b46e20e834afdc06a6239ae2  ./tools/static_site.py
