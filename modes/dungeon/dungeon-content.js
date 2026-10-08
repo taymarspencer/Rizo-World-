@@ -776,6 +776,8 @@
       ],
       anchors: { "fac-top": { x: 160, y: 50 }, "fac-door": { x: 160, y: 676 } },
       entryAnchor: "fac-top",
+      // The machines strike in turn down the line (presentation and sound only).
+      machineBeat: { cycleMs: 2400, stepMs: 600, strikeAt: 0.8 },
       // Conveyor belts: anything on one is carried. Crates hide him; jar trays don't.
       belts: [
         { id: "belt-a", y: 150, h: 46, dir: 1, speed: 20, items: ["crate", "jars", "crate", "jars"], phase: 20 },

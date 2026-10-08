@@ -1524,17 +1524,62 @@
   // ===== THE COLLECTION (v0.5) =====
   // A bell jar on a black base: glass, a stopper, a tag on string, and a small
   // light inside, holding very still (cold) or awake (warm, looking out at him).
+  // The six he can reach are someone: each one's light keeps the shape of
+  // where it was taken (the tag says where). Only the light differs; the jars
+  // are all the same jar. bob(t) → [dx, dy]; blink(t) → eyes shut.
+  const JAR_SOULS = Object.freeze({
+    // A porch light: pale, fluttering, pressed toward any other light.
+    moth: { glow: "#ffe6a6", core: "#fff4d2", hot: "#fffaf0", r: 1, lean: 2.2, bob: t => [Math.sin(t / 95) * 0.7, Math.sin(t / 61) * 0.6] },
+    // Small (the poster said so), quick little hops, rain still on its edge.
+    pip: { glow: P.ember[3], core: P.ember[3], hot: P.ember[4], r: 0.8, lean: 1.3, rim: P.wet[3], bob: t => [0, -Math.abs(Math.sin(t / 210)) * 1.5] },
+    // The back seat of a school bus: can't sit still, rocks with the road.
+    bean: { glow: "#f2924a", core: "#ff9f52", hot: P.ember[4], r: 1.05, lean: 1.2, bob: t => [Math.sin(t / 330) * 1.2, -Math.abs(Math.sin(t / 165)) * 1.1] },
+    // The third candle: a flame's flicker, bright at the tip.
+    spark: { glow: "#ffcf6a", core: "#ffd27a", hot: "#fffbe6", r: 0.95, lean: 1, flicker: true, bob: t => [Math.sin(t / 47) * 0.35, Math.sin(t / 31) * 0.3] },
+    // A night-light left on: steady, soft, sleepy.
+    wick: { glow: "#e9b26a", core: "#f3c07a", hot: "#ffe9c4", r: 0.95, lean: 0.8, bob: t => [0, Math.sin(t / 900) * 0.4], blink: t => (t % 5200) < 900 },
+    // No name, a number, a long time ago: barely warm, slow to look.
+    old: { glow: "#b07a4a", core: "#c58a52", hot: "#e8c28e", r: 0.85, lean: 0.6, dim: 0.6, bob: t => [0, Math.sin(t / 1600) * 0.3], blink: t => (t % 7000) < 1600 }
+  });
+  // The light inside a jar (its glow, its core, its eyes), in the jar's own
+  // space. The room draws it again above the dark so a woken one really glows.
+  function jarLight(ctx, o = {}, seed = 0) {
+    const t = o.t || 0, awake = Boolean(o.awake), soul = JAR_SOULS[o.soul] || null;
+    const breathe = awake ? 1 + Math.sin(t / 260) * 0.08 : 1 + Math.sin(t / 1400 + seed) * 0.04;
+    // Where it looks: toward him (o.look, -1..1). Asleep, it only stirs when he is near.
+    const look = Math.max(-1, Math.min(1, o.look || 0)), stir = awake ? 1 : Math.max(0, Math.min(1, o.stir || 0));
+    const fade = o.alpha ?? 1;
+    if (soul && awake) {
+      // Pressed to the glass (o.press) when he is leaving: it leans as far as it can.
+      const [bx, by] = soul.bob(t), press = o.press || 0, bloom = o.bloom || 0;
+      const lx = look * soul.lean * (1 + press * 1.3) + bx, ly = -press * 1.6 + by;
+      const flick = soul.flicker ? 0.85 + Math.abs(Math.sin(t / 53) * Math.sin(t / 37)) * 0.3 : 1;
+      const rr = soul.r * breathe * flick * (1 + bloom * 0.7), dim = (soul.dim || 1) * (1 + press * 0.35 + bloom);
+      ctx.globalAlpha = fade * Math.min(1, 0.5 * dim); oval(ctx, lx * 0.6, -8 + ly * 0.6, 6.2 * rr, 6.2 * rr, soul.glow);
+      ctx.globalAlpha = fade * Math.min(1, dim);
+      if (soul.rim) { ctx.globalAlpha = fade * 0.55; oval(ctx, lx, -7.6 + ly, 3.3 * rr, 3.7 * rr, soul.rim); ctx.globalAlpha = fade * Math.min(1, dim); }
+      oval(ctx, lx, -7.6 + ly, 2.8 * rr, 3.2 * rr, soul.core);
+      oval(ctx, lx, -7.2 + ly - (soul.flicker ? 0.6 : 0), 1.4 * soul.r, 1.7 * soul.r * flick, soul.hot);
+      ctx.globalAlpha = fade;
+      const ex = lx + look * 0.7;
+      if (soul.blink?.(t + seed * 13)) { rect(ctx, P.ink, ex - 1.8, -8.0 + ly, 1.3, 0.5); rect(ctx, P.ink, ex + 0.6, -8.0 + ly, 1.3, 0.5); }
+      else { rect(ctx, P.ink, ex - 1.6, -8.6 + ly, 0.9, 1.2 * soul.r + 0.2); rect(ctx, P.ink, ex + 0.8, -8.6 + ly, 0.9, 1.2 * soul.r + 0.2); }
+    } else {
+      // Asleep and cold; a sleeper he stands near lifts toward him a little.
+      const sx = look * 1.4 * stir, sy = -stir * 1.2;
+      ctx.globalAlpha = fade * (awake ? 0.5 : 0.35 + stir * 0.15); oval(ctx, sx * 0.5, -8 + sy * 0.5, 6.2 * breathe, 6.2 * breathe, awake ? P.ember[3] : P.cold[1]); ctx.globalAlpha = fade;
+      oval(ctx, sx, -7.6 + sy, 2.8 * breathe, 3.2 * breathe, awake ? P.ember[3] : P.cold[2]);
+      oval(ctx, sx, -7.2 + sy, 1.4, 1.7, awake ? P.ember[4] : P.cold[3]);
+      if (awake) { rect(ctx, P.ink, -1.6, -8.6, 0.9, 1.2); rect(ctx, P.ink, 0.8, -8.6, 0.9, 1.2); }
+    }
+    ctx.globalAlpha = 1;
+  }
   function jar(ctx, x, y, o = {}) {
-    const t = o.t || 0, awake = Boolean(o.awake), size = o.size || 1;
+    const awake = Boolean(o.awake), size = o.size || 1;
     ctx.save(); ctx.translate(x, y); ctx.scale(size, size);
     drop(ctx, 0, 1.5, 7, 1.8, 0.4);
     box(ctx, -6.5, -2, 13, 3.4, P.suit[1], { ink: 0.9, amp: 0.05, seed: 301 });
-    const breathe = awake ? 1 + Math.sin(t / 260) * 0.08 : 1 + Math.sin(t / 1400 + x) * 0.04;
-    // The light inside.
-    ctx.globalAlpha = awake ? 0.5 : 0.35; oval(ctx, 0, -8, 6.2 * breathe, 6.2 * breathe, awake ? P.ember[3] : P.cold[1]); ctx.globalAlpha = 1;
-    oval(ctx, 0, -7.6, 2.8 * breathe, 3.2 * breathe, awake ? P.ember[3] : P.cold[2]);
-    oval(ctx, 0, -7.2, 1.4, 1.7, awake ? P.ember[4] : P.cold[3]);
-    if (awake) { rect(ctx, P.ink, -1.6, -8.6, 0.9, 1.2); rect(ctx, P.ink, 0.8, -8.6, 0.9, 1.2); }
+    jarLight(ctx, o, x);
     // The glass dome, with a highlight and a little frost at its foot. On a
     // shelf (o.dim) the glass is only a glint; the light inside is what you see.
     const glass = o.dim ? 0.38 : 1;
@@ -1543,7 +1588,8 @@
     rect(ctx, P.cold[3], -4, -12, 0.8, 6);
     ctx.globalAlpha = 1;
     oval(ctx, 0, -16.6, 1.6, 1.2, P.suit[2], true, 0.6);
-    if (!awake && o.frost !== false) { ctx.globalAlpha = 0.7; for (let index = 0; index < 4; index += 1) rect(ctx, P.cold[3], -5 + index * 3, -3.2 - (index % 2), 1.4, 0.7); ctx.globalAlpha = 1; }
+    // Frost at the foot of the glass. The oldest one keeps a little even awake.
+    if ((!awake || o.soul === "old") && o.frost !== false) { ctx.globalAlpha = awake ? 0.35 : 0.7; for (let index = 0; index < 4; index += 1) rect(ctx, P.cold[3], -5 + index * 3, -3.2 - (index % 2), 1.4, 0.7); ctx.globalAlpha = 1; }
     if (o.tag) { line(ctx, 4.6, -6, 7.4, -3.4, P.paper[1], 0.5); box(ctx, 6.4, -3.6, 3.4, 2.4, P.paper[2], { ink: 0.5, amp: 0.05 }); }
     ctx.restore();
   }
@@ -1574,12 +1620,21 @@
     line(ctx, dx, r.y - 4, dx, r.y + r.h, P.metal[3], 2);
     const ly = r.y + r.h / 2;
     const shake = o.rattleAt != null && t - o.rattleAt < 220 ? Math.sin((t - o.rattleAt) / 18) * 1.4 : 0;
-    box(ctx, dx - 3 + shake, ly - 6, 8, 12, P.metal[2], { ink: 1.1, amp: 0.05, seed: 312 });
-    // Notches on the latch bar: how far it has slid.
-    for (let index = 0; index < notches; index += 1) rect(ctx, index < loose ? P.ember[3] : P.metal[0], dx - 1.5 + shake, ly - 5 + index * 2.2, 5, 1.2);
+    // The latch bar slides out a little with every notch it gives.
+    const slide = (loose / notches) * 3;
+    box(ctx, dx - 3 + shake + slide, ly - 8, 9, 16, P.metal[2], { ink: 1.1, amp: 0.05, seed: 312 });
+    // Notches on the latch bar: how far it has slid. A fresh one flares; lost ones blink red.
+    const gained = o.notchAt != null && t - o.notchAt < 420 ? 1 - (t - o.notchAt) / 420 : 0;
+    const lost = o.notchLostAt != null && t - o.notchLostAt < 700 && Math.floor((t - o.notchLostAt) / 110) % 2 === 0;
+    for (let index = 0; index < notches; index += 1) {
+      const on = index < loose, fresh = on && index === loose - 1 && gained > 0, gone = lost && !on && index < loose + 2;
+      const py = ly + 5.6 - index * 2.9;
+      if (fresh) { ctx.globalAlpha = 0.6 * gained; oval(ctx, dx + 1.5 + shake + slide, py + 0.8, 5 + gained * 3, 2.6 + gained * 1.4, P.ember[4]); ctx.globalAlpha = 1; }
+      rect(ctx, gone ? P.a.red : on ? (fresh ? P.ember[4] : P.ember[3]) : P.metal[0], dx - 1.5 + shake + slide, py, 6, 1.8);
+    }
     // Frost on the latch until he has warmed it loose.
     const frost = 1 - loose / notches;
-    if (frost > 0) { ctx.globalAlpha = 0.8 * frost; for (let index = 0; index < 4; index += 1) shape(ctx, [dx - 3 + index * 2.4, ly - 6, dx - 2 + index * 2.4, ly - 9 - (index % 2) * 2, dx - 1 + index * 2.4, ly - 6], "#e8f2ff", { ink: 0.3, amp: 0.05 }); ctx.globalAlpha = 1; }
+    if (frost > 0) { ctx.globalAlpha = 0.8 * frost; for (let index = 0; index < 4; index += 1) shape(ctx, [dx - 3 + slide + index * 2.4, ly - 8, dx - 2 + slide + index * 2.4, ly - 11 - (index % 2) * 2, dx - 1 + slide + index * 2.4, ly - 8], "#e8f2ff", { ink: 0.3, amp: 0.05 }); ctx.globalAlpha = 1; }
   }
   // Factory belt goods: a steel-banded crate with his stencil; a tray of empty jars.
   function beltCrate(ctx, x, y, w, h, o = {}) {
@@ -1913,7 +1968,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
     keeper, van, hood, seated, vanRide, CREW_HEIGHT, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
-    mark, markSvg, callingCard, collector, jar, cage, beltCrate, jarTray, speaker,
+    mark, markSvg, callingCard, collector, jar, jarLight, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });
 });

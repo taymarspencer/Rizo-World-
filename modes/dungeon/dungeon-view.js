@@ -482,12 +482,26 @@
       const hits = Math.ceil(enemy.hp / 2), max = Math.ceil(enemy.maxHp / 2);
       for (let index = 0; index < max; index += 1) Art.rect(ctx, index < hits ? P.paper[3] : "rgba(233,223,199,.25)", enemy.x - (max * 6) / 2 + index * 6, enemy.y - enemy.r - (enemy.kind === "needle" ? 30 : 12), 4, 2);
     }
+    // The runner's reach, on the floor where it is real: the ring a catch
+    // happens inside. Faint while he keeps ahead; hard and bright as it closes.
+    function paintReach(enemy, sim) {
+      const def = Content.ENEMIES.runner, p = sim.player, reach = def.catchRadius + p.r;
+      const gap = Math.hypot(p.x - enemy.x, p.y - enemy.y) - reach;
+      const k = Math.max(0, Math.min(1, 1 - gap / 70));
+      ctx.save();
+      ctx.globalAlpha = 0.14 + k * 0.6;
+      ctx.strokeStyle = k > 0.6 ? P.cold[3] : P.cold[2]; ctx.lineWidth = 0.8 + k * 1.2;
+      if (k < 0.6) ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(enemy.x, enemy.y, reach, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     function paintTelegraphs(sim, geo) {
       for (const enemy of sim.enemies) {
         if (enemy.kind === "draftling" && enemy.state === "windup") paintLane(enemy, Content.ENEMIES.draftling);
         else if (enemy.kind === "needle" && (enemy.state === "indicate" || enemy.state === "pulse")) paintThread(enemy, sim);
         else if (enemy.kind === "cargo" && enemy.state === "windup") paintSlide(enemy);
         else if (enemy.kind === "porter") paintPorterTell(enemy, sim, geo);
+        else if (enemy.kind === "runner" && enemy.state === "run") paintReach(enemy, sim);
         if ((enemy.kind === "draftling" || enemy.kind === "needle") && enemy.aware && enemy.state !== "gone") notches(enemy);
         // Not yet aware, at the edge of his light: two pale points looking back.
         if (enemy.kind === "draftling" && !enemy.aware && enemy.state !== "gone") {
@@ -578,6 +592,11 @@
           const wob = Math.sin(age * 9 + fx.seed) * 2.4;
           Art.rect(ctx, P.paper[3], fx.x + fx.vx * age + wob * -fx.vy / 40 - 1.1, fx.y + fx.vy * age + wob * fx.vx / 40 - 1.1, 2.2, 2.2);
         }
+        else if (fx.kind === "frost") {
+          // Frost letting go of glass: a few cold chips that drop and melt.
+          ctx.globalAlpha = (1 - age) * 0.9;
+          Art.rect(ctx, age < 0.4 ? "#eef5f9" : "#b8c9d4", fx.x + fx.vx * 7 * age, fx.y + Math.abs(fx.vy) * 3 + age * age * 14, 1.6 * (1 - age * 0.5), 1.1);
+        }
         else if (fx.kind === "deflect") { ctx.strokeStyle = P.paper[3]; ctx.lineWidth = 1.4; for (let d = 0; d < 3; d += 1) { ctx.beginPath(); ctx.moveTo(fx.x + (d - 1) * 6 - 3, fx.y - age * 10 + 2); ctx.lineTo(fx.x + (d - 1) * 6, fx.y - age * 10 - 2); ctx.lineTo(fx.x + (d - 1) * 6 + 3, fx.y - age * 10 + 2); ctx.stroke(); } }
         ctx.restore();
       }
@@ -591,10 +610,11 @@
       }
     }
     function addEffect(kind, x, y, count = 1, time = performance.now()) {
+      if (reducedMotion && kind === "frost") return;
       for (let index = 0; index < count; index += 1) {
         if (effects.length >= MAX_EFFECTS) effects.shift();
         const angle = Math.random() * Math.PI * 2;
-        effects.push({ kind, x, y, vx: Math.cos(angle), vy: Math.sin(angle), at: time, life: kind === "spark" ? 360 : kind === "glint" ? 1100 : 460 });
+        effects.push({ kind, x, y, vx: Math.cos(angle), vy: Math.sin(angle), at: time, life: kind === "spark" ? 360 : kind === "glint" ? 1100 : kind === "frost" ? 700 : 460 });
       }
       if (kind === "spark") { if (effects.length >= MAX_EFFECTS) effects.shift(); effects.push({ kind: "impact", x, y, vx: 0, vy: 0, at: time, life: 140 }); }
     }
@@ -700,6 +720,12 @@
       if (sim.t < (p.dazzledUntil ?? -1)) {
         const k = (p.dazzledUntil - sim.t) / Content.ENEMIES.runner.dazzleMs;
         ctx.save(); ctx.globalAlpha = 0.55 * k; Art.oval(ctx, pos.x, pos.y - 6, 22, 16, P.cold[3]); ctx.globalAlpha = 0.8 * k; Art.oval(ctx, pos.x, pos.y - 6, 9, 7, "#ffffff"); ctx.restore();
+      }
+      // Caught: a lamp full in his face for a beat, before the dark comes down.
+      const caughtAge = lastRoom.caughtAt != null ? extrasTime - lastRoom.caughtAt : Infinity;
+      if (caughtAge >= 0 && caughtAge < 360) {
+        const k = 1 - caughtAge / 360, grow = reducedMotion ? 0 : 1 - k;
+        ctx.save(); ctx.globalAlpha = 0.6 * k; Art.oval(ctx, pos.x, pos.y - 6, 20 + grow * 16, 15 + grow * 12, P.cold[3]); ctx.globalAlpha = 0.9 * k; Art.oval(ctx, pos.x, pos.y - 6, 8, 6, "#ffffff"); ctx.restore();
       }
       paintTelegraphs(sim, geo);
       paintFocus(extras.focus);

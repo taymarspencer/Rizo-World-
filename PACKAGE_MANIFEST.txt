@@ -1,3 +1,22 @@
+RIZO V97 — CHAPTER 3 DIRECTOR'S POLISH (same build marker)
+Build marker: unchanged (v97-dungeon-collection). Every changed file is in sw.js
+  REQUIRED_SHELL, which is fetched network-first, so no visitor keeps a stale copy.
+Save: unchanged (threshold-v4); no rule, timing or checkpoint changed.
+Docs: docs/verification/RIZO-DUNGEON-CHAPTER3-POLISH.md, docs/dungeon/ASTRA-HANDOFF-CHAPTER3.md
+
+CHANGED (presentation, sound and QA only)
+  dungeon-art.js      jar souls (six named lights), jarLight, latch notches that flare and blink
+  dungeon-scenery.js  intake phone-torch, hall window tells, gate slam, vent pre-glow,
+                      factory machine beat and speaker glow, jar moods
+  dungeon-view.js     the runner's reach ring, catch flash, frost chips
+  dungeon-content.js  factory.machineBeat (data for the line's beat)
+  dungeon-mode.js     sounds (notch, latch-back, torch, wake notes, hum, boot, press),
+                      events wired to them, vents breath-holding, Window Hall shove,
+                      QA light probe
+  tests/browser-dungeon-escape.py  10 new checks (78 → 88)
+
+------------------------------------------------------------------------------
+
 RIZO V97 — DUNGEON CHAPTER 3: THE COLLECTION
 Build marker: v97-dungeon-collection (bumped because sw.js serves same-origin files
   cache-first: a v96 visitor would otherwise keep the old Dungeon scripts)

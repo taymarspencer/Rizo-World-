@@ -111,6 +111,9 @@
   const DREAD_TRACK = Object.freeze({ id: "dungeon-dread", tempo: 1500, lead: [null], bass: [38], wave: "sine" });
   // Only after HOME is found: a short new motif, then the music below returns.
   const HOME_MOTIF = [64, null, 67, 69, null, null, 72, null, null, null, 67, null, null, null, null, null];
+  // HOME's notes in order, for the jars that wake to him (one note each).
+  const WAKE_NOTES = Object.freeze([...HOME_MOTIF.filter(note => note != null), 64]);
+  const midiHz = note => 440 * Math.pow(2, (note - 69) / 12);
   const HOME_TRACK = Object.freeze({
     id: "dungeon-home", tempo: 880, lead: DUNGEON_LEAD, bass: DUNGEON_BASS, wave: "sine",
     beat(step, play) {
@@ -257,7 +260,8 @@
     const fact = name => Boolean(flags()[name]);
     const beats = () => data?.story?.committedSceneBeats || [];
     const log = entry => { if (host.debug) { qaLog.push(entry); if (qaLog.length > 60) qaLog.shift(); } };
-    const sound = (kind) => {
+    // `n` shades a few sounds by how far along something is (a latch's notch, a jar's note).
+    const sound = (kind, n = 0) => {
       if (sceneTime < silentUntil) return;
       const a = host.audio || {};
       try {
@@ -333,6 +337,12 @@
         else if (kind === "nell") { a.tone?.(523, 0.5, "triangle", 0.011); a.tone?.(659, 0.55, "triangle", 0.01, 0.24); a.tone?.(587, 0.8, "triangle", 0.009, 0.5); }
         // v0.5: his building. Steel, wire, cold lamps, his voice in the walls.
         else if (kind === "rattle") { for (let i = 0; i < 3; i += 1) a.tone?.(1400 + i * 120, 0.03, "square", 0.008, i * 0.05); a.noise?.(0.12, 0.012); a.haptic?.(8); }
+        // The latch giving a notch: a click that climbs with each one, so the ear counts too.
+        else if (kind === "notch") { a.tone?.(620 + n * 110, 0.05, "triangle", 0.016, 0.09); a.tone?.(1240 + n * 220, 0.03, "square", 0.006, 0.1); }
+        // Under his eye the latch slides back: two notches lost, downhill.
+        else if (kind === "latch-back") { a.tone?.(520, 0.06, "square", 0.012, 0.06, -180); a.tone?.(300, 0.08, "square", 0.012, 0.16, -120); a.haptic?.([10, 30, 10]); }
+        // His phone's torch clicking on, aimed at the crate.
+        else if (kind === "torch") { a.tone?.(2100, 0.015, "square", 0.008); a.tone?.(1500, 0.02, "square", 0.006, 0.03); }
         else if (kind === "clank") { a.tone?.(160, 0.16, "square", 0.03, 0, -60); a.tone?.(1100, 0.08, "triangle", 0.01); a.noise?.(0.12, 0.03); a.haptic?.(25); }
         else if (kind === "shutter") { for (let i = 0; i < 8; i += 1) a.tone?.(240 + i * 20, 0.03, "square", 0.008, i * 0.04); a.noise?.(0.35, 0.02); }
         else if (kind === "shutter-tick") a.tone?.(320, 0.02, "square", 0.005);
@@ -340,10 +350,18 @@
         else if (kind === "alarm") { a.tone?.(880, 0.12, "square", 0.012); a.tone?.(660, 0.12, "square", 0.012, 0.16); a.tone?.(880, 0.12, "square", 0.012, 0.32); }
         else if (kind === "stamp") { a.tone?.(90, 0.05, "square", 0.01, 0, -20); a.noise?.(0.04, 0.01); }
         else if (kind === "speaker") { a.noise?.(0.18, 0.01); a.tone?.(60, 0.18, "sawtooth", 0.006); }
-        else if (kind === "wake") { a.tone?.(392, 0.3, "sine", 0.012, 0, 120); a.tone?.(523, 0.4, "triangle", 0.01, 0.2); a.tone?.(659, 0.5, "sine", 0.008, 0.4); }
+        // A jar waking: frost letting go, then its light answering him with one
+        // note of HOME. Woken in any order, they play the tune from its start.
+        else if (kind === "wake") { const note = WAKE_NOTES[Math.max(0, n - 1) % WAKE_NOTES.length]; a.noise?.(0.18, 0.006); a.tone?.(392, 0.3, "sine", 0.01, 0, 120); a.tone?.(midiHz(note), 0.7, "triangle", 0.014, 0.28); a.tone?.(midiHz(note + 12), 0.5, "sine", 0.004, 0.3); }
+        // The woken ones together, as he goes: the notes they have, one after another.
+        else if (kind === "hum") { for (let i = 0; i < Math.max(1, n); i += 1) a.tone?.(midiHz(WAKE_NOTES[i % WAKE_NOTES.length]), 0.9, "triangle", 0.008, i * 0.22); }
         else if (kind === "tin") { a.tone?.(1760, 0.3, "triangle", 0.014); a.tone?.(2090, 0.25, "sine", 0.008, 0.02); a.tone?.(1760, 0.2, "triangle", 0.008, 0.3); }
         else if (kind === "belt") a.noise?.(0.25, 0.004);
         else if (kind === "duct") a.tone?.(2200 + Math.random() * 400, 0.015, "square", 0.004);
+        // A factory press striking; n (0..1) is how close.
+        else if (kind === "press") { a.tone?.(48, 0.16, "square", 0.008 + 0.02 * n, 0, -10); a.noise?.(0.1, 0.004 + 0.012 * n); a.tone?.(900, 0.12, "sine", 0.002 + 0.004 * n, 0.08, -500); }
+        // Boots on tile behind him; n (0..1) is how close.
+        else if (kind === "boot") { a.tone?.(70, 0.07, "square", 0.006 + 0.018 * n, 0, -20); a.noise?.(0.04, 0.004 + 0.012 * n); if (n > 0.7) a.haptic?.(6); }
       } catch (error) {}
     };
     const duck = (ms, level) => { try { host.audio.duck?.(ms, level); } catch (error) {} };
@@ -1375,6 +1393,8 @@
       if (room.gapAt && !room.doorOpen) k *= 0.75;
       if (room.sensedAt && sceneTime - room.sensedAt < 2500) k *= 0.7;
       if (sim.roomId === "sack") k *= 0.8;
+      // In the ducts the metal is close on every side: his light has nowhere to go.
+      if (sim.roomId === "vents") k *= 0.8;
       if (room.hurtAt != null && sceneTime - room.hurtAt < 600) k *= 0.62 + 0.38 * ((sceneTime - room.hurtAt) / 600);
       if (room.smallestAt != null && !room.smallestDone) k *= 0.5;
       if (room.loosenAt != null && sceneTime - room.loosenAt < 2600) k *= 1 + 0.18 * Math.sin(Math.PI * clamp((sceneTime - room.loosenAt) / 2600, 0, 1));
@@ -2079,6 +2099,12 @@
       const runner = sim.enemies.find(enemy => enemy.kind === "runner");
       const radio = npcs.get("radio");
       if (runner && radio) { radio.x = runner.x; radio.y = runner.y; }
+      // Its boots, and his heart: louder and quicker the closer it gets.
+      if (runner?.state === "run" && sim.phase === "play") {
+        const close = clamp(1 - (Math.hypot(runner.x - sim.player.x, runner.y - sim.player.y) - 20) / 140, 0, 1);
+        if (sceneTime - (room.bootAt || 0) > 240) { room.bootAt = sceneTime; sound("boot", close); }
+        if (close > 0.55 && sceneTime - (room.heartAt || 0) > (close > 0.8 ? 420 : 640)) { room.heartAt = sceneTime; sound("heart"); flameMood("fear", 700); }
+      }
       // The windows near him rattle before their lamps come on.
       for (const win of geo().lampWindows || []) {
         const state = Core.lampWindowState(win, sim.t), was = room.windows[win.id];
@@ -2102,7 +2128,7 @@
     // ---- Intake: the cage. The hoods are on tagging duty for losing him.
     function intakeEnter() {
       const guard = sim.enemies.find(enemy => enemy.kind === "guard");
-      if (guard) npc("hood-small", "hood-small", guard.x, guard.y, { face: -1, barkLift: 80, state: "phone-dropped" });
+      if (guard) npc("hood-small", "hood-small", guard.x, guard.y, { face: -1, barkLift: 80, state: "phone" });
       npc("hood-cap", "hood-cap", 262, 88, { face: 1 });
       npc("boss", "none", 104, 26, { barkLift: 4 });
       room.awayLine = 0; room.noticed = 0;
@@ -2125,11 +2151,21 @@
       if (!guard || !actor) return;
       // While the hoods talk he watches the crate; his look starts after.
       if (scene?.id === "intake:arrived") { guard.state = "watch"; guard.stateAt = sim.t; guard.extra = 0; }
-      const watching = guard.state === "watch";
-      actor.face = watching ? -1 : 1;
-      actor.state = watching ? "phone-dropped" : "phone";
+      poseGuard();
       if (sceneTime - (room.stampAt || 0) > 2600) { room.stampAt = sceneTime; sound("stamp"); }
       room.hidden = !sim.cage?.open || Core.inCage(sim) ? false : Core.hiddenIn(sim);
+    }
+
+    // His phone is the torch he hunted for Rizo with at the roadside: held up
+    // and pointed at him while he watches, turned to his own face while he
+    // looks away. He faces whichever way that is (the scenery draws the beam).
+    // Called on the frame he turns too, so his body and the beam never disagree.
+    function poseGuard() {
+      const guard = sim.enemies.find(enemy => enemy.kind === "guard"), actor = npcs.get("hood-small");
+      if (!guard || !actor) return;
+      const toward = Math.sign(sim.player.x - actor.x) || -1;
+      actor.face = guard.state === "watch" ? toward : -toward;
+      actor.state = "phone";
     }
 
     // ---- The collection: quiet. What he finds says it.
@@ -2153,8 +2189,10 @@
       if (!item) return;
       setRoomFlag(item.flag);
       MOOD.woken = woken();
-      sound("wake");
+      sound("wake", MOOD.woken);
+      room.wokeAt = { ...(room.wokeAt || {}), [id]: sceneTime };
       view.addEffect("glint", item.x, item.y - 12, 1);
+      view.addEffect("frost", item.x, item.y - 6, 5);
       flameMood("warm", 1600);
       setPose("settle", 900);
       bark(id, item.tag, 3600);
@@ -2165,7 +2203,7 @@
       setRoomFlag("ventGrate");
       runScene("coll:promise", [
         S.say(L.jarsWarmEnough, 1600),
-        S.call(() => { faceToward(160, 300); setPose("look-back", 1600); flameMood("warm", 2400); sound("rest"); }),
+        S.call(() => { faceToward(160, 300); setPose("look-back", 1600); flameMood("warm", 2400); sound("rest"); room.promiseAt = sceneTime; sound("hum", woken()); }),
         S.wait(900),
         S.say(L.promise, 2400),
         S.call(() => { setFactNow("promised"); commitBeat("coll:promise"); })
@@ -2188,6 +2226,8 @@
         if (grate.view === "office" || stillFor >= 450) {
           room.ventView = { kind: grate.view, at: sceneTime };
           sound("speaker");
+          // What the last grate showed stays with the last grate: its words leave with it.
+          barks = barks.filter(entry => entry.id !== "view");
           if (!room.heardView?.[grate.view]) {
             room.heardView = { ...(room.heardView || {}), [grate.view]: true };
             // The voices come from the room below: their bubbles sit beside the view, never on it.
@@ -2203,6 +2243,17 @@
       if (!room.listenSeen && inZone("vent-listen-in")) room.listenSeen = true;
       if (room.listenSeen && !room.listenDone && p.x < 240 && p.y < 104) room.listenDone = true;
       if (p.moving && sceneTime - (room.ductAt || 0) > 340) { room.ductAt = sceneTime; sound("duct"); }
+      // The lamp below walks grate to grate: its boots come up through the metal
+      // as each one lights. Still on a lit grate, he holds his breath (and his light).
+      // (Two grates can be lit at once; the lamp is at the newest.)
+      const listens = g.listens || [], lit = listens.map((item, index) => Core.listenLit(g, index, sim.t));
+      const front = lit.lastIndexOf(true);
+      if (front !== room.litIndex) {
+        room.litIndex = front;
+        const at = listens[front];
+        if (at && Math.hypot(p.x - at.x - at.w / 2, p.y - at.y - at.h / 2) < 160) sound("boot", room.listenSeen ? 0.4 : 0.15);
+      }
+      room.hiding = !p.moving && listens.some((item, index) => lit[index] && p.x >= item.x && p.x <= item.x + item.w && p.y >= item.y && p.y <= item.y + item.h);
       void dt;
     }
 
@@ -2221,6 +2272,14 @@
     function factoryTick() {
       room.hidden = Core.hiddenIn(sim);
       if (sim.player.carried && sceneTime - (room.beltAt || 0) > 600) { room.beltAt = sceneTime; sound("belt"); }
+      // The line's beat: each machine's strike, heard from wherever he is (nearer, louder).
+      const g = geo(), beat = g.machineBeat;
+      if (beat) for (const [index, m] of g.solids.filter(solid => solid.kind === "machine").entries()) {
+        const k = ((((sim.t - index * beat.stepMs) % beat.cycleMs) + beat.cycleMs) % beat.cycleMs) / beat.cycleMs;
+        const strokes = room.strokes || (room.strokes = []), was = strokes[index] ?? k;
+        strokes[index] = k;
+        if (was < beat.strikeAt && k >= beat.strikeAt) sound("press", clamp(1 - Math.hypot(m.x + m.w / 2 - sim.player.x, m.y - sim.player.y) / 260, 0.1, 1));
+      }
       if (inZone("fac-door") && !done("esc:boundary") && room.doorAt == null && sim.phase === "play") reachDoor();
     }
     function reachDoor() {
@@ -2293,7 +2352,17 @@
         enter: windowgateEnter,
         // The first time he drifts toward the rest of the hall, she keeps him close. Kindly.
         tick() {
-          if (fact("windowOpen")) return;
+          if (fact("windowOpen")) {
+            // The comic doesn't end at the counter: Nell's board and the collector
+            // keep shoving at each other through the window, with a knock now and then.
+            const nellActor = npcs.get("nell"), held = npcs.get("held");
+            if (nellActor && held && nellActor.state === "brace" && !nellActor.walking && !reducedMotion()) {
+              const shove = Math.sin(sceneTime / 260) * 1.6;
+              nellActor.x = 132 + shove; held.x = 160 + shove;
+              if (sceneTime - (room.shoveAt || 0) > 2600 && Math.abs(shove) > 1.5) { room.shoveAt = sceneTime; sound("thud"); }
+            }
+            return;
+          }
           if (!room.farSaid && npcs.has("nell") && sim.player.x > 248 && (room.latchGone || done("rows:boundary"))) { room.farSaid = true; bark("nell", L.rowsStayNear[0], 2600); }
           // Near the bell, after the card: she would rather wait her turn.
           if (!room.orderSaid && done("rows:boundary") && npcs.has("nell") && Math.hypot(sim.player.x - 206, sim.player.y - 70) < 40) { room.orderSaid = true; bark("nell", L.rowsBellOffer[0], 2200); }
@@ -2981,24 +3050,34 @@
           case "gate-start": sound("alarm"); break;
           case "gate-shut":
             sound("clank"); room.shake = sceneTime;
+            // Dust off the floor all along where it landed.
+            { const gate = geo().dropGate; for (let x = gate.x + 20; x < gate.x + gate.w; x += 48) view.addEffect("puff", x, gate.y + gate.h + 3, 1); }
             // Under it in time: that much of the hall is his now (a reload or a catch starts here).
             if (event.ahead && !room.gatePassed) { room.gatePassed = true; commitData(next => setContinuation(next, "longhall", "hall-gate", Core.T.FLAME_MAX, "room-entry")); }
             break;
           case "runner-in": room.westDoorAt = sceneTime; sound("door"); if (!room.radioSaid) { room.radioSaid = true; bark("radio", L.hallRadio[0], 2200); } break;
-          case "runner-blocked": sound("clank"); bark("radio", L.hallGate[0], 2000); relief(); break;
+          case "runner-blocked": {
+            // It hits the gate (drawn by the scenery), then the radio sends it round.
+            const runner = sim.enemies.find(enemy => enemy.id === event.id);
+            if (runner) { room.slamAt = sceneTime; room.slamX = runner.x; room.slamY = runner.y; }
+            sound("clank"); sound("thud"); room.shake = sceneTime;
+            bark("radio", L.hallGate[0], 2000); relief(); break;
+          }
           case "runner-round": room.sideDoorAt = sceneTime; sound("door"); break;
-          case "loosened": sound("rattle"); room.rattleAt = sceneTime; view.addEffect("spark", 94, 136, 2); break;
+          case "loosened": sound("rattle"); sound("notch", event.loose); room.rattleAt = sceneTime; room.notchAt = sceneTime; setPose("scramble", 400); view.addEffect("spark", 94, 136, 2); break;
           case "noticed": {
-            sound("rattle"); room.rattleAt = sceneTime;
+            sound("rattle"); sound("latch-back"); room.rattleAt = sceneTime; room.glareAt = sceneTime; room.notchLostAt = sceneTime;
+            setPose("recoil", 500);
             const actor = npcs.get("hood-small");
             if (actor) actor.flinchUntil = sceneTime + 500;
             bark("hood-small", L.guardNoticed[(room.noticed = (room.noticed || 0) + 1) % 2], 2000);
             break;
           }
           case "cage-open": sound("clank"); setTransient("cageOpen", true); room.shake = sceneTime; relief(); break;
-          case "guard-away": if (Math.random() < 0.7 && !scene) bark("hood-small", L.guardAway[(room.awayLine = (room.awayLine || 0) + 1) % L.guardAway.length], 2600); break;
+          case "guard-away": poseGuard(); if (Math.random() < 0.7 && !scene) bark("hood-small", L.guardAway[(room.awayLine = (room.awayLine || 0) + 1) % L.guardAway.length], 2600); break;
           case "guard-tell": { const actor = npcs.get("hood-small"); if (actor) actor.flinchUntil = sceneTime + 450; bark("hood-small", L.guardTell[0], 900); sound("curious"); break; }
-          case "seen": sound("notice"); bark("hood-small", L.guardPutBack[0], 2400); break;
+          case "guard-back": poseGuard(); sound("torch"); break;
+          case "seen": sound("notice"); sound("torch"); room.glareAt = sceneTime; bark("hood-small", L.guardPutBack[0], 2400); break;
           case "heard": { const grate = (geo().listens || []).find(item => sim.player.y >= item.y - 4 && sim.player.y <= item.y + item.h + 4); npc("below", "none", grate ? grate.x + grate.w / 2 : sim.player.x, (grate ? grate.y : sim.player.y) + 30, { barkLift: 0 }); bark("below", L.ventHeard[0], 900); sound("notice"); break; }
           case "lured": if (!room.lureSaid && sim.roomId === "hangrow") { room.lureSaid = true; const lamp = sim.enemies.find(enemy => enemy.id === event.id); if (lamp) { npc("radio", "none", lamp.x, lamp.y, { barkLift: 74 }); room.radioFollow = lamp.id; } bark("radio", L.rowsBellRadio[0], 2600); } break;
           case "porter-half": porterHelp(); break;
@@ -3544,7 +3623,7 @@
         scene: scene ? { id: scene.id, waiting: scene.waiting, control: scene.control } : null,
         choice: choiceState ? { index: choiceState.index, options: choiceState.options.map(option => option.value), line: choiceState.line?.text || null } : null,
         settings: { ...settings },
-        npcs: [...npcs.values()].map(actor => ({ id: actor.id, x: Math.round(actor.x), y: Math.round(actor.y), visible: actor.visible, state: actor.state })),
+        npcs: [...npcs.values()].map(actor => ({ id: actor.id, x: Math.round(actor.x), y: Math.round(actor.y), visible: actor.visible, state: actor.state, face: actor.face || 1 })),
         pose: poseOverride?.name || null,
         sim: sim ? { t: sim.t, roomId: sim.roomId, phase: sim.phase, assist: sim.assist, flags: { ...sim.flags }, edges: { ...sim.edges }, zones: [...sim.zones], player: { x: sim.player.x, y: sim.player.y, flame: sim.player.flame, act: sim.player.act?.kind || null, fx: sim.player.fx, fy: sim.player.fy, attacks: sim.player.attackSeq, tuckReadyAt: sim.player.tuckReadyAt, leashed: sim.player.leashed }, enemies: sim.enemies.map(item => ({ id: item.id, kind: item.kind, state: item.state, hp: item.hp, aware: item.aware, x: item.x, y: item.y })) } : null,
         data: data ? plain(data) : null,
@@ -3556,10 +3635,21 @@
         sceneTime, silent: sceneTime < silentUntil, fade: sceneFade.value, impactAt: room.impactAt ?? null,
         music: musicId, transient: { ...transient }, comic: comic?.playing() || null, objective: view?.el.objective && !view.el.objective.hidden ? view.el.objective.textContent.replace("▲", "").trim() : null, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
         opening: openingQA(),
-        escape: sim && Content.isBuilding(sim.roomId) ? { cage: sim.cage ? { ...sim.cage } : null, gate: sim.gate ? { ...sim.gate } : null, heard: sim.heard, ventView: room.ventView?.kind || null, hidden: Boolean(room.hidden), dazzled: sim.t < (sim.player.dazzledUntil ?? -1), runner: (({ x, y, state } = {}) => (state ? { x, y, state } : null))(sim.enemies.find(enemy => enemy.kind === "runner")), guard: (({ state } = {}) => state || null)(sim.enemies.find(enemy => enemy.kind === "guard")), woken: woken(), listenSeen: Boolean(room.listenSeen), listenDone: Boolean(room.listenDone) } : null,
+        escape: sim && Content.isBuilding(sim.roomId) ? { cage: sim.cage ? { ...sim.cage } : null, gate: sim.gate ? { ...sim.gate } : null, heard: sim.heard, ventView: room.ventView?.kind || null, hidden: Boolean(room.hidden), dazzled: sim.t < (sim.player.dazzledUntil ?? -1), runner: (({ x, y, state } = {}) => (state ? { x, y, state } : null))(sim.enemies.find(enemy => enemy.kind === "runner")), guard: (({ state } = {}) => state || null)(sim.enemies.find(enemy => enemy.kind === "guard")), woken: woken(), listenSeen: Boolean(room.listenSeen), listenDone: Boolean(room.listenDone), holding: Boolean(room.hiding), slam: room.slamAt != null, wokeAt: Object.keys(room.wokeAt || {}), promiseWave: room.promiseAt != null, caughtFlash: room.caughtAt != null } : null,
         log: [...qaLog]
       }),
       qaTeleport(x, y) { if (!sim) return false; sim.player.x = x; sim.player.y = y; prev = { x, y }; return true; },
+      // QA only: how bright the drawn frame is around a room point (mean luma 0..255 of the game canvas).
+      qaLight(x, y, r = 4) {
+        const canvas = view.el.canvas, dpr = canvas.width / Math.max(1, canvas.clientWidth || canvas.width);
+        const [sx, sy] = view.toScreen(x, y), half = Math.max(1, Math.round(r * view.metrics.scale * dpr));
+        const cx = Math.round(sx * dpr), cy = Math.round(sy * dpr);
+        if (cx - half < 0 || cy - half < 0 || cx + half > canvas.width || cy + half > canvas.height) return null;
+        const pixels = canvas.getContext("2d").getImageData(cx - half, cy - half, half * 2, half * 2).data;
+        let sum = 0;
+        for (let index = 0; index < pixels.length; index += 4) sum += 0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2];
+        return Math.round((sum / (pixels.length / 4)) * 10) / 10;
+      },
       // QA only: as if he had been standing still this long already.
       qaStill(ms) { stillFor = Math.max(stillFor, ms); return stillFor; },
       qaAdvance(ms, stepInput = {}) {
@@ -3667,6 +3757,7 @@
       dungeonSkipSceneForQA: () => need().qaSkipScene(),
       dungeonSceneTimeForQA: ms => need().qaSceneTime(ms),
       dungeonStillForQA: ms => need().qaStill(ms),
+      dungeonLightForQA: (x, y, r) => need().qaLight(x, y, r),
       dungeonCommitForQA: request => need().qaCommit(request),
       dungeonEnemyForQA: (id, patch) => need().qaEnemy(id, patch),
       dungeonCompleteFixtureForQA: options => need().qaCompleteFixture(options),

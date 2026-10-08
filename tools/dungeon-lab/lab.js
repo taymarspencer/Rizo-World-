@@ -131,8 +131,10 @@
       // portrait is a coat, a pen and a clipboard: never a face. In the world,
       // what they measure: a bell jar with a small light holding still in it.
       id: "coat", name: "White coats (and the jars)", role: "heard through a grate in the vents: 'Holding at four.' In the world, the collection's bell jars, asleep or woken by his warmth", shell: "locked", units: 34, portraits: "coat", facing: false,
-      world: (ctx, x, y, o) => Art.jar(ctx, x, y, { size: 1.8, t: 0, awake: o.state === "awake", tag: true }),
-      states: [{ id: "a jar, asleep", o: {} }, { id: "a jar, woken", o: { state: "awake" } }]
+      // The six he can reach each wake as someone (Art JAR_SOULS: the light only; the jar is the same jar).
+      world: (ctx, x, y, o) => Art.jar(ctx, x, y, { size: 1.8, t: 0, awake: o.state === "awake", soul: o.soul, tag: true }),
+      states: [{ id: "a jar, asleep", o: {} }, { id: "a jar, woken", o: { state: "awake" } },
+        ...[["moth", "Moth (a porch light)"], ["pip", "Pip (a bus stop, in the rain)"], ["bean", "Bean (a school bus)"], ["spark", "Spark (the third candle)"], ["wick", "Wick (a night-light)"], ["old", "no name, a number"]].map(([soul, id]) => ({ id, o: { state: "awake", soul } }))]
     },
     {
       // The Boss is never drawn in the world before the finale. Here: his

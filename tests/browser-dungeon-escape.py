@@ -12,6 +12,12 @@ light walking down the duct: move on it and he is heard), the factory floor
 (belts carry him, crates hide him, a catwalk lamp catches him, the loading
 door and the chapter card), Nell's tin bell in the Hanging Row, reloads that
 keep what was done, phone widths and reduced motion.
+The director's polish is checked as what is drawn (canvas brightness), not as
+flags: the small hood's phone-torch on the crate only while he watches, a hall
+window's light creeping across the floor before its lamp opens, the next vent
+grate glowing before it lights, a factory press lighting its window as it
+strikes; plus holding still on a lit grate, the runner hitting the gate, each
+jar waking in its own moment and the woken ones pressing to the glass.
 Chromium only.
 """
 import argparse
@@ -199,6 +205,23 @@ def read_until(page, text, presses=8):
     return state(page)
 
 
+def light(page, x, y, r=4):
+    """Mean brightness (luma 0..255) of the drawn frame around a room point."""
+    return page.evaluate("([x,y,r])=>RizoRuntimeQA.dungeonLightForQA(x,y,r)", [x, y, r])
+
+
+# Where a room's clocked machinery is (pure sim time): a hall window's tell
+# progress, a vent grate's time until it lights, a factory press's beat.
+PHASE = """([room, i])=>{const g=RizoDungeonContent.ROOMS[room];const t=RizoRuntimeQA.dungeonStateForQA().sim.t;
+ if(room==='longhall'){const w=g.lampWindows[i];const k=(((t+w.offset)%w.period)+w.period)%w.period;return {state:RizoDungeonCore.lampWindowState(w,t),k:(k-(w.period-w.onMs-w.tellMs))/w.tellMs};}
+ if(room==='vents'){const l=g.listen;const k=((t%l.period)+l.period)%l.period;let due=i*l.stepMs-k;if(due<-l.litMs)due+=l.period;return {due,lit:RizoDungeonCore.listenLit(g,i,t)};}
+ if(room==='factory'){const b=g.machineBeat;return {k:((((t-i*b.stepMs)%b.cycleMs)+b.cycleMs)%b.cycleMs)/b.cycleMs};}}"""
+
+
+def phase(page, room, index):
+    return page.evaluate(PHASE, [room, index])
+
+
 def said(st, text):
     return any(text in b["text"] for b in st["barks"]) or (st["dialogue"] and text in st["dialogue"]["text"])
 
@@ -316,6 +339,7 @@ with sync_playwright() as p:
         page.keyboard.up(key)
     check("the service-window lamps dazzled him at least once on the way", dazzled, dazzled)
     check("the night gate shut behind him and the runner had to go round", "detour" in seen_runner, sorted(set(seen_runner)))
+    check("shut out, the runner is seen hitting the gate before it goes round", state(page)["escape"]["slam"], state(page)["escape"])
     shot(page, "escape-hall-gate")
     # Past the gate, a catch costs only the last stretch.
     for _ in range(120):
@@ -432,6 +456,7 @@ with sync_playwright() as p:
     flags = stored(page)["world"]["durableRoomFlags"]
     check("each jar he warms wakes, and its tag says where it was taken", flags.get("jarMoth") and flags.get("jarPip") and flags.get("jarBean") and any("PIP. Taken from a bus stop" in t for t in tags), (flags, tags))
     check("three awake: the goal points at the grate", state(page)["objective"] == "WARM THE GRATE (NORTH-EAST CORNER)", state(page)["objective"])
+    check("each one woke in its own moment (its light blooms; it answers with its own note)", sorted(state(page)["escape"]["wokeAt"]) == ["jar-bean", "jar-moth", "jar-pip"], state(page)["escape"]["wokeAt"])
     shot(page, "escape-jars")
     page.reload()
     page.wait_for_timeout(1200)
@@ -459,6 +484,7 @@ with sync_playwright() as p:
     facts = stored(page)["story"]["facts"]
     check("with theirs it's warm enough; he looks back once, so they know (the promise is kept in the save)", any("With theirs" in t for t in seen) and any("so they know" in t for t in seen) and facts.get("promised") is True and stored(page)["world"]["durableRoomFlags"].get("ventGrate"), (seen, facts))
     check("the goal now: COME BACK FOR THEM", state(page)["objective"] == "COME BACK FOR THEM", state(page)["objective"])
+    check("as he looks back, the woken ones press to their glass, one after another", state(page)["escape"]["promiseWave"], state(page)["escape"])
     tp(page, 270, 30)
     page.keyboard.down("ArrowUp")
     page.wait_for_timeout(600)
@@ -632,6 +658,103 @@ with sync_playwright() as p:
     check("RING: the collector turns to go and look at the bell", "RING" in prompt and lamp["state"] == "search", (prompt, lamp))
     check("and the voice on his radio: “That's a bell. Bells don't glow.”", said(st, "Bells don't glow."), st["barks"])
     check("no page errors in the Hanging Row", not errors, errors[:3])
+    ctx.close()
+
+    # ================= DIRECTOR'S POLISH: danger is shown before it lands =================
+    ctx, page, errors = boot(browser)
+    # Intake: where the small hood looks is light. Watching, his phone is a
+    # torch on the crate; looking away, it is a screen on his own mask.
+    goto(page, "intake", "intake-cage", {**ROWS_FLAGS, "windowOpen": True, "hallEscaped": True})
+    drive(page, lambda s: s["scene"] is None, 120, 300)
+    lit = {"watch": [], "away": []}
+    faces = {"watch": set(), "away": set()}
+    for _ in range(70):
+        st = state(page)
+        g = st["escape"]["guard"]
+        hood = next(n for n in st["npcs"] if n["id"] == "hood-small")
+        pl = st["sim"]["player"]
+        mid = ((hood["x"] + pl["x"]) / 2, (hood["y"] - 50 + pl["y"]) / 2)
+        if g in lit:
+            lit[g].append(light(page, mid[0], mid[1], 3))
+            faces[g].add(hood["face"])
+        page.wait_for_timeout(120)
+    pl = state(page)["sim"]["player"]
+    toward = -1 if pl["x"] < hood["x"] else 1
+    check("watching, the small hood faces the crate; looking away, he turns his back on it", faces["watch"] == {toward} and faces["away"] == {-toward}, {k: sorted(v) for k, v in faces.items()})
+    lw, la = (sorted(v)[len(v) // 2] if v else 0 for v in (lit["watch"], lit["away"]))
+    check("watching, his phone is a torch on the crate: the air between them is lit, and dark when he looks away", lw > la + 20, (lw, la))
+    shot(page, "polish-intake-torch")
+    # The Long Hall: a window's rattle lets light creep across the floor along
+    # the band its lamp will fill, before it opens.
+    goto(page, "longhall", "hall-entry", {**ROWS_FLAGS, "windowOpen": True})
+    tp(page, 160, 760)
+    off, late = [], []
+    win = page.evaluate("RizoDungeonContent.ROOMS.longhall.lampWindows[0]")
+    band = win["y"] + win["h"] / 2
+    for _ in range(45):
+        ph = phase(page, "longhall", 0)
+        if ph["state"] == "off" and ph["k"] < -0.3:
+            off.append(light(page, 160, band, 3))
+        elif ph["state"] == "tell" and ph["k"] > 0.6:
+            late.append(light(page, 160, band, 3))
+            if len(late) == 1:
+                shot(page, "polish-hall-tell")
+        page.wait_for_timeout(80)
+        if state(page)["sim"]["phase"] != "play":
+            break
+    check("before a window lamp opens, its light creeps across the floor where it will shine", off and late and min(late) > max(off) + 12, (off[:4], late[:4]))
+    ctx.close()
+
+    ctx, page, errors = boot(browser)
+    # The vents: the lamp below reaches the next grate as a glow through its slats first.
+    goto(page, "vents", "vent-listen", {**ROWS_FLAGS, "windowOpen": True, "hallEscaped": True, "ventGrate": True})
+    grate = page.evaluate("RizoDungeonContent.ROOMS.vents.listens[2]")
+    gx, gy = grate["x"] + grate["w"] / 2, grate["y"] + grate["h"] / 2
+    far, soon = [], []
+    for _ in range(60):
+        ph = phase(page, "vents", 2)
+        if not ph["lit"] and ph["due"] > 1000:
+            far.append(light(page, gx, gy, 4))
+        elif not ph["lit"] and 40 < ph["due"] < 260:
+            soon.append(light(page, gx, gy, 4))
+        page.wait_for_timeout(70)
+        if far and len(soon) >= 2:
+            break
+    check("the light below glows up through the next grate before it lights", far and soon and min(soon) > max(far) + 8, (far[:3], soon))
+    # Still on a lit grate he holds his breath: curled small, his light pulled in.
+    tp(page, gx, gy)
+    held = False
+    for _ in range(60):
+        ph = phase(page, "vents", 2)
+        if ph["lit"] and ph["due"] < -120:
+            st = state(page)
+            pose = page.evaluate("document.querySelector('.dungeon-pose')?.className||''")
+            held = st["escape"]["holding"] and "pose-curl" in pose and st["sim"]["phase"] == "play"
+            shot(page, "polish-vent-hold")
+            break
+        page.wait_for_timeout(60)
+    check("frozen on a lit grate, he holds his breath (curled, light pulled in) and is not heard", held, state(page)["escape"])
+    ctx.close()
+
+    ctx, page, errors = boot(browser)
+    # The factory: the machines strike in turn down the line; a press coming down lights its window.
+    goto(page, "factory", "fac-top", {**ROWS_FLAGS, "windowOpen": True, "hallEscaped": True, "ventGrate": True, "ventsOut": True})
+    drive(page, lambda s: s["scene"] is None, 40, 300)
+    for name in ["fac-w1", "fac-w2", "fac-w3"]:
+        page.evaluate(f"RizoRuntimeQA.dungeonEnemyForQA('{name}',{{x:300,y:20}})")
+    tp(page, 160, 438)
+    machine = [m for m in page.evaluate("RizoDungeonContent.ROOMS.factory.solids") if m["kind"] == "machine"][2]
+    wx, wy = machine["x"] + machine["w"] / 2, machine["y"] + 16
+    rest, strike = [], []
+    for _ in range(60):
+        k = phase(page, "factory", 2)["k"]
+        if 0.2 < k < 0.6:
+            rest.append(light(page, wx, wy, 4))
+        elif 0.81 < k < 0.88:
+            strike.append(light(page, wx, wy, 4))
+        page.wait_for_timeout(70)
+    check("a factory press striking lights its machine's window (the line has a beat)", rest and strike and min(strike) > max(rest) + 10, (rest[:3], strike))
+    check("no page errors in the polish checks", not errors, errors[:3])
     ctx.close()
 
     # ================= PHONES AND REDUCED MOTION =================

@@ -2042,11 +2042,28 @@
       const k = g?.closed ? 1 : g?.startAt != null ? Math.min(1, (sim.t - g.startAt) / gate.closeMs) : 0;
       if (k > 0) {
         const blink = Math.floor((s.time || 0) / 200) % 2;
+        if (k < 1) {
+          // Coming down: the hazard paint flashes and the shutter's shadow grows on the floor under it.
+          if (blink || s.reduced) alpha(ctx, 0.55, () => { for (let x = 20; x < 300; x += 12) rect(ctx, P.a.red, x, 452, 6, 4); });
+          alpha(ctx, 0.4 * k, () => rect(ctx, P.ink, gate.x, gate.y + gate.h, gate.w, 4 + 14 * k));
+        }
         for (const x of [24, 296]) oval(ctx, x, gate.y - 6, 3, 3, blink && k < 1 ? P.a.red : P.ember[1]);
         const face = 18 * k;
         box(ctx, gate.x, gate.y - face + gate.h * k, gate.w, face + 2, P.metal[1], { ink: 1.2, amp: 0.05 });
         for (let y = gate.y - face + gate.h * k + 3; y < gate.y + gate.h * k; y += 3) rect(ctx, P.metal[0], gate.x + 1, y, gate.w - 2, 1);
         if (k >= 1) { for (let x = gate.x; x < gate.x + gate.w; x += 14) rect(ctx, P.a.mustard, x, gate.y + gate.h - 3, 7, 3); A.mark(ctx, 160, gate.y + 2, 9, P.cold[2]); }
+      }
+      // Shut on the runner: it hits the gate, its lamp through the slats, then
+      // turns and goes to find another way round.
+      if (room.slamAt != null) {
+        const age = (s.extras.sceneTime || 0) - room.slamAt;
+        if (age < 1400) {
+          const away = Math.max(0, (age - 600) / 800), shake = !s.reduced && age < 300 ? Math.sin(age / 20) * 2 : 0;
+          const y = Math.max(gate.y + gate.h + 16, room.slamY - Math.min(age, 300) * 0.1);
+          ctx.save(); ctx.globalAlpha = 1 - away;
+          A.collector(ctx, room.slamX + shake - away * 40, y + away * 50, { face: away > 0 ? -1 : 1, state: away > 0 ? "run" : "spot", bob: 0, t });
+          ctx.restore();
+        }
       }
       // The side door swings when the runner comes round.
       if (room.sideDoorAt != null && (s.extras.sceneTime || 0) - room.sideDoorAt < 900) { rect(ctx, P.ink, 0, 384, 20, 30); alpha(ctx, 0.5, () => rect(ctx, P.cold[2], 16, 386, 4, 26)); }
@@ -2054,17 +2071,28 @@
       if (room.westDoorAt != null && (s.extras.sceneTime || 0) - room.westDoorAt < 700) { rect(ctx, P.ink, 0, 1040, 20, 40); alpha(ctx, 0.6, () => rect(ctx, P.cold[2], 14, 1042, 6, 36)); }
     }
     if (geo.id === "intake" && sim.cage) {
-      A.cage(ctx, geo.cage, { loose: sim.cage.loose, notches: Content().ENEMIES.guard.notches, open: sim.cage.open, t: s.extras.sceneTime || 0, rattleAt: room.rattleAt });
+      A.cage(ctx, geo.cage, { loose: sim.cage.loose, notches: Content().ENEMIES.guard.notches, open: sim.cage.open, t: s.extras.sceneTime || 0, rattleAt: room.rattleAt, notchAt: room.notchAt, notchLostAt: room.notchLostAt });
     }
     if (geo.id === "collection") {
-      for (const item of geo.jars) {
-        const awake = Boolean(sim.flags[item.flag]);
-        A.jar(ctx, item.x, item.y + 2, { size: 1.15, t, awake, tag: true });
-      }
+      for (const item of geo.jars) A.jar(ctx, item.x, item.y + 2, { size: 1.15, t, tag: true, ...jarMood(item, s) });
     }
     if (geo.id === "factory") {
       const time = s.reduced ? sim.t : sim.t;
       for (const b of geo.belts) belt(ctx, b, geo.w, s.reduced ? 0 : sim.t);
+      // The machines are one line: each stamps in turn, top to bottom, a beat
+      // apart, the press coming down on its window and a breath of cold out of its pipes.
+      for (const [index, m] of geo.solids.filter(solid => solid.kind === "machine").entries()) {
+        const k = machineStroke(geo.machineBeat, index, sim.t), cx = m.x + m.w / 2;
+        const stroke = s.reduced ? 0 : k * 5;
+        box(ctx, cx - 14, m.y - 7 + stroke, 28, 6, P.metal[2], { ink: 1.1, amp: 0.05 });
+        rect(ctx, P.metal[3], cx - 13, m.y - 6 + stroke, 26, 1.2);
+        line(ctx, cx, m.y - 18, cx, m.y - 7 + stroke, P.metal[3], 2.2);
+        if (k > 0.5) alpha(ctx, (k - 0.5) * 1.4, () => rect(ctx, "#ffffff", cx - 10, m.y + 11, 20, 10));
+        const breath = machineBreath(geo.machineBeat, index, sim.t);
+        if (breath > 0 && !s.reduced) alpha(ctx, breath * 0.5, () => { for (const dx of [6, m.w - 10]) oval(ctx, m.x + dx + (1 - breath) * 3, m.y - 20 - (1 - breath) * 10, 3 + (1 - breath) * 4, 2 + (1 - breath) * 3, P.cold[3]); });
+      }
+      // His voice in every speaker: they light while he talks.
+      if (room.speakerOn) for (const y of [200, 420, 620]) { alpha(ctx, 0.35, () => { oval(ctx, 12, y, 9, 7, P.cold[3]); oval(ctx, 308, y + 60, 9, 7, P.cold[3]); }); }
       // The loading door: half up, and the rain blowing in under it.
       box(ctx, 140, 690, 40, 10, P.metal[2], { ink: 1.2, amp: 0.05 });
       alpha(ctx, 0.85, () => rect(ctx, P.wet[1], 142, 700, 36, 20));
@@ -2077,6 +2105,34 @@
       else if (prop.id === "grate-catch") warmCatch(ctx, prop, t);
     }
   }
+  // The six he can reach: asleep, one he stands near stirs toward him; awake,
+  // each watches him in its own way, and once he has promised, presses to the
+  // glass, most of all when he is at the grate leaving.
+  function jarMood(item, s) {
+    const sim = s.sim, room = s.extras.room || {}, now = s.extras.sceneTime || 0, p = s.pos;
+    const awake = Boolean(sim.flags[item.flag]);
+    const look = Math.max(-1, Math.min(1, (p.x - item.x) / 40));
+    const near = Math.hypot(p.x - item.x, p.y - item.y);
+    const woke = room.wokeAt?.[item.id];
+    const bloom = woke != null && now - woke < 900 ? 1 - (now - woke) / 900 : 0;
+    // The promise: a wave along the woken ones, then they keep leaning his way.
+    let press = 0;
+    if (sim.flags.promised) press = p.y < 150 ? 1 : 0.45;
+    if (room.promiseAt != null) { const k = (now - room.promiseAt - item.x * 3) / 700; if (k > 0 && k < 1) press = Math.max(press, Math.sin(k * Math.PI)); }
+    return { awake, soul: item.id.replace("jar-", ""), look, stir: awake ? 0 : Math.max(0, 1 - near / 48), press: s.reduced ? Math.min(press, 0.45) : press, bloom: s.reduced ? 0 : bloom, t: s.reduced ? 0 : s.time };
+  }
+  // The factory line's beat (pure sim time, so pauses hold it): 0 at rest,
+  // 1 with the press down. Each machine strikes one step (stepMs) after the one above.
+  const machinePhase = (beat, index, t) => ((((t - index * beat.stepMs) % beat.cycleMs) + beat.cycleMs) % beat.cycleMs) / beat.cycleMs;
+  function machineStroke(beat, index, t) {
+    const k = machinePhase(beat, index, t), down = beat.strikeAt - 0.02, hit = beat.strikeAt + 0.02;
+    if (k < down) return 0;
+    if (k < hit) return (k - down) / 0.04;
+    if (k < hit + 0.08) return 1;
+    return Math.max(0, 1 - (k - hit - 0.08) / 0.1);
+  }
+  // Cold let out of its pipes just after the strike.
+  function machineBreath(beat, index, t) { const k = machinePhase(beat, index, t), hit = beat.strikeAt + 0.02; return k >= hit ? Math.max(0, 1 - (k - hit) / 0.18) : 0; }
   // Belt goods are bodies: they sort with everyone else by depth.
   function buildingBodies(geo, s) {
     if (!geo.belts) return [];
@@ -2104,7 +2160,59 @@
       ctx.restore();
     }
   }
+  // Intake: where the small hood is looking, as light. Watching, his phone is
+  // a torch on Rizo (or on the crate Rizo is behind, whose shadow keeps its
+  // edge); looking away, it is a screen lighting his own mask. Just before he
+  // looks back the torch stutters on. Moving in the beam is what gets him seen.
+  function guardLook(geo, s) {
+    const sim = s.sim, room = s.extras.room || {}, guard = sim.enemies.find(enemy => enemy.kind === "guard");
+    const actor = (s.extras.npcs || []).find(item => item.id === "hood-small");
+    if (!guard || !actor) return null;
+    const def = Content().ENEMIES.guard, face = actor.face || 1;
+    const phone = { x: actor.x + face * 17.5, y: actor.y - 50 };
+    const since = (s.extras.sceneTime || 0) - (room.glareAt ?? -1e9);
+    const elapsed = sim.t - guard.stateAt;
+    let mode = guard.state === "watch" ? "watch" : elapsed >= def.awayMs - def.tellMs ? "tell" : "away";
+    if (since < 600) mode = "glare";
+    // The beam lands on Rizo; pressed behind a crate, it lands on the crate instead.
+    let to = { x: s.pos.x, y: s.pos.y - 4 };
+    const hide = room.hidden ? (geo.hides || []).find(r => s.pos.x >= r.x - 4 && s.pos.x <= r.x + r.w + 4 && s.pos.y >= r.y - 4 && s.pos.y <= r.y + r.h + 4) : null;
+    if (hide) { const crate = geo.solids.find(r => r.kind === "crate-cold" && Math.abs(r.x + r.w / 2 - (hide.x + hide.w / 2)) < 20); if (crate) to = { x: crate.x + crate.w / 2, y: crate.y + crate.h / 2 }; }
+    const flicker = mode === "tell" ? (s.reduced ? 0.5 : Math.floor(sim.t / 70) % 3 === 0 ? 0 : 0.6) : 1;
+    return { mode, phone, to, flicker, since, hide, head: { x: actor.x, y: actor.y - 90 } };
+  }
+  function intakeOver(ctx, geo, s) {
+    const look = guardLook(geo, s);
+    if (!look) return;
+    const { mode, phone, to, flicker, since, hide } = look;
+    if (mode === "away") {
+      // The screen on his mask: he is reading something, not looking at you.
+      alpha(ctx, 0.75, () => rect(ctx, P.fluoro[2], phone.x - 1.5, phone.y - 3, 3, 5));
+      return;
+    }
+    const angle = Math.atan2(to.y - phone.y, to.x - phone.x), length = Math.hypot(to.x - phone.x, to.y - phone.y) + 26;
+    const glare = mode === "glare" ? Math.max(0, 1 - since / 600) : 0;
+    const half = 0.14 + glare * 0.08, a = (mode === "tell" ? 0.18 : 0.3 + glare * 0.3) * flicker;
+    if (a > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const grad = ctx.createRadialGradient(phone.x, phone.y, 3, phone.x, phone.y, length);
+      grad.addColorStop(0, `rgba(255,250,228,${a})`); grad.addColorStop(0.85, `rgba(255,250,228,${a * 0.55})`); grad.addColorStop(1, "rgba(255,250,228,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(phone.x, phone.y); ctx.arc(phone.x, phone.y, length, angle - half, angle + half); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      // The spot where it lands.
+      if (mode !== "tell") alpha(ctx, 0.22 + glare * 0.3, () => oval(ctx, to.x, to.y + 6, 13 + glare * 4, 6 + glare * 2, "#fff8de"));
+    }
+    // Behind a crate the shadow keeps its edge, beam or no beam.
+    if (hide) alpha(ctx, 0.4, () => rect(ctx, P.ink, hide.x, hide.y, hide.w, hide.h));
+    // The torch's LED.
+    rect(ctx, mode === "tell" && flicker === 0 ? P.cloth[2] : "#fffbe8", phone.x - 1.5, phone.y - 1.5, 3, 3);
+    // Caught at it: his whole body says so.
+    if (glare > 0) alpha(ctx, glare, () => label(ctx, "!", look.head.x, look.head.y, { size: 13, weight: 900, color: P.paper[3] }));
+  }
   function buildingOver(ctx, geo, s) {
+    if (geo.id === "intake") { intakeOver(ctx, geo, s); return; }
     if (geo.id === "collection") {
       // Every jar's small light, cold, breathing very slowly: what the dark is full of.
       const t = s.reduced ? 0 : s.time;
@@ -2113,19 +2221,38 @@
         alpha(ctx, 0.35 * breathe, () => oval(ctx, jar.x, jar.y + jar.glow, 2.6 * jar.size * 2, 2.6 * jar.size * 2, P.cold[2]));
         alpha(ctx, 0.85 * breathe, () => oval(ctx, jar.x, jar.y + jar.glow, 1.1 * jar.size * 2, 1.2 * jar.size * 2, "#d6e6f0"));
       }
+      // The six he can reach, again above the dark: a woken one really glows.
       for (const item of geo.jars) {
-        const awake = Boolean(s.sim.flags[item.flag]);
-        alpha(ctx, awake ? 0.9 : 0.6, () => oval(ctx, item.x, item.y - 7, awake ? 2.6 : 1.8, awake ? 3 : 2, awake ? P.ember[4] : "#d6e6f0"));
+        const mood = jarMood(item, s);
+        ctx.save(); ctx.translate(item.x, item.y + 2); ctx.scale(1.15, 1.15);
+        A.jarLight(ctx, { ...mood, alpha: mood.awake ? 0.9 : 0.6 }, item.x);
+        ctx.restore();
       }
       return;
     }
     if (geo.id !== "longhall") return;
-    // A window lamp straight across the hall: bright enough to make anyone stop.
     for (const win of geo.lampWindows || []) {
-      if (Core.lampWindowState(win, s.sim.t) !== "on") continue;
+      const state = Core.lampWindowState(win, s.sim.t);
+      if (state === "tell") {
+        // The rattle lets light out under the shutter: it creeps across the
+        // floor along exactly the band the lamp will fill, and the lamp opens
+        // as it reaches the far wall. Where, and when.
+        const k = Math.max(0, Math.min(1, lampTellProgress(win, s.sim.t)));
+        const len = (geo.w - 40) * (s.reduced ? 1 : k), x0 = win.side === "w" ? 20 : geo.w - 20 - len;
+        alpha(ctx, 0.07 + 0.12 * k, () => rect(ctx, P.cold[2], x0, win.y, len, win.h));
+        alpha(ctx, 0.25 + 0.35 * k, () => { rect(ctx, P.cold[3], x0, win.y, len, 1.2); rect(ctx, P.cold[3], x0, win.y + win.h - 1.2, len, 1.2); });
+        continue;
+      }
+      if (state !== "on") continue;
+      // A window lamp straight across the hall: bright enough to make anyone stop.
       alpha(ctx, 0.2, () => rect(ctx, P.cold[3], 20, win.y - 4, geo.w - 40, win.h + 8));
       alpha(ctx, 0.42, () => rect(ctx, "#ffffff", 20, win.y + 3, geo.w - 40, win.h - 6));
     }
+  }
+  // How far through its rattle a window is (0 → 1 as its lamp is about to open).
+  function lampTellProgress(win, t) {
+    const k = (((t + win.offset) % win.period) + win.period) % win.period;
+    return (k - (win.period - win.onMs - win.tellMs)) / win.tellMs;
   }
   function buildingLights(geo, s) {
     const sim = s.sim, list = [], room = s.extras.room || {};
@@ -2137,18 +2264,28 @@
         if (state === "on") list.push({ x, y: win.y + win.h / 2, r: 300, strength: 1, warm: 0, cone: { angle: win.side === "w" ? 0 : Math.PI, half: 0.12 } });
         else if (state === "tell") list.push({ x, y: win.y + win.h / 2, r: 30, strength: 0.6, warm: 0 });
       }
+      // The runner's lamp, pressed to the gate it was shut out by.
+      if (room.slamAt != null && (s.extras.sceneTime || 0) - room.slamAt < 700) list.push({ x: room.slamX + 20, y: Math.max(geo.dropGate.y + geo.dropGate.h + 6, room.slamY - 50), r: 70, strength: 0.8, warm: 0 });
     }
-    if (geo.id === "intake") { ambient = { color: [5, 8, 11], alpha: 0.4 }; list.push({ x: 90, y: 120, r: 120, strength: 0.7, warm: 0 }, { x: 230, y: 200, r: 120, strength: 0.6, warm: 0 }); if (room.speakerOn) list.push({ x: 104, y: 14, r: 40, strength: 0.6, warm: 0 }); }
+    if (geo.id === "intake") {
+      ambient = { color: [5, 8, 11], alpha: 0.4 }; list.push({ x: 90, y: 120, r: 120, strength: 0.7, warm: 0 }, { x: 230, y: 200, r: 120, strength: 0.6, warm: 0 }); if (room.speakerOn) list.push({ x: 104, y: 14, r: 40, strength: 0.6, warm: 0 });
+      // His torch lights what it is on; his screen lights only him.
+      const look = guardLook(geo, s);
+      if (look && look.mode !== "away" && look.flicker > 0) list.push({ x: look.phone.x, y: look.phone.y, r: Math.hypot(look.to.x - look.phone.x, look.to.y - look.phone.y) + 30, strength: look.mode === "tell" ? 0.5 : 0.9, warm: 0.2, cone: { angle: Math.atan2(look.to.y - look.phone.y, look.to.x - look.phone.x), half: 0.16 } });
+      else if (look) list.push({ x: look.phone.x, y: look.phone.y, r: 26, strength: 0.6, warm: 0 });
+    }
     if (geo.id === "collection") {
       ambient = { color: [3, 5, 8], alpha: 0.66 };
       for (const solid of geo.solids) if (solid.kind === "jar-shelf") for (let x = solid.x + 30; x < solid.x + solid.w; x += 75) list.push({ x, y: solid.y + 6, r: 54, strength: 0.32, warm: 0 });
-      for (const item of geo.jars) if (sim.flags[item.flag]) list.push({ x: item.x, y: item.y - 8, r: 46, strength: 0.75, warm: 1 });
+      // Each woken one lights its bit of shelf; the oldest only just.
+      for (const item of geo.jars) if (sim.flags[item.flag]) list.push({ x: item.x, y: item.y - 8, r: item.id === "jar-old" ? 30 : item.id === "jar-pip" ? 38 : 46, strength: item.id === "jar-old" ? 0.45 : 0.75, warm: 1 });
       list.push({ x: 84, y: 40, r: 60, strength: 0.45, warm: 0 });
     }
     if (geo.id === "factory") {
       ambient = { color: [5, 8, 11], alpha: 0.48 };
       for (const y of [70, 240, 400, 560]) list.push({ x: 160, y, r: 120, strength: 0.42, warm: 0 });
-      for (const solid of geo.solids) if (solid.kind === "machine") list.push({ x: solid.x + solid.w / 2, y: solid.y + 16, r: 46, strength: 0.6, warm: 0 });
+      for (const [index, solid] of geo.solids.filter(item => item.kind === "machine").entries()) list.push({ x: solid.x + solid.w / 2, y: solid.y + 16, r: 46 + machineStroke(geo.machineBeat, index, sim.t) * 14, strength: 0.6 + machineStroke(geo.machineBeat, index, sim.t) * 0.3, warm: 0 });
+      if (room.speakerOn) for (const y of [200, 420, 620]) list.push({ x: 12, y, r: 34, strength: 0.5, warm: 0 }, { x: 308, y: y + 60, r: 34, strength: 0.5, warm: 0 });
       list.push({ x: 160, y: 700, r: 70, strength: 0.6, warm: 0 });
     }
     return { ambient, list };
@@ -2181,11 +2318,28 @@
     for (let y = 74; y < 90; y += 4) rect(c, P.metal[2], 53, y, 14, 1.2);
     label(c, "↓", 60, 70, { size: 7, color: P.cold[2], weight: 900 });
   }
+  // Over the guard post the lamp below reaches each grate in turn. How long
+  // until grate `index` lights (ms; negative while it is lit).
+  function listenDue(geo, index, t) {
+    const l = geo.listen, k = ((t % l.period) + l.period) % l.period;
+    let due = index * l.stepMs - k;
+    if (due < -l.litMs) due += l.period;
+    return due;
+  }
+  const LISTEN_WARN_MS = 550;
   function ventsDynamic(ctx, geo, s) {
     const sim = s.sim;
     for (const [index, grate] of (geo.listens || []).entries()) {
-      if (!Core.listenLit(geo, index, sim.t)) continue;
+      if (!Core.listenLit(geo, index, sim.t)) {
+        // The next one along: light creeping up through the slats before it gets there.
+        const due = listenDue(geo, index, sim.t);
+        if (due > 0 && due <= LISTEN_WARN_MS) alpha(ctx, 0.85 * (1 - due / LISTEN_WARN_MS), () => { for (let x = grate.x + 7; x < grate.x + grate.w - 6; x += 4) rect(ctx, P.cold[3], x - 0.2, grate.y + 5, 2, grate.h - 10); });
+        continue;
+      }
       alpha(ctx, 0.75, () => { for (let x = grate.x + 7; x < grate.x + grate.w - 6; x += 4) rect(ctx, P.cold[3], x - 0.4, grate.y + 5, 2.4, grate.h - 10); });
+      // It comes up through the slats in bars, past the grate's frame, onto the duct.
+      const shimmer = s.reduced ? 0 : Math.sin(s.time / 120) * 0.06;
+      alpha(ctx, 0.16 + shimmer, () => { for (let x = grate.x + 7; x < grate.x + grate.w - 6; x += 4) rect(ctx, "#ffffff", x - 0.2, grate.y - 6, 2, grate.h + 12); });
     }
     const view = s.extras.room?.ventView;
     for (const grate of geo.grates || []) if (view === grate.view) alpha(ctx, 0.6, () => { for (let x = grate.x + 7; x < grate.x + grate.w - 6; x += 4) rect(ctx, P.cold[2], x, grate.y + 5, 1.6, grate.h - 10); });
@@ -2193,7 +2347,11 @@
   }
   function ventsLights(geo, s) {
     const sim = s.sim, list = [];
-    for (const [index, grate] of (geo.listens || []).entries()) if (Core.listenLit(geo, index, sim.t)) list.push({ x: grate.x + grate.w / 2, y: grate.y + grate.h / 2, r: 46, strength: 1, warm: 0 });
+    for (const [index, grate] of (geo.listens || []).entries()) {
+      if (Core.listenLit(geo, index, sim.t)) { list.push({ x: grate.x + grate.w / 2, y: grate.y + grate.h / 2, r: 46, strength: 1, warm: 0 }); continue; }
+      const due = listenDue(geo, index, sim.t);
+      if (due > 0 && due <= LISTEN_WARN_MS) list.push({ x: grate.x + grate.w / 2, y: grate.y + grate.h / 2, r: 36, strength: 0.75 * (1 - due / LISTEN_WARN_MS), warm: 0 });
+    }
     for (const grate of geo.grates || []) list.push({ x: grate.x + grate.w / 2, y: grate.y + grate.h / 2, r: 26, strength: 0.45, warm: 0 });
     list.push({ x: 60, y: 80, r: 30, strength: 0.4, warm: 0 });
     return { ambient: { color: [3, 4, 6], alpha: 0.78 }, list };
