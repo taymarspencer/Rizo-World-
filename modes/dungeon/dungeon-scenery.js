@@ -1961,10 +1961,10 @@
       // A narrow output chute points toward the belt below. What comes
       // out remains deliberately unexplained.
       shape(c, [s.x + s.w - 9, s.y + s.h - 9,
-        s.x + s.w + 12, s.y + s.h - 6,
-        s.x + s.w + 12, s.y + s.h - 2,
+        s.x + s.w - 1, s.y + s.h - 6,
+        s.x + s.w - 1, s.y + s.h - 2,
         s.x + s.w - 9, s.y + s.h - 4], P.metal[1], { ink: 0.7, amp: 0.04 });
-      line(c, s.x + s.w - 8, s.y + s.h - 5, s.x + s.w + 10, s.y + s.h - 3, P.metal[3], 1.1);
+      line(c, s.x + s.w - 8, s.y + s.h - 5, s.x + s.w - 2, s.y + s.h - 3, P.metal[3], 1.1);
     },
     "crate-stack"(c, s) {
       drop(c, s.x + s.w / 2, s.y + s.h + 3, s.w / 2 + 3, 5);
