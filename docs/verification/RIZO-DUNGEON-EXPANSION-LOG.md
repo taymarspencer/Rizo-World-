@@ -24,6 +24,12 @@ What I verified on the Pages preview (`claude-dungeon-story-overhau.rizo-world.p
 - The Dungeon launches on `threshold-v4` with the comic API present and no page errors.
 - Production (`rizo-world.pages.dev`) still serves `v95`. Nothing here touched it.
 
+After the Chapter 3 push, the same failure repeated for `242bf30`: Workers Builds failed in 0 s and Pages succeeded. Preview `43b37e81.rizo-world.pages.dev`:
+- the service worker is active, with one cache, `rizo-game-v97-dungeon-collection`, holding 161 entries and no kit;
+- the meta marker is `v97-dungeon-collection`;
+- kit, tools, tests and docs all return 404;
+- on `threshold-v4`, all five new rooms (the hall, Intake, the collection, the vents, the factory) load with their goal lines, all nine comics are present, and there are no page errors.
+
 ## 2. Built: Chapter 3, The Collection
 
 The arc the owner set (chase → cage → building → room of Rizos → escape alone → vents with grate views → factory) is now playable. It is built from the kit's prototypes, rewritten as live rules in `dungeon-core.js` with real art, sound, goals, retries, saves and tests. The dev kit itself is unchanged and still excluded from the package.
