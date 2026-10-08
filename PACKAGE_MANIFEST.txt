@@ -18,8 +18,8 @@ CHANGED (presentation, sound and QA only)
 ------------------------------------------------------------------------------
 
 RIZO V97 — DUNGEON CHAPTER 3: THE COLLECTION
-Build marker: v97-dungeon-collection (bumped because sw.js serves same-origin files
-  cache-first: a v96 visitor would otherwise keep the old Dungeon scripts)
+Build marker: v97-dungeon-collection (names the build and renews the offline cache;
+  the Dungeon files themselves are REQUIRED_SHELL, fetched network-first)
 Branch: claude/dungeon-story-overhaul → develop (PR #33)
 Save: still threshold-v4 (rooms and facts only added; no second revision bump)
 Story: Story Spine v0.4 §Chapter 3; Contracts §7; docs/verification/RIZO-DUNGEON-EXPANSION-LOG.md
