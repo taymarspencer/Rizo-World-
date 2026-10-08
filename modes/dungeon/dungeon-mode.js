@@ -2190,10 +2190,13 @@
           sound("speaker");
           if (!room.heardView?.[grate.view]) {
             room.heardView = { ...(room.heardView || {}), [grate.view]: true };
-            const w = 172, x = Math.max(6, Math.min(g.w - w - 6, grate.x + grate.w / 2 - w / 2)) + w / 2, y = grate.y < 140 ? grate.y + grate.h + 60 : grate.y - 60;
+            // The voices come from the room below: their bubbles sit beside the view, never on it.
+            const w = 172, h = 104, x = Math.max(6, Math.min(g.w - w - 6, grate.x + grate.w / 2 - w / 2)) + w / 2;
+            const below = grate.y < 140, y = below ? grate.y + grate.h + 8 + h + 6 : grate.y - h - 10;
+            const where = { barkLift: 0, barkBelow: below };
             const lines = L[VENT_LINES[grate.view]];
-            if (typeof lines[0] === "string") { npc("view", "none", x, y, { barkLift: 0 }); bark("view", lines[0], 4200); }
-            else { for (const id of new Set(lines.map(line => line.speaker))) npc(id, "none", x, y, { barkLift: 0 }); runScene(`vents:${grate.view}`, [S.control(true), talk(lines)], { control: true }); }
+            if (typeof lines[0] === "string") { npc("view", "none", x, y, where); bark("view", lines[0], 4200); }
+            else { for (const id of new Set(lines.map(line => line.speaker))) npc(id, "none", x, y, where); runScene(`vents:${grate.view}`, [S.control(true), talk(lines)], { control: true }); }
           }
         }
       }

@@ -148,8 +148,25 @@ What the tests now say on purpose:
 - The opening's beat list includes the five `comic:*` beats in order.
 - The production package is 166 files: the two comic files, and no kit.
 
+## Director's expansion: Chapter 3, The Collection (build `v97-dungeon-collection`)
+
+What changed, why, and every autonomous fix are in [RIZO-DUNGEON-EXPANSION-LOG.md](RIZO-DUNGEON-EXPANSION-LOG.md); the story is in the spine's §Chapter 3. Summary:
+
+![Chapter 3 at 390 px: the bell, the window opens, the chase and the night gate, the cage, the jars, the vents over his office, the factory floor, the loading door](rizo-dungeon-story-overhaul/chapter3.webp)
+
+| Room | What the player does | Fails how, back to where |
+|---|---|---|
+| Window Hall | rings the bell; the window opens on a collector (comic) | — |
+| The Long Hall | runs; times the window lamps; gets under the night gate | caught: hall door, or the gate once passed |
+| Intake | rattles the crate while the small hood looks away; freezes when he looks | seen moving: put back (keeps two notches) |
+| The Collection | wakes jars; three lights open the frozen grate | the grate explains it is too cold for one |
+| The Vents | stops on grates to look; freezes when light comes up | heard: the start of that duct |
+| The Factory Floor | rides belts; hides behind crates from walkway lamps | caught: the vent landing |
+
+**Cloudflare:** Pages deployed the branch. The red "Workers Builds" check is a separate Worker integration that fails in 0 s on every PR, including PRs without this code. The repo has no Worker config. Details and the remedy are in the log, §1.
+
 ## Reserved for the factory chapters
 
-- **The window opens on collectors.** `boss-glass` ends the built content at Window Hall with "Then be at the window when it opens." The boundary card still says somebody behind that counter is going to open it.
-- **Kit, proven in greybox only:** `Kit.Chase` (a pursuer on his trail), `Kit.Cage` (rattle only while the guard looks away), `Kit.Vents` (still on a grate, the room below shows: office → lab → the collection), `Kit.Watcher`/`Kit.Stealth` (the same rule as the live collectors, parameterised). `tests/dungeon-kit.test.js` covers each.
+- *(v97: built. See the section above.)* The window opens on collectors; the chase, the cage, the vents and the factory are live rules in `dungeon-core.js`.
+- **Kit (dev only, unchanged):** the greybox sandbox at `tools/dungeon-kit/?dev=1` and `tests/dungeon-kit.test.js` stay as the place to prove the next systems first.
 - Open questions are listed in the spine's "Open" section. They are not answered anywhere in the game.

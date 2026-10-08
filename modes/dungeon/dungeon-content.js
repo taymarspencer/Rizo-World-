@@ -1069,9 +1069,9 @@
     jars: "WAKE THE JARS. TOGETHER YOU'RE WARM ENOUGH.",
     grate: "WARM THE GRATE (NORTH-EAST CORNER)",
     vents: "CRAWL THROUGH THE VENTS",
-    listen: "LIGHT UNDER A GRATE? FREEZE UNTIL IT PASSES.",
+    listen: "LIGHT UNDER A GRATE? FREEZE.",
     hatch: "THE HATCH AT THE WEST END. DOWN.",
-    factory: "DOWN TO THE LOADING DOOR. CRATES HIDE YOU.",
+    factory: "TO THE LOADING DOOR. CRATES HIDE YOU.",
     promise: "COME BACK FOR THEM"
   };
   // Short acknowledgements for a committed beat whose scene was interrupted.

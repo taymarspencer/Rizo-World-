@@ -1493,6 +1493,21 @@
       rect(ctx, P.a.mustard, s.x + 2, s.y + s.h - 4, s.w - 4, 2);
       return true;
     }
+    if (s.kind === "shutter-door") {
+      // Window Hall's staff door: his kind of door, cold steel with the mark. Open, cold light spills out.
+      if (open) {
+        rect(ctx, P.ink, s.x, s.y, s.w, s.h);
+        alpha(ctx, 0.8, () => rect(ctx, P.cold[1], s.x + 3, s.y + 3, s.w - 3, s.h - 6));
+        alpha(ctx, 0.3, () => shape(ctx, [s.x, s.y, s.x, s.y + s.h, s.x - 46, s.y + s.h + 16, s.x - 46, s.y - 16], P.cold[3], { ink: false }));
+        box(ctx, s.x + s.w - 6, s.y - 18, 6, 18, P.metal[2], { ink: 1, amp: 0.05 });
+        return true;
+      }
+      box(ctx, s.x, s.y, s.w, s.h, P.metal[1], { ink: 1.4, amp: 0.05 });
+      for (let y = s.y + 3; y < s.y + s.h - 1; y += 3) rect(ctx, P.metal[0], s.x + 1, y, s.w - 2, 1);
+      A.mark(ctx, s.x + s.w / 2, s.y + s.h / 2, 8, P.cold[2]);
+      label(ctx, "STAFF", s.x + s.w / 2 + 1, s.y + 6, { size: 3.6, color: P.cold[3], weight: 900 });
+      return true;
+    }
     if (s.kind === "grille") {
       if (open) {
         // Swung back against the wall, its low catch warm.
@@ -1508,6 +1523,15 @@
   }
   function rowsDynamic(ctx, geo, s) {
     const sim = s.sim, t = s.reduced ? 0 : s.time, room = s.extras.room || {};
+    if (geo.id === "windowgate" && sim.flags.windowOpen) {
+      // The window is open: the shutter rolled up, cold white light, nobody kind behind it.
+      const c = geo.solids.find(item => item.id === "counter");
+      box(ctx, c.x + c.w / 2 - 26, c.y + 2, 52, 18, P.ink, { ink: 1.2, amp: 0.1 });
+      rect(ctx, P.cold[2], c.x + c.w / 2 - 24, c.y + 4, 48, 14);
+      alpha(ctx, 0.6, () => rect(ctx, "#ffffff", c.x + c.w / 2 - 22, c.y + 6, 44, 4));
+      box(ctx, c.x + c.w / 2 - 26, c.y - 2, 52, 5, P.metal[1], { ink: 1, amp: 0.05 });
+      A.mark(ctx, c.x + c.w / 2, c.y + 12, 8, P.suit[1]);
+    }
     if (geo.id === "receiving" && room.dryPatch != null) {
       // Her clearing gesture has a visible result at Rizo's height.
       box(ctx, 184, 98, 44, 26, P.wood[2], { ink: 1, amp: 0.4 });
@@ -1596,6 +1620,7 @@
     if (geo.id === "lowrun") list.push({ x: 140, y: 214, r: 80, strength: 0.3, warm: 0.8 });
     if (geo.id === "upper") list.push({ x: 306, y: 110, r: 110, strength: 0.65, warm: 0.5 });
     if (geo.id === "windowgate") for (const y of [43, 163, 223]) list.push({ x: 310, y, r: 65, strength: 0.5, warm: 0.6 });
+    if (geo.id === "windowgate" && s.sim.flags.windowOpen) list.push({ x: 160, y: 40, r: 110, strength: 0.85, warm: 0 }, { x: 296, y: 190, r: 70, strength: 0.6, warm: 0 });
     if (geo.id === "drytable" && room.board) list.push({ x: 156, y: 150, r: 60, strength: 0.5, warm: 0.8 });
     if (geo.id === "press" && room.carriage) list.push({ x: room.carriage.x, y: geo.track.y - 20, r: 40, strength: 0.25, warm: 0.2 });
   }
