@@ -57,6 +57,20 @@
   const glow = (cx, cy, r, color = K.flame, a = 0.85) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" opacity="${a * 0.35}"/><circle cx="${cx}" cy="${cy}" r="${r * 0.62}" fill="${color}" opacity="${a * 0.55}"/><circle cx="${cx}" cy="${cy}" r="${r * 0.3}" fill="${K.hot}" opacity="${a}"/>`;
   // A gloved hand, fingers spread, reaching at the viewer.
   const grabHand = (x, y, s = 1, flip = 1, sleeve = K.maroon) => `<g transform="translate(${x} ${y}) scale(${s * flip} ${s})"><path d="M-46 30 L-14 4 L-4 18 L-34 44 Z" fill="${sleeve}" stroke="${K.ink}" stroke-width="2.4" stroke-linejoin="round"/><path d="M-14 4 Q-8 -6 2 -4 L10 -18 Q14 -22 17 -18 L11 -4 L22 -16 Q26 -20 29 -16 L19 0 L28 -6 Q32 -8 33 -4 L20 10 Q16 20 4 22 Q-6 22 -4 18 Z" fill="${K.glove}" stroke="${K.ink}" stroke-width="2.4" stroke-linejoin="round"/><path d="M6 -6 L14 -16 M14 -2 L24 -12" stroke="#3d3833" stroke-width="1.4"/><path d="M-10 6 Q-18 -4 -12 -12 Q-6 -16 -2 -8" fill="${K.glove}" stroke="${K.ink}" stroke-width="2.2"/></g>`;
+  // Opening-only hand: a tapered wrist, palm, four staggered fingers and
+  // an opposed thumb. The sleeve bends before the cuff rather than becoming
+  // a broad triangular wedge. Other chapters retain their authored hands.
+  const snatchHand = (x, y, s, flip, sleeve) => `<g transform="translate(${x} ${y}) scale(${s * flip} ${s})" stroke="${K.ink}" stroke-width="2" stroke-linejoin="round">
+    <path d="M-46 38 Q-37 20 -29 15 L-16 4 L-7 14 L-20 29 Q-28 35 -34 47 Z" fill="${sleeve}"/>
+    <path d="M-18 5 L-12 0 L-3 13 L-9 18 Z" fill="${K.suit}"/>
+    <path d="M-12 1 Q-13 -5 -8 -9 L-8 -24 Q-8 -28 -5 -28 Q-2 -28 -2 -24 L-1 -12
+      L2 -30 Q3 -34 6 -33 Q9 -32 8 -28 L6 -10
+      L12 -26 Q14 -30 17 -28 Q20 -26 18 -22 L12 -6
+      L19 -18 Q21 -21 24 -19 Q27 -17 24 -13 L17 0
+      Q16 8 9 14 Q3 19 -4 16 L-12 8 Z" fill="${K.glove}"/>
+    <path d="M-10 5 L-18 -4 Q-20 -8 -16 -10 Q-13 -11 -10 -8 L-3 -2 Q1 1 -1 5" fill="${K.glove}"/>
+    <path d="M-4 -8 L0 -4 M4 -7 L8 -3 M11 -3 L14 0 M-4 9 Q2 6 7 7" stroke="#3d3833" stroke-width="1" fill="none"/>
+  </g>`;
   const card = (x, y, s = 1, rot = -12) => `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})"><rect x="-16" y="-10" width="32" height="20" rx="1.5" fill="${K.suit}" stroke="${K.coldMid}" stroke-width="0.8"/><g transform="translate(-10 -10) scale(0.5)">${MARK(K.cold)}</g></g>`;
 
   // ===== THE SCENES =====
@@ -67,7 +81,7 @@
   const SCENES = {
     // The hands close on him. The capped one leaves a card on the empty seat.
     grab: { ms: 3900, layout: "grab", panels: [
-      { at: 0, enter: "slam", area: "a", art: () => art(`${burst(110, 52, K.ink, 34, 18, 150, 1.6)}<rect x="0" y="0" width="160" height="100" fill="HALFTONE"/><path d="M0 0 H62 L40 100 H0 Z" fill="${K.night}"/>${rain(16)}<path d="M62 0 L40 100" stroke="${K.ink}" stroke-width="4"/>${grabHand(112, 58, 1.35, 1, K.maroon)}${grabHand(70, 76, 1.1, -1, K.track)}`),
+      { at: 0, enter: "slam", area: "a", art: () => art(`${burst(110, 52, K.ink, 34, 18, 150, 1.6)}<rect x="0" y="0" width="160" height="100" fill="HALFTONE"/><path d="M0 0 H62 L40 100 H0 Z" fill="${K.night}"/>${rain(16)}<path d="M62 0 L40 100" stroke="${K.ink}" stroke-width="4"/>${snatchHand(112, 58, 1.15, 1, K.maroon)}${snatchHand(68, 76, 0.95, -1, K.track)}`),
         sfx: [{ text: "SNATCH!", x: 50, y: 22, rot: -10, size: 2.3 }] },
       { at: 950, enter: "slam-r", area: "b", art: () => art(`${burst(80, 50, K.ember, 30, 30, 130, 2)}`, { bg: K.hot }), rizo: { x: 50, y: 64, w: 230, cls: "is-eyes" },
         sfx: [{ text: "!!", x: 82, y: 18, rot: 12, size: 1.8, cls: "is-small" }] },

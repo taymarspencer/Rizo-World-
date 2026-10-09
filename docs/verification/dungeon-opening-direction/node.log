@@ -1,0 +1,294 @@
+PASS provider attachment cannot enable a shipped or unknown placement
+PASS unresolved/revoked privacy and active gameplay reject before provider calls
+PASS reward opt-in, a truthful offer callback, natural break and opportunity ID are mandatory
+PASS single in-flight request and opportunity dedupe prevent double reward delivery
+PASS no inventory, provider exceptions and rejected promises fail without reward or holds
+PASS Google beforeReward never auto-shows; a player may refuse with no reward
+PASS privacy changes between offer and Watch prevent showing the ad
+PASS Google completion grants once and only after adViewed and the terminal callback
+PASS dismissal, shown-only and a viewed status string alone never earn a reward
+PASS stalled requests settle, release a started hold, quarantine the provider and reject late rewards
+PASS late SDK display after an initial timeout still receives a balanced pause and requires Resume
+PASS interstitial cooldown, attempt cooldown, and per-session cap remain conservative
+PASS an interstitial cannot impersonate a reward or a preroll placement
+PASS a provider error after beginning cannot silently restart play
+
+14/14 advertising boundary checks passed
+PASS frozen v1 signature is byte-identical to the one every pre-v88 save used
+PASS v1 envelopes written by older builds still verify, and edits are caught
+PASS v2 envelope signs the whole state and every mode slice
+PASS v2 signing survives values JSON cannot round-trip
+PASS unknown or newer envelope versions never verify
+PASS mode slices keep only well-formed ids and object data
+PASS hub limits live in the save core; Defense keeps only its own
+PASS v1 whole-save signatures detect progression edits
+PASS v1 whole-save signatures cover arcade and unlock progression
+PASS v1 whole-save signature protects Defense history and mastery
+PASS training definitions are validated at load
+PASS a warm-up run earns nothing and costs nothing
+PASS a par run pays the documented budget for its Energy
+PASS score scale does not change pay: 40-point and 600-point games pay alike
+PASS no run can exceed 1.5x a par run, however high the score
+PASS unknown end reasons fall back to timeup
+PASS hype is part of the conversion, scaled by the game's care.hype
+PASS a misspelled hook fails at load instead of silently never running
+PASS all ten games register under their own file's name
+PASS every game declares what the shelf and results need
+PASS no single run of any game can pay more than its 1.5x-par ceiling (audit H3/H4)
+PASS only the declared quest, counter and finds reach the hub
+PASS mode definitions are validated at load
+PASS first slice migration receives the legacy hub fields once
+PASS older slices migrate forward; current ones are left alone
+PASS a slice from a newer build is preserved untouched
+PASS legacy views handed to migrate() are read-only
+PASS awards are clamped and unknown fields dropped
+
+28/28 core contract checks passed
+PASS phase model gates actions coherently
+PASS gameplay density is invariant across quality and speed
+PASS 2x speed reduces visual pressure independently of combat math
+PASS imminent child spawns reserve density without trusting the whole buffer
+PASS golden income is capped
+PASS phase 5 economy constants are centralized
+PASS deployment pricing escalates canonically and duplicates cost extra
+PASS Golden active income diminishes across duplicates and stops scaling after wave 40
+PASS upgrade pricing and derived investment are explicit
+PASS opening-world discount is derived into canonical investment
+PASS wave and permanent rewards are map-invariant
+PASS late run cash growth is normalized without touching the opening curve
+PASS wave plans are capped and packetized
+PASS boss waves reserve a final entrance packet and a pre-boss breath
+PASS v76 simulation contract is fixed at 30Hz with bounded catch-up
+PASS wave grammar flattens top-level count and creates recovery valleys
+PASS run rewards use cleared accomplishments and soften late farming
+PASS checkpoint signatures detect casual tampering across derived surfaces
+PASS v5 checkpoint signatures cover opening-economy state
+PASS v7 checkpoint signatures cover Super Rizo form
+PASS v6 checkpoint signatures cover Gate Flame tactical state
+PASS legacy v4 checkpoint signatures remain verifiable for v67 migration
+PASS legacy v3 checkpoint signatures remain verifiable after the packet-clock migration
+PASS legacy v2 checkpoint signatures remain verifiable for migration
+PASS phase transitions form one explicit runtime state machine
+PASS phase action permissions prevent contradictory build and combat states
+PASS clamps reject impossible imported numbers
+PASS opening is an explicit ten-wave score with contrasting threats
+PASS waves 11 through 30 form an authored second chapter with support introductions and boss set pieces
+PASS endless remixes mechanics deterministically without unbounded screen density
+PASS endless supports four-digit runs without clamping progression metadata at legacy 250
+PASS v8 signs projectile continuation and keeps v7 verifiable
+
+32/32 core tests passed.
+PASS content is frozen: the opening plus the six stable Threshold rooms, all reachable
+PASS the six rooms connect as specified, with a real hearth–queue shortcut
+PASS Orr presentation exposes distinct service, irritated, and dry reads
+PASS skill edges use skill/(skill+50) and never pass their caps
+PASS a low-bond, untrained Rizo gets a viable profile and only recognition cues
+PASS movement is 80 units/sec and diagonals are normalized
+PASS the speed edge adds at most 8%
+PASS walls stop the Rizo and it slides along them
+PASS collision does not depend on frame rate: a long move never tunnels a crate
+PASS Flare: 100 ms anticipation, 100 ms active, 130 ms recovery, facing locked
+PASS Flare slows movement to 60% during anticipation/active only
+PASS Flare hits once per attack, 2 damage, inside range/arc and only while active
+PASS Flare misses behind, out of range, and through solid cover
+PASS two clean Flares calm a Draftling; the power edge never makes it one
+PASS holding Primary repeats Flare at the attack cadence only during danger
+PASS Tuck travels about 40 units in 200 ms with 160 ms protection and a 650 ms cooldown
+PASS holding Secondary does not repeat Tuck
+PASS the stamina edge shortens Tuck cooldown by at most 15%
+PASS Tuck cannot cancel Flare anticipation/impact but can cancel its recovery
+PASS a Secondary press buffers for 120 ms until Tuck becomes legal
+PASS when both become legal together, Secondary wins
+PASS Draftling: notices, draws back 850 ms, lunges about 48 units in 240 ms, recovers 700 ms
+PASS the lunge follows the committed line without tracking
+PASS Gentler timing lengthens the draw back by 35% and hurt protection to 1000 ms
+PASS no contact damage outside the lunge; hurt protection prevents chain hits
+PASS Tuck protection carries the Rizo through a lunge
+PASS a lethal Flare resolves before a same-step hit
+PASS Kindle takes about 1.2 s at the hearth and Secondary cancels it safely
+PASS Primary means Flare while an encounter is live, interaction once it ends
+PASS Flame 0 brings the Rizo down; respawn returns full Flame and resets ordinary enemies
+PASS rest restores Flame and returns ordinary enemies
+PASS pause holds: background → ad → visible → ad-end still needs a fresh Resume
+PASS pause holds: lifecycle aliases normalize, and release strings need not match
+PASS pause holds: save-blocked is never released by a resume or by the player
+PASS pause holds: the player's Resume clears manual, performance and a failed update only
+PASS a new campaign binds the pet, starts in the parked car and stays small
+PASS normalizeSlice: empty, ok, and a round trip keeps everything
+PASS an unknown location is repaired to a safe anchor without resetting the campaign
+PASS numeric bounds and unknown ids are clamped on entry
+PASS a newer or unknown content revision is preserved untouched
+PASS death returns to the registered hearth, or where he landed before one
+PASS summary publishes only labels and a journey; never ENDLESS/energy
+PASS in the parked car the Rizo moves only inside the cabin: seats, dash, window, YOU
+PASS the drain goes back too far: concrete, brick, rock, then a slope into nothing
+PASS exits fire once, only after stepping clear; zones report entry
+PASS the jammed gate holds until Latch is freed; warming it is a Kindle
+PASS Needle: a 10-wide lane shown for 1000 ms, a 120 ms pulse, a 1000 ms rest; cover stops it
+PASS the van's cooler bumps but never burns, and Tuck slips it
+PASS Night Porter: wakes, then alternates a 950 ms sweep tell and an 850 ms charge tell
+PASS Night Porter: the closed coat deflects Flare; the open hem takes damage
+PASS Night Porter: help is asked once at 14 HP, never again once committed; it settles at 0
+PASS the alcove shelters from the sweep once opened
+PASS a durable defeat never respawns; ordinary enemies return on rest
+PASS a Gate 1 review campaign is carried into The Threshold explicitly
+PASS story facts, choices and beats are validated against known ids
+PASS an RC2 journey still at the curb becomes the same journey in the car, nothing reset
+PASS RC2 journeys mid-opening keep every committed beat and their room
+PASS RC2 journeys below keep hearth, facts, choices, Latch and rewards exactly
+PASS callerConnected is the one new opening fact: allowlisted, persisted, never invented
+PASS a newer revision is still preserved untouched; a v1 save is never mistaken for one
+PASS the Porter's door now opens into the Mending Rows, and the rows connect both ways
+PASS each Rows route opens through work, never through affection
+PASS a threshold-v2 journey is carried into v4 untouched (rooms and facts were only added)
+PASS Rows choices are allowlisted with their exact values; anything else is dropped
+PASS a collector walks his patrol, lamp first, and is never fought
+PASS seen in his lamp for a second means caught: a flame-out back to the hearth, nothing durable lost
+PASS breaking his line of sight in time loses him; he searches, then walks on
+PASS posts and shadow hide him; a Flare is seen from twice as far, even in shadow
+PASS a soft collector (Clatter's first lamp) stops on him but never catches
+PASS threshold-v4: one revision bump; v3 journeys carry forward untouched; the new facts are allowlisted
+PASS v0.4 cast: the Boss speaks only through his mark; the capped hood has a face; the hoods can be scared
+PASS v0.4 story: the van says what the Boss wants; nobody says why; the cave folk each say why they help
+PASS v0.5: the window opens east into the Long Hall; the building rooms run one way, every one known and saved
+PASS the runner: kept running, he stays ahead of it; standing still, it catches him
+PASS the service windows: a rattle, then a lamp across the hall; in it he staggers and it gains
+PASS the night gate: under it in time, it shuts on the runner, who must go round; too slow, it shuts in his face
+PASS the cage: a rattle while he looks away loosens it; under his eye it costs two and he looks longer; five opens it
+PASS out of the cage: moving while he looks gets him put back; frozen, or behind a crate, he is not seen
+PASS factory: the belts carry him; a crate on the belt hides him, a tray of jars does not; catwalk lamps watch the floor
+PASS vents: moving on a lit grate is heard and he is caught; frozen on it, or on a dark one, he is not
+PASS the tin bell: a lured collector walks over to the sound, looks at it a while, then goes back to his line
+PASS save bounds: every room, beat and find of a whole journey survives a reload
+PASS restart: the story starts over from the car with a new campaign for the same Rizo
+PASS restart: the player's Dungeon settings and an unconfirmed reward are kept
+PASS restart: the result is a valid threshold-v4 slice that reloads unchanged
+PASS restart: an empty or older-revision slice restarts; one from another build is never dropped
+
+86/86 dungeon core checks passed
+PASS dpadVector: the same eight directions and dead zone as before when no direction is held
+PASS dpadVector: a thumb wobbling ±8° at every sector edge no longer flickers
+PASS dpadVector: a real slide still turns the corner, in both directions
+PASS dpadVector: a thumb that is steering lets go nearer the centre than one that is arriving
+PASS a held thumb moves continuously and a release stops it
+PASS sliding across the pad changes direction without lifting; sliding off it keeps steering
+PASS pointercancel releases the pad and the keys
+PASS a release that lands somewhere else (capture lost) still releases
+PASS a pointerup that never arrives is healed when the browser reports no touches left
+PASS a new first finger forgets an older touch that was lost without a release
+PASS a second finger on the pad is not the first finger's business
+PASS two fingers on the pad: opposite directions do not cancel and diagonals are not invented
+PASS the pad and Flare/Tuck work together, in either release order
+PASS mashing the pad leaves nothing held
+PASS a quick tap between frames still registers as a direction edge
+PASS after a dialogue the finger is quiet, wakes on a new direction, and a held direction is never counted again on its own
+PASS every reason except the page-changed ones leaves the finger quiet, including reasons that do not exist yet
+PASS a finger that is quiet still keeps the pad: no second thumb takes it
+PASS blur, hidden, rotation, resize and resume forget every finger and key
+PASS the page events call the right clears: blur, visibility, pagehide, pageshow, orientation
+PASS keyboard: WASD/arrows, Z/Space/J, X/K, Escape/P, repeats ignored, shortcuts and text fields left alone
+PASS keyboard: a key held through a dialogue stays dead until released; after a blur the next fresh press works
+PASS a tap on the dialogue box is NEXT for a finger or pen, not while a choice is up, not for the mouse
+PASS a key finger that drifts off the key and releases elsewhere does not stay pressed
+PASS bind blurs a focused text field so the keys work; unbind clears and removes every listener
+PASS a touch on the game is cancelled at touchstart (no OS text gestures); panel, choice, links and fields keep theirs
+
+26/26 dungeon input checks passed
+PASS stealth: a cone, line of sight, shadow and lockers; a Flare carries
+PASS a watcher patrols, spots, catches after spotMs, or loses him and goes back to walking
+PASS the chase follows his trail, gains when he stops, and loses him at the goal
+PASS the cage opens only to rattles while the guard looks away; a rattle under his eye costs two notches
+PASS vents: a grid, three grates that show darker rooms when he stays still on them, and the way out
+PASS the kit is dev only: no page, service worker or live script loads it
+
+6/6 dungeon kit checks passed
+PASS an old home starts without spending or inventing past rewards
+PASS malformed home records cannot add tiers, arbitrary drills, or repeat bonus ids
+PASS a purchased room keeps training history and the original record immutable
+PASS insufficient funds, duplicate purchases, and skipped tiers never spend Embers
+PASS the aspirational Orbit goal cannot sell unimplemented content
+PASS care and object variety pay at most 36 bonus Embers per date
+PASS bonus receipts survive reload and a different date has no streak debt
+PASS drill variety is a memory with ten slots, never a reward multiplier
+PASS position normalization preserves real zero/fractional coordinates and bounds bad data
+
+9/9 home rule checks passed
+PASS carePolicy defaults to normal and only accepts the two known policies
+PASS an adapter without the new optional capabilities still attaches
+PASS host.commit fails clearly when the hub cannot confirm saves
+PASS a held mode opens and closes a care session around its life
+PASS existing exits keep their behavior: no destination unless a known one is asked for
+PASS host.commit validates the slice and reward shape before the hub sees it
+PASS commit outcomes are normalized; anything unconfirmed is a failure
+PASS late callbacks after exit are refused without reaching the hub
+PASS events are allowlisted, tagged with the mode, and default to protected/none
+PASS suspend('force-update') hands the mode's commit outcome back to the hub
+PASS a mode that throws on create closes its care session again
+
+11/11 mode host checks passed
+PASS default bootstrap cannot load ads even if another script grants nominal consent
+PASS unverified account and unresolved or throwing permission keep configured integration closed
+PASS published routes have distinct titles, rizo.world canonicals, metadata and static content
+PASS public navigation and fragment links resolve to actual files/sections
+PASS sitemap names existing public content, without invented ads.txt or development pages
+PASS production package makes World root and Play a distinct static entry with stable PWA identity
+PASS overlapping Cloudflare rules never emit duplicate MIME headers
+PASS public text and focus colors have readable contrast on the ink surface
+
+8/8 public product contract checks passed
+PASS page, boot shell, runtime and service worker carry one build marker
+PASS every script and stylesheet the page loads is a required, network-first shell file
+PASS every required shell file exists and is also in the full shell
+PASS core modules load before anything that depends on them
+PASS each game mode's files load after the core and before the hub
+PASS training games load after the contract and the kit, and before the hub
+PASS no file a mode owns is left at its pre-v88 root path
+
+7/7 release integrity checks passed
+PASS runtime JS is network-first even with poisoned cache
+PASS runtime JS falls back to repaired cache offline
+PASS navigation is network-first and cache-backed offline
+PASS worker has versioned release cache and optional best-effort install
+PASS missing online navigation preserves 404 and is never cached as successful content
+PASS only known World and Play routes have their own offline fallbacks
+PASS legacy and trailing Play aliases redirect once, preserving the PWA query
+PASS an old cached game cannot masquerade as a missing new World shell
+PASS a missing required World or Play shell blocks takeover
+PASS same-origin worker does not intercept or cache a third-party ad request
+
+10/10 service-worker policy checks passed
+PASS there is one file per game plus the shared kit
+PASS breaker.js stays inside its run
+PASS forage.js stays inside its run
+PASS glide.js stays inside its run
+PASS kit.js stays inside its run
+PASS maze.js stays inside its run
+PASS memory.js stays inside its run
+PASS power.js stays inside its run
+PASS rhythm.js stays inside its run
+PASS rush.js stays inside its run
+PASS spark.js stays inside its run
+PASS walk.js stays inside its run
+PASS each game registers exactly once, under its file name
+
+13/13 training boundary checks passed
+PASS Factory deployment curve is explicit and increasingly expensive
+PASS Beacon deployment curve is separate from normal Rizo pricing
+PASS Factory starts humble and max investment becomes an industrial drop engine
+PASS Clean production builds momentum and PRINT LINE converts it into periodic RIZO DROPS
+PASS A mixed Beacon Brand Loop accelerates drops without affecting level-one readability
+PASS Private Sun and Golden License amplify branded drops, not every ordinary print
+PASS Golden-to-Factory global synergy is capped rather than infinitely stackable
+PASS Beacon progression culminates in a battlefield-defining support field
+PASS Structure investment is derived from canonical costs for checkpoint safety
+
+9/9 Worker B economy tests passed.
+PASS checkpoint schema never regresses below the v9 continuation guard and keeps the projectile budget
+PASS v10 signs the support/boss-phase continuation that v9 did not cover
+PASS legacy v8 continuation signatures remain verifiable after v9 upgrade
+PASS v9 signs tactical tower continuation that v8 intentionally did not cover
+PASS v9 signs status, weather, contract and perfect-wave continuation state
+PASS wave planning is deterministic at authored, boss and endless-range waves
+PASS gameplay density remains invariant while presentation budgets degrade safely
+
+7/7 Worker J guard tests passed.

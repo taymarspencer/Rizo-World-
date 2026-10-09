@@ -1,0 +1,71 @@
+PASS walk porter → receiving: destination and reveal survive its entrance scene
+PASS work presents WARM at reach
+PASS walk receiving → drytable: destination and reveal survive its entrance scene
+PASS Nell's first shared job is a readable portrait conversation
+PASS reload before the first catch resumes Nell beside the repaired table, without repeating the meeting
+PASS work presents WARM at reach
+PASS walk drytable → hangrow: destination and reveal survive its entrance scene
+PASS work presents WARM at reach
+PASS walk hangrow → lowrun: destination and reveal survive its entrance scene
+PASS Low Run's worn route passes all three solid stacks
+PASS walk lowrun → eyelet: destination and reveal survive its entrance scene
+PASS work presents WARM at reach
+PASS walk eyelet → traypass: destination and reveal survive its entrance scene
+PASS walk traypass → drytable: destination and reveal survive its entrance scene
+PASS leaving the meal keeps the Press House reason in Nell's portrait dialogue
+PASS walk drytable → traypass: destination and reveal survive its entrance scene
+PASS walk traypass → eyelet: destination and reveal survive its entrance scene
+PASS walk eyelet → press: destination and reveal survive its entrance scene
+PASS work presents WARM at reach
+PASS work presents WARM at reach
+PASS walk press → upper: destination and reveal survive its entrance scene
+PASS walk upper → stair: destination and reveal survive its entrance scene
+PASS Return Stair is walkable around both rail ends
+PASS walk stair → drytable: destination and reveal survive its entrance scene
+PASS work presents WARM at reach
+PASS 320×568: all three wrap choices stay in the screen without page scroll
+PASS 320×568: all wrap targets remain ≥44 px high
+PASS 375×812: all three wrap choices stay in the screen without page scroll
+PASS 375×812: all wrap targets remain ≥44 px high
+PASS 390×844: all three wrap choices stay in the screen without page scroll
+PASS 390×844: all wrap targets remain ≥44 px high
+PASS 430×932: all three wrap choices stay in the screen without page scroll
+PASS 430×932: all wrap targets remain ≥44 px high
+PASS 844×390: all three wrap choices stay in the screen without page scroll
+PASS 844×390: all wrap targets remain ≥44 px high
+PASS 568×320: all three wrap choices stay in the screen without page scroll
+PASS 568×320: all wrap targets remain ≥44 px high
+PASS the wrap is worn and the onward doorway is physically open
+PASS reload retains Rows choices/facts and the worn wrap without replay
+PASS walk drytable → windowgate: destination and reveal survive its entrance scene
+PASS 320×568: boundary actions remain reachable
+PASS 375×812: boundary actions remain reachable
+PASS 390×844: boundary actions remain reachable
+PASS 430×932: boundary actions remain reachable
+PASS 844×390: boundary actions remain reachable
+PASS 568×320: boundary actions remain reachable
+PASS short landscape: a real touch drag scrolls the card while the page stays locked
+PASS walk windowgate → drytable: destination and reveal survive its entrance scene
+PASS the chapter returns through the same working doorway
+PASS 320×568: typing a long line keeps its reserved height
+PASS 320×568: the full line stays inside the screen without scroll
+PASS 375×812: typing a long line keeps its reserved height
+PASS 375×812: the full line stays inside the screen without scroll
+PASS 390×844: typing a long line keeps its reserved height
+PASS 390×844: the full line stays inside the screen without scroll
+PASS 430×932: typing a long line keeps its reserved height
+PASS 430×932: the full line stays inside the screen without scroll
+PASS 844×390: typing a long line keeps its reserved height
+PASS 844×390: the full line stays inside the screen without scroll
+PASS 568×320: typing a long line keeps its reserved height
+PASS 568×320: the full line stays inside the screen without scroll
+PASS 320×568: all 21 rooms keep text inside the screen and the page locked
+PASS 375×812: all 21 rooms keep text inside the screen and the page locked
+PASS 390×844: all 21 rooms keep text inside the screen and the page locked
+PASS 430×932: all 21 rooms keep text inside the screen and the page locked
+PASS 844×390: all 21 rooms keep text inside the screen and the page locked
+PASS 568×320: all 21 rooms keep text inside the screen and the page locked
+PASS the complete door-driven Rows loop has no runtime/scenery errors
+PASS reduced motion still presents the movement affordance, without a pulse
+
+69/69 cohesion checks passed

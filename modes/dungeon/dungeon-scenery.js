@@ -103,6 +103,15 @@
     storeWindow(c, 30, 22, 112, 66, 1, { poster: [82, 18] });
     storeWindow(c, 214, 22, 116, 66, 2, { counter: true });
     box(c, 154, 26, 44, 70, P.metal[2], { ink: 1.4, amp: 0.3 });
+    // A shallow canopy fixed below the fascia, above the glass. Its valance
+    // hangs from that edge; the sidewalk begins seventy units farther down.
+    alpha(c, 0.22, () => rect(c, P.ink, 112, 26, 132, 5));
+    shape(c, [116, 17, 240, 17, 244, 23, 112, 23], P.paper[1], { ink: 0.9, amp: 0.1 });
+    for (let x = 112, index = 0; x < 244; x += 11, index += 1) {
+      shape(c, [x + 1, 23, x + 10, 23, x + 10, 27, x + 5.5, 28, x + 1, 27],
+        index % 2 ? P.a.red : P.paper[2], { ink: false, amp: 0.1 });
+    }
+    line(c, 112, 23, 244, 23, P.ink, 1.1);
     rect(c, P.metal[1], 30, 88, 112, 8); rect(c, P.metal[1], 214, 88, 116, 8);
     rect(c, P.ink, 30, 88, 112, 1); rect(c, P.ink, 214, 88, 116, 1);
   }
@@ -173,9 +182,6 @@
     A.concrete(c, 0, 96, W, 38, "curb", { wet: true, joint: 40 });
     alpha(c, 0.45, () => rect(c, P.concrete[2], 116, 96, 124, 26));
     alpha(c, 0.12, () => { for (const [x, w] of [[30, 112], [214, 116]]) shape(c, [x, 96, x + w, 96, x + w + 10, 134, x - 10, 134], P.fluoro[1], { ink: false }); });
-    for (let x = 112, index = 0; x < 244; x += 11, index += 1) shape(c, [x, 90, x + 11, 90, x + 11, 101 + (index % 2), x + 5.5, 103, x, 101], index % 2 ? P.a.red : P.paper[2], { ink: false, seed: x, amp: 0.3 });
-    rect(c, P.ink, 112, 89, 132, 1.4);
-    tape(c, 186, 95, 8, 0.4, 5);
     // Bin and the ice chest (it hums).
     drop(c, 38, 126, 12, 3.5);
     box(c, 28, 104, 20, 22, P.metal[1], { ink: 1.2, amp: 0.4 });
@@ -197,17 +203,30 @@
   function youInside(ctx, x, footY, o = {}) {
     ctx.save();
     ctx.translate(x, footY); ctx.scale(0.5, 0.5);
-    rect(ctx, P.a.denim, -5, -34, 4, 32); rect(ctx, P.a.denim, 1, -34, 4, 32);
-    shape(ctx, [-11, -76, 10, -76, 13, -32, -13, -31], P.wood[2], { ink: 1.6, seed: 11, amp: 0.3 });
+    const step = o.walking ? Math.sin(o.stride || 0) : 0;
+    for (const side of [-1, 1]) {
+      const swing = step * side, x = side * 4.5;
+      shape(ctx, [x - 3, -30, x + 3, -30, x + 3 + swing * 3, -14,
+        x + 3 + swing * 5, -2 - Math.max(0, swing) * 3,
+        x - 3 + swing * 5, -2 - Math.max(0, swing) * 3, x - 3 + swing * 3, -14],
+        P.a.denim, { ink: 1, amp: 0.1 });
+      oval(ctx, x + swing * 5 + 1, -1, 4.2, 2, P.ink);
+    }
+    shape(ctx, [-7, -76, 7, -76, 14, -69, 12, -48, 16, -30, -16, -30, -12, -48, -14, -69], P.wood[2], { ink: 1.4, seed: 11, amp: 0.2 });
+    shape(ctx, [-14, -69, -6, -73, -5, -48, -3, -31, -16, -30], P.wood[1], { ink: false, amp: 0.1 });
     shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
     // Back turned (at the counter), the head is only hair. Never a face: facing out, it stays in shadow.
     oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[0], true, 1.4);
     oval(ctx, 0, -90, 6.4, 3.6, P.inkSoft);
     if (!o.back) { ctx.globalAlpha = 0.6; oval(ctx, 0, -85, 6, 4, P.ink); ctx.globalAlpha = 1; }
-    if (o.back) { shape(ctx, [10, -74, 18, -62, 15, -60, 8, -70], P.wood[2], { ink: 1.1, amp: 0.2 }); }
+    const lift = o.reach ? 12 : o.counter ? 5 : 0;
+    shape(ctx, [10, -70, 15, -68, 19, -56 - lift, 14, -50 - lift, 9, -55 - lift, 12, -59 - lift], P.wood[2], { ink: 1.1, amp: 0.1 });
+    if (o.reach) oval(ctx, 17, -61 - lift, 2.5, 2.3, P.skin[1], true, 0.8);
     // Checking on the car: one hand up, a small wave.
     if (o.wave) {
-      const w = Math.sin((o.t || 0) / 140) * 4;
+      // One restrained greeting, settled hand for the rest of the beat.
+      const age = o.waveTime || 0;
+      const w = age < 1000 ? Math.sin(age / 1000 * TAU) * 3 : 0;
       shape(ctx, [8, -72, 13, -74, 16 + w * 0.3, -96, 11 + w * 0.3, -97], P.wood[2], { ink: 1.2, amp: 0.2 });
       oval(ctx, 14 + w, -101, 3.4, 3.6, P.skin[1], true, 1.1);
     }
@@ -234,10 +253,15 @@
       }
     }
     // YOU in the store: between the aisles, or at the counter with YOU's back to the window.
-    const you = room.youCounter ? { x: 296, visible: true, back: true } : room.you;
+    const you = room.youCounter ? { x: 296, visible: true, back: true, counter: true } : room.you;
     if (you?.visible) {
       const window = you.x < 150 ? [30, 22, 112, 66] : [214, 22, 116, 66];
-      A.clip(ctx, window[0] + 1, window[1] + 1, window[2] - 2, window[3] - 2, () => youInside(ctx, you.x, 92, { back: you.back, wave: you.wave, t: s.reduced ? 0 : t }));
+      A.clip(ctx, window[0] + 1, window[1] + 1, window[2] - 2, window[3] - 2, () => {
+        youInside(ctx, you.x, 86, { ...you, walking: you.walking && !s.reduced, waveTime: s.reduced ? 1000 : you.waveTime });
+        // Interior figure behind the checkout, then the exterior mullion.
+        if (you.counter) box(ctx, 284, 66, 40, 22, P.metal[1], { ink: 1, amp: 0.1 });
+        rect(ctx, P.metal[2], window[0] + window[2] / 2 - 1, 22, 2, 66);
+      });
     }
     ctx.save();
     ctx.globalAlpha = 0.35 * flicker; ctx.font = "900 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center";
@@ -246,7 +270,6 @@
     ctx.globalAlpha = 0.45 * flicker; ctx.fillStyle = P.a.neon;
     for (let index = 0; index < 5; index += 1) { const wob = s.reduced ? 0 : Math.sin(t / 260 + index) * 1.4; ctx.fillRect(44 + index * 6 + wob, 211 + (index % 2), 4, 1.2); }
     ctx.restore();
-    if (!s.reduced) for (let x = 118, index = 0; x < 242; x += 13, index += 1) { const k = ((t / 520) + index * 0.29) % 1; rect(ctx, P.wet[3], x, 103 + k * 26, 0.9, 2.4); }
     // Rain on the glass: drops landing, a few trails running; his breath fogs it where he presses close.
     const glass = [[140, 177, 87, 21], [138, 328, 84, 18], [136, 204, 4, 120], [220, 204, 4, 120]];
     for (const [gx, gy, gw, gh] of glass) {
@@ -269,38 +292,42 @@
       ctx.restore();
     }
     // The driver's door open (YOU going), the passenger door forced (them).
-    if (room.driverDoor) { rect(ctx, P.ink, 124, 206, 14, 60); ctx.save(); ctx.translate(124, 206); ctx.rotate(-0.85); box(ctx, -16, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); ctx.restore(); }
+    if (room.driverDoor) { rect(ctx, P.ink, 124, 206, 14, 60); ctx.save(); ctx.translate(124, 206); ctx.rotate(0.85); box(ctx, -16, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); ctx.restore(); }
     if (room.passengerDoor) {
       const k = Math.min(1, (now - room.passengerDoor) / 260);
       rect(ctx, P.ink, 222, 206, 14, 60);
-      ctx.save(); ctx.translate(236, 206); ctx.rotate(0.95 * k); box(ctx, 0, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); rect(ctx, P.wet[2], 2, 2, 3, 56); ctx.restore();
+      ctx.save(); ctx.translate(236, 206); ctx.rotate(-0.95 * k); box(ctx, 0, 0, 16, 60, CAR.side, { ink: 1.4, amp: 0.2 }); rect(ctx, P.wet[2], 2, 2, 3, 56); ctx.restore();
       if (!s.reduced) alpha(ctx, 0.6, () => { for (let index = 0; index < 8; index += 1) { const y = 210 + ((t / 5 + index * 17) % 56); line(ctx, 238, y, 226, y + 4, P.wet[3], 0.8, index, 0); } });
     }
     // The dome light, when it is on.
     if ((room.dome || 0) > 0.02) alpha(ctx, room.dome, () => { box(ctx, 174, 276, 12, 6, P.paper[3], { ink: 0.8, amp: 0.1 }); });
-    // Hands, reaching in through the forced door. Once they have Rizo, the
-    // grip moves up from the floor-point to his body and becomes a real
-    // two-handed hold: one arm catches high, the other braces low.
+    // The cap jacket's sleeves start at its shoulders, bend at an elbow,
+    // and taper into cuffs. The reaching hand and the hold share one rig.
     if (room.hands) {
-      const h = room.hands;
+      const cap = s.extras.npcs?.find(actor => actor.id === "hood-cap");
+      const face = cap?.face || -1, cx = cap?.x ?? 252, cy = cap?.y ?? 286;
+      const sleeve = (side, hand, supporting = false) => {
+        const sx = cx + side * 13 * face, sy = cy - 68;
+        const ex = sx + (hand.x - sx) * 0.38;
+        const ey = Math.max(sy + 14, hand.y + (supporting ? 7 : 12));
+        ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hand.x + 3, hand.y);
+        ctx.strokeStyle = P.ink; ctx.lineWidth = 9; ctx.stroke();
+        ctx.strokeStyle = P.a.track; ctx.lineWidth = 6.5; ctx.stroke();
+        // Jacket stripe and the short, dark cuff give the wrist a direction.
+        line(ctx, sx + 1, sy + 2, ex + 1, ey - 1, P.a.white, 1.2);
+        const angle = Math.atan2(hand.y - ey, hand.x + 3 - ex);
+        ctx.translate(hand.x, hand.y); ctx.rotate(angle);
+        box(ctx, -4, -3.1, 7, 6.2, P.cloth[0], { ink: 0.9, amp: 0.1 });
+        oval(ctx, 2, 0, 4.2, 3.2, P.skin[0], true, 0.9);
+        oval(ctx, 1, supporting ? -2.4 : 2.4, 2.2, 1.5, P.skin[1], true, 0.7);
+        for (const y of [-1.1, 0.9]) line(ctx, 2, y, 4.4, y, P.inkSoft, 0.65);
+        ctx.restore();
+      };
       if (room.grabbed) {
-        const upper = { x: p.x + 5.5, y: p.y - 14 };
-        const lower = { x: p.x + 7, y: p.y - 6 };
-        line(ctx, 250, 238, upper.x + 3, upper.y, P.ink, 9, 31, 0.16);
-        line(ctx, 250, 238, upper.x + 3, upper.y, P.cloth[1], 6.2, 31, 0.16);
-        line(ctx, 251, 253, lower.x + 3, lower.y, P.ink, 9, 32, 0.16);
-        line(ctx, 251, 253, lower.x + 3, lower.y, P.cloth[1], 6.2, 32, 0.16);
-        oval(ctx, upper.x, upper.y, 5.6, 4.4, P.cloth[0], true, 1.2);
-        oval(ctx, lower.x, lower.y, 5.6, 4.4, P.cloth[0], true, 1.2);
-        // Fingers curl inward around his silhouette instead of pointing past it.
-        for (const [g, dir] of [[upper, -1], [lower, 1]]) {
-          for (let f = -2; f <= 2; f += 2) line(ctx, g.x - 1, g.y + f, g.x - 6, g.y + f * 0.65 + dir, P.ink, 1.6, 40 + f + dir, 0);
-        }
-      } else {
-        line(ctx, 250, 244, h.x + 4, h.y - 2, P.ink, 9, 3, 0.2); line(ctx, 250, 244, h.x + 4, h.y - 2, P.cloth[1], 6.4, 3, 0.2);
-        oval(ctx, h.x, h.y, 5.5, 4.5, P.cloth[0], true, 1.2);
-        for (let f = -2; f <= 2; f += 2) line(ctx, h.x - 2, h.y + f, h.x - 7, h.y + f * 1.4, P.ink, 1.6, f, 0);
-      }
+        sleeve(1, { x: p.x + 8, y: p.y - 14 });
+        sleeve(-1, { x: p.x + 8, y: p.y - 5 }, true);
+      } else sleeve(1, { x: room.hands.x, y: room.hands.y - 2 });
     }
     // The pillowcase coming down over him.
     if (room.bagAt != null) {

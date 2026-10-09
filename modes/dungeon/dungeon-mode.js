@@ -726,6 +726,7 @@
     }
     function tickNpcs(dt) {
       for (const actor of npcs.values()) {
+        const oldX = actor.x, oldY = actor.y;
         if (actor.moveMs > 0) {
           const k = clamp((sceneTime - actor.moveStart) / actor.moveMs, 0, 1);
           const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
@@ -734,6 +735,8 @@
           actor.walking = k < 1;
           if (k >= 1) actor.moveMs = 0;
         } else actor.walking = false;
+        // Footfalls follow distance, including the ease into a doorway.
+        actor.stride = (actor.stride || 0) + Math.hypot(actor.x - oldX, actor.y - oldY) / 7;
         // Work and conversation have a physical subject. Travel follows the
         // route; listening turns toward Rizo only while he is nearby. Neither
         // changes the simulation or steals his heading.
@@ -919,7 +922,8 @@
         S.wait(450),
         S.move("keeper", 176, 104, 2000),
         S.call(() => { keeperState("door", 700); room.storeDoorOpen = true; sound("chime"); }),
-        S.wait(450),
+        // Cross the threshold before disappearing into the interior layer.
+        S.move("keeper", 176, 92, 450),
         S.call(() => { const keeper = npcs.get("keeper"); if (keeper) keeper.visible = false; room.storeDoorOpen = false; }),
         S.wait(550),
         S.call(() => commitBeat("opening:left")),
@@ -927,16 +931,32 @@
       ];
     }
     // ---- 3 Waiting. Nothing happens. Curiosity keeps it normal longer, never shorter.
-    // YOU drifts between the aisles: in sight about 70% of the time.
+    // One shopping trip: find a shelf, check the car twice, then queue.
     // Twice, if he has not come to the glass, YOU looks out at the car and waves (YOU checks on him; YOU knows nothing else).
     const youWaves = t => (t >= 20000 && t < 22600) || (t >= 45000 && t < 47600);
     function storeYou(t) {
-      const k = (t / 1000) % 20;
-      if (youWaves(t)) return { x: 52 + ((k % 20) < 7 ? (k / 7) * 76 : 40), visible: true, wave: true };
-      if (k < 7) return { x: 50 + (k / 7) * 78, visible: true };
-      if (k < 9) return { x: 150, visible: false };
-      if (k < 16) return { x: 234 + ((k - 9) / 7) * 62, visible: true };
-      return { x: 300, visible: false };
+      const seconds = t / 1000;
+      const travel = (from, to, start, end) => {
+        const k = clamp((seconds - start) / (end - start), 0, 1);
+        const ease = k * k * (3 - 2 * k), x = from + (to - from) * ease;
+        return { x, visible: x < 140 || x > 216, walking: true, stride: Math.abs(x - from) / 5, back: true };
+      };
+      if (seconds < 2) return travel(176, 106, 0, 2);
+      if (seconds < 7) return { x: 106, visible: true, back: true, reach: seconds >= 3 && seconds < 5 };
+      if (seconds < 9) return travel(106, 234, 7, 9);
+      if (seconds < 12) return travel(234, 296, 9, 12);
+      if (seconds < 16) return { x: 296, visible: true, back: true, reach: seconds < 14 };
+      // Behind the stocked aisle on the way back to check the car.
+      if (seconds < 20) return { x: 296 - (seconds - 16) * 51, visible: false };
+      if (youWaves(t)) return { x: 92, visible: true, wave: true, waveAt: seconds < 30 ? 20000 : 45000 };
+      if (seconds < 25) return { x: 92, visible: true };
+      if (seconds < 27) return travel(92, 150, 25, 27);
+      if (seconds < 29) return { ...travel(150, 234, 27, 29), visible: false };
+      if (seconds < 41) return { x: 234, visible: true, back: true, reach: seconds < 32 };
+      if (seconds < 45) return travel(234, 92, 41, 45);
+      if (seconds < 50) return { x: 92, visible: true };
+      if (seconds < 58) return travel(92, 292, 50, 58);
+      return { x: 292, visible: true, back: true, counter: true };
     }
     function carWaiting(resumed) {
       room.phase = "waiting";
@@ -1106,7 +1126,7 @@
       for (const actor of npcs.values()) if (actor.stateUntil && sceneTime > actor.stateUntil) { actor.state = "idle"; actor.stateUntil = 0; }
       if (room.waitStart != null) {
         const t = sceneTime - room.waitStart, store = storeYou(t), atGlass = inZone("dash");
-        room.you = { x: store.x, visible: store.visible, wave: Boolean(store.wave) && !room.seenYou };
+        room.you = { ...store, wave: Boolean(store.wave) && !room.seenYou, waveTime: store.waveAt == null ? 0 : t - store.waveAt };
         if (room.phase === "waiting" && room.you.wave && !room.waveSeen && ui === "play") { room.waveSeen = sceneTime; setPose(atGlass ? "hop" : "look-up", 1400); }
         if (!room.you.wave) room.waveSeen = 0;
         if (room.phase === "waiting") {
@@ -1746,8 +1766,11 @@
         S.wait(650),
         S.call(() => walk("nell", 238, 174, 600)),
         S.wait(650),
-        S.call(() => { nellState("support"); setTransient("catchReady", true); }),
-        S.say(L.rowsCatchAsk)
+        S.call(() => nellState("support")),
+        S.say(L.rowsCatchAsk),
+        // Ready means Primary can actually warm it. Publishing this before
+        // the ask let the same input dismiss dialogue instead of doing work.
+        S.call(() => setTransient("catchReady", true))
       ], { control: true });
     }
     function tableMeal() {
@@ -3710,6 +3733,14 @@
         for (let left = Math.max(0, ms); left > 0; left -= 100) {
           const slice = Math.min(100, left);
           if (comic?.playing()) { comic.tick(slice); continue; }
+          // A WARM already begun must finish on the rules clock before an
+          // accelerated scene expires its prop and offers the next job.
+          // Leave movement and encounters to qaAdvance/the real frame loop.
+          if (running() && sim.player.act?.kind === "kindle") {
+            for (let elapsed = 0; elapsed < slice; elapsed += Core.STEP_MS) {
+              handleEvents(Core.step(sim, {}));
+            }
+          }
           sceneTime += slice; tickNpcs(slice / 1000); tickScene(); tickRoom();
           if (poseOverride && sceneTime > poseOverride.until) poseOverride = null;
         }
