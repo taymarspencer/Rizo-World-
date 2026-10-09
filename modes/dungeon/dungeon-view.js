@@ -333,7 +333,9 @@
     function paintNpc(actor, time) {
       const t = reducedMotion ? 0 : time;
       const closeToRizo = Math.hypot(actor.x - crewRizo.x, actor.y - crewRizo.y) < 140;
-      const speakingToRizo = !el.dialogue.hidden && el.dialogue.dataset.speaker === actor.id;
+      const speakingToRizo = !el.dialogue.hidden &&
+        (el.dialogue.dataset.speaker === actor.id ||
+          (el.dialogue.dataset.speaker === "you" && actor.kind === "keeper"));
       const o = {
         face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state,
         expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated,
