@@ -43,8 +43,9 @@
 .comic-caption{position:absolute;left:3px;top:-1px;z-index:4;padding:3px 8px;background:#f4c27c;color:#111013;border:2px solid #111013;font:900 10.5px/1.1 Inter,system-ui,sans-serif;letter-spacing:.08em;transform:rotate(-1.2deg);box-shadow:2px 2px 0 #111013}
 .comic-skip{position:absolute;right:10px;bottom:9px;z-index:5;padding:2px 6px;background:#111013;color:#f6efdc;font:800 9px/1.2 Inter,system-ui,sans-serif;letter-spacing:.1em;opacity:0;animation:comic-fade .3s .7s ease-out both;pointer-events:none}
 @media (max-width:340px){.comic-balloon{font-size:10.5px;padding:3px 6px}.comic-sfx{-webkit-text-stroke:1.5px #111013}}
-@keyframes comic-page-in{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
-@keyframes comic-page-out{to{opacity:0;transform:scale(.97)}}
+/* The game frame stays registered beneath the page: dissolve, never zoom the whole world. */
+@keyframes comic-page-in{from{opacity:0}to{opacity:1}}
+@keyframes comic-page-out{from{opacity:1}to{opacity:0}}
 @keyframes comic-jolt{0%{transform:translate(0,0)}25%{transform:translate(-4px,3px)}50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,1px)}100%{transform:none}}
 @keyframes comic-slam{from{opacity:0;transform:scale(1.45) rotate(-5deg)}to{opacity:1}}
 @keyframes comic-slam-l{from{opacity:0;transform:translateX(-70%) rotate(-7deg)}to{opacity:1}}
@@ -61,9 +62,18 @@
 @keyframes comic-slip{from{transform:translate(-80%,-60%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(var(--rot,0deg))}}
 /* Reduced motion: the same page, nothing moves. Panels only fade in. */
 .dungeon-comic.is-reduced,.dungeon-comic.is-reduced.is-out{animation:comic-fade .2s ease-out both}
-.dungeon-comic.is-reduced.is-out{animation-direction:reverse}
+.dungeon-comic.is-reduced.is-out{animation:comic-page-out .06s linear both}
 .dungeon-comic.is-reduced .comic-panel.is-in,.dungeon-comic.is-reduced .comic-panel.is-in .comic-sfx,.dungeon-comic.is-reduced .comic-panel.is-in .comic-rizo,.dungeon-comic.is-reduced .comic-panel.is-in .comic-balloon{animation:comic-fade .25s ease-out both!important}
 .dungeon-comic.is-reduced .comic-panel.is-in .comic-sfx{transform:translate(-50%,-50%) rotate(var(--rot,0deg))}
 .dungeon-comic.is-reduced .comic-panel[data-panel]{transform:none}
 .dungeon-comic.is-reduced.is-shake .comic-page{animation:none}
 @media (prefers-reduced-motion:reduce){.dungeon-comic .comic-panel.is-in,.dungeon-comic .comic-panel.is-in *{animation-duration:.01s!important;animation-iteration-count:1!important}}
+
+/* The Boss intrudes quietly. Keep panel order and clocks, without borrowing
+   the physical impacts of the kidnapping, chase and fall. */
+.dungeon-comic[data-comic^="boss-"].is-shake .comic-page{animation:none}
+.dungeon-comic[data-comic^="boss-"] .comic-panel.is-in{animation:comic-fade .4s ease-out both}
+.dungeon-comic[data-comic^="boss-"] .comic-panel[data-panel]{transform:none}
+
+/* Give the short window order a sentence-width balloon on small phones. */
+.dungeon-comic[data-comic="boss-glass"] .comic-balloon.is-boss{max-width:90%!important}

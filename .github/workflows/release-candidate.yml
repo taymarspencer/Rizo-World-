@@ -69,7 +69,7 @@ jobs:
         shell: bash
         run: |
           status=0
-          for suite in browser-home-world browser-home-alive browser-visual-uphaul browser-dungeon browser-dungeon-controls browser-dungeon-cohesion browser-dungeon-depth browser-dungeon-gamefeel browser-dungeon-character-lab browser-dungeon-escape save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
+          for suite in browser-home-world browser-home-alive browser-visual-uphaul browser-dungeon browser-dungeon-controls browser-dungeon-cohesion browser-dungeon-depth browser-dungeon-gamefeel browser-dungeon-character-lab browser-dungeon-escape browser-dungeon-reading save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
             extra_args=()
             if [[ "$suite" == browser-dungeon-cohesion ]]; then
               extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-cohesion")
