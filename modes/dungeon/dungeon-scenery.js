@@ -199,7 +199,7 @@
     oval(c, 58, 214, 22, 8, P.wet[0]); oval(c, 54, 212.5, 14, 4.2, P.wet[1]);
     carBody(c);
   }
-  // YOU, small, inside the lit store: no umbrella in here, still never a face.
+  // YOU inside the store: the same coat, scarf and head at the existing scale.
   function youInside(ctx, x, footY, o = {}) {
     ctx.save();
     ctx.translate(x, footY); ctx.scale(0.5, 0.5);
@@ -212,13 +212,16 @@
         P.a.denim, { ink: 1, amp: 0.1 });
       oval(ctx, x + swing * 5 + 1, -1, 4.2, 2, P.ink);
     }
-    shape(ctx, [-7, -76, 7, -76, 14, -69, 12, -48, 16, -30, -16, -30, -12, -48, -14, -69], P.wood[2], { ink: 1.4, seed: 11, amp: 0.2 });
-    shape(ctx, [-14, -69, -6, -73, -5, -48, -3, -31, -16, -30], P.wood[1], { ink: false, amp: 0.1 });
-    shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
-    // Back turned (at the counter), the head is only hair. Never a face: facing out, it stays in shadow.
-    oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[0], true, 1.4);
-    oval(ctx, 0, -90, 6.4, 3.6, P.inkSoft);
-    if (!o.back) { ctx.globalAlpha = 0.6; oval(ctx, 0, -85, 6, 4, P.ink); ctx.globalAlpha = 1; }
+    A.cut(ctx,"M-7-75Q-19-74-20-64L-15-48L-19-27Q-7-24 0-28L4-26L18-28L13-49L18-64Q15-73 7-75Z",P.wood[2],1.4);
+    A.cut(ctx,"M-7-73Q-15-71-17-64L-12-46L-14-28L-5-27L-3-55Z",P.wood[1],0);
+    A.cut(ctx,"M-6-72L-12-66L-6-57L0-65L6-57L13-66L6-73Z",P.wood[3],1);
+    A.cut(ctx,"M-9-76Q0-79 10-74L7-67Q0-65-9-70Z",P.a.maroon,1.1);
+    if (o.back) {
+      // Back at checkout: show his cropped coils, never eyes through the
+      // back of his head. The car turn and portrait establish the same face.
+      A.cut(ctx,"M-10-82Q-13-89-9-94Q-7-99-2-97Q3-100 8-96Q13-92 11-84L8-77L-5-76Z",P.inkSoft,1.3);
+      A.cut(ctx,"M-8-92Q0-98 7-91",null,1.4,P.wood[1]);
+    } else A.characterHead(ctx,"you",0,-84);
     const lift = o.reach ? 12 : o.counter ? 5 : 0;
     shape(ctx, [10, -70, 15, -68, 19, -56 - lift, 14, -50 - lift, 9, -55 - lift, 12, -59 - lift], P.wood[2], { ink: 1.1, amp: 0.1 });
     if (o.reach) oval(ctx, 17, -61 - lift, 2.5, 2.3, P.skin[1], true, 0.8);
@@ -2171,7 +2174,7 @@
           const away = Math.max(0, (age - 600) / 800), shake = !s.reduced && age < 300 ? Math.sin(age / 20) * 2 : 0;
           const y = Math.max(gate.y + gate.h + 16, room.slamY - Math.min(age, 300) * 0.1);
           ctx.save(); ctx.globalAlpha = 1 - away;
-          A.collector(ctx, room.slamX + shake - away * 40, y + away * 50, { face: away > 0 ? -1 : 1, state: away > 0 ? "run" : "slam", bob: 0, t });
+          A.collector(ctx, room.slamX + shake - away * 40, y + away * 50, { id: "hall-runner", face: away > 0 ? -1 : 1, state: away > 0 ? "run" : "slam", bob: 0, t });
           ctx.restore();
         }
       }

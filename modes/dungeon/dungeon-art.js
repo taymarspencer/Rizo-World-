@@ -915,17 +915,6 @@
     else crewCap(ctx, k);
     ctx.restore();
   }
-  // Eyes in a mask: whites that read at phone size, pupils toward the look.
-  function crewEyes(ctx, ex, ey, gap, k, o = {}) {
-    const wide = k.state === "stare" || o.wide, r = wide ? 1.9 : 1.55;
-    const px = k.look.x * (wide ? 0.5 : 0.75), py = k.look.y * 0.45;
-    if (k.quiet) { line(ctx, ex - gap - 1.4, ey + 0.4, ex - gap + 1.4, ey + 0.8, P.paper[2], 1); line(ctx, ex + gap - 1.4, ey + 0.8, ex + gap + 1.4, ey + 0.4, P.paper[2], 1); return; }
-    for (const side of [-1, 1]) {
-      oval(ctx, ex + side * gap, ey + (o.crooked ? side * 0.5 : 0), r, r * 0.9, P.paper[3]);
-      oval(ctx, ex + side * gap + px, ey + (o.crooked ? side * 0.5 : 0) + py, wide ? 0.6 : 0.8, wide ? 0.6 : 0.8, P.ink);
-    }
-    if (k.state === "stare") { rect(ctx, "#ffffff", ex - gap - 1, ey - 1.2, 0.9, 0.9); rect(ctx, "#ffffff", ex + gap - 1, ey - 1.2, 0.9, 0.9); }
-  }
   // The small one: puffer jacket, mustard beanie and pom, on a milk crate,
   // the phone in his hand. Facing the floor (and us).
   function crewSmall(ctx, k) {
@@ -1576,11 +1565,20 @@
   }
   // A collector: a cold, careful worker in a grey coverall with a hood and
   // goggles, a glass jar on his back and a lamp on a pole held out in front.
-  // No face: the goggles are the only light that is his. ~76u. States:
+  // No face: cold glass goggles above a respirator. ~86u. States:
   // patrol (walking), spot (lamp up, leaning in), search (lamp swinging).
+  // Stable encounter identity: no random wardrobe, no changes to patrols,
+  // spotting or collision. The queue marshal, Rows gatherer, chase runner
+  // and factory sentries remain one uniformed faction with different masses.
+  function collectorProfile(id = "", state = "") {
+    if (/runner|held|queue/.test(id) || state === "slam") return /runner/.test(id) || state === "slam" ? "runner" : "marshal";
+    if (/row|clatter/.test(id)) return "gatherer";
+    return "sentry";
+  }
   function collector(ctx, x, y, o = {}) {
     const bob = o.bob || 0, t = o.t || 0, state = o.state || "patrol";
-    drop(ctx, x, y, 12, 3.4);
+    const profile = o.profile || collectorProfile(o.id || "",state);
+    drop(ctx, x, y, profile === "gatherer" ? 17 : 14, 3.8);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (state === "run") {
       // Two separate, planted boots: a real stride rather than a sliding body.
@@ -1591,7 +1589,7 @@
       oval(ctx, -9 + stride, -1, 5.7, 2.4, P.suit[0], true, 0.8);
       oval(ctx, 11 - stride, -1 - Math.max(0, stride) * 0.45, 5.7, 2.4, P.suit[0], true, 0.8);
     } else {
-      legs(ctx, 0, 0, -30, 3.8, 5.6, P.metal[1], bob, P.suit[1]);
+      workLegs(ctx,-30,5.5,8,P.metal[0],bob,P.suit[1]);
     }
     if (state === "spot" || state === "grab" || state === "watch-down") {
       ctx.translate(0, -30);
@@ -1601,45 +1599,54 @@
     if (state === "slam") { ctx.translate(0, -30); ctx.rotate(-0.1); ctx.translate(0, 30); }
     // Running (the Long Hall): a forward lean and a visibly swinging jar.
     if (state === "run") { ctx.translate(0, -30); ctx.rotate(0.24 + Math.sin(t / 70) * 0.04); ctx.translate(0, 30); }
-    // The jar on his back: what he came to fill.
-    ctx.globalAlpha = 0.62;
-    shape(ctx, [-21, -38, -21, -56, -18, -63, -12, -63, -9, -56, -9, -38], P.cold[0], { ink: 1.1, seed: 224, amp: 0.2, inkColor: P.cold[2] });
-    ctx.globalAlpha = 1;
-    line(ctx, -18, -58, -18, -44, P.cold[3], 0.9);
-    box(ctx, -23, -38, 16, 4, P.metal[2], { ink: 0.9, amp: 0.1, seed: 225 });
-    oval(ctx, -15, -64.5, 1.6, 1.4, P.metal[3]);
-    // Coverall: grey, a dark side, a belt, his mark on the chest.
-    shape(ctx, [-11, -61, 9, -61, 12, -37, 9, -28, -10, -28, -13, -38], P.metal[1], { ink: CH, seed: 221, amp: CA });
-    shape(ctx, [-11, -59, -3, -61, -5, -29, -10, -28, -13, -38], P.metal[0], { ink: false, seed: 222, amp: CA });
-    rect(ctx, P.suit[1], -12, -37, 24, 2.6);
-    line(ctx, -9, -61, 4, -38, P.suit[1], 1.6);
-    mark(ctx, 4, -49, 9, P.cold[3]);
-    // Hood and goggles: a shadowed face with two cold lenses.
-    shape(ctx, [-9, -60, -10, -72, -4, -80, 5, -80, 11, -72, 10, -60], P.suit[2], { ink: CH, seed: 223, amp: CA });
-    oval(ctx, 3, -69, 6.6, 6.2, P.suit[0]);
-    oval(ctx, 1, -70.5, 2.2, 1.9, P.cold[3], true, 0.8); oval(ctx, 6.4, -70.5, 2.2, 1.9, P.cold[3], true, 0.8);
-    box(ctx, 1.5, -66, 6.5, 4, P.metal[2], { ink: 0.8, amp: 0.1, seed: 226 });
+    // A rigid glass capture vessel on a proper harness, with a padded
+    // shoulder between the weight and the person carrying it.
+    const gatherer = profile === "gatherer", marshal = profile === "marshal", runner = profile === "runner";
+    const jx = gatherer ? -24 : -20, jarTop = gatherer ? -71 : -65;
+    cut(ctx,`M${jx-6}-38L${jx-6} ${jarTop+9}Q${jx-6} ${jarTop} ${jx} ${jarTop}Q${jx+6} ${jarTop} ${jx+6} ${jarTop+9}L${jx+6}-38Z`,P.cold[0],1.1,P.cold[1]);
+    line(ctx,jx-3,jarTop+10,jx-3,-45,P.cold[2],1.1);
+    cut(ctx,`M${jx-8}-41H${jx+8}V-36H${jx-8}Z`,P.metal[1],1);
+    oval(ctx,jx,jarTop-2,2,1.5,P.metal[2],true,.8);
+    // Shoulder yoke, tapered belted waist and a split service-coat skirt.
+    // The marshal's long wedge is different from the runner's short jacket;
+    // the gatherer carries a rounder back and the factory wears a rigid vest.
+    const half = gatherer ? 20 : runner ? 17 : 16;
+    cut(ctx,`M-7-64Q${-half}-66 ${-half-2}-56L${-half}-44L-12-28L12-28L${half}-45L${half+1}-57Q${half}-64 8-65Z`,P.metal[1]);
+    cut(ctx,`M${-half}-56L-8-60L-7-31L-12-29L${-half}-43Z`,P.metal[0],0);
+    cut(ctx,"M-10-61L-4-65L1-58L7-65L13-60L8-49L1-52L-6-48Z",P.metal[2],1);
+    if(marshal) {
+      cut(ctx,"M-12-38L13-38L18-15L6-10L1-23L-5-12L-17-16Z",P.metal[1],1.3);
+      cut(ctx,"M-12-35L-6-36L-8-16L-16-18Z",P.metal[0],0);
+    } else if(gatherer) cut(ctx,"M-15-37Q0-41 16-37L18-24Q4-19-17-25Z",P.metal[0],1);
+    else if(runner) cut(ctx,"M-14-38L13-38L14-28L5-25L-14-29Z",P.suit[2],1);
+    else cut(ctx,"M-11-53L9-54L11-39L-11-39Z",P.metal[0],1);
+    cut(ctx,"M-15-39Q0-42 15-39L14-35L-14-35Z",P.suit[1],1);
+    // One diagonal harness and the Boss's mark. No emissive trim.
+    line(ctx,-11,-60,7,-38,P.suit[0],3.2);
+    line(ctx,-11,-60,7,-38,P.metal[2],1.3);
+    mark(ctx,6,-47,8,P.cold[2]);
+    characterHead(ctx,`collector-${profile}`,1,-67,{tilt:runner ? -.1 : 0});
     // The lamp on its pole, out in front. Up when he has seen something.
     const raise = state === "spot" ? -9 : state === "watch-down" ? 24 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
     if (state === "watch-down") {
       // Factory catwalk sentries peer over the railing at the moving floor.
       // Light geometry stays owned by the core; this is a drawing-only pose.
-      limb(ctx, [6, -57, 17, -47, 20, -38], P.metal[1], 4.6, P.suit[1]);
+      sleeve(ctx, [6, -57, 17, -47, 20, -38], P.metal[1], 6.5, P.suit[1]);
       line(ctx, 20, -39, 30, -60 + raise, P.metal[3], 1.7);
     } else {
-      limb(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 4.6, P.suit[1]);
+      sleeve(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 6.5, P.suit[1]);
       line(ctx, 17, -46, 30, -60 + raise, P.metal[3], 1.7);
     }
     box(ctx, 28, -65 + raise, 7, 6, P.suit[1], { ink: 1, amp: 0.1, seed: 227 });
     oval(ctx, 34.5, -62 + raise, 2.4, 2.8, P.cold[3]);
     if (state === "grab") {
       // Reaches across the actual catch ring; never changes that ring's size.
-      limb(ctx, [9, -51, 24, -48, 37, -42], P.metal[1], 5, P.suit[2]);
+      sleeve(ctx, [9, -51, 24, -48, 37, -42], P.metal[1], 7, P.suit[2]);
       line(ctx, 35, -44, 42, -45, P.metal[3], 1);
     } else if (state === "slam") {
       // Both hands collide with the shutter; the face stays concealed.
-      limb(ctx, [7, -56, 22, -61, 36, -60], P.metal[1], 6, P.suit[2]);
-      limb(ctx, [8, -47, 24, -44, 36, -42], P.metal[1], 5.5, P.suit[2]);
+      sleeve(ctx, [7, -56, 22, -61, 36, -60], P.metal[1], 7.5, P.suit[2]);
+      sleeve(ctx, [8, -47, 24, -44, 36, -42], P.metal[1], 7, P.suit[2]);
     }
     ctx.restore();
   }
@@ -1921,9 +1928,6 @@
 <g transform="translate(${cap ? 34 : 32} ${small ? 35 : 30}) rotate(${tilt}) scale(${small ? 1.4 : cap ? 1.35 : 1.45})">${characterHeadSvg(who,expr)}</g>`);
   }
 
-  // A frightened version of a hood's bust: sweat at the temple, the eyes
-  // pulled wide, a shake line. Same person, same light; only the fear is added.
-  const scared = (body, eyes) => `${body}<path d="${eyes}" stroke="${P.paper[3]}" stroke-width="1.4" fill="none"/><path d="M50 18 q2 4 0 6 q-2 -2 0 -6 Z M13 22 q2 4 0 6 q-2 -2 0 -6 Z" fill="${P.cold[3]}" stroke="${P.ink}" stroke-width=".8"/><path d="M8 40 l-3 2 l3 2 M56 40 l3 2 l-3 2" stroke="${P.paper[2]}" stroke-width="1.2" fill="none"/>`;
   // THE BOSS: a voice before he is anything else. His "face" is his caller
   // ID: the mark on a dark phone screen. calm = the glow held steady; cold =
   // the screen flares white-blue and the signal shakes.
@@ -1958,7 +1962,6 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
 <path d="M0 0 H64 V6 H0 Z" fill="#0e1418"/>`);
   // v0.4: the hoods can be scared (of him); the capped hood has a face; the
   // Boss has only his caller ID.
-  const fear = (art, brows) => art.replace("</svg>", `${scared("", brows)}</svg>`);
   const CAST_PORTRAITS = Object.freeze({
     ...PORTRAITS,
     "hood-tall": Object.freeze({ ...PORTRAITS["hood-tall"], scared: hoodPortrait("hood-tall","scared") }),
@@ -1978,7 +1981,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
     keeper, van, hood, seated, vanRide, CREW_HEIGHT, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
-    mark, markSvg, callingCard, collector, jar, jarLight, cage, beltCrate, jarTray, speaker,
+    mark, markSvg, callingCard, collector, collectorProfile, jar, jarLight, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });
 });

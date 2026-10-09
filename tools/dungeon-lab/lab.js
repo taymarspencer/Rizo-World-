@@ -91,7 +91,7 @@
       states: [{ id: "standing (pillowcase on shoulder)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "grab (pillowcase out)", o: { state: "grab" } }, { id: "flinch", o: { flinch: true } }]
     },
     {
-      id: "keeper", name: "YOU (Keeper)", role: "the person who said “Be good.”: never a face, the camel coat and the blue umbrella", shell: "open", units: Art.RULES.scale.keeper, portraits: "you", world: Art.keeper,
+      id: "keeper", name: "YOU (Keeper)", role: "the person who said “Be good.”: a warm face, a fitted camel raincoat and the blue umbrella", shell: "open", units: Art.RULES.scale.keeper, portraits: "you", world: Art.keeper,
       states: [{ id: "standing", o: {} }, { id: "walking", o: {}, walk: true }]
     },
     {
@@ -124,7 +124,7 @@
       // on his back, a cold lamp on a pole. No face. They are never fought.
       id: "collector", name: "Collector", role: "the Boss's hunter below: walks a patrol with a cold lamp; seen for a second, Rizo is caught", shell: "locked", units: Art.RULES.scale.collector, enemy: true,
       world: (ctx, x, y, o) => Art.collector(ctx, x, y, o),
-      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { state: "run", bob: 2, t: 600 } }, { id: "grab (caught)", o: { state: "grab" } }, { id: "slam (night gate)", o: { state: "slam" } }, { id: "catwalk: lamp down", o: { state: "watch-down" } }]
+      states: [{ id: "factory sentry", o: { id: "factory-sentry" } }, { id: "queue marshal", o: { id: "queue-held" } }, { id: "Rows gatherer", o: { id: "row-collector" } }, { id: "walking", o: { id: "factory-sentry", bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { id: "hall-runner", state: "run", bob: 2, t: 600 } }, { id: "grab (caught)", o: { state: "grab" } }, { id: "slam (night gate)", o: { state: "slam" } }, { id: "catwalk: lamp down", o: { state: "watch-down" } }]
     },
     {
       // v0.5: the Boss's people in white coats, heard through a vent grate. Their

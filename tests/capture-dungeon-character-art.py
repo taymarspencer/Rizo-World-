@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--directory')
 parser.add_argument('--evidence', required=True)
+parser.add_argument('--only', help='comma-separated scene names for additional evidence')
 args = parser.parse_args()
 artifact = tempfile.TemporaryDirectory(prefix='rizo-character-art-')
 site = Path(args.directory).resolve() if args.directory else Path(artifact.name) / 'site'
@@ -32,10 +33,13 @@ FLAGS = {'latchFreed': True, 'porterDown': True, 'rowsCatch': True}
 SCENES = [
     ('you-car', None, {}, [], 600),
     ('van-crew', 'van', {}, [], 2600),
+    ('van-quiet', 'van', {}, [], 100),
     ('latch', 'hem', {}, [], 100),
     ('nell', 'drytable', FLAGS, [], 2600),
+    ('nell-dialogue', 'drytable', FLAGS, [], 4600),
     ('orr-hatch', 'eyelet', FLAGS, ['rows:eyelet'], 200),
     ('meal', 'drytable', {**FLAGS, 'rowsGrille': True}, ['rows:met'], 2600),
+    ('meal-dialogue', 'drytable', {**FLAGS, 'rowsGrille': True}, ['rows:met'], 4600),
     ('intake-crew', 'intake', {}, [], 1800),
     ('queue-collector', 'queue', {}, [], 100),
     ('row-collector', 'hangrow', FLAGS, ['rows:split'], 100),
@@ -48,6 +52,8 @@ with sync_playwright() as pw:
     browser = pw.chromium.launch()
     for width, height in [(320, 568), (390, 844)]:
         for name, room, flags, beats, ms in SCENES:
+            if args.only and name not in args.only.split(','):
+                continue
             ctx = browser.new_context(viewport={'width': width, 'height': height}, has_touch=True,
                                       service_workers='block', reduced_motion='reduce', device_scale_factor=2)
             page = ctx.new_page(); errors = []
@@ -56,9 +62,23 @@ with sync_playwright() as pw:
             page.evaluate(SETUP); page.evaluate("RizoRuntimeQA.setViewForQA('go')")
             page.wait_for_timeout(150); page.locator('[data-mode="dungeon"]').click()
             page.wait_for_function('RizoRuntimeQA.dungeonStateForQA()?.sim')
+            # The dynamic mode stylesheet and initial shell layout must settle
+            # before jumping rooms; otherwise evidence uses the launch size.
+            page.wait_for_timeout(1200)
             if room:
                 page.evaluate('([r,f,b])=>RizoRuntimeQA.dungeonGotoForQA(r,null,f,b)', [room, flags, beats])
+                page.wait_for_timeout(350)
             page.evaluate('ms=>RizoRuntimeQA.dungeonSceneTimeForQA(ms)', ms)
+            if name == 'van-quiet':
+                # The authored post-call silence exposes all four seated
+                # silhouettes without removing dialogue or moving the camera.
+                page.evaluate('RizoRuntimeQA.dungeonTeleportForQA(80,98)')
+                reached = page.evaluate('''()=>{for(let i=0;i<1600;i++){
+                    RizoRuntimeQA.dungeonAdvanceForQA(100,{});
+                    RizoRuntimeQA.dungeonSceneTimeForQA(100);
+                    if(RizoRuntimeQA.dungeonStateForQA().depth.hush==='wipers')return true;
+                }return false;}''')
+                assert reached, 'van did not reach its authored quiet beat'
             if name == 'latch':
                 page.evaluate('RizoRuntimeQA.dungeonTeleportForQA(180,260)')
                 page.keyboard.press('z')
@@ -72,9 +92,12 @@ with sync_playwright() as pw:
             page.wait_for_timeout(200)
             page.screenshot(path=str(out / f'{name}-{width}.png'), scale='css')
             state = page.evaluate(ST)
+            screen = page.locator('.dungeon-screen').bounding_box()
             okay = not errors and page.evaluate('document.documentElement.scrollWidth<=innerWidth')
             results.append({'scene': name, 'viewport': [width, height], 'passed': okay, 'errors': errors,
-                            'room': state['sim']['roomId'], 'actors': state['npcs'], 'dialogue': state.get('dialogue')})
+                            'room': state['sim']['roomId'], 'actors': state['npcs'], 'dialogue': state.get('dialogue'),
+                            'sceneTime': state['sceneTime'], 'depth': state['depth'], 'barks': state['barks'],
+                            'screen': screen})
             print(('PASS' if okay else 'FAIL'), width, name, flush=True)
             ctx.close()
     browser.close()
