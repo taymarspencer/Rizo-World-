@@ -548,8 +548,19 @@
       add(vp("M2 1Q4-1 6 1", null, 1.2, P.skin[2]));
       add(vp("M1 5Q-5 3-7 8L-8 12L-4 10L-2 7L1 8L5 8L9 7L11 11L13 12L13 7Q10 3 6 5Z", P.inkSoft, 1));
       add(vp("M-5 7L-6 10M10 7L11 10", null, 1.25, P.paper[0]));
-      add(vp(irritated ? "M0 11H7" : dry ? "M-1 11Q4 14 9 9L7 13L2 14Z" : "M0 10Q4 13 8 10", dry ? P.wood[0] : null, 1));
-      add(vp("M-2 15Q2 16 5 15", null, 1.4, P.inkSoft));
+      // Serving is an open, welcoming grin; dry is a compressed, sceptical
+      // mouth. Formerly both reduced to virtually the same mark at 46 px.
+      if (irritated) {
+        add(vp("M-1 11L8 9",null,1.9,P.inkSoft));
+      } else if (dry) {
+        add(vp("M-1 10Q3 11 9 9",null,1.8,P.inkSoft));
+        add(vp("M11 7L13 6",null,1.1,P.skin[2]));
+      } else {
+        add(vp("M-1 9Q4 15 10 8Q8 15 3 15Q0 14-1 9Z",P.inkSoft,1));
+        add(vp("M0 10Q4 13 8 10L7 12L2 13Z",P.paper[3],0));
+        add(vp("M-9 5Q-7 7-5 6M10 4Q12 6 13 4",null,1.2,P.skin[2]));
+      }
+      add(vp("M-2 16Q2 17 5 16", null, 1.3, P.inkSoft));
       // Soft sloping cap, not another rounded helmet. A single old repair.
       add(vp("M-15-6L-14-13Q-10-20 0-18L9-15L14-8L9-5Z", P.cloth[2]));
       add(vp("M-12-13Q-5-18 4-15L9-10L-3-11Z", P.cloth[3], 0));
@@ -628,9 +639,19 @@
       add(vp("M-11-3L0-4L1 2L-8 3Z M3-4L11-3L12 2L4 2Z", P.cold[0], 1.2));
       add(vp("M-9-1L-3-2M5-2L9-1", null, 1.5, P.cold[2]));
       add(vp("M0-1L3-1", null, 1.2, P.metal[2]));
-      add(vp("M-1 8L4 7L9 8L8 10L-1 10Z", P.inkSoft, .7));
-      add(vp("M0 12L7 12L5 14L2 14Z", P.skin[1], 0));
-      add(vp("M-5 9L-3 14L2 16L7 14", null, 1.2, P.inkSoft));
+      // Behind the driving glasses he normally gives nothing away. The
+      // worried variant shows a real fear response in the lower face, not
+      // merely a second identical portrait labelled "scared".
+      if (expr === "scared") {
+        add(vp("M-9-3L-3-4M5-4L10-5",null,1.35,P.paper[1]));
+        add(vp("M0 8Q4 6 9 8L8 14Q4 17 1 13Z",P.inkSoft,1));
+        add(vp("M2 9L7 9L6 11L3 11Z",P.paper[2],.4));
+        add(vp("M-5 9Q-3 14 1 16L7 15",null,1.2,P.inkSoft));
+      } else {
+        add(vp("M-1 8L4 7L9 8L8 10L-1 10Z", P.inkSoft, .7));
+        add(vp("M0 12L7 12L5 14L2 14Z", P.skin[1], 0));
+        add(vp("M-5 9L-3 14L2 16L7 14", null, 1.2, P.inkSoft));
+      }
     } else if (who.startsWith("collector")) {
       const marshal = who.endsWith("marshal"), runner = who.endsWith("runner"), gatherer = who.endsWith("gatherer");
       // One faction, four working constructions. These are protective cloth
@@ -690,7 +711,12 @@
     ctx.save(); ctx.translate(x, y); ctx.rotate(o.tilt || 0);
     for (const p of headParts(who, o.expr || "neutral")) {
       ctx.save();
-      if (p.gaze) ctx.translate((o.look?.x || 0) * .7, (o.look?.y || 0) * .45);
+      if (p.gaze) {
+          // Eyes, not whole heads, follow the little light when a character
+          // is actually close enough to see him. World sprites need a full
+          // readable pixel of travel; dialogue portraits keep their fixed gaze.
+          ctx.translate((o.look?.x || 0) * 1.5, (o.look?.y || 0) * .85);
+        }
       cut(ctx, p.d, p.fill, p.width, p.stroke); ctx.restore();
     }
     ctx.restore();
@@ -850,7 +876,7 @@
       oval(ctx,3,-75,1.6,1.5,P.paper[0],true,.6);
       if (grab) sleeve(ctx,[9,-80,19,-69,25,-61],P.cloth[2],6.6,P.skin[1]);
       else sleeve(ctx,[11,-80,16,-65,7,-55],P.cloth[2],6.6,P.skin[1]);
-      characterHead(ctx,kind,1,-95,{expr});
+      characterHead(ctx,kind,1,-95,{expr,look:o.look});
       ctx.restore();
     } else if (kind === "hood-small") {
       drop(ctx,0,0,14,3.6);
@@ -873,7 +899,7 @@
         rect(ctx,o.phoneOff ? P.cloth[2] : P.fluoro[2],16,-53,3,6);
         oval(ctx,16.5,-46.5,2.6,1.9,P.skin[1],true,.8);
       }
-      characterHead(ctx,kind,0,-62,{expr: o.state === "phone-tell" ? "scared" : expr});
+      characterHead(ctx,kind,0,-62,{expr: o.state === "phone-tell" ? "scared" : expr,look:o.look});
     } else {
       drop(ctx,0,0,18,4);
       workLegs(ctx,-35,7,9,P.cloth[0],bob,P.ink);
@@ -894,7 +920,7 @@
         line(ctx,-26,-53,-23,-46,P.paper[0],1);
       } else cut(ctx,"M12-66Q26-62 29-54L31-40L20-37L14-44Z",P.paper[2],1.3);
       if (!o.reaching) sleeve(ctx,[17,-67,23,-53,12,-45],P.a.track,8,P.skin[0]);
-      characterHead(ctx,"hood-cap",0,-82,{expr});
+      characterHead(ctx,"hood-cap",0,-82,{expr,look:o.look});
     }
     ctx.restore();
   }
@@ -1391,7 +1417,9 @@
     // legible at the same camera distance as her work. Every expression is
     // also the exact geometry in the dialogue portrait.
     const tilt = expr === "listening" ? -.14 : expr === "tired" ? .12 : expr === "measuring" ? .09 : expr === "amused" ? -.06 : 0;
-    characterHead(ctx,"nell",1,-67,{expr,tilt});
+    // The actual character listens when her portrait speaks. Keep the tool
+    // and shoulders attached to their job rather than rotating the whole body.
+    characterHead(ctx,"nell",1,-67,{expr,tilt:tilt+(o.addressed ? -.045 : 0),look:o.look});
     ctx.restore();
   }
 
@@ -1470,7 +1498,7 @@
     // Wide jaw, a proper nose and a blunt beard under the soft patched cap.
     // The cap stays low, but it no longer consumes his entire face.
     const headTilt = expr === "dry" ? -.16 : expr === "irritated" ? .13 : carrying ? .12 : free ? -.09 : -.045;
-    characterHead(ctx,"orr",1,-63,{expr,tilt:headTilt});
+    characterHead(ctx,"orr",1,-63,{expr,tilt:headTilt+(o.addressed ? .045 : 0),look:o.look});
     ctx.restore();
     ctx.restore();
   }
