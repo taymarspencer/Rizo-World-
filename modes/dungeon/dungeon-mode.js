@@ -48,7 +48,7 @@
     GAP_AUTO_MS: 9000, GAP_PUSH_MS: 1500, GAP_JOLT_MS: 10000,
     // 9–10 Taillights, the ringing
     SEARCH_MS: 12000, LEAVE_MS: 9000, AFTER_MS: 6000, SEEN_HOLD_MS: 1200,
-    PHONE_DELAY_MS: 2000, PHONE_RING_MS: 40000, PHONE_CYCLE_MS: 4000, PHONE_CALL_MS: 5000, PHONE_REACH: 22,
+    PHONE_DELAY_MS: 2000, PHONE_RING_MS: 40000, PHONE_CYCLE_MS: 4000, PHONE_CALL_MS: 8600, PHONE_REACH: 22,
     // 11–12 The walk, the drain
     PASS_MS: 6000, MOUTH_MS: 30000,
     // 13 The fall
@@ -65,9 +65,9 @@
   // the live instance writes it each frame (presentation only, never saved).
   //   danger 0..1: something below is aware of him, or committing to him.
   //   home: HOME ↑ has been read, so its motif may come back (faintly) below.
-  const MOOD = { danger: 0, home: false };
+  const MOOD = { danger: 0, home: false, woken: 0 };
   // States in which something is about to happen to him.
-  const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep"]);
+  const DANGER_STATES = new Set(["windup", "lunge", "indicate", "pulse", "charge-tell", "charge", "sweep-tell", "sweep", "spot", "run"]);
   // Danger is restrained: a low pulse under whatever is playing, then a tick
   // when something commits. It never becomes a different song.
   function dangerLayer(step, play) {
@@ -111,6 +111,9 @@
   const DREAD_TRACK = Object.freeze({ id: "dungeon-dread", tempo: 1500, lead: [null], bass: [38], wave: "sine" });
   // Only after HOME is found: a short new motif, then the music below returns.
   const HOME_MOTIF = [64, null, 67, 69, null, null, 72, null, null, null, 67, null, null, null, null, null];
+  // HOME's notes in order, for the jars that wake to him (one note each).
+  const WAKE_NOTES = Object.freeze([...HOME_MOTIF.filter(note => note != null), 64]);
+  const midiHz = note => 440 * Math.pow(2, (note - 69) / 12);
   const HOME_TRACK = Object.freeze({
     id: "dungeon-home", tempo: 880, lead: DUNGEON_LEAD, bass: DUNGEON_BASS, wave: "sine",
     beat(step, play) {
@@ -118,6 +121,25 @@
       belowBeat(step - HOME_MOTIF.length, play);
     }
   });
+  // ===== THE COLLECTION (v0.5): his building has its own music =====
+  // The chase: a fast low pulse and a tick, the danger layer over it.
+  const CHASE_TRACK = Object.freeze({ id: "dungeon-chase", tempo: 210, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 2 === 0) play(step % 8 === 0 ? 29 : 31, 0.2, 0.022, 0, "triangle"); if (step % 4 === 3) play(64, 0.05, 0.006, 0, "square"); if (step % 16 === 14) play(67, 0.1, 0.007, 0, "square"); dangerLayer(step, play); } });
+  // His building: a cold hum under a slow, slightly wrong two-note figure.
+  const BUILDING_TRACK = Object.freeze({ id: "dungeon-building", tempo: 760, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 8 === 0) play(35, 1.8, 0.013, 0, "sine"); if (step % 8 === 4) play(34, 1.4, 0.01, 0, "sine"); if (step % 16 === 6) play(71, 0.5, 0.005, 0, "sine"); if (step % 32 === 22) play(70, 0.6, 0.004, 0, "sine"); dangerLayer(step, play); } });
+  // The collection: a music box nobody wound. Woken jars hum HOME's notes back to him.
+  const COLLECTION_LEAD = [76, null, 79, null, 74, null, null, null, 72, null, 74, null, null, null, null, null];
+  const COLLECTION_TRACK = Object.freeze({ id: "dungeon-collection", tempo: 900, lead: COLLECTION_LEAD, bass: [null], wave: "sine",
+    beat(step, play) {
+      const note = COLLECTION_LEAD[step % 16];
+      if (note != null) play(note, 1.2, 0.007, 0, "sine");
+      if (step % 16 === 0) play(40, 3, 0.008, 0, "sine");
+      if (MOOD.woken > 0 && step % 64 >= 48) { const motif = HOME_MOTIF[step % 16]; if (motif != null) play(motif, 1.2, 0.004 * Math.min(3, MOOD.woken), 0, "triangle"); }
+    } });
+  // The vents: nothing, and now and then the duct ticks.
+  const VENTS_TRACK = Object.freeze({ id: "dungeon-vents", tempo: 1100, lead: [null], bass: [null], wave: "sine",
+    beat(step, play) { if (step % 16 === 0) play(28, 2.4, 0.009, 0, "sine"); if (step % 24 === 13) play(88, 0.03, 0.003, 0, "square"); dangerLayer(step, play); } });
   const FAILED = Object.freeze({ status: "failed", rewardApplied: false, duplicateReward: false, backupSynced: false, reason: "error" });
   const L = Content.LINES;
   const isObject = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -146,7 +168,9 @@
     control: on => ({ type: "control", on }),
     // `line`: the line that asks it, kept on screen while the choice waits.
     choice: (key, options, line = null) => ({ type: "choice", key, options, line }),
-    bark: (id, line, ms = 1900) => ({ type: "bark", id, line, ms })
+    bark: (id, line, ms = 1900) => ({ type: "bark", id, line, ms }),
+    // An action cut to a comic page (dungeon-comic.js). Once per journey.
+    comic: id => ({ type: "comic", id })
   };
 
   // The page around the handheld must not scroll, rubber-band, zoom or
@@ -223,6 +247,9 @@
     let musicId = "";                 // the mode track now playing
     let roomTickAt = 0;
     let qaLog = [];
+    let comic = null;                 // the comic page (dungeon-comic.js), if this build has it
+    // One hit per comic panel, from the Dungeon's own sounds. The fall ends in silence.
+    const COMIC_HITS = { grab: ["grab", "heart", "tap"], sack: ["cloth", "cloth", "thud"], "van-leap": ["crack", "wind", "bump"], taillights: ["brake", "door", "click"], fall: ["slip", "wind", null], "boss-hands": ["buzz", "click", "cloth", "hangup"], "boss-glass": [null, "connect", "chime"], "window-opens": ["chime", "shutter", "clank"], chute: ["slide", "wind", "clank", "hangup"] };
 
     const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
     // The hub's own setting, or the device's (the hub does not pass the OS preference to modes).
@@ -233,7 +260,8 @@
     const fact = name => Boolean(flags()[name]);
     const beats = () => data?.story?.committedSceneBeats || [];
     const log = entry => { if (host.debug) { qaLog.push(entry); if (qaLog.length > 60) qaLog.shift(); } };
-    const sound = (kind) => {
+    // `n` shades a few sounds by how far along something is (a latch's notch, a jar's note).
+    const sound = (kind, n = 0) => {
       if (sceneTime < silentUntil) return;
       const a = host.audio || {};
       try {
@@ -307,6 +335,33 @@
         else if (kind === "relief") { a.noise?.(0.45, 0.005); a.tone?.(392, 0.5, "sine", 0.009, 0.05, -60); }
         // Nell: three warm notes, the first time she makes room for him and when she gives.
         else if (kind === "nell") { a.tone?.(523, 0.5, "triangle", 0.011); a.tone?.(659, 0.55, "triangle", 0.01, 0.24); a.tone?.(587, 0.8, "triangle", 0.009, 0.5); }
+        // v0.5: his building. Steel, wire, cold lamps, his voice in the walls.
+        else if (kind === "rattle") { for (let i = 0; i < 3; i += 1) a.tone?.(1400 + i * 120, 0.03, "square", 0.008, i * 0.05); a.noise?.(0.12, 0.012); a.haptic?.(8); }
+        // The latch giving a notch: a click that climbs with each one, so the ear counts too.
+        else if (kind === "notch") { a.tone?.(620 + n * 110, 0.05, "triangle", 0.016, 0.09); a.tone?.(1240 + n * 220, 0.03, "square", 0.006, 0.1); }
+        // Under his eye the latch slides back: two notches lost, downhill.
+        else if (kind === "latch-back") { a.tone?.(520, 0.06, "square", 0.012, 0.06, -180); a.tone?.(300, 0.08, "square", 0.012, 0.16, -120); a.haptic?.([10, 30, 10]); }
+        // His phone's torch clicking on, aimed at the crate.
+        else if (kind === "torch") { a.tone?.(2100, 0.015, "square", 0.008); a.tone?.(1500, 0.02, "square", 0.006, 0.03); }
+        else if (kind === "clank") { a.tone?.(160, 0.16, "square", 0.03, 0, -60); a.tone?.(1100, 0.08, "triangle", 0.01); a.noise?.(0.12, 0.03); a.haptic?.(25); }
+        else if (kind === "shutter") { for (let i = 0; i < 8; i += 1) a.tone?.(240 + i * 20, 0.03, "square", 0.008, i * 0.04); a.noise?.(0.35, 0.02); }
+        else if (kind === "shutter-tick") a.tone?.(320, 0.02, "square", 0.005);
+        else if (kind === "glare") { a.tone?.(2600, 0.06, "sine", 0.01, 0, -400); a.noise?.(0.06, 0.012); }
+        else if (kind === "alarm") { a.tone?.(880, 0.12, "square", 0.012); a.tone?.(660, 0.12, "square", 0.012, 0.16); a.tone?.(880, 0.12, "square", 0.012, 0.32); }
+        else if (kind === "stamp") { a.tone?.(90, 0.05, "square", 0.01, 0, -20); a.noise?.(0.04, 0.01); }
+        else if (kind === "speaker") { a.noise?.(0.18, 0.01); a.tone?.(60, 0.18, "sawtooth", 0.006); }
+        // A jar waking: frost letting go, then its light answering him with one
+        // note of HOME. Woken in any order, they play the tune from its start.
+        else if (kind === "wake") { const note = WAKE_NOTES[Math.max(0, n - 1) % WAKE_NOTES.length]; a.noise?.(0.18, 0.006); a.tone?.(392, 0.3, "sine", 0.01, 0, 120); a.tone?.(midiHz(note), 0.7, "triangle", 0.014, 0.28); a.tone?.(midiHz(note + 12), 0.5, "sine", 0.004, 0.3); }
+        // The woken ones together, as he goes: the notes they have, one after another.
+        else if (kind === "hum") { for (let i = 0; i < Math.max(1, n); i += 1) a.tone?.(midiHz(WAKE_NOTES[i % WAKE_NOTES.length]), 0.9, "triangle", 0.008, i * 0.22); }
+        else if (kind === "tin") { a.tone?.(1760, 0.3, "triangle", 0.014); a.tone?.(2090, 0.25, "sine", 0.008, 0.02); a.tone?.(1760, 0.2, "triangle", 0.008, 0.3); }
+        else if (kind === "belt") a.noise?.(0.25, 0.004);
+        else if (kind === "duct") a.tone?.(2200 + Math.random() * 400, 0.015, "square", 0.004);
+        // A factory press striking; n (0..1) is how close.
+        else if (kind === "press") { a.tone?.(48, 0.16, "square", 0.008 + 0.02 * n, 0, -10); a.noise?.(0.1, 0.004 + 0.012 * n); a.tone?.(900, 0.12, "sine", 0.002 + 0.004 * n, 0.08, -500); }
+        // Boots on tile behind him; n (0..1) is how close.
+        else if (kind === "boot") { a.tone?.(70, 0.07, "square", 0.006 + 0.018 * n, 0, -20); a.noise?.(0.04, 0.004 + 0.012 * n); if (n > 0.7) a.haptic?.(6); }
       } catch (error) {}
     };
     const duck = (ms, level) => { try { host.audio.duck?.(ms, level); } catch (error) {} };
@@ -405,7 +460,7 @@
       const perf = holds.includes("performance") ? "Paused because the device fell behind. Nothing advanced while it caught up." : "";
       openPanel("pause", card({
         title: "PAUSED",
-        body: esc(`${waiting || updateNote || perf || `${pet?.name || "Your Rizo"} waits. Nothing moves until you resume.`}${unsaved && !updateNote ? " The last moment isn't saved yet; GO HOME tries again." : ""}`),
+        body: esc(`${waiting || updateNote || perf || `${pet?.name || "Your Rizo"} waits. Nothing moves until you resume.`}${unsaved && !updateNote ? " The last moment isn't saved yet; GO HOME tries again." : ""}`) + (objectiveNow() ? `<span class="dungeon-pause-goal">NOW: ${esc(objectiveNow())}</span>` : ""),
         actions: `<button type="button" class="primary" data-dungeon-action="resume" ${external.length ? "disabled" : ""}>RESUME</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
         fine: esc(Core.belowReached(data) ? "GO HOME saves the journey here. You'll come back to this spot." : "GO HOME saves. The night picks up from here next time."),
         tools: restartTool(external.length > 0),
@@ -502,7 +557,7 @@
       const line = dialogueState.lines[dialogueState.index];
       const instant = settings.textSpeed === "instant";
       dialogueState.shown = instant ? line.text.length : Math.min(line.text.length, Math.floor(((time - dialogueState.startAt) / 1000) * TEXT_CPS));
-      view.dialogue(line.text.slice(0, dialogueState.shown), { done: dialogueState.shown >= line.text.length, speaker: line.speaker, expr: line.expr, fullText: line.text });
+      view.dialogue(line.text.slice(0, dialogueState.shown), { done: dialogueState.shown >= line.text.length, speaker: line.speaker, expr: line.expr, fullText: line.text, auto: Boolean(dialogueState.auto), last: dialogueState.index === dialogueState.lines.length - 1 });
       if (line.speaker && npcs.has(line.speaker)) npcs.get(line.speaker).expr = line.expr;
     }
     // A fresh Primary press reveals the line, another advances it.
@@ -598,6 +653,24 @@
             break;
           case "choice": current.waiting = "choice"; openChoice(step.options, value => { if (scene === current) { current.choice = value; step.onPick?.(value); current.waiting = null; advanceScene(); } }, step.line); break;
           case "bark": bark(step.id, step.line, step.ms); break;
+          case "comic": {
+            // Committed before it is shown: a comic never plays twice. While it
+            // is up the simulation and the scene clock stand still.
+            const beat = `comic:${step.id}`;
+            if (!comic || beats().includes(beat)) break;
+            commitBeat(beat);
+            const token = {};
+            current.waiting = "comic"; current.comicToken = token;
+            if (ui === "play") { ui = "scene"; input.clear("comic"); pending = { primary: false, secondary: false }; }
+            view.showPrompt(null);
+            comic.play(step.id, { onDone: () => {
+              if (scene !== current || current.waiting !== "comic" || current.comicToken !== token) return;
+              current.waiting = null;
+              if (current.control && ui === "scene") { ui = "play"; input.clear("comic"); pending = { primary: false, secondary: false }; }
+              advanceScene();
+            } });
+            break;
+          }
           default: break;
         }
         if (scene !== current) return;
@@ -610,6 +683,7 @@
     }
     function bark(id, line, ms) {
       const item = lineOf(line);
+      if (item.speaker && npcs.has(item.speaker)) npcs.get(item.speaker).expr = item.expr;
       barks = barks.filter(entry => entry.id !== id);
       barks.push({ id, text: item.text, speaker: item.speaker, until: sceneTime + ms });
     }
@@ -635,6 +709,7 @@
           if (item.pose) { setPose(item.pose, item.ms); state.next += item.ms || 0; continue; }
           // A weighted line stays up longer; a quiet one is set smaller. Neither changes the words.
           const ms = Math.round(barkMs(item.text) * (item.weight || 1));
+          if (item.speaker && npcs.has(item.speaker)) npcs.get(item.speaker).expr = item.expr;
           barks = barks.filter(entry => entry.id !== item.speaker);
           barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true, quiet: Boolean(item.quiet) });
           state.next += ms + TALK_GAP_MS;
@@ -927,6 +1002,7 @@
         S.until(() => room.grabbed || sceneTime - room.hands.start >= BEAT.GRAB_MAX_MS),
         S.control(false),
         S.call(() => grab()),
+        S.comic("grab"),
         // Do not cut away on contact: physically drag him across the passenger
         // seat toward the forced door so the player sees the abduction happen.
         S.wait(850),
@@ -1202,6 +1278,10 @@
           sound("breath");
           setPose("pull-in", 900);
         }
+        // The Boss, in his own words, for the first time. Calm. Then not.
+        const said = phone.said || 0;
+        const at = [1900, 3900, 5800];
+        if (said < at.length && t > at[said]) { phone.said = said + 1; bark("boss", L.bossPhone[said], said === 2 ? 3800 : 2000); }
         if (!phone.listened && t > 3400) {
           phone.listened = true;
           sound("heart");
@@ -1222,6 +1302,7 @@
       if (outcome.status === "failed") renderSaveFailedPanel("moment");
       phone.state = "connected"; phone.connectAt = sceneTime; phone.ringing = false;
       room.phoneAnsweredAt = sceneTime;
+      npc("boss", "none", phone.x, phone.y, { barkLift: 20 });
       setMusic(SILENT_TRACK);
       flameMood("fear", BEAT.PHONE_CALL_MS + 500);
       sound("connect");
@@ -1314,6 +1395,8 @@
       if (room.gapAt && !room.doorOpen) k *= 0.75;
       if (room.sensedAt && sceneTime - room.sensedAt < 2500) k *= 0.7;
       if (sim.roomId === "sack") k *= 0.8;
+      // In the ducts the metal is close on every side: his light has nowhere to go.
+      if (sim.roomId === "vents") k *= 0.8;
       if (room.hurtAt != null && sceneTime - room.hurtAt < 600) k *= 0.62 + 0.38 * ((sceneTime - room.hurtAt) / 600);
       if (room.smallestAt != null && !room.smallestDone) k *= 0.5;
       if (room.loosenAt != null && sceneTime - room.loosenAt < 2600) k *= 1 + 0.18 * Math.sin(Math.PI * clamp((sceneTime - room.loosenAt) / 2600, 0, 1));
@@ -1373,11 +1456,77 @@
         case "hearth": return !rested ? { x: g.hearth.x, y: g.hearth.y, kind: "thing" } : fact("shortcutOpen") ? exit("hearth-to-queue") : exit("hearth-to-hem");
         case "queue": return exit("queue-to-porter");
         case "porter": return fact("porterDown") ? exit("porter-to-rows") : null;
-        default: return null;
+        default: {
+          if (Content.isBuilding(g.id)) return buildingWay();
+          if (g.id === "windowgate" && done("rows:boundary")) return fact("windowOpen") ? exit("gate-to-hall") : { x: 206, y: 64, kind: "thing" };
+          if (!Content.isRows(g.id)) return null;
+          const way = ROWS_WAY[g.id]?.[rowsNext()];
+          if (!way) return null;
+          if (way.startsWith("thing:")) { const prop = g.props.find(item => item.id === way.slice(6)); return prop ? { x: prop.x, y: prop.y, kind: "thing" } : null; }
+          return exit(way);
+        }
       }
     }
+    // ===== WAYFINDING (v0.4): what he is trying to do, and which way it is =====
+    // One answer for the whole journey, read from what is already done. The
+    // HUD shows it; standing still, the room points the same way.
+    function rowsNext() {
+      const at = sim?.roomId;
+      if (!fact("rowsLedge")) return at === "receiving" && !transient.ledgeReady ? "rowsStart" : "ledge";
+      if (!done("rows:met")) return "toTable";
+      if (!fact("rowsCatch")) return "tableCatch";
+      if (!fact("rowsLowRoute")) return at === "hangrow" ? (fact("hangrowCrossed") || inZone("row-north") ? "lowCatch" : "rowLamp") : "toRows";
+      if (!done("rows:eyelet")) return "toEyelet";
+      if (!fact("rowsGrille")) return "grille";
+      if (!done("rows:meal")) return at === "drytable" ? "meal" : "toMeal";
+      if (!fact("rowsShutter")) return at === "press" ? (!fact("rowsPressStop") ? "stopPress" : !fact("rowsBrake") ? "brake" : "shutter") : "toPress";
+      if (!done("rows:wrap")) return at === "drytable" && done("rows:upper") ? "toNell" : "toStair";
+      if (!done("rows:boundary")) return at === "windowgate" ? "window" : "toWindow";
+      // v0.5: the card was a chapter break. The way up goes past the counter.
+      if (at !== "windowgate") return "toWindow";
+      return fact("windowOpen") ? "run" : "bell";
+    }
+    // Per room: which exit (or thing) the next step is through.
+    const ROWS_WAY = {
+      receiving: { ledge: "thing:ledge-catch", toTable: "receiving-to-table", tableCatch: "receiving-to-table", toRows: "receiving-to-table", toEyelet: "receiving-to-table", toMeal: "receiving-to-table", toPress: "receiving-to-table", toStair: "receiving-to-table", toWindow: "receiving-to-table" },
+      drytable: { tableCatch: "thing:work-catch", toRows: "table-to-rows", toEyelet: "table-to-rows", grille: "table-to-rows", toPress: "table-to-tray", toStair: "table-to-tray", toWindow: "table-to-window" },
+      hangrow: { lowCatch: "thing:low-catch", toEyelet: "rows-to-lowrun", grille: "rows-to-lowrun", toMeal: "rows-to-table", toPress: "rows-to-lowrun", toStair: "rows-to-lowrun", toWindow: "rows-to-table" },
+      lowrun: { toEyelet: "lowrun-to-eyelet", grille: "lowrun-to-eyelet", toMeal: "lowrun-to-eyelet", toPress: "lowrun-to-eyelet", toStair: "lowrun-to-eyelet", toWindow: "lowrun-to-rows" },
+      eyelet: { grille: "thing:grille-catch", toMeal: "eyelet-to-tray", toPress: "eyelet-to-press", toStair: "eyelet-to-press", toWindow: "eyelet-to-tray" },
+      traypass: { toMeal: "tray-to-table", toPress: "tray-to-eyelet", toStair: "tray-to-eyelet", toWindow: "tray-to-table" },
+      press: { stopPress: null, brake: "thing:brake-release", shutter: "thing:shutter-release", toStair: "press-to-upper", toMeal: "press-to-eyelet", toWindow: "press-to-eyelet" },
+      upper: { toStair: "upper-to-stair", toNell: "upper-to-stair", toWindow: "upper-to-stair" },
+      stair: { toStair: "stair-to-table", toNell: "stair-to-table", toWindow: "stair-to-table" },
+      windowgate: {}
+    };
+    function objectiveKey() {
+      if (!sim || !data) return null;
+      const id = sim.roomId, beatsDone = beat => beats().includes(beat);
+      switch (id) {
+        case "car": return room.phase === "waiting" ? "wait" : null;
+        case "sack": return room.limitedAt && !room.freedAt ? "sack" : null;
+        case "van": return room.doorLoose ? "gap" : room.roadAt || room.cargoCount ? "van" : null;
+        case "roadside": return room.searchAt && !room.searchOver ? "hide" : room.walkStart || room.walkMode ? "shelter" : null;
+        case "drain": return room.deepWarmAt ? "deeper" : null;
+        case "slip": return scene?.id === "opening:landed" || (room.wakeAt != null && room.awakeAt == null) ? null : data.journal.discoveredEntryIds.includes("home-sign") ? "climb" : "findWay";
+        case "clatter": return sim.enemies.some(enemy => enemy.kind === "collector") || (room.passAt != null && !room.lampAt) ? "lamp" : "climb";
+        case "hem": return !fact("latchFreed") ? (room.approached || fact("jamInspected") ? "freeLatch" : "climb") : data.checkpoint.hearthId !== "threshold-hearth" ? "toHearth" : "toQueue";
+        // From the hearth the Queue is back through the Hem Room, until the lever opens the short way north.
+        case "hearth": return data.checkpoint.hearthId !== "threshold-hearth" ? "hearth" : fact("shortcutOpen") ? "toQueueShort" : "toQueueBack";
+        case "queue": return fact("porterDown") ? "porterDoor" : "queue";
+        case "porter": return fact("porterDown") ? "porterDoor" : "porter";
+        default: return Content.isBuilding(id) ? buildingNext() : Content.isRows(id) ? rowsNext() : beatsDone("opening:below") ? "climb" : null;
+      }
+    }
+    function objectiveNow() {
+      const key = objectiveKey();
+      return key ? Content.OBJECTIVES[key] || "" : "";
+    }
+    const objectiveShown = () => (ui === "play" || ui === "scene") && !comic?.playing() && !thoughtNow();
     function beckonTick() {
-      if (!quietMoment() || stillFor < BECKON_STILL_MS || sceneTime - (room.beckonAt ?? -Infinity) < BECKON_EVERY_MS) return;
+      // The Rows are a maze of work rooms: they point sooner, and more often.
+      const rows = Content.isRows(sim.roomId);
+      if (!quietMoment() || stillFor < (rows ? 4500 : BECKON_STILL_MS) || sceneTime - (room.beckonAt ?? -Infinity) < (rows ? 9000 : BECKON_EVERY_MS)) return;
       const way = wayOn();
       if (!way) return;
       room.beckonAt = sceneTime;
@@ -1440,13 +1589,16 @@
     // A Kindle on a warm prop: the jammed latch, or Rows work.
     function warmTarget(id) {
       if (id === "latch-jam") { rescueLatch(); return; }
+      if (id.startsWith("jar-")) { wakeJar(id); return; }
+      if (id === "grate-catch") { warmGrate(); return; }
       const handler = ROWS_WARM[id];
       if (handler) handler();
     }
     const ROWS_WARM = {
       // Receiving: optional. The work lowers sooner, and Latch notices.
       "ledge-catch"() {
-        setFactNow("rowsLatchHelped");
+        const outcome = commitData(next => { next.story.facts.rowsLatchHelped = true; next.world.durableRoomFlags.rowsLedge = true; });
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
         setTransient("ledgeReady", false);
         sound("clunk"); taps();
         nellState("work");
@@ -1525,7 +1677,7 @@
 
     // ---- Receiving: Latch got here first; the delivery that would not fit.
     function receivingEnter() {
-      if (done("rows:arrived")) { room.dryPatch = sceneTime; return; }
+      if (done("rows:arrived")) { room.dryPatch = sceneTime; if (!fact("rowsLedge")) setRoomFlag("rowsLedge"); return; }
       npc("latch", "latch", 250, 86, { face: -1 });
       nell(150, 78, { face: 1, state: "support" });
       runScene("rows:arrival", [
@@ -1542,7 +1694,8 @@
         S.call(() => { nellState("clear"); room.dryPatch = sceneTime; sound("nell"); flameMood("warm", 2600); }),
         talk([...L.rowsDry, { hold: 400 }, ...L.rowsGoingUp]),
         S.until(() => room.ledgeDone || sceneTime - room.dryPatch > 14000),
-        S.call(() => { if (!room.ledgeDone) { setTransient("ledgeReady", false); nellState("work"); sound("clunk"); } }),
+        // Without his help she gets it down herself, slowly. Either way the way is open.
+        S.call(() => { if (!room.ledgeDone) { setTransient("ledgeReady", false); nellState("work"); sound("clunk"); setRoomFlag("rowsLedge"); bark("nell", L.rowsLedgeSelf[0], 1800); } }),
         S.wait(room.ledgeDone ? 400 : 200),
         S.until(() => !room.latchLine || sceneTime >= room.latchLine),
         S.call(() => { if (fact("rowsLatchHelped")) bark("latch", L.rowsLedgeHelp[1], 2200); }),
@@ -1594,7 +1747,7 @@
         S.call(() => walk("nell", 238, 174, 600)),
         S.wait(650),
         S.call(() => { nellState("support"); setTransient("catchReady", true); }),
-        talk([...L.rowsCatchAsk])
+        S.say(L.rowsCatchAsk)
       ], { control: true });
     }
     function tableMeal() {
@@ -1617,8 +1770,8 @@
         const outcome = commitData(next => { next.story.choices["rows-meal"] = value; next.world.durableRoomFlags.rowsPressOpen = true; addBeat(next, "rows:meal"); });
         if (outcome.status === "failed") renderSaveFailedPanel("moment");
         const after = value === "sit"
-          ? [S.call(() => { room.seatFrom = { x: sim.player.x, y: sim.player.y }; room.seatAt = sceneTime; room.seatTarget = { x: 150, y: 196 }; }), S.until(() => seatWalk()), S.pose("settle", 3200), S.call(() => { duck(3200, 0.3); sound("nell"); flameMood("warm", 3200); }), S.wait(3200), S.say(L.rowsCrunchy), S.wait(800), S.control(true), talk([...L.rowsPressNext]), S.call(() => departMeal())]
-          : [S.control(true), talk([...L.rowsPressNext, ...L.rowsTakeEdge]), S.call(() => departMeal())];
+          ? [S.call(() => { room.seatFrom = { x: sim.player.x, y: sim.player.y }; room.seatAt = sceneTime; room.seatTarget = { x: 150, y: 196 }; }), S.until(() => seatWalk()), S.pose("settle", 3200), S.call(() => { duck(3200, 0.3); sound("nell"); flameMood("warm", 3200); }), S.wait(3200), S.say(L.rowsCrunchy), S.wait(800), S.control(true), S.say(L.rowsPressNext), S.call(() => departMeal())]
+          : [S.control(true), S.say(L.rowsPressNext), talk([...L.rowsTakeEdge]), S.call(() => departMeal())];
         current.steps.push(...after);
       };
     }
@@ -1682,7 +1835,9 @@
         S.control(true),
         S.until(() => sim.player.y < 400 || sceneTime - room.enteredAt > 2500),
         S.call(() => { walk("nell", 40, 262, 2600); room.nellStage = "refuge"; }),
-        S.until(() => rowDraftSettled() || inZone("row-north")),
+        talk([{ hold: 1200 }, ...L.rowsLamp, { hold: 300 }, ...L.rowsBellTip]),
+        S.until(() => inZone("row-north")),
+        S.call(() => { if (!fact("hangrowCrossed")) setFactNow("hangrowCrossed"); relief(); bark("nell", L.rowsLampPast[0], 2200); }),
         S.call(() => { nellState("walk"); walk("nell", 50, 120, 1500); }),
         S.wait(1500),
         S.call(() => walk("nell", 252, 104, 2000)),
@@ -1692,7 +1847,6 @@
       ], { control: true });
       room.enteredAt = sceneTime;
     }
-    const rowDraftSettled = () => !sim.enemies.some(enemy => enemy.id === "row-draftling" && enemy.state !== "gone");
 
     // ---- Eyelet: somebody at the other end; a tray bigger than its hatch.
     function eyeletEnter() {
@@ -1849,23 +2003,333 @@
           talk([...(fact("rowsLatchHelped") ? L.rowsLatchAgainHelped : L.rowsLatchAgain)]),
           S.call(() => { leave("latch", 304, 120, 2400); room.latchGone = sceneTime; }),
           S.until(() => inZone("gate-window") || sceneTime - room.enteredAt > 26000),
+          S.comic("boss-glass"),
           S.call(() => boundary())
         ], { control: true });
         room.enteredAt = sceneTime;
         return;
       }
+      if (fact("windowOpen")) {
+        // The window is open: Nell is holding a collector at the counter with her board.
+        nell(132, 78, { face: 1, state: "brace" });
+        npc("held", "collector", 160, 70, { face: -1, state: "spot" });
+        return;
+      }
       nell(62, 124, { face: 1, state: "sit" });
+      setTransient("bellReady", true);
+    }
+    // ---- After the card: the bell on the counter calls the window. It opens on a collector.
+    function ringBell() {
+      if (fact("windowOpen") || scene) return;
+      setTransient("bellReady", false);
+      runScene("window:open", [
+        S.call(() => { sound("chime"); setPose("approach-stop", 900); if (npcs.has("nell")) bark("nell", L.rowsOrThat[0], 1800); }),
+        S.wait(1500),
+        S.call(() => { sound("shutter"); room.shake = sceneTime; }),
+        S.wait(450),
+        S.comic("window-opens"),
+        S.call(() => {
+          setRoomFlag("windowOpen");
+          npc("held", "collector", 160, 70, { face: -1, state: "spot" });
+          if (npcs.has("nell")) { walk("nell", 132, 78, 500); nellState("brace"); }
+          sound("door"); room.shake = sceneTime;
+          flameMood("fear", 2200);
+          setPose("tremble", 600);
+        })
+      ]);
     }
     function boundary() {
       if (!done("rows:boundary")) commitBeat("rows:boundary");
+      setTransient("bellReady", true);
       openPanel("boundary", card({
         kicker: "MENDING ROWS",
         title: "WINDOW HALL IS NEXT",
         body: esc("The window says BACK SOON. Nell sits down to wait, and leaves him the dry end of the bench. Somebody behind that counter is going to open it."),
         actions: `<button type="button" class="primary" data-dungeon-action="stay">STAY A WHILE</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
-        fine: esc("End of what's built so far. The journey is saved here, and picks up at this window when the next part opens.")
+        fine: esc("Mending Rows is done, and saved here. When he's ready, the bell on the counter calls the window.")
       }));
     }
+
+    // ===== CHAPTER 3 — THE COLLECTION (story spine v0.5) =====
+    // The window opens on a collector. A chase, a cage, a room of jars, the
+    // vents, the factory floor: each room a different kind of nerve, and The
+    // Boss closer in each (a radio, a speaker, through a grate, every wall).
+    const woken = () => Content.ROOMS.collection.jars.filter(item => fact(item.flag)).length;
+    function buildingNext() {
+      switch (sim?.roomId) {
+        case "longhall": return "chase";
+        case "intake": return sim.cage && !sim.cage.open ? "cage" : "sneak";
+        case "collection": return fact("ventGrate") ? "promise" : woken() >= 3 ? "grate" : transient.grateTried ? "jars" : "findOut";
+        case "vents": return room.listenDone ? "hatch" : inZone("vent-listen-in") || room.listenSeen ? "listen" : "vents";
+        case "factory": return done("esc:boundary") ? "promise" : "factory";
+        default: return null;
+      }
+    }
+    function buildingWay() {
+      const g = geo(), key = buildingNext(), p = sim.player;
+      const exit = id => { const e = (g.exits || []).find(item => item.id === id); return e ? { x: e.x + e.w / 2, y: e.y + e.h / 2, kind: "air" } : null; };
+      if (g.id === "intake") return key === "sneak" ? exit("intake-to-collection") : null;
+      if (g.id === "collection") {
+        if (key === "promise") return exit("coll-to-vents");
+        if (key === "jars") { const next = g.jars.filter(item => !fact(item.flag)).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0]; return next ? { x: next.x, y: next.y - 8, kind: "thing" } : null; }
+        return { x: 270, y: 32, kind: "thing" };
+      }
+      if (g.id === "vents") return exit("vents-to-factory");
+      if (g.id === "factory") return { x: 160, y: 690, kind: "air" };
+      return null;
+    }
+
+    // ---- The Long Hall: the chase. It came through the staff door after him.
+    function longhallEnter() {
+      room.hallAt = sceneTime;
+      room.windows = {};
+      sound("clunk"); room.shake = sceneTime;
+      // It comes through the door behind him: later the first time, so he can see where he is.
+      const first = !done("hall:started");
+      if (first) commitBeat("hall:started");
+      // Once he has made it under the night gate, a catch starts him there: the gate
+      // is already down behind him and it comes round by the side door again.
+      const gate = geo().dropGate, atGate = sim.player.y < gate.y;
+      if (atGate) { room.gatePassed = true; sim.gate.startAt = sim.t - gate.closeMs; sim.gate.closed = true; }
+      const from = atGate ? gate.detour : { x: -18, y: 1060 };
+      Core.spawnRunner(sim, { id: "runner", x: from.x, y: from.y, startGapMs: Content.ENEMIES.runner.startGapMs + (first || atGate ? 900 : 200) });
+      npc("radio", "none", from.x, from.y, { barkLift: 74 });
+      flameMood("fear", 1600);
+      setPose("look-back", 700);
+    }
+    function longhallTick() {
+      const runner = sim.enemies.find(enemy => enemy.kind === "runner");
+      const radio = npcs.get("radio");
+      if (runner && radio) { radio.x = runner.x; radio.y = runner.y; }
+      // Its boots, and his heart: louder and quicker the closer it gets.
+      if (runner?.state === "run" && sim.phase === "play") {
+        const close = clamp(1 - (Math.hypot(runner.x - sim.player.x, runner.y - sim.player.y) - 20) / 140, 0, 1);
+        if (sceneTime - (room.bootAt || 0) > 240) { room.bootAt = sceneTime; sound("boot", close); }
+        if (close > 0.55 && sceneTime - (room.heartAt || 0) > (close > 0.8 ? 420 : 640)) { room.heartAt = sceneTime; sound("heart"); flameMood("fear", 700); }
+      }
+      // The windows near him rattle before their lamps come on.
+      for (const win of geo().lampWindows || []) {
+        const state = Core.lampWindowState(win, sim.t), was = room.windows[win.id];
+        room.windows[win.id] = state;
+        if (state === was || Math.abs(win.y - sim.player.y) > 220) continue;
+        if (state === "tell") sound("shutter-tick"); else if (state === "on") sound("glare");
+      }
+      if (inZone("chute") && room.chuteAt == null && sim.phase === "play") reachChute();
+    }
+    // RETURNS: he dives through the flap to get away from it. It is the Boss's own chute.
+    function reachChute() {
+      room.chuteAt = sceneTime;
+      sim.enemies = sim.enemies.filter(enemy => enemy.kind !== "runner");
+      runScene("hall:chute", [
+        S.call(() => { sound("slide"); }),
+        S.comic("chute"),
+        S.call(() => { setFactNow("hallEscaped"); goToRoom("intake", "intake-cage", { context: "chute" }); })
+      ]);
+    }
+
+    // ---- Intake: the cage. The hoods are on tagging duty for losing him.
+    function intakeEnter() {
+      const guard = sim.enemies.find(enemy => enemy.kind === "guard");
+      if (guard) npc("hood-small", "hood-small", guard.x, guard.y, { face: -1, barkLift: 80, state: "phone" });
+      npc("hood-cap", "hood-cap", 262, 88, { face: 1 });
+      npc("boss", "none", 104, 26, { barkLift: 4 });
+      room.awayLine = 0; room.noticed = 0;
+      if (done("intake:arrived")) return;
+      npc("hood-tall", "hood-tall", 140, 96, { face: -1 });
+      const memory = [...(fact("callerConnected") ? L.intakePhone : L.intakeDitch), ...(choice("rows-wrap") === "worn" ? L.intakeCoat : [])];
+      runScene("intake:arrived", [
+        S.control(true),
+        talk([{ hold: 700 }, ...L.intakeSeen, ...memory]),
+        S.call(() => { room.speakerOn = true; sound("speaker"); }),
+        talk(L.intakeBoss.slice(0, 4)),
+        S.call(() => { room.speakerOn = false; sound("hangup"); }),
+        talk([L.intakeBoss[4], { hold: 300 }, ...L.intakeTags]),
+        S.call(() => { leave("hood-tall", 278, 24, 1600); commitBeat("intake:arrived"); })
+      ], { control: true });
+    }
+    function intakeTick() {
+      const guard = sim.enemies.find(enemy => enemy.kind === "guard");
+      const actor = npcs.get("hood-small");
+      if (!guard || !actor) return;
+      // While the hoods talk he watches the crate; his look starts after.
+      if (scene?.id === "intake:arrived") { guard.state = "watch"; guard.stateAt = sim.t; guard.extra = 0; }
+      poseGuard();
+      if (sceneTime - (room.stampAt || 0) > 2600) { room.stampAt = sceneTime; sound("stamp"); }
+      room.hidden = !sim.cage?.open || Core.inCage(sim) ? false : Core.hiddenIn(sim);
+    }
+
+    // His phone is the torch he hunted for Rizo with at the roadside: held up
+    // and pointed at him while he watches, turned to his own face while he
+    // looks away. He faces whichever way that is (the scenery draws the beam).
+    // Called on the frame he turns too, so his body and the beam never disagree.
+    function poseGuard() {
+      const guard = sim.enemies.find(enemy => enemy.kind === "guard"), actor = npcs.get("hood-small");
+      if (!guard || !actor) return;
+      const toward = Math.sign(sim.player.x - actor.x) || -1;
+      actor.face = guard.state === "watch" ? toward : -toward;
+      // Visual pose only. The guard's detection/timing stays in DungeonCore.
+      // Match the hood's held torch, screen-reading and look-back silhouettes
+      // to the same watch/tell phases used by scenery's actual beam.
+      const elapsed = sim.t - guard.stateAt;
+      const def = Content.ENEMIES.guard;
+      actor.state = guard.state === "watch" ? "phone-watch" :
+        elapsed >= def.awayMs - def.tellMs ? "phone-tell" : "phone-away";
+    }
+
+    // ---- The collection: quiet. What he finds says it.
+    function collectionEnter() {
+      if (!fact("intakeOut")) setFactNow("intakeOut");
+      MOOD.woken = woken();
+      for (const item of geo().jars) npc(item.id, "none", item.x, item.y, { barkLift: 24 });
+      if (done("coll:in")) return;
+      // Through the door behind him, muffled: the small one lies to save his own neck.
+      npc("hood-tall", "none", 12, 506, { barkLift: 24 });
+      npc("hood-small", "none", 12, 530, { barkLift: 24 });
+      runScene("coll:in", [
+        S.control(true),
+        talk([{ hold: 500 }, ...L.intakeLie.map(line => ({ ...line, quiet: true }))]),
+        S.call(() => { commitBeat("coll:in"); setPose("approach-stop", 1100); }),
+        S.say(L.collectionIn, 2600)
+      ], { control: true });
+    }
+    function wakeJar(id) {
+      const item = geo().jars.find(jar => jar.id === id);
+      if (!item) return;
+      setRoomFlag(item.flag);
+      MOOD.woken = woken();
+      sound("wake", MOOD.woken);
+      room.wokeAt = { ...(room.wokeAt || {}), [id]: sceneTime };
+      view.addEffect("glint", item.x, item.y - 12, 1);
+      view.addEffect("frost", item.x, item.y - 6, 5);
+      flameMood("warm", 1600);
+      setPose("settle", 900);
+      bark(id, item.tag, 3600);
+    }
+    function warmGrate() {
+      if (woken() < 3) { setTransient("grateTried", true); sound("curious"); openDialogue(L.jarsTooCold); return; }
+      sound("clunk"); room.shake = sceneTime;
+      setRoomFlag("ventGrate");
+      runScene("coll:promise", [
+        S.say(L.jarsWarmEnough, 1600),
+        S.call(() => { faceToward(160, 300); setPose("look-back", 1600); flameMood("warm", 2400); sound("rest"); room.promiseAt = sceneTime; sound("hum", woken()); }),
+        S.wait(900),
+        S.say(L.promise, 2400),
+        S.call(() => { setFactNow("promised"); commitBeat("coll:promise"); })
+      ]);
+    }
+
+    // ---- The vents: three grates over his rooms, three over a guard post.
+    function ventsEnter(context) {
+      room.ventView = null;
+      // Heard over the guard post, he goes back only to the start of that duct.
+      if (context === "respawn" && sim.player.y < 400) room.listenSeen = true;
+    }
+    const VENT_LINES = { office: "ventOffice", lab: "ventLab", scale: "ventScale" };
+    function ventsTick(dt) {
+      const p = sim.player, g = geo();
+      // Still on a grate a moment, the room below shows; his office shows the moment he is over it.
+      const grate = (g.grates || []).find(item => p.x >= item.x && p.x <= item.x + item.w && p.y >= item.y && p.y <= item.y + item.h);
+      if (!grate) { if (room.ventView) room.ventView = null; }
+      else if (!room.ventView || room.ventView.kind !== grate.view) {
+        if (grate.view === "office" || stillFor >= 450) {
+          room.ventView = { kind: grate.view, at: sceneTime };
+          sound("speaker");
+          // What the last grate showed stays with the last grate: its words leave with it.
+          barks = barks.filter(entry => entry.id !== "view");
+          if (!room.heardView?.[grate.view]) {
+            room.heardView = { ...(room.heardView || {}), [grate.view]: true };
+            // The voices come from the room below: their bubbles sit beside the view, never on it.
+            const w = 172, h = 104, x = Math.max(6, Math.min(g.w - w - 6, grate.x + grate.w / 2 - w / 2)) + w / 2;
+            const below = grate.y < 140, y = below ? grate.y + grate.h + 8 + h + 6 : grate.y - h - 10;
+            const where = { barkLift: 0, barkBelow: below };
+            const lines = L[VENT_LINES[grate.view]];
+            if (typeof lines[0] === "string") { npc("view", "none", x, y, where); bark("view", lines[0], 4200); }
+            else { for (const id of new Set(lines.map(line => line.speaker))) npc(id, "none", x, y, where); runScene(`vents:${grate.view}`, [S.control(true), talk(lines)], { control: true }); }
+          }
+        }
+      }
+      if (!room.listenSeen && inZone("vent-listen-in")) room.listenSeen = true;
+      if (room.listenSeen && !room.listenDone && p.x < 240 && p.y < 104) room.listenDone = true;
+      if (p.moving && sceneTime - (room.ductAt || 0) > 340) { room.ductAt = sceneTime; sound("duct"); }
+      // The lamp below walks grate to grate: its boots come up through the metal
+      // as each one lights. Still on a lit grate, he holds his breath (and his light).
+      // (Two grates can be lit at once; the lamp is at the newest.)
+      const listens = g.listens || [], lit = listens.map((item, index) => Core.listenLit(g, index, sim.t));
+      const front = lit.lastIndexOf(true);
+      if (front !== room.litIndex) {
+        room.litIndex = front;
+        const at = listens[front];
+        if (at && Math.hypot(p.x - at.x - at.w / 2, p.y - at.y - at.h / 2) < 160) sound("boot", room.listenSeen ? 0.4 : 0.15);
+      }
+      room.hiding = !p.moving && listens.some((item, index) => lit[index] && p.x >= item.x && p.x <= item.x + item.w && p.y >= item.y && p.y <= item.y + item.h);
+      void dt;
+    }
+
+    // ---- The factory floor: belts, lamps on the walkways, and the door.
+    function factoryEnter(context) {
+      if (!fact("ventsOut")) setFactNow("ventsOut");
+      npc("boss", "none", 160, 36, { barkLift: 0 });
+      if (done("esc:pa") || context === "respawn") return;
+      runScene("esc:pa", [
+        S.control(true),
+        S.call(() => { sound("speaker"); room.speakerOn = true; }),
+        talk([{ hold: 600 }, ...L.factoryPA]),
+        S.call(() => { room.speakerOn = false; commitBeat("esc:pa"); })
+      ], { control: true });
+    }
+    function factoryTick() {
+      room.hidden = Core.hiddenIn(sim);
+      if (sim.player.carried && sceneTime - (room.beltAt || 0) > 600) { room.beltAt = sceneTime; sound("belt"); }
+      // The line's beat: each machine's strike, heard from wherever he is (nearer, louder).
+      const g = geo(), beat = g.machineBeat;
+      if (beat) for (const [index, m] of g.solids.filter(solid => solid.kind === "machine").entries()) {
+        const k = ((((sim.t - index * beat.stepMs) % beat.cycleMs) + beat.cycleMs) % beat.cycleMs) / beat.cycleMs;
+        const strokes = room.strokes || (room.strokes = []), was = strokes[index] ?? k;
+        strokes[index] = k;
+        if (was < beat.strikeAt && k >= beat.strikeAt) sound("press", clamp(1 - Math.hypot(m.x + m.w / 2 - sim.player.x, m.y - sim.player.y) / 260, 0.1, 1));
+      }
+      if (inZone("fac-door") && !done("esc:boundary") && room.doorAt == null && sim.phase === "play") reachDoor();
+    }
+    function reachDoor() {
+      room.doorAt = sceneTime;
+      runScene("esc:door", [
+        S.call(() => { setPose("settle", 1400); sound("rain-muffled"); }),
+        S.say(L.factoryDoor, 2600),
+        S.call(() => escapeBoundary())
+      ]);
+    }
+    function escapeBoundary() {
+      const outcome = commitData(next => {
+        next.story.facts.factoryOut = true;
+        addBeat(next, "esc:boundary");
+        setContinuation(next, "factory", "fac-door", Core.T.FLAME_MAX, "room-entry");
+      });
+      if (outcome.status === "failed") renderSaveFailedPanel("moment");
+      openPanel("boundary", card({
+        kicker: "THE COLLECTION",
+        title: "THE NIGHT IS NEXT",
+        body: esc("Under the loading door, the rain. Behind him, a building full of small lights, and a jar with his name on it. He got out alone. He'll come back for them. First, home."),
+        actions: `<button type="button" class="primary" data-dungeon-action="stay">STAY A WHILE</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
+        fine: esc("End of what's built so far. The journey is saved here, at the loading door.")
+      }));
+    }
+    // Where a catch in his building sends him: the start of the same trial, never back to the Rows.
+    function buildingRetry(reason) {
+      switch (sim.roomId) {
+        case "longhall": return room.gatePassed ? { roomId: "longhall", anchorId: "hall-gate", banner: L.caughtGate } : { roomId: "longhall", anchorId: "hall-entry", banner: L.caughtHall };
+        case "intake": return { roomId: "intake", anchorId: "intake-cage", banner: L.putBack };
+        case "vents": return { roomId: "vents", anchorId: room.listenSeen ? "vent-listen" : "vent-start", banner: L.caughtVents };
+        case "factory": return { roomId: "factory", anchorId: "fac-top", banner: L.caughtFactory };
+        default: return null;
+      }
+    }
+    const BUILDING_LOGIC = {
+      longhall: { music: () => CHASE_TRACK, enter: longhallEnter, tick: longhallTick },
+      intake: { music: () => BUILDING_TRACK, enter: intakeEnter, tick: intakeTick },
+      collection: { music: () => COLLECTION_TRACK, enter: collectionEnter },
+      vents: { music: () => VENTS_TRACK, enter: ventsEnter, tick: ventsTick },
+      factory: { music: () => BUILDING_TRACK, enter: factoryEnter, tick: factoryTick }
+    };
 
     const ROWS_LOGIC = {
       receiving: { music: () => ROWS_TRACK, enter: receivingEnter, tick() { if (!room.near && inZone("receiving-near")) room.near = true; } },
@@ -1878,8 +2342,11 @@
         music: () => ROWS_TRACK,
         enter: hangrowEnter,
         tick() {
-          const draft = sim.enemies.find(enemy => enemy.id === "row-draftling");
-          if (draft?.aware && !room.drySaid && npcs.has("nell")) { room.drySaid = true; bark("nell", L.rowsDrySide[0], 1600); }
+          const lamp = sim.enemies.find(enemy => enemy.id === "row-collector");
+          if (lamp?.state === "spot" && !room.drySaid && npcs.has("nell")) { room.drySaid = true; bark("nell", L.rowsLamp[0], 1600); }
+          // The voice on his radio walks with him.
+          const radio = npcs.get("radio");
+          if (radio && lamp) { radio.x = lamp.x; radio.y = lamp.y; }
         }
       },
       lowrun: { music: () => ROWS_TRACK, enter() { if (!done("rows:eyelet")) setPose("look-back", 900); } },
@@ -1892,7 +2359,22 @@
         music: () => ROWS_TRACK,
         enter: windowgateEnter,
         // The first time he drifts toward the rest of the hall, she keeps him close. Kindly.
-        tick() { if (!room.farSaid && npcs.has("nell") && sim.player.x > 248 && (room.latchGone || done("rows:boundary"))) { room.farSaid = true; bark("nell", L.rowsStayNear[0], 2600); } }
+        tick() {
+          if (fact("windowOpen")) {
+            // The comic doesn't end at the counter: Nell's board and the collector
+            // keep shoving at each other through the window, with a knock now and then.
+            const nellActor = npcs.get("nell"), held = npcs.get("held");
+            if (nellActor && held && nellActor.state === "brace" && !nellActor.walking && !reducedMotion()) {
+              const shove = Math.sin(sceneTime / 260) * 1.6;
+              nellActor.x = 132 + shove; held.x = 160 + shove;
+              if (sceneTime - (room.shoveAt || 0) > 2600 && Math.abs(shove) > 1.5) { room.shoveAt = sceneTime; sound("thud"); }
+            }
+            return;
+          }
+          if (!room.farSaid && npcs.has("nell") && sim.player.x > 248 && (room.latchGone || done("rows:boundary"))) { room.farSaid = true; bark("nell", L.rowsStayNear[0], 2600); }
+          // Near the bell, after the card: she would rather wait her turn.
+          if (!room.orderSaid && done("rows:boundary") && npcs.has("nell") && Math.hypot(sim.player.x - 206, sim.player.y - 70) < 40) { room.orderSaid = true; bark("nell", L.rowsBellOffer[0], 2200); }
+        }
       }
     };
 
@@ -1936,8 +2418,9 @@
             S.until(() => room.bursts >= BEAT.SACK_BURSTS || sceneTime - room.limitedAt >= BEAT.SACK_MAX_MS),
             S.control(false),
             S.call(() => { room.freedAt = sceneTime; room.shake = sceneTime; sound("cloth"); }),
-            S.wait(450),
-            S.fade(1, 250),
+            S.wait(300),
+            S.comic("sack"),
+            S.fade(1, 120),
             S.call(() => goToRoom("van", "start", { context: "sack" }))
           ]);
         },
@@ -2005,6 +2488,8 @@
               { hold: 900 },
               ...L.vanCooler, { hold: 1000 },
               ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
+              // What he wants, said once, as a fear joke. Why he wants it stays unsaid.
+              { hold: 500 }, ...L.vanEvery.slice(0, 1), weighted(L.vanEvery[1], 1.3), ...L.vanEvery.slice(2),
               // The job has a clock. Missing the check-in turns "Boss" from
               // vague talk into pressure that can reach the van.
               { hold: 650 }, ...L.vanCheckin,
@@ -2053,7 +2538,9 @@
               sound("wind");
             }),
             S.pose("fall", 1000),
-            S.wait(1000),
+            S.wait(450),
+            S.comic("van-leap"),
+            S.wait(250),
             S.fade(1, 300),
             S.call(() => commitBeat("opening:fell")),
             S.call(() => goToRoom("roadside", "fallen", { context: "fell" }))
@@ -2094,6 +2581,7 @@
             // Far up the road, the taillights stop. Brake red. Two doors.
             S.wait(2000),
             S.call(() => { room.brake = true; sound("brake"); }),
+            S.comic("taillights"),
             S.wait(700),
             S.call(() => sound("door")), S.wait(420), S.call(() => sound("door")),
             S.wait(900),
@@ -2175,9 +2663,10 @@
         tick: slipTick
       },
       clatter: {
-        enter() { room.sighted = false; },
+        enter() { room.sighted = false; if (!done("clatter:pass")) clatterPass(); },
         // The first Draftling is seen at the edge of his light before it notices him.
         tick() {
+          clatterPassTick();
           if (room.sighted || ui !== "play") return;
           const enemy = sim.enemies.find(item => item.kind === "draftling" && item.state !== "gone");
           if (!enemy || enemy.aware) { room.sighted = Boolean(enemy?.aware); return; }
@@ -2195,7 +2684,15 @@
           if (fact("latchFreed") && !fact("porterHelp")) npc("latch", "latch", 130, 196, { face: 1, seated: true });
         }
       },
-      queue: { enter() {} },
+      queue: {
+        enter() { room.crossed = false; },
+        tick() {
+          if (room.crossed || ui !== "play" || !inZone("queue-north")) return;
+          if (sim.enemies.some(enemy => enemy.kind === "collector" && enemy.state === "spot")) return;
+          room.crossed = true;
+          if (!fact("queueCrossed")) { setFactNow("queueCrossed"); relief(); }
+        }
+      },
       porter: {
         // Before: the hall tolls. After: the Rows, heard faintly through the open door.
         music: () => (fact("porterDown") ? ROWS_FAR_TRACK : PORTER_TRACK),
@@ -2205,7 +2702,7 @@
         }
       }
     };
-    Object.assign(ROOM_LOGIC, ROWS_LOGIC);
+    Object.assign(ROOM_LOGIC, ROWS_LOGIC, BUILDING_LOGIC);
     // ---- The van's staging. Accepted lines stay word-for-word; the missed
     // check-in is now an authored connective beat that makes Boss pressure causal.
     // A line can be given more time on screen or said quietly.
@@ -2259,6 +2756,7 @@
         S.call(() => { room.crack = sceneTime; sound("crack"); room.shake = sceneTime; }),
         S.pose("fall", 1200),
         S.wait(BEAT.CRACK_MS),
+        S.comic("fall"),
         // His flame streaking down in the black; three glimpses of the deep (none with reduced motion: a slow dim instead).
         S.call(() => { room.fallAt = sceneTime; sceneFade = { value: sceneFade.value, from: sceneFade.value, to: 1, start: sceneTime, ms: reducedMotion() ? 1500 : 200 }; sound("wind"); }),
         S.wait(BEAT.FALL_MS - BEAT.IMPACT_SILENCE_MS),
@@ -2288,6 +2786,40 @@
       ]);
     }
 
+    // ---- Clatter Passage (v0.4): the first collector. Meanwhile, up there, the
+    // Boss sends them down; here, a cold lamp comes in at the door he needs and
+    // looks for him. This one never catches (it teaches the lamp); the Boss's
+    // voice on its radio sends it on to the Cold Queue.
+    const CLATTER_DOOR = { x: 256, y: 4 };
+    function clatterPass() {
+      // The comic is the only part that holds the room. The lamp itself is a
+      // room event: nothing else (his own noticing, the air pointing north)
+      // waits for it.
+      runScene("clatter:boss", [S.comic("boss-hands")], { control: true });
+      room.passAt = sceneTime + 1400;
+    }
+    function clatterPassTick() {
+      if (room.passAt != null && !room.lampAt && !scene && sceneTime >= room.passAt) {
+        Core.spawnCollector(sim, { id: "clatter-collector", x: CLATTER_DOOR.x, y: CLATTER_DOOR.y, soft: true, patrol: [[256, 4], [256, 104], [176, 132], [104, 136], [176, 132], [256, 104], [256, 4]] });
+        npc("radio", "none", CLATTER_DOOR.x, CLATTER_DOOR.y, { barkLift: 86 });
+        room.lampAt = sceneTime; sound("notice"); flameMood("fear", 1800); if (!poseOverride) setPose("pull-in", 1300);
+      }
+      const lamp = sim.enemies.find(item => item.id === "clatter-collector");
+      if (!lamp) return;
+      const radio = npcs.get("radio");
+      if (radio) { radio.x = lamp.x; radio.y = lamp.y; }
+      // At the far end of his walk the Boss comes on the radio, and sends him on.
+      if (!room.radioAt && (lamp.wp >= 4 || sceneTime - room.lampAt > 14000)) { room.radioAt = sceneTime; bark("radio", L.bossRadio[0], 2200); }
+      if (room.radioAt && !room.radioSent && sceneTime - room.radioAt > 2600) { room.radioSent = true; bark("radio", L.bossRadio[1], 3000); }
+      // Back out of the door it came in by: gone.
+      if ((lamp.wp === 0 && sceneTime - room.lampAt > 4000 && Math.hypot(lamp.x - CLATTER_DOOR.x, lamp.y - CLATTER_DOOR.y) < 2) || sceneTime - room.lampAt > 30000) {
+        sim.enemies = sim.enemies.filter(item => item !== lamp);
+        npcs.delete("radio");
+        commitBeat("clatter:pass");
+        relief();
+      }
+    }
+
     // ===== STORY BEATS (commit first, then present) =====
     function inspect(id, kind) {
       const prop = geo().props.find(item => item.id === id);
@@ -2300,6 +2832,15 @@
       // HOME ↑, found by his own light: only now does a new motif enter, and the music below returns.
       if (id === "home-sign" && first) { room.motifAt = sceneTime; MOOD.home = true; setMusic(HOME_TRACK); }
       if (kind === "npc") return talkToLatch();
+      // v0.5: bells. Nell's tin bell sends the lamp to look; the counter bell calls the window.
+      if (kind === "bell") {
+        if (id === "counter-bell") return ringBell();
+        if (sceneTime - (room.bellAt ?? -1e9) < 2500) return;
+        room.bellAt = sceneTime; sound("tin"); view.addEffect("glint", prop.x, prop.y - 10, 1);
+        if (prop.lure) handleEvents(Core.lure(sim, prop.lure.x, prop.lure.y));
+        return;
+      }
+      if (id === "name-jar") { openDialogue([prop.lines[0], prop.lines[1].replace("{name}", petCallName().toUpperCase())]); return; }
       if (kind === "bowl") return coldBowl();
       if (kind === "lever") return pullLever();
       if (id === "bowl-road") setPose("approach-stop", 1100);
@@ -2344,7 +2885,7 @@
       if (data.checkpoint.hearthId !== geo().hearth.id) registerHearth(geo().hearth.id);
       if (geo().id !== "hearth" || !fact("latchFreed") || fact("seatChosen") || scene) return;
       runScene("hearth-seat", [
-        S.say(L.seatOffer),
+        S.say([...L.hearthLit, ...L.seatOffer]),
         S.choice("hearth-seat", [{ label: "SIT", value: "sit" }, { label: "GO", value: "go" }], L.seatOffer[0]),
         S.call(() => {})
       ]);
@@ -2473,7 +3014,7 @@
         S.call(() => { duck(2400, 0.08); setMusic(SILENT_TRACK); flameMood("relief", 2600); }),
         S.wait(1800),
         S.move("latch", clamp(sim.player.x - 22, 50, 300), clamp(sim.player.y, 50, 220), 1100),
-        S.say(L.gift),
+        S.say([...L.porterSettled, ...L.gift]),
         S.call(() => { showBanner("FIRST KNOT"); room.knotShown = sceneTime; sound("rest"); }),
         S.pose("settle", 1200),
         S.wait(1000),
@@ -2509,6 +3050,44 @@
           case "porter-wake": sound("porter"); break;
           case "sweep": sound("sweep"); break;
           case "charge": sound("lunge"); break;
+          case "spotted": sound("notice"); flameMood("fear", 1400); if (!poseOverride && !scene?.waiting) setPose("tremble", 900); break;
+          case "lost": sound("curious"); break;
+          case "caught": sound("hurt"); room.shake = sceneTime; room.caughtAt = sceneTime; break;
+          // v0.5: his building.
+          case "dazzled": sound("glare"); setPose("tremble", 450); break;
+          case "gate-start": sound("alarm"); break;
+          case "gate-shut":
+            sound("clank"); room.shake = sceneTime;
+            // Dust off the floor all along where it landed.
+            { const gate = geo().dropGate; for (let x = gate.x + 20; x < gate.x + gate.w; x += 48) view.addEffect("puff", x, gate.y + gate.h + 3, 1); }
+            // Under it in time: that much of the hall is his now (a reload or a catch starts here).
+            if (event.ahead && !room.gatePassed) { room.gatePassed = true; commitData(next => setContinuation(next, "longhall", "hall-gate", Core.T.FLAME_MAX, "room-entry")); }
+            break;
+          case "runner-in": room.westDoorAt = sceneTime; sound("door"); if (!room.radioSaid) { room.radioSaid = true; bark("radio", L.hallRadio[0], 2200); } break;
+          case "runner-blocked": {
+            // It hits the gate (drawn by the scenery), then the radio sends it round.
+            const runner = sim.enemies.find(enemy => enemy.id === event.id);
+            if (runner) { room.slamAt = sceneTime; room.slamX = runner.x; room.slamY = runner.y; }
+            sound("clank"); sound("thud"); room.shake = sceneTime;
+            bark("radio", L.hallGate[0], 2000); relief(); break;
+          }
+          case "runner-round": room.sideDoorAt = sceneTime; sound("door"); break;
+          case "loosened": sound("rattle"); sound("notch", event.loose); room.rattleAt = sceneTime; room.notchAt = sceneTime; setPose("scramble", 400); view.addEffect("spark", 94, 136, 2); break;
+          case "noticed": {
+            sound("rattle"); sound("latch-back"); room.rattleAt = sceneTime; room.glareAt = sceneTime; room.notchLostAt = sceneTime;
+            setPose("recoil", 500);
+            const actor = npcs.get("hood-small");
+            if (actor) actor.flinchUntil = sceneTime + 500;
+            bark("hood-small", L.guardNoticed[(room.noticed = (room.noticed || 0) + 1) % 2], 2000);
+            break;
+          }
+          case "cage-open": sound("clank"); setTransient("cageOpen", true); room.shake = sceneTime; relief(); break;
+          case "guard-away": poseGuard(); if (Math.random() < 0.7 && !scene) bark("hood-small", L.guardAway[(room.awayLine = (room.awayLine || 0) + 1) % L.guardAway.length], 2600); break;
+          case "guard-tell": { const actor = npcs.get("hood-small"); if (actor) actor.flinchUntil = sceneTime + 450; bark("hood-small", L.guardTell[0], 900); sound("curious"); break; }
+          case "guard-back": poseGuard(); sound("torch"); break;
+          case "seen": sound("notice"); sound("torch"); room.glareAt = sceneTime; bark("hood-small", L.guardPutBack[0], 2400); break;
+          case "heard": { const grate = (geo().listens || []).find(item => sim.player.y >= item.y - 4 && sim.player.y <= item.y + item.h + 4); npc("below", "none", grate ? grate.x + grate.w / 2 : sim.player.x, (grate ? grate.y : sim.player.y) + 30, { barkLift: 0 }); bark("below", L.ventHeard[0], 900); sound("notice"); break; }
+          case "lured": if (!room.lureSaid && sim.roomId === "hangrow") { room.lureSaid = true; const lamp = sim.enemies.find(enemy => enemy.id === event.id); if (lamp) { npc("radio", "none", lamp.x, lamp.y, { barkLift: 74 }); room.radioFollow = lamp.id; } bark("radio", L.rowsBellRadio[0], 2600); } break;
           case "porter-half": porterHelp(); break;
           case "porter-down": sound("calmed"); porterDown(); break;
           case "kindle-start": sound("kindle"); break;
@@ -2567,6 +3146,7 @@
       const outcome = commitData(next => {
         next.checkpoint = { hearthId, roomId: sim.roomId, spawnAnchorId: hearth.spawnAnchorId };
         next.story.facts.hearthArrived = true;
+        if (hearthId === "threshold-hearth") next.story.facts.hearthKindled = true;
         addBeat(next, "hearth-arrival:registered");
         setContinuation(next, sim.roomId, hearth.spawnAnchorId, Core.T.FLAME_MAX, "hearth");
       });
@@ -2594,6 +3174,27 @@
       } else if (outcome.status === "failed") renderSaveFailedPanel("moment");
     }
     function respawnAfterDown() {
+      const caught = sim.downReason === "caught";
+      // In his building a catch starts the same trial again, right there.
+      const local = buildingRetry(sim.downReason);
+      if (local) {
+        const loose = sim.cage?.open ? 2 : 0;
+        // Put back means the crate is shut again: the open door was only this attempt's.
+        if (transient.cageOpen) setTransient("cageOpen", false);
+        sim = Core.respawn(sim, { roomId: local.roomId, anchorId: local.anchorId });
+        sim.flags = simFlags();
+        deaths += 1;
+        enterSim(local.roomId, local.anchorId, Core.T.FLAME_MAX);
+        // Put back in the crate, he keeps a little of what he loosened.
+        if (sim.cage) sim.cage.loose = loose;
+        input.clear("respawn");
+        pending = { primary: false, secondary: false };
+        const outcome = commitData(next => setContinuation(next, local.roomId, local.anchorId, Core.T.FLAME_MAX, "respawn"));
+        onEnterRoom(local.roomId, "respawn");
+        showBanner(local.banner);
+        if (outcome.status === "failed") renderSaveFailedPanel("moment");
+        return;
+      }
       const target = Core.safeReturn(data);
       sim = Core.respawn(sim, { roomId: target.roomId, anchorId: target.anchorId });
       sim.flags = simFlags();
@@ -2603,7 +3204,8 @@
       pending = { primary: false, secondary: false };
       const outcome = commitData(next => setContinuation(next, target.roomId, target.anchorId, Core.T.FLAME_MAX, "respawn"));
       onEnterRoom(target.roomId, "respawn");
-      showBanner(target.resumeKind === "hearth" ? (deaths === 1 ? L.firstDown : L.rested) : L.downNoHearth);
+      showBanner(caught ? (target.resumeKind === "hearth" ? L.caught : L.caughtNoHearth) : target.resumeKind === "hearth" ? (deaths === 1 ? L.firstDown : L.rested) : L.downNoHearth);
+      if (caught && npcs.has("latch")) bark("latch", L.latchCaught[0], 3600);
       if (outcome.status === "failed") renderSaveFailedPanel("moment");
     }
     // A banner is never spent under something being read: one raised as a
@@ -2637,7 +3239,9 @@
         else if (panelKind === "restart" || panelKind === "restart-failed") cancelRestart();
         else if (ui === "play" || ui === "dialogue" || ui === "scene" || ui === "choice") { addHold("manual"); renderPausePanel(); }
       }
-      if (holds.length === 0 && !exitState) {
+      if (holds.length === 0 && !exitState && comic?.playing()) {
+        if (edges.primaryPressed) comic.skip(); else comic.tick(Math.min(dt, 100));
+      } else if (holds.length === 0 && !exitState) {
         sceneTime += Math.min(dt, 100);
         tickNpcs(Math.min(dt, 100) / 1000);
         tickScene();
@@ -2726,6 +3330,7 @@
       if (!g.world && sim.phase === "play") for (const enemy of sim.enemies) {
         if (enemy.state === "gone" || enemy.state === "settled") continue;
         const near = clamp(1 - (Math.hypot(enemy.x - p.x, enemy.y - p.y) - 40) / 150, 0, 1);
+        if (enemy.soft && !DANGER_STATES.has(enemy.state)) continue;
         danger = Math.max(danger, near * (DANGER_STATES.has(enemy.state) ? 1 : enemy.aware ? 0.55 : 0.2));
       }
       MOOD.danger += (danger - MOOD.danger) * clamp(dt / (danger > MOOD.danger ? 260 : 900), 0, 1);
@@ -2781,8 +3386,10 @@
       // The highlighted thing Primary would use, and the key label that says so.
       // While a thought is up nothing else speaks over it, not even a prompt.
       view.showPrompt(target, target ? `◆ ${target.prompt}` : null);
-      view.setActionLabel(target ? target.prompt : ui === "dialogue" ? "NEXT" : ui === "choice" ? "PICK" : g.world ? "FLAME" : "FLARE");
+      const rattle = ui === "play" && sim.cage && !sim.cage.open && Core.inCage(sim);
+      view.setActionLabel(target ? target.prompt : ui === "dialogue" ? "NEXT" : ui === "choice" ? "PICK" : rattle ? "RATTLE" : g.world ? "FLAME" : "FLARE");
       bannerTick(time);
+      view.setObjective(objectiveNow(), objectiveShown());
       // Control hints are physical and brief: keys wake, nothing explains.
       if (!g.world && cue.noticed && Core.encounterActive(sim) && (!cue.flare || !cue.tuck)) view.showCue(`<span class="${cue.flare ? "done" : ""}"><i class="cue-primary"></i>FLARE <kbd>Z</kbd></span><span class="${cue.tuck ? "done" : ""}"><i class="cue-secondary"></i>TUCK <kbd>X</kbd></span>`);
       else view.showCue(null);
@@ -2813,12 +3420,14 @@
       if (housed) return card({ kicker: "JOURNEY SAVED", title: `${data.campaign.petName} IS IN THE HOUSE`, body: `This journey belongs to ${name}. Make ${name} your active Rizo from the House to continue it.`, actions: `<button type="button" class="primary" data-dungeon-action="leave">GO HOME</button>` });
       return card({ kicker: "JOURNEY SAVED", title: `${data.campaign.petName}'S JOURNEY`, body: `This journey belongs to ${name}, who isn't with you any more. It stays saved here and can't move to another Rizo.`, actions: `<button type="button" class="primary" data-dungeon-action="leave">GO HOME</button>` });
     }
+    // Rooms beyond the Porter's door: the Rows, and (v0.5) his building.
+    const pastPorter = id => Content.isRows(id) || Content.isBuilding(id);
     // Where a saved journey resumes. Opening rooms restart their own scene.
     function resumeJourney(fromMigration) {
       let cont = data.continuation;
       // A proof save parked at the Porter's homecoming (or one that came home and
       // chose to go on) picks up in the Porter's room, where the door is open.
-      if (data.proofComplete && (data.campaign.status === "homecoming-ready" || data.campaign.status === "complete") && !Content.isRows(cont.roomId)) cont = { roomId: "porter", safeAnchorId: "porter-entry", roomEntryFlame: Core.T.FLAME_MAX };
+      if (data.proofComplete && (data.campaign.status === "homecoming-ready" || data.campaign.status === "complete") && !pastPorter(cont.roomId)) cont = { roomId: "porter", safeAnchorId: "porter-entry", roomEntryFlame: Core.T.FLAME_MAX };
       const opening = Content.isOpening(cont.roomId);
       // Opening rooms resume at the last committed beat's own start: nothing
       // committed replays, and nobody resumes in a room that no longer exists.
@@ -2858,6 +3467,9 @@
       input.bind();
       view.el.panel.addEventListener("click", onPanelClick);
       view.el.choice.addEventListener("click", onChoiceClick);
+      // Action moments cut to a comic page drawn over the screen (story spine v0.4).
+      const ComicKit = root?.RizoDungeonComic;
+      if (ComicKit) comic = ComicKit.create({ mount: view.el.screen, reducedMotion: reducedMotion(), petMarkup: () => (pet ? host.petMarkup(pet, { context: "dungeon", extraClass: "comic-rizo-art", label: pet.name || "Rizo" }) : ""), lines: Content.LINES, speakers: Content.SPEAKERS, onPanel: (id, index) => { const hit = COMIC_HITS[id]?.[index]; if (hit) sound(hit); } });
       started = true;
       live = api;
       settings = { ...Core.SETTINGS_DEFAULTS, ...host.modeSettings() };
@@ -2883,7 +3495,7 @@
         settings = { ...settings, ...data.settings };
         const problem = bindingProblem();
         if (problem) { sim = Core.createSim({ roomId: "slip" }); ui = "blocked"; view.setShell("locked"); view.panel(problem); }
-        else if (data.proofComplete && data.campaign.status === "complete" && !Content.isRows(data.continuation.roomId)) {
+        else if (data.proofComplete && data.campaign.status === "complete" && !pastPorter(data.continuation.roomId)) {
           // The homecoming stays true. The campaign edition opens the Porter's door, so it can go on from there.
           retryPendingRewards();
           sim = Core.createSim({ roomId: "slip" });
@@ -2969,6 +3581,8 @@
       if (rafId) root.cancelAnimationFrame(rafId);
       rafId = 0;
       input?.unbind();
+      comic?.destroy();
+      comic = null;
       view?.el.panel.removeEventListener("click", onPanelClick);
       view?.el.choice.removeEventListener("click", onChoiceClick);
       view?.destroy();
@@ -3017,7 +3631,7 @@
         scene: scene ? { id: scene.id, waiting: scene.waiting, control: scene.control } : null,
         choice: choiceState ? { index: choiceState.index, options: choiceState.options.map(option => option.value), line: choiceState.line?.text || null } : null,
         settings: { ...settings },
-        npcs: [...npcs.values()].map(actor => ({ id: actor.id, x: Math.round(actor.x), y: Math.round(actor.y), visible: actor.visible, state: actor.state })),
+        npcs: [...npcs.values()].map(actor => ({ id: actor.id, x: Math.round(actor.x), y: Math.round(actor.y), visible: actor.visible, state: actor.state, face: actor.face || 1 })),
         pose: poseOverride?.name || null,
         sim: sim ? { t: sim.t, roomId: sim.roomId, phase: sim.phase, assist: sim.assist, flags: { ...sim.flags }, edges: { ...sim.edges }, zones: [...sim.zones], player: { x: sim.player.x, y: sim.player.y, flame: sim.player.flame, act: sim.player.act?.kind || null, fx: sim.player.fx, fy: sim.player.fy, attacks: sim.player.attackSeq, tuckReadyAt: sim.player.tuckReadyAt, leashed: sim.player.leashed }, enemies: sim.enemies.map(item => ({ id: item.id, kind: item.kind, state: item.state, hp: item.hp, aware: item.aware, x: item.x, y: item.y })) } : null,
         data: data ? plain(data) : null,
@@ -3027,11 +3641,23 @@
         barks: barks.map(entry => ({ id: entry.id, text: entry.text, quiet: Boolean(entry.quiet) })),
         depth: { mood: room.mood && sceneTime - room.mood.at <= room.mood.ms ? room.mood.kind : null, danger: Math.round(MOOD.danger * 100) / 100, home: MOOD.home, hush: room.hush ?? null, noticed: [...noticed], beckonAt: room.beckonAt ?? null, firstLookAt: room.firstLookAt ?? null, still: stillFor, facing: sim ? { x: sim.player.fx, y: sim.player.fy } : null, actors: [...npcs.values()].filter(actor => actor.visible).map(actor => ({ id: actor.id, state: actor.state, face: actor.face })) },
         sceneTime, silent: sceneTime < silentUntil, fade: sceneFade.value, impactAt: room.impactAt ?? null,
-        music: musicId, transient: { ...transient }, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
+        music: musicId, transient: { ...transient }, comic: comic?.playing() || null, objective: view?.el.objective && !view.el.objective.hidden ? view.el.objective.textContent.replace("▲", "").trim() : null, lightScale: lightScaleNow(), actorLight: actorLightNow(), thought: thoughtNow(),
         opening: openingQA(),
+        escape: sim && Content.isBuilding(sim.roomId) ? { cage: sim.cage ? { ...sim.cage } : null, gate: sim.gate ? { ...sim.gate } : null, heard: sim.heard, ventView: room.ventView?.kind || null, hidden: Boolean(room.hidden), dazzled: sim.t < (sim.player.dazzledUntil ?? -1), runner: (({ x, y, state } = {}) => (state ? { x, y, state } : null))(sim.enemies.find(enemy => enemy.kind === "runner")), guard: (({ state } = {}) => state || null)(sim.enemies.find(enemy => enemy.kind === "guard")), woken: woken(), listenSeen: Boolean(room.listenSeen), listenDone: Boolean(room.listenDone), holding: Boolean(room.hiding), slam: room.slamAt != null, wokeAt: Object.keys(room.wokeAt || {}), promiseWave: room.promiseAt != null, caughtFlash: room.caughtAt != null } : null,
         log: [...qaLog]
       }),
       qaTeleport(x, y) { if (!sim) return false; sim.player.x = x; sim.player.y = y; prev = { x, y }; return true; },
+      // QA only: how bright the drawn frame is around a room point (mean luma 0..255 of the game canvas).
+      qaLight(x, y, r = 4) {
+        const canvas = view.el.canvas, dpr = canvas.width / Math.max(1, canvas.clientWidth || canvas.width);
+        const [sx, sy] = view.toScreen(x, y), half = Math.max(1, Math.round(r * view.metrics.scale * dpr));
+        const cx = Math.round(sx * dpr), cy = Math.round(sy * dpr);
+        if (cx - half < 0 || cy - half < 0 || cx + half > canvas.width || cy + half > canvas.height) return null;
+        const pixels = canvas.getContext("2d").getImageData(cx - half, cy - half, half * 2, half * 2).data;
+        let sum = 0;
+        for (let index = 0; index < pixels.length; index += 4) sum += 0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2];
+        return Math.round((sum / (pixels.length / 4)) * 10) / 10;
+      },
       // QA only: as if he had been standing still this long already.
       qaStill(ms) { stillFor = Math.max(stillFor, ms); return stillFor; },
       qaAdvance(ms, stepInput = {}) {
@@ -3049,7 +3675,8 @@
         return all;
       },
       // Skips to a room as if walked there (QA only). Flags may be set first.
-      qaGoto(roomId, anchorId, setFlags = {}) {
+      // `withBeats` (QA only) commits story beats first, as if those scenes had played.
+      qaGoto(roomId, anchorId, setFlags = {}, withBeats = []) {
         if (!host.debug || !Content.ROOMS[roomId]) return false;
         scene = null; dialogueState = null; choiceState = null; view.dialogue(null); view.choice(null);
         if (ui !== "blocked") ui = "play";
@@ -3060,6 +3687,7 @@
             if (Content.ROOM_FLAGS.includes(key)) next.world.durableRoomFlags[key] = value; else next.story.facts[key] = value;
           }
           if (!Content.isOpening(roomId)) addBeat(next, "opening:below");
+          for (const beat of withBeats || []) addBeat(next, beat);
         });
         goToRoom(roomId, anchorId || Content.ROOMS[roomId].entryAnchor, { context: "walk" });
         return true;
@@ -3070,6 +3698,7 @@
         while ((scene || dialogueState || choiceState) && guard-- > 0) {
           if (dialogueState) { dialogueState.shown = 1e9; advanceDialogue(); continue; }
           if (choiceState) { pickChoice(0); continue; }
+          if (scene?.waiting === "comic") { const current = scene; current.waiting = null; comic?.skip(); if (current.control && ui === "scene") ui = "play"; advanceScene(); continue; }
           if (scene?.waiting === "time") { sceneTime = scene.until; tickScene(); continue; }
           if (scene?.waiting === "pred") { if (scene.pred()) tickScene(); else break; continue; }
           break;
@@ -3080,6 +3709,7 @@
       qaSceneTime(ms) {
         for (let left = Math.max(0, ms); left > 0; left -= 100) {
           const slice = Math.min(100, left);
+          if (comic?.playing()) { comic.tick(slice); continue; }
           sceneTime += slice; tickNpcs(slice / 1000); tickScene(); tickRoom();
           if (poseOverride && sceneTime > poseOverride.until) poseOverride = null;
         }
@@ -3131,10 +3761,11 @@
       dungeonStateForQA: () => (live ? live.qaState() : null),
       dungeonTeleportForQA: (x, y) => need().qaTeleport(x, y),
       dungeonAdvanceForQA: (ms, input) => need().qaAdvance(ms, input),
-      dungeonGotoForQA: (roomId, anchorId, flags) => need().qaGoto(roomId, anchorId, flags),
+      dungeonGotoForQA: (roomId, anchorId, flags, beats) => need().qaGoto(roomId, anchorId, flags, beats),
       dungeonSkipSceneForQA: () => need().qaSkipScene(),
       dungeonSceneTimeForQA: ms => need().qaSceneTime(ms),
       dungeonStillForQA: ms => need().qaStill(ms),
+      dungeonLightForQA: (x, y, r) => need().qaLight(x, y, r),
       dungeonCommitForQA: request => need().qaCommit(request),
       dungeonEnemyForQA: (id, patch) => need().qaEnemy(id, patch),
       dungeonCompleteFixtureForQA: options => need().qaCompleteFixture(options),

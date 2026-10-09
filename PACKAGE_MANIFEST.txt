@@ -1,3 +1,82 @@
+RIZO V97 — CHAPTER 3 DIRECTOR'S POLISH (same build marker)
+Build marker: unchanged (v97-dungeon-collection). Every changed file is in sw.js
+  REQUIRED_SHELL, which is fetched network-first, so no visitor keeps a stale copy.
+Save: unchanged (threshold-v4); no rule, timing or checkpoint changed.
+Docs: docs/verification/RIZO-DUNGEON-CHAPTER3-POLISH.md, docs/dungeon/ASTRA-HANDOFF-CHAPTER3.md
+
+CHANGED (presentation, sound and QA only)
+  dungeon-art.js      jar souls (six named lights), jarLight, latch notches that flare and blink
+  dungeon-scenery.js  intake phone-torch, hall window tells, gate slam, vent pre-glow,
+                      factory machine beat and speaker glow, jar moods
+  dungeon-view.js     the runner's reach ring, catch flash, frost chips
+  dungeon-content.js  factory.machineBeat (data for the line's beat)
+  dungeon-mode.js     sounds (notch, latch-back, torch, wake notes, hum, boot, press),
+                      events wired to them, vents breath-holding, Window Hall shove,
+                      QA light probe
+  tests/browser-dungeon-escape.py  10 new checks (78 → 88)
+
+------------------------------------------------------------------------------
+
+RIZO V97 — DUNGEON CHAPTER 3: THE COLLECTION
+Build marker: v97-dungeon-collection (names the build and renews the offline cache;
+  the Dungeon files themselves are REQUIRED_SHELL, fetched network-first)
+Branch: claude/dungeon-story-overhaul → develop (PR #33)
+Save: still threshold-v4 (rooms and facts only added; no second revision bump)
+Story: Story Spine v0.4 §Chapter 3; Contracts §7; docs/verification/RIZO-DUNGEON-EXPANSION-LOG.md
+
+NEW FILES
+  tests/browser-dungeon-escape.py       — the chapter played with real keys, success and failure
+  docs/verification/RIZO-DUNGEON-EXPANSION-LOG.md
+  No new shipped files: the package is still 166 files; sw.js lists are unchanged.
+
+CHANGED
+  dungeon-content.js  five rooms (longhall, intake, collection, vents, factory), Window
+                      Hall's bell and staff door, the Hanging Row's tin bell, lines, goals,
+                      runner/guard tuning, new facts
+  dungeon-core.js     runner (rubber-banding chase), window lamps, night gate, cage and
+                      guard, belts and crate cover, walkway watchers, listening grates,
+                      lure; save bounds widened (a full journey no longer fits the old ones)
+  dungeon-art.js      bell jars, the wire crate, belt goods, speakers, a running
+                      collector, the white coat's faceless portrait
+  dungeon-scenery.js  the building and vents themes, five rooms, grate views
+  dungeon-view.js     a front layer above Rizo, belt goods by depth, dazzle glare
+  dungeon-comic.js    window-opens, chute
+  dungeon-mode.js     the chapter's scenes, retries in place, music, sounds, goals
+  .github/workflows/release-candidate.yml  runs browser-dungeon-escape
+
+------------------------------------------------------------------------------
+
+RIZO V96 — DUNGEON STORY OVERHAUL
+Build marker: v96-dungeon-story
+Branch: claude/dungeon-story-overhaul → develop
+Save: Dungeon content revision threshold-v4 (one bump; threshold-v1/v2/v3 carried forward untouched)
+Story: docs/dungeon/story/Rizo-Dungeon-Story-Spine-v0.4.md (canon) and Rizo-Dungeon-Contracts-v0.4.md
+
+NEW FILES (shipped)
+  modes/dungeon/dungeon-comic.js        — action comic pages (grab, sack, van-leap,
+                                           taillights, fall, boss-hands, boss-glass)
+  modes/dungeon/styles/dungeon-comic.css — the comic page: panels, halftone, SFX, reduced motion
+  Both are in index.html (after dungeon-view.js / dungeon.css) and in sw.js
+  SHELL and REQUIRED_SHELL.
+
+NEW FILES (dev only: never loaded, precached or packaged — build-site.py skips modes/dungeon/kit)
+  modes/dungeon/kit/dungeon-kit.js      — late-game kit: stealth, watchers, chase, cage, vents
+  tools/dungeon-kit/                    — greybox factory slice (?dev=1)
+  tests/dungeon-kit.test.js
+
+CHANGED
+  dungeon-content.js  dialogue rewrite, objectives, collectors, calling cards, flags
+  dungeon-core.js     collectors (patrol, cold lamp, hide, caught → hearth)
+  dungeon-art.js      the Boss's mark, calling card, collector, new portraits
+  dungeon-scenery.js  cards, LOST poster, frozen load, queue posts
+  dungeon-view.js     collector lamps, objective HUD, the mark as caller ID
+  dungeon-mode.js     comic step and triggers, objectives, wayfinding, Boss on the phone
+  tools/dungeon-lab/  collector and Boss entries
+
+------------------------------------------------------------------------------
+
+(Earlier packaging notes follow, kept as history.)
+
 RIZO V87 — ARCADE QUALITY PASS
 Baseline: RIZO_V87_PURPLE_POP_CORRECTION_FLAT
 Build marker: v87-first-ten-visual-nuance

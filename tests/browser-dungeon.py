@@ -34,6 +34,11 @@ sheets moved aside), SIT/GO at the meal, the chalk, the wrap worn and still
 worn after a reload, Latch remembering help, the Window Hall boundary, reloads
 throughout, a completed proof going on through the door, and phones.
 
+Story spine v0.4 (threshold-v4) adds: the action comics (grab, taillights;
+tap to skip; committed once), The Boss speaking on the dropped phone, the
+"every one" line in the van, the Cold Queue's collector, and the Rows'
+collectors notice; the opening's own beats and timings are otherwise kept.
+
 Chromium only. This is not Safari or physical-phone evidence.
 """
 import argparse, functools, http.server, json, re, socketserver, subprocess, sys, threading, tempfile
@@ -565,6 +570,14 @@ with sync_playwright() as p:
     st = page.evaluate(ST)
     check("he cannot get away: the hands have him within 6 s", st["opening"].get("grabbed") is True and st["ui"] == "scene", str(st["opening"].get("hands")))
     check("the grab becomes a carry beat instead of an instant cut", st["opening"].get("carryAt") is not None and not st["opening"].get("youCounter"), str(st["opening"]))
+    # v0.4: the grab itself cuts to a comic page (the action beat); the world waits under it.
+    page.wait_for_timeout(120)
+    st = page.evaluate(ST)
+    check("the grab cuts to a comic page that is nothing like play: control is off and the world waits under it", st["comic"] == "grab" and st["ui"] == "scene" and page.evaluate("Boolean(document.querySelector('.dungeon-comic[data-comic=\"grab\"] .comic-panel.is-in'))") and "comic:grab" in beats(page), str((st["comic"], st["ui"])))
+    page.wait_for_timeout(400)
+    page.evaluate("(()=>{const c=document.querySelector('.dungeon-comic');c.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerType:'touch'}))})()")
+    page.wait_for_timeout(120)
+    check("a tap skips the comic and the carry resumes", page.evaluate(ST)["comic"] is None)
     page.wait_for_timeout(950)
     check("5.3: after the visible carry, YOU is at the counter, back turned", op(page).get("youCounter") is True)
     jump(page, 2500); page.wait_for_timeout(100)
@@ -619,7 +632,7 @@ with sync_playwright() as p:
             page.wait_for_timeout(900)
             check("Tuck curls him out of the way; a miss would only bump, never burn", page.evaluate(ST)["sim"]["player"]["flame"] == 5)
         if st["sim"]["flags"].get("vanDoorLoose"): break
-    expected = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return [...L.vanArgue,...L.vanTouch,...L.vanFilm,...L.bump,...L.vanCooler,...L.vanNumber,...L.vanCheckin,...L.vanAsk,...L.vanPhone,...L.vanLost,...L.vanListening].map(l=>l.text)})()")
+    expected = page.evaluate("(()=>{const L=RizoDungeonContent.LINES;return [...L.vanArgue,...L.vanTouch,...L.vanFilm,...L.bump,...L.vanCooler,...L.vanNumber,...L.vanEvery,...L.vanCheckin,...L.vanAsk,...L.vanPhone,...L.vanLost,...L.vanListening].map(l=>l.text)})()")
     check("the van plays its three movements in order, including the missed check-in, with nothing skipped", order == expected, str(order))
     check("every accepted RC2 van line survives word for word", all(x in order for x in ["I thought you said he didn't do that fire shit.", "I said probably.", "My bad. Pothole."]))
     check("nobody is named and nothing is explained in the van", not any(w in " ".join(order).lower() for w in ["because", "boss is", "company", "symbol"]), " | ".join(order))
@@ -652,6 +665,11 @@ with sync_playwright() as p:
     check("one press and he gets up", page.evaluate(ST)["ui"] == "play")
     jump(page, 2200); page.wait_for_timeout(80)
     check("9.2: far up the road the taillights stop: brake red", op(page).get("brake") is True)
+    # v0.4: the van coming back is an action beat: a comic page, then the search in-engine.
+    st = page.evaluate(ST)
+    check("the taillights stopping cuts to a comic page; control is off while it plays", st["comic"] == "taillights" and st["ui"] == "scene", str((st["comic"], st["ui"])))
+    jump(page, 3600); page.wait_for_timeout(80)
+    check("the comic closes on its own and control comes back for the search", page.evaluate(ST)["comic"] is None and page.evaluate(ST)["ui"] == "play")
     jump(page, 2200); page.wait_for_timeout(100)
     st = page.evaluate(ST)
     check("9.3: a phone flashlight comes back along the shoulder, two of them", st["opening"].get("beam") is not None and {"hood-tall", "hood-small"} <= {n["id"] for n in st["npcs"]} and st["music"] == "dungeon-dread", str(st["opening"].get("beam")))
@@ -706,8 +724,11 @@ with sync_playwright() as p:
     check("the silent line contains one breath from the other end", op(page)["phone"].get("breathed") is True, str(op(page)["phone"]))
     jump(page, 1500); page.wait_for_timeout(100)
     check("the caller stays on long enough to feel like they are listening", op(page)["phone"].get("listened") is True and op(page)["phone"]["state"] == "connected", str(op(page)["phone"]))
-    jump(page, 1600); page.wait_for_timeout(150)
-    check("after 5 s the caller hangs up first and the screen goes dark", op(page)["phone"]["state"] == "dark" and op(page)["phone"].get("hungUp") is True and page.evaluate("document.querySelector('.dungeon-phone').hidden"))
+    # v0.4: the caller is The Boss, and on a connected call he speaks: calm, then cold.
+    jump(page, 4900); page.wait_for_timeout(150)
+    boss_bark = page.evaluate("(()=>{const b=[...document.querySelectorAll('.dungeon-bark')].find(n=>n.dataset.speaker==='boss');return b?b.textContent:null})()")
+    check("The Boss speaks on the line (his first words in the game), in his own cold bubble, not a dialogue box", boss_bark == "Stay where you are. Someone will come and collect you." and page.evaluate(ST)["dialogue"] is None, str(boss_bark))
+    check("after ~8.6 s the caller hangs up first and the screen goes dark", op(page)["phone"]["state"] == "dark" and op(page)["phone"].get("hungUp") is True and page.evaluate("document.querySelector('.dungeon-phone').hidden"))
     check("callerConnected stays the only new opening fact", set(page.evaluate(STORED)["slice"]["story"]["facts"]) <= {"callerConnected"} and page.evaluate(STORED)["slice"]["story"]["choices"] == {})
 
     # ---- Scene 11 · The walk, one car that is not YOU
@@ -760,10 +781,12 @@ with sync_playwright() as p:
     hold(page, "s", 200)
     check("any move inside the 1.2 s window scrambles him back up", op(page).get("slope") in ("recovered", "armed"), str(op(page).get("slope")))
 
+    COMIC_PAGES = []  # the classes of each comic page seen during a fall (v0.4)
     def watch_fall(page, hold_ms=0):
         """Record the fall frame by frame until he is seen below."""
         import time as _t
         rows, silent_open, lock_rows, banner_seen = [], False, [], False
+        COMIC_PAGES.clear()
         t0 = _t.time()
         if hold_ms: page.keyboard.down("w")
         released = not hold_ms
@@ -773,6 +796,7 @@ with sync_playwright() as p:
             if not released and (now_ms > hold_ms or (st["scene"] and st["scene"]["id"] == "opening:fall")):
                 page.keyboard.up("w"); released = True
             sid_ = st["scene"] and st["scene"]["id"]
+            if st.get("comic"): COMIC_PAGES.append(page.evaluate("document.querySelector('.dungeon-comic')?.className || ''"))
             if sid_ == "opening:fall" and st["silent"] and st["shell"] == "open" and st["fade"] >= 0.99: silent_open = True
             if st["shell"] == "locking": lock_rows.append((now_ms, st["impactAt"] is not None, st["sim"]["roomId"]))
             if not page.evaluate("document.querySelector('.dungeon-banner').hidden"): banner_seen = True
@@ -794,7 +818,9 @@ with sync_playwright() as p:
     check("13.5: the handheld stays open through the fall and locks on impact, not before", first_lock and first_lock[1] and first_lock[2] == "drain" and all(r[2] == "open" for r in fall_rows if not r[7] and r[0] < first_lock[0] - 50), str(first_lock))
     check("the lock keeps its ~560 ms", first_lock and slip_at and 400 <= slip_at - first_lock[0] <= 1100, str((first_lock, slip_at)))
     fall_start = fall_rows[0][0] if fall_rows else 0
-    check("the fall runs about 0.3 s crack + 2.5 s in the black before impact", first_lock and 2300 <= first_lock[0] - fall_start <= 3900, str(first_lock and first_lock[0] - fall_start))
+    # v0.4: the second slip cuts to the fall comic (3.4 s) between the crack and the black.
+    check("the second slip cuts to the fall comic, a full-motion page", any("dungeon-comic" in c and "is-reduced" not in c for c in COMIC_PAGES), str(COMIC_PAGES[:2]))
+    check("the fall runs about 0.3 s crack + the fall comic + 2.5 s in the black before impact", first_lock and 2300 + 3400 <= first_lock[0] - fall_start <= 3900 + 3400, str(first_lock and first_lock[0] - fall_start))
     landed = [r for r in rows if r[3] == "opening:landed"]
     check("a held black after impact: nothing seen for about 2 s", landed and all(r[4] >= 0.99 for r in landed if slip_at and r[0] - slip_at <= 1800), str([(round(r[0]), r[4]) for r in landed][:5]))
     check("no HOME banner appears on its own, not in the fall or the black", not banner_seen)
@@ -835,8 +861,9 @@ with sync_playwright() as p:
     check("on that first read a new motif enters and the music returns", st["music"] == "dungeon-home")
     press_until_closed(page)
     s = page.evaluate(STORED)
-    check("the opening's beats, in order, each once", [b for b in s["slice"]["story"]["committedSceneBeats"]] == ["opening:left", "opening:taken", "opening:fell", "opening:searched", "opening:phone", "opening:below", "thought:home"], str(s["slice"]["story"]["committedSceneBeats"]))
-    check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"] and s["slice"]["campaign"]["contentRevision"] == "threshold-v3")
+    # v0.4: each action comic is committed (once) just before it plays, between the opening's own beats.
+    check("the opening's beats, in order, each once", [b for b in s["slice"]["story"]["committedSceneBeats"]] == ["opening:left", "comic:grab", "opening:taken", "comic:sack", "comic:van-leap", "opening:fell", "comic:taillights", "opening:searched", "opening:phone", "comic:fall", "opening:below", "thought:home"], str(s["slice"]["story"]["committedSceneBeats"]))
+    check("the opening awards nothing and claims nothing", s["accessories"] == ["none", "scarf"] and not s["slice"]["proofComplete"] and s["slice"]["campaign"]["contentRevision"] == "threshold-v4")
     page.reload(); page.wait_for_timeout(1300)
     st = launch(page); page.wait_for_timeout(600)
     check("a reload below resumes in the locked handheld; no landing, no thought replayed", st["sim"]["roomId"] == "slip" and st["shell"] == "locked" and page.evaluate(ST)["scene"] is None and op(page).get("thoughtArmed") is False)
@@ -991,7 +1018,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
         ctx, page, errors = boot(browser, seed={V2: env, V2_BACKUP: env})
         st = launch(page); page.wait_for_timeout(300)
         s = page.evaluate(STORED)
-        check(f"an RC2 journey {label} resumes sensibly in v3 ({room})", st["sim"]["roomId"] == room and sid(page) == scene_ and s["slice"]["campaign"]["id"] == "threshold-rc2save" and s["slice"]["campaign"]["contentRevision"] == "threshold-v3", str((st["sim"]["roomId"], sid(page), s["slice"]["campaign"])))
+        check(f"an RC2 journey {label} resumes sensibly in v4 ({room})", st["sim"]["roomId"] == room and sid(page) == scene_ and s["slice"]["campaign"]["id"] == "threshold-rc2save" and s["slice"]["campaign"]["contentRevision"] == "threshold-v4", str((st["sim"]["roomId"], sid(page), s["slice"]["campaign"])))
         check(f"…its committed beats are kept, none replayed or duplicated ({label})", s["slice"]["story"]["committedSceneBeats"] == slice_["story"]["committedSceneBeats"] and "curb" not in s["slice"]["world"]["visitedRooms"] and s["slice"]["journal"]["discoveredEntryIds"] == ["puddle"], str(s["slice"]["story"]))
         check(f"…without page errors ({label})", not errors, "; ".join(errors[:2]))
         ctx.close()
@@ -1028,6 +1055,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
     fall_rows = [r for r in rows if r[3] == "opening:fall"]
     early = [r[4] for r in fall_rows if r[0] - fall_rows[0][0] < 700] if fall_rows else []
     check("reduced motion: no cut to black and no flashes, a slow dim fade instead", early and max(early) < 0.8, str(early[:6]))
+    check("reduced motion: the fall comic still plays, as the reduced page (panels fade, nothing slams or shakes)", COMIC_PAGES and all("is-reduced" in c for c in COMIC_PAGES), str(COMIC_PAGES[:2]))
     check("reduced motion: the handheld still locks on impact, quickly (~160 ms)", first_lock and first_lock[1] and slip_at and slip_at - first_lock[0] < 450, str((first_lock, slip_at)))
     check("reduced motion: the fall still goes silent first and lands without a banner", silent_open and not banner_seen and page.evaluate(ST)["sim"]["roomId"] == "slip")
     check("reduced motion raises no page errors", not errors, "; ".join(errors[:3]))
@@ -1099,9 +1127,10 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:{schema:1
     check("the queue lever opens a real shortcut to the hearth (durable)", s["slice"]["world"]["durableRoomFlags"].get("shortcutOpen") and "hearth-queue" in s["slice"]["world"]["openedShortcuts"])
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(30,350)"); page.keyboard.down("a"); page.wait_for_timeout(500); page.keyboard.up("a"); page.wait_for_timeout(500)
     check("…and walking through it arrives at the hearth", page.evaluate(ST)["sim"]["roomId"] == "hearth")
-    goto(page, "queue")
+    # v0.4: the Cold Queue is a stealth room now; its Needle holds the Low Run.
+    goto(page, "lowrun")
     # One evaluate: a live frame between teleport and advance could see the lane first.
-    ev = page.evaluate("(RizoRuntimeQA.dungeonTeleportForQA(160,220), RizoRuntimeQA.dungeonAdvanceForQA(1400,{}))")
+    ev = page.evaluate("(RizoRuntimeQA.dungeonTeleportForQA(220,60), RizoRuntimeQA.dungeonAdvanceForQA(1400,{}))")
     check("the Needle shows its lane, then pulses it", "lane" in ev and "pulse" in ev, str(ev))
     goto(page, "porter")
     s = page.evaluate(STORED)
@@ -1201,7 +1230,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     ctx, page, errors = boot(browser, seed={V2: gate1, V2_BACKUP: gate1})
     st = launch(page)
     s = page.evaluate(STORED)
-    check("a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening", s["slice"]["campaign"]["id"] == "threshold-gate1abc" and s["slice"]["campaign"]["contentRevision"] == "threshold-v3" and s["slice"]["settings"] == {"assist": True, "textSpeed": "instant"} and st["sim"]["roomId"] == "car", str(s["slice"]["campaign"]))
+    check("a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening", s["slice"]["campaign"]["id"] == "threshold-gate1abc" and s["slice"]["campaign"]["contentRevision"] == "threshold-v4" and s["slice"]["settings"] == {"assist": True, "textSpeed": "instant"} and st["sim"]["roomId"] == "car", str(s["slice"]["campaign"]))
     check("the migration boots without page errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
@@ -1325,7 +1354,7 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     check("Rows: the Porter's open door walks into Receiving; Latch got there first, Nell is mending", st["sim"]["roomId"] == "receiving" and {"latch", "nell"} <= {n["id"] for n in st["npcs"]} and "rows:arrived" in rbeats(), str((st["sim"]["roomId"], st["npcs"])))
     seen = []
     st = drive(page, lambda st: (seen.extend(b["text"] for b in st["barks"]) or st["sim"]["flags"].get("ledgeReady")))
-    check("Rows: Latch's greeting remembers the shared rest; the satchel dispute is overheard, not a dialogue box", any("chair survived" in t for t in seen) and any("It needs to be empty." in t for t in seen) and st["dialogue"] is None, str(seen[:6]))
+    check("Rows: Latch's greeting remembers the shared rest; his collectors notice for Nell is overheard, not a dialogue box", any("chair survived" in t for t in seen) and any("Again? They froze my ledge last time." in t for t in seen) and st["dialogue"] is None, str(seen[:6]))
     tp(page, 160, 120)
     st = drive(page, lambda st: said(st, "This bit's dry."))
     check("Rows: when he comes close, Nell clears a dry patch for him first", said(st, "This bit's dry.") and any(n["id"] == "nell" and n["state"] == "clear" for n in st["npcs"]), str(st["npcs"]))
@@ -1388,9 +1417,17 @@ console.log(JSON.stringify(Save.createEnvelope({state:s,modes:{dungeon:slice},sa
     check("Rows: she kept the table appointment: a low board set at his height", "rows:return" in rbeats() and st["sim"]["flags"].get("boardReady"))
     warm(page, 150, 188)
     st = drive(page, lambda st: st["sim"]["flags"].get("chalkOut"))
-    tp(page, 196, 186); page.wait_for_timeout(80); page.keyboard.press("z"); page.wait_for_timeout(200)
-    st = page.evaluate(ST)
-    check("Rows: he finds her chalk (“I was keeping it warm.”), and it is remembered", said(st, "keeping it warm") and page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsChalk") is True, str(st["barks"]))
+    tp(page, 196, 186)
+    page.wait_for_function("!document.querySelector('.dungeon-prompt').hidden")
+    page.keyboard.press("z")
+    heard_chalk = False
+    for _ in range(12):
+        page.wait_for_timeout(80)
+        st = page.evaluate(ST)
+        heard_chalk = heard_chalk or said(st, "keeping it warm")
+        if page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsChalk") is True:
+            break
+    check("Rows: he finds her chalk (“I was keeping it warm.”), and it is remembered", heard_chalk and page.evaluate(STORED)["slice"]["story"]["facts"].get("rowsChalk") is True, str(st["barks"]))
     st = drive(page, lambda st: st["choice"] is not None)
     check("Rows: the wrap is offered, never put on him: WEAR IT, FOLDED or LEAVE IT", st["choice"] and st["choice"]["options"] == ["worn", "folded", "peg"], str(st["choice"]))
     page.keyboard.press("z"); page.wait_for_timeout(200)

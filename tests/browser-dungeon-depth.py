@@ -124,7 +124,9 @@ def play_van(page, viewport_name=None, until_quiet=False):
     goto(page, "van", skip=False)
     tp(page, 80, 98)
     samples = []
-    for _ in range(700):
+    # The authored Boss/check-in/silence beats are intentionally longer now.
+    # Sample enough virtual time to reach the door-loose handoff deterministically.
+    for _ in range(850):
         clock(page, 150)
         page.wait_for_timeout(22)
         st = state(page)

@@ -40,6 +40,7 @@ HOME = '()=>RizoRuntimeQA.homeForQA()'
 LAYOUT = """()=>{const box=s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};return {
  width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+1,
  scene:box('#habitatScene'),pet:box('#petActor'),nav:box('.bottom-nav'),
+ navButtons:[...document.querySelectorAll('.bottom-nav button')].map(n=>{const r=n.getBoundingClientRect();return {id:n.dataset.nav,x:r.x,right:r.right,y:r.y,bottom:r.bottom,width:r.width,height:r.height};}),
  touch:[...document.querySelectorAll('.bottom-nav button,.care-action,#denBed,.garden-toy')].filter(n=>n.getClientRects().length).map(n=>({id:n.id||n.dataset.action||n.dataset.gardenToy||n.dataset.nav,width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height}))};}"""
 
 def boot(browser, width=390, height=844, seed=None, reduced=False):
@@ -82,6 +83,11 @@ with sync_playwright() as p:
         record(f'{width}: Home fits without horizontal scrolling',not layout['overflow'],layout)
         record(f'{width}: Rizo and the room remain the first-screen center',layout['pet']['height']>=120 and layout['pet']['y']<height-62 and layout['scene']['width']>=width-45)
         record(f'{width}: care, props, and primary navigation have phone-sized targets',all(b['width']>=43.9 and b['height']>=43.9 for b in layout['touch']),layout['touch'])
+        navb=layout['navButtons']
+        nav_even=max(b['width'] for b in navb)-min(b['width'] for b in navb)<1.1
+        nav_clear=all(navb[i]['right']<=navb[i+1]['x']+0.5 for i in range(len(navb)-1))
+        nav_inside=layout['nav']['x']>=-0.5 and layout['nav']['right']<=width+0.5 and layout['nav']['bottom']<=height+0.5
+        record(f'{width}: Home, Train and Go are three even non-overlapping game buttons',len(navb)==3 and nav_even and nav_clear and nav_inside,{'nav':layout['nav'],'buttons':navb})
         record(f'{width}: exactly three primary places',page.locator('.bottom-nav button b').all_text_contents()==['HOME','TRAIN','GO'],page.locator('.bottom-nav').inner_text())
         shoot(page,f'home-{width}')
         before=page.evaluate(STATE)
@@ -129,9 +135,16 @@ with sync_playwright() as p:
         record(f'{width}: Dungeon returns to Home and keeps the journey',page.evaluate(HOME)['view']=='home' and page.evaluate('()=>RizoModes.active()') is None and page.evaluate(STATE)['qaModes']['dungeon']['data']['campaign']['petId']==after['pet']['id'],page.evaluate('()=>({home:RizoRuntimeQA.homeForQA(),active:RizoModes.active(),campaign:RizoRuntimeQA.snapshot().qaModes.dungeon.data.campaign})'))
         page.reload();page.wait_for_function('window.RizoRuntimeQA && RizoBoot.status().ready')
         saved=page.evaluate(STATE)
-        record(f'{width}: Home growth, training, and the journey survive reload',saved['home']['tier']==1 and saved['home']['trained']==['power'] and saved['qaModes']['dungeon']['data']['campaign']['contentRevision']=='threshold-v3')
+        record(f'{width}: Home growth, training, and the journey survive reload',saved['home']['tier']==1 and saved['home']['trained']==['power'] and saved['qaModes']['dungeon']['data']['campaign']['contentRevision']=='threshold-v4')
         record(f'{width}: complete loop has no page errors',not errors,errors)
         ctx.close()
+
+    # The playful three-place dock still yields to short landscape screens.
+    ctx,page,errors=boot(browser,844,390)
+    page.evaluate(SETUP);page.wait_for_timeout(120)
+    landscape=page.evaluate(LAYOUT)
+    record('landscape: the three-place dock compacts without covering the play surface',landscape['nav']['height']<=55 and landscape['nav']['width']<=630 and all(b['height']>=43.9 for b in landscape['navButtons']) and not landscape['overflow'],landscape)
+    ctx.close()
 
     # Spatial ownership: tap/body reaction, food, and rest never substitute a
     # canned position for the current pet. Rest explicitly walks toward the bed.

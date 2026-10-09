@@ -406,7 +406,7 @@ with sync_playwright() as pw:
         stored = ph.ev(STORED)["modes"]["dungeon"]["data"]
         if vp == (390, 844):
             check("arriving at the hearth: it registers at once, but its banner does not play under Latch's line",
-                  st["dialogue"] and st["dialogue"]["text"] == "Seat's dry." and stored["checkpoint"]["hearthId"] == "threshold-hearth" and not banner_under_line,
+                  st["dialogue"] and st["dialogue"]["text"] == "Cold since they took our fire. You lit it just walking in." and stored["checkpoint"]["hearthId"] == "threshold-hearth" and not banner_under_line,
                   (st["dialogue"], stored["checkpoint"], banner_under_line))
         for _ in range(40):
             st = ph.st()

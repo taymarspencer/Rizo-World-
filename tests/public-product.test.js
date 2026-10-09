@@ -57,7 +57,7 @@ await test('production package makes World root and Play a distinct static entry
  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'rizo-routes-'));
  try {
   const out=path.join(temp,'site');const result=spawnSync('python3',['tools/build-site.py','--out',out],{cwd:ROOT,encoding:'utf8'});
-  assert.equal(result.status,0,result.stderr);const summary=JSON.parse(result.stdout);assert.equal(summary.files,164);assert.match(summary.fingerprint,/^[a-f0-9]{64}$/);
+  assert.equal(result.status,0,result.stderr);const summary=JSON.parse(result.stdout);assert.equal(summary.files,166);assert.match(summary.fingerprint,/^[a-f0-9]{64}$/);
   assert.equal(fs.readFileSync(path.join(out,'index.html'),'utf8'),fs.readFileSync(path.join(ROOT,'world.html'),'utf8'));
   assert.equal(fs.readFileSync(path.join(out,'play.html'),'utf8'),fs.readFileSync(path.join(ROOT,'index.html'),'utf8'));
   assert(!fs.existsSync(path.join(out,'world.html')));assert(!fs.existsSync(path.join(out,'docs')));assert(!fs.existsSync(path.join(out,'tests')));assert(!fs.existsSync(path.join(out,'ads.txt')));

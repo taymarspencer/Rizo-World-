@@ -45,7 +45,7 @@ test("content is frozen: the opening plus the six stable Threshold rooms, all re
   assert.ok(Object.isFrozen(Content.ROOMS.clatter.solids[0]));
   assert.deepStrictEqual(Content.ROOM_IDS, ["slip", "clatter", "hem", "hearth", "queue", "porter"]);
   assert.deepStrictEqual(Content.OPENING_ROOMS, ["car", "sack", "van", "roadside", "drain"]);
-  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v3");
+  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v4");
   assert.strictEqual(Content.ROOMS.curb, undefined, "the curb is gone: the car replaced it");
   for (const [id, room] of Object.entries(Content.ROOMS)) {
     for (const [name, anchor] of Object.entries(room.anchors)) {
@@ -391,7 +391,7 @@ test("a new campaign binds the pet, starts in the parked car and stays small", (
   const data = D.newCampaign({ pet, id: "threshold-abc123" });
   assert.strictEqual(data.campaign.petId, "PET-1");
   assert.strictEqual(data.campaign.kind, "proof");
-  assert.strictEqual(data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(data.campaign.contentRevision, "threshold-v4");
   assert.deepStrictEqual(data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
   assert.strictEqual(data.proofComplete, false);
   assert.strictEqual(data.storyComplete, false);
@@ -523,22 +523,24 @@ test("the jammed gate holds until Latch is freed; warming it is a Kindle", () =>
   assert.strictEqual(D.interactables(freed).some(item => item.id === "latch-jam"), false);
 });
 test("Needle: a 10-wide lane shown for 1000 ms, a 120 ms pulse, a 1000 ms rest; cover stops it", () => {
-  const sim = D.createSim({ roomId: "queue" });
+  // v0.4: the Needle that guarded the Cold Queue now holds the Low Run, between its blocks.
+  const sim = D.createSim({ roomId: "lowrun" });
   sim.enemies = sim.enemies.filter(enemy => enemy.kind === "needle");
-  sim.player.x = 160; sim.player.y = 220;
+  const [nx, ny] = [sim.enemies[0].x, sim.enemies[0].y];
+  sim.player.x = nx; sim.player.y = ny - 140;
   const events = run(sim, 1300, {});
   const at = type => events.find(event => event.type === type)?.t;
   near(at("pulse") - at("lane"), 1000, D.STEP_MS + 1e-6, "indicate");
   assert.ok(events.some(event => event.type === "hurt"), "standing in the lane hurts");
-  const covered = D.createSim({ roomId: "queue" });
+  const covered = D.createSim({ roomId: "lowrun" });
   covered.enemies = covered.enemies.filter(enemy => enemy.kind === "needle");
   const needle = covered.enemies[0];
-  needle.aware = true; needle.state = "indicate"; needle.stateAt = 0; needle.aimX = 0; needle.aimY = 1;
-  needle.laneLength = D.rayLength(D.geoOf(covered), 160, 93, 0, 1, 300);
-  covered.player.x = 108; covered.player.y = 330; // behind post-c, out of the lane
+  needle.aware = true; needle.state = "indicate"; needle.stateAt = 0; needle.aimX = -1; needle.aimY = 0;
+  needle.laneLength = D.rayLength(D.geoOf(covered), nx - 9, ny, -1, 0, 300);
+  covered.player.x = 150; covered.player.y = ny; // behind block-b, out of the lane
   assert.ok(!run(covered, 300, {}).some(event => event.type === "hurt"));
-  const blocked = D.rayLength(D.geoOf(covered), 108, 100, 0, 1, 300);
-  assert.ok(blocked < 200, `a post stops the lane at ${blocked}`);
+  const blocked = D.rayLength(D.geoOf(covered), nx - 9, ny, -1, 0, 300);
+  assert.ok(blocked < 200, `a block stops the lane at ${blocked}`);
 });
 test("the van's cooler bumps but never burns, and Tuck slips it", () => {
   const sim = D.createSim({ roomId: "van" });
@@ -605,10 +607,10 @@ test("the alcove shelters from the sweep once opened", () => {
 test("a durable defeat never respawns; ordinary enemies return on rest", () => {
   const sim = D.createSim({ roomId: "porter", defeated: ["night-porter"] });
   assert.strictEqual(sim.enemies.length, 0);
-  const queue = D.createSim({ roomId: "queue", cleared: ["queue-draftling"] });
-  assert.deepStrictEqual(queue.enemies.map(enemy => enemy.id), ["queue-needle"]);
-  D.rest(queue);
-  assert.strictEqual(queue.enemies.length, 2);
+  const clatter = D.createSim({ roomId: "clatter", cleared: ["clatter-draftling"] });
+  assert.deepStrictEqual(clatter.enemies.map(enemy => enemy.id), []);
+  D.rest(clatter);
+  assert.deepStrictEqual(clatter.enemies.map(enemy => enemy.id), ["clatter-draftling"]);
 });
 test("a Gate 1 review campaign is carried into The Threshold explicitly", () => {
   const gate1 = { settings: { assist: true, textSpeed: "instant" }, campaign: { id: "threshold-old123", kind: "proof", contentRevision: "threshold-gate1", petId: "PET-1", petName: "MOSSY", status: "active", chapterId: "threshold" }, world: { visitedRooms: ["clatter"] }, checkpoint: { hearthId: "clatter-review-hearth", roomId: "clatter", spawnAnchorId: "clatter-hearth-side" }, continuation: { roomId: "clatter", safeAnchorId: "clatter-hearth-side", roomEntryFlame: 5, resumeKind: "hearth" }, journal: { discoveredEntryIds: ["ticket-stub"] } };
@@ -616,7 +618,7 @@ test("a Gate 1 review campaign is carried into The Threshold explicitly", () => 
   assert.strictEqual(result.status, "migrated");
   assert.strictEqual(result.data.campaign.id, "threshold-old123");
   assert.strictEqual(result.data.campaign.petId, "PET-1");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
   assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
   assert.deepStrictEqual(result.data.journal.discoveredEntryIds, ["ticket-stub"]);
   assert.strictEqual(result.data.continuation.roomId, "car");
@@ -651,7 +653,7 @@ test("an RC2 journey still at the curb becomes the same journey in the car, noth
   assert.strictEqual(result.status, "migrated");
   assert.deepStrictEqual(result.notes, ["migrated-from-v1"]);
   assert.strictEqual(result.data.campaign.id, "threshold-rc2abc");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
   assert.deepStrictEqual(result.data.continuation, { roomId: "car", safeAnchorId: "seat", roomEntryFlame: 5, resumeKind: "opening" });
   assert.deepStrictEqual(result.data.world.visitedRooms, ["car"]);
   assert.deepStrictEqual(result.data.settings, { assist: true, textSpeed: "instant" });
@@ -733,7 +735,7 @@ test("each Rows route opens through work, never through affection", () => {
   assert.ok(sim.player.y > 20, "the onward doorway is blocked by the drying load until Nell moves it");
   assert.strictEqual(D.room("drytable").hearth.id, "rows-stove");
 });
-test("a threshold-v2 journey is carried into v3 untouched (rooms and facts were only added)", () => {
+test("a threshold-v2 journey is carried into v4 untouched (rooms and facts were only added)", () => {
   const data = D.newCampaign({ pet, id: "threshold-v2abcd" });
   data.campaign.contentRevision = "threshold-v2";
   data.world.visitedRooms = ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth", "queue", "porter"];
@@ -745,7 +747,7 @@ test("a threshold-v2 journey is carried into v3 untouched (rooms and facts were 
   data.proofComplete = true; data.campaign.status = "homecoming-ready";
   const result = D.normalizeSlice(clone(data));
   assert.strictEqual(result.status, "migrated");
-  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
   for (const key of ["world", "story", "continuation", "checkpoint", "npcs", "journal", "pendingRewards", "proofComplete"]) assert.deepStrictEqual(result.data[key], clone(data)[key], key);
 });
 test("Rows choices are allowlisted with their exact values; anything else is dropped", () => {
@@ -758,8 +760,366 @@ test("Rows choices are allowlisted with their exact values; anything else is dro
   assert.deepStrictEqual(D.normalizeSlice(data).data.story.facts, { rowsLatchHelped: true, rowsChalk: true }, "no friendship score exists to be saved");
 });
 
+// ---------- v0.4: THE BOSS'S COLLECTORS ----------
+function queueWithCollector() {
+  const sim = D.createSim({ roomId: "queue" });
+  sim.enemies = sim.enemies.filter(enemy => enemy.kind === "collector");
+  return { sim, lamp: sim.enemies[0] };
+}
+test("a collector walks his patrol, lamp first, and is never fought", () => {
+  const { sim, lamp } = queueWithCollector();
+  sim.player.x = 160; sim.player.y = 400;
+  const start = { x: lamp.x, y: lamp.y };
+  run(sim, 3000, {});
+  assert.ok(lamp.x > start.x + 40 && Math.abs(lamp.y - start.y) < 1, `he walks his line east (${lamp.x}, ${lamp.y})`);
+  assert.ok(lamp.aimX > 0.9, "the lamp points the way he walks");
+  assert.strictEqual(D.encounterActive(sim), false, "a collector never turns Primary into Flare");
+  sim.player.x = lamp.x + 14; sim.player.y = lamp.y;
+  sim.player.fx = -1; sim.player.fy = 0;
+  const flare = run(sim, 400, { primaryPressed: true });
+  assert.ok(!flare.some(event => event.type === "hit"), "a Flare does nothing to him");
+});
+test("seen in his lamp for a second means caught: a flame-out back to the hearth, nothing durable lost", () => {
+  const { sim, lamp } = queueWithCollector();
+  sim.player.x = lamp.x + 50; sim.player.y = lamp.y;
+  const events = run(sim, 1300, {});
+  const at = type => events.find(event => event.type === type)?.t;
+  assert.ok(at("spotted") != null && at("caught") != null, "spotted, then caught");
+  near(at("caught") - at("spotted"), C_SPOT(), D.STEP_MS + 1e-6, "spot time");
+  assert.strictEqual(sim.phase, "down");
+  assert.strictEqual(sim.downReason, "caught");
+  assert.ok(events.some(event => event.type === "down" && event.reason === "caught"));
+});
+function C_SPOT() { return Content.ENEMIES.collector.spotMs; }
+test("breaking his line of sight in time loses him; he searches, then walks on", () => {
+  const { sim, lamp } = queueWithCollector();
+  sim.player.x = lamp.x + 50; sim.player.y = lamp.y;
+  const seen = run(sim, 300, {});
+  assert.ok(seen.some(event => event.type === "spotted"));
+  // Behind post-a, out of his lamp.
+  sim.player.x = 108; sim.player.y = 160;
+  const after = run(sim, 4000, {});
+  assert.ok(after.some(event => event.type === "lost") && after.some(event => event.type === "resume"), after.map(event => event.type).join(","));
+  assert.strictEqual(sim.phase, "play");
+});
+test("posts and shadow hide him; a Flare is seen from twice as far, even in shadow", () => {
+  const { sim, lamp } = queueWithCollector();
+  lamp.aimX = 1; lamp.aimY = 0;
+  sim.player.x = lamp.x + 60; sim.player.y = lamp.y;
+  assert.strictEqual(D.collectorSees(sim, lamp), true, "in the lamp");
+  sim.player.y = lamp.y - 60;
+  assert.strictEqual(D.collectorSees(sim, lamp), false, "outside the cone");
+  // A dark corner (a room hide) keeps him unseen even inside the cone…
+  const nw = Content.ROOMS.queue.hides[0];
+  lamp.x = 130; lamp.y = 60; lamp.aimX = -1; lamp.aimY = 0;
+  sim.player.x = nw.x + nw.w / 2; sim.player.y = nw.y + nw.h / 2;
+  assert.strictEqual(D.hiddenIn(sim), true);
+  assert.strictEqual(D.collectorSees(sim, lamp), false, "hidden in the dark corner");
+  // …but not while he Flares, and a Flare carries.
+  sim.player.act = { kind: "flare", start: sim.t, id: 1, fx: 1, fy: 0, hit: [] };
+  assert.strictEqual(D.collectorSees(sim, lamp), true, "a Flare gives him away");
+  sim.player.act = null;
+  lamp.x = 200; lamp.y = 224; lamp.aimX = -1; lamp.aimY = 0;
+  sim.player.x = 108; sim.player.y = 188; // post-a stands between them
+  assert.strictEqual(D.collectorSees(sim, lamp), false, "a post blocks the lamp");
+});
+test("a soft collector (Clatter's first lamp) stops on him but never catches", () => {
+  const sim = D.createSim({ roomId: "clatter" });
+  sim.enemies = [];
+  const lamp = D.spawnCollector(sim, { id: "clatter-collector", x: 200, y: 300, soft: true, patrol: [[200, 300], [100, 300]] });
+  sim.player.x = 150; sim.player.y = 300;
+  const events = run(sim, 2500, {});
+  assert.ok(events.some(event => event.type === "spotted"), "it sees him");
+  assert.ok(!events.some(event => event.type === "caught"), "it never catches");
+  assert.strictEqual(sim.phase, "play");
+  assert.strictEqual(lamp.kind, "collector");
+});
+test("threshold-v4: one revision bump; v3 journeys carry forward untouched; the new facts are allowlisted", () => {
+  assert.deepStrictEqual(Content.CARRIED_REVISIONS, ["threshold-v1", "threshold-v2", "threshold-v3"]);
+  for (const flag of ["hearthKindled", "queueCrossed", "hangrowCrossed", "rowsLedge"]) assert.ok(Content.FLAGS.includes(flag), flag);
+  assert.ok(Content.ROOM_FLAGS.includes("rowsLedge"));
+  const data = D.newCampaign({ pet, id: "threshold-v3abcd" });
+  data.campaign.contentRevision = "threshold-v3";
+  data.world.visitedRooms = ["car", "sack", "van", "roadside", "drain", "slip", "clatter", "hem", "hearth", "queue", "porter", "receiving", "drytable"];
+  data.world.durableRoomFlags = { latchFreed: true, porterDown: true, rowsCatch: true };
+  data.story.facts = { rowsLatchHelped: true, sharedRest: true };
+  data.story.committedSceneBeats = ["opening:below", "rows:arrived", "rows:met"];
+  data.continuation = { roomId: "drytable", safeAnchorId: "drytable-west", roomEntryFlame: 5, resumeKind: "room-entry" };
+  const result = D.normalizeSlice(clone(data));
+  assert.strictEqual(result.status, "migrated");
+  assert.strictEqual(result.data.campaign.contentRevision, "threshold-v4");
+  for (const key of ["world", "story", "continuation", "checkpoint", "npcs", "journal"]) assert.deepStrictEqual(result.data[key], clone(data)[key], key);
+  const v4 = clone(result.data);
+  v4.story.facts = { ...v4.story.facts, hearthKindled: true, queueCrossed: true, hangrowCrossed: true, bossFriend: true };
+  v4.world.durableRoomFlags.rowsLedge = true;
+  const again = D.normalizeSlice(v4);
+  assert.strictEqual(again.status, "ok");
+  assert.deepStrictEqual(again.data.story.facts, { rowsLatchHelped: true, sharedRest: true, hearthKindled: true, queueCrossed: true, hangrowCrossed: true });
+  assert.strictEqual(again.data.world.durableRoomFlags.rowsLedge, true);
+});
+test("v0.4 cast: the Boss speaks only through his mark; the capped hood has a face; the hoods can be scared", () => {
+  assert.deepStrictEqual(Content.SPEAKERS.boss, { name: "THE BOSS", portrait: "boss" });
+  assert.deepStrictEqual(Content.SPEAKERS["hood-cap"], { name: "CAPPED HOOD", portrait: "hood-cap" });
+  assert.deepStrictEqual(Object.keys(Art.PORTRAITS.boss).sort(), ["calm", "cold"]);
+  for (const expr of ["calm", "cold"]) assert.ok(Art.PORTRAITS.boss[expr].includes("<svg") && !/<text/.test(Art.PORTRAITS.boss[expr]), "his portrait is only the mark: no name, no face, no text");
+  assert.notStrictEqual(Art.PORTRAITS.boss.calm, Art.PORTRAITS.boss.cold);
+  assert.ok(Art.PORTRAITS["hood-cap"].neutral.length > 900);
+  for (const id of ["hood-tall", "hood-small", "driver"]) assert.ok(Art.PORTRAITS[id].scared && Art.PORTRAITS[id].scared !== Art.PORTRAITS[id].neutral, id);
+  for (const [key, lines] of Object.entries(Content.LINES)) for (const line of Array.isArray(lines) ? lines : []) if (line && line.speaker) {
+    assert.ok(line.speaker === "collector" || Content.SPEAKERS[line.speaker], `${key}: speaker ${line.speaker}`);
+    if (Content.SPEAKERS[line.speaker]) assert.ok(Art.PORTRAITS[Content.SPEAKERS[line.speaker].portrait]?.[line.expr], `${key}: ${line.speaker} has the ${line.expr} expression`);
+  }
+});
+test("v0.4 story: the van says what the Boss wants; nobody says why; the cave folk each say why they help", () => {
+  const all = Object.values(Content.LINES).flatMap(lines => (Array.isArray(lines) ? lines : [])).map(line => (typeof line === "string" ? line : line.text));
+  assert.ok(Content.LINES.vanEvery.some(line => line.text === "All of 'em. He wants every one there is."), "the collection is said once");
+  assert.deepStrictEqual(Content.LINES.vanAsk.map(line => line.text), ["What's he even want it for?"]);
+  assert.ok(!all.some(text => /because he|he wants them for|the reason he/i.test(text)), "nobody answers why");
+  assert.ok(Content.LINES.latchRescue.some(line => /take every light/.test(line.text)), "Latch: they take every light; Rizo gave some back");
+  assert.ok(Content.LINES.rowsMeal.some(line => line.speaker === "orr" && /Eda's\. Collectors took her/.test(line.text)), "Orr: who the second portion is for");
+  assert.ok(Content.LINES.porterSettled.some(line => /warm/.test(line.text)), "the Porter stops because Rizo's light is warm");
+  assert.ok(Content.LINES.rowsDispute.some(line => /Collectors/.test(line.text)), "Nell's Rows are where they come hunting");
+  for (const key of Object.keys(Content.OBJECTIVES)) assert.ok(Content.OBJECTIVES[key].length <= 48 && Content.OBJECTIVES[key] === Content.OBJECTIVES[key].toUpperCase(), key);
+});
+
 // ---------- RESTART DUNGEON ----------
 // A journey deep in the Rows: every kind of story state the slice can hold.
+// ---------- Chapter 3: The Collection (story spine v0.5) ----------
+// Steers toward each waypoint in turn, the way a thumb on the stick would.
+function steer(sim, points, ms, extra = {}) {
+  const events = [];
+  let index = 0;
+  for (let elapsed = 0; elapsed < ms - 1e-6; elapsed += D.STEP_MS) {
+    while (index < points.length && Math.hypot(points[index][0] - sim.player.x, points[index][1] - sim.player.y) < 4) index += 1;
+    const target = points[index];
+    const input = target ? { moveX: target[0] - sim.player.x, moveY: target[1] - sim.player.y, ...extra } : { ...extra };
+    events.push(...D.step(sim, input).map(event => ({ ...event, t: sim.t })));
+    if (sim.phase !== "play") break;
+  }
+  return events;
+}
+const HALL_PATH = [[270, 1050], [270, 910], [50, 910], [50, 810], [270, 810], [270, 730], [160, 720], [160, 470], [160, 420], [240, 360], [160, 260], [240, 170], [160, 60]];
+test("v0.5: the window opens east into the Long Hall; the building rooms run one way, every one known and saved", () => {
+  const gate = Content.ROOMS.windowgate;
+  const east = gate.exits.find(exit => exit.id === "gate-to-hall");
+  assert.deepStrictEqual([east.to, east.anchor, east.openWhen], ["longhall", "hall-entry", "windowOpen"]);
+  assert.ok(gate.solids.some(rect => rect.id === "hall-door" && rect.openWhen === "windowOpen"), "a shut staff door until the window opens");
+  assert.deepStrictEqual(gate.props.find(prop => prop.id === "counter-bell").when, { windowOpen: false, bellReady: true });
+  assert.deepStrictEqual(Content.BUILDING_ROOMS, ["longhall", "intake", "collection", "vents", "factory"]);
+  for (const id of Content.BUILDING_ROOMS) assert.ok(Content.knownRoom(id) && Content.isBuilding(id), id);
+  assert.deepStrictEqual(Content.ROOMS.longhall.exits, [], "no door out of the chase: the chute ends it");
+  const link = (roomId, exitId) => { const exit = Content.ROOMS[roomId].exits.find(item => item.id === exitId); return [exit.to, exit.openWhen || null]; };
+  assert.deepStrictEqual(link("intake", "intake-to-collection"), ["collection", null]);
+  assert.deepStrictEqual(link("collection", "coll-to-vents"), ["vents", "ventGrate"]);
+  assert.deepStrictEqual(link("vents", "vents-to-factory"), ["factory", null]);
+  for (const flag of ["windowOpen", "hallEscaped", "intakeOut", "jarMoth", "jarPip", "jarBean", "jarSpark", "jarWick", "jarOld", "ventGrate", "ventsOut", "factoryOut", "promised"]) assert.ok(Content.FLAGS.includes(flag), flag);
+  for (const flag of ["windowOpen", "ventGrate", "jarPip"]) assert.ok(Content.ROOM_FLAGS.includes(flag), flag);
+  assert.ok(!Content.FLAGS.includes("cageOpen"), "the cage door is the room's own business: reloading puts him back in it");
+  assert.strictEqual(Content.CONTENT_REVISION, "threshold-v4", "no second revision bump: v4 only gained rooms and facts");
+});
+test("the runner: kept running, he stays ahead of it; standing still, it catches him", () => {
+  const sim = D.createSim({ roomId: "longhall" });
+  const runner = D.spawnRunner(sim, { x: 40, y: 1064, startGapMs: Content.ENEMIES.runner.startGapMs });
+  const start = steer(sim, HALL_PATH.slice(0, 4), 3200);
+  assert.ok(start.some(event => event.type === "runner-in"), "it comes through the door after him");
+  assert.strictEqual(sim.phase, "play");
+  const gap = Math.hypot(runner.x - sim.player.x, runner.y - sim.player.y);
+  assert.ok(gap > 40, `still ahead after the rails (${gap.toFixed(1)})`);
+  assert.ok(runner.y > sim.player.y - 1 || runner.x !== sim.player.x, "it follows the way he went, round the rails");
+  const stop = run(sim, 4000, {});
+  const caught = stop.find(event => event.type === "caught");
+  assert.ok(caught, "standing still, it reaches him");
+  assert.ok(stop.some(event => event.type === "down" && event.reason === "caught"), "caught: down, like a lamp catch");
+  assert.notStrictEqual(sim.phase, "play");
+  assert.strictEqual(sim.downReason, "caught");
+  assert.strictEqual(D.encounterActive(sim), false, "it is never fought: Primary stays his own");
+});
+test("the service windows: a rattle, then a lamp across the hall; in it he staggers and it gains", () => {
+  const win = Content.ROOMS.longhall.lampWindows[0];
+  const states = [];
+  for (let t = 0; t < win.period; t += 50) states.push(D.lampWindowState(win, t));
+  const first = kind => states.indexOf(kind);
+  assert.ok(first("tell") > 0 && first("on") > first("tell"), "closed, then the tell, then the lamp");
+  near((first("on") - first("tell")) * 50, win.tellMs, 50, "tell length");
+  const sim = D.createSim({ roomId: "longhall" });
+  sim.player.x = 160; sim.player.y = win.y + win.h / 2;
+  while (D.lampWindowState(win, sim.t) !== "tell") D.step(sim, {});
+  const events = run(sim, win.tellMs + 60, {});
+  assert.ok(events.some(event => event.type === "dazzled" && event.id === win.id), "in the lamp, dazzled");
+  const y0 = sim.player.y;
+  run(sim, 300, { moveY: -1 });
+  assert.ok(y0 - sim.player.y < 0.3 * 0.3 * 80, `he staggers (${(y0 - sim.player.y).toFixed(1)} units in 0.3 s)`);
+  while (D.lampWindowState(win, sim.t) !== "off") D.step(sim, {});
+  run(sim, Content.ENEMIES.runner.dazzleMs, {});
+  const y1 = sim.player.y;
+  run(sim, 300, { moveY: -1 });
+  assert.ok(y1 - sim.player.y > 20, "then runs again");
+});
+test("the night gate: under it in time, it shuts on the runner, who must go round; too slow, it shuts in his face", () => {
+  const sim = D.createSim({ roomId: "longhall" });
+  sim.player.x = 160; sim.player.y = 470;
+  const runner = D.spawnRunner(sim, { x: 160, y: 600, startGapMs: 0 });
+  runner.crumbs = [{ x: 160, y: 560 }, { x: 160, y: 520 }, { x: 160, y: 480 }];
+  sim.player.y = 560;
+  const events = steer(sim, [[160, 380], [240, 360]], 2600);
+  const shut = events.find(event => event.type === "gate-shut");
+  assert.ok(events.some(event => event.type === "gate-start") && shut && shut.ahead === true, "it starts down as he passes and shuts behind him");
+  assert.ok(events.some(event => event.type === "runner-blocked"), "the runner is shut out");
+  const round = run(sim, Content.ENEMIES.runner.detourMs + 200, {});
+  assert.ok(round.some(event => event.type === "runner-round"), "it comes round by the side door");
+  const detour = Content.ROOMS.longhall.dropGate.detour;
+  assert.ok(Math.hypot(runner.x - detour.x, runner.y - detour.y) < 60 && runner.y < Content.ROOMS.longhall.dropGate.y, "on his side now, by the side door");
+  const slow = D.createSim({ roomId: "longhall" });
+  slow.player.x = 160; slow.player.y = 540;
+  const wait = run(slow, Content.ROOMS.longhall.dropGate.closeMs + 100, {});
+  assert.ok(wait.some(event => event.type === "gate-shut" && event.ahead === false), "it shuts with him on the wrong side");
+  run(slow, 2000, { moveY: -1 });
+  assert.ok(slow.player.y > Content.ROOMS.longhall.dropGate.y + Content.ROOMS.longhall.dropGate.h, "and it is a wall now");
+});
+test("the cage: a rattle while he looks away loosens it; under his eye it costs two and he looks longer; five opens it", () => {
+  const sim = D.createSim({ roomId: "intake" });
+  const guard = sim.enemies.find(enemy => enemy.kind === "guard");
+  assert.ok(guard && D.inCage(sim), "the small hood on his stool; Rizo in the crate");
+  const def = Content.ENEMIES.guard;
+  sim.cage.loose = 1;
+  const seen = run(sim, 20, { primaryPressed: true });
+  assert.ok(seen.some(event => event.type === "noticed"), "he was looking");
+  assert.strictEqual(sim.cage.loose, 0, "two notches back (never below none)");
+  assert.ok(!seen.some(event => event.type === "flare"), "in the cage, Primary rattles: it never Flares");
+  const away = run(sim, def.watchMs + def.noticedMs + 100, {});
+  const turned = away.find(event => event.type === "guard-away");
+  assert.ok(turned && turned.t >= def.watchMs + def.noticedMs - 1, "noticing made him look longer");
+  const opened = [];
+  for (let index = 0; index < def.notches; index += 1) opened.push(...run(sim, def.rattleGapMs + 20, { primaryPressed: true }));
+  assert.strictEqual(opened.filter(event => event.type === "loosened").length, def.notches);
+  assert.ok(opened.some(event => event.type === "cage-open") && sim.cage.open && sim.flags.cageOpen, "the door gives");
+  assert.ok(!D.geoOf(sim).solids.some(rect => rect.id === "cage-door"), "and swings open");
+  const tells = run(sim, def.awayMs, {});
+  assert.ok(tells.some(event => event.type === "guard-tell") && tells.some(event => event.type === "guard-back"), "a readable tell before he looks back");
+});
+test("out of the cage: moving while he looks gets him put back; frozen, or behind a crate, he is not seen", () => {
+  const def = Content.ENEMIES.guard;
+  const outSim = () => {
+    const sim = D.createSim({ roomId: "intake", flags: { cageOpen: true } });
+    assert.ok(sim.cage.open, "the door is already open");
+    sim.player.x = 150; sim.player.y = 160;
+    return sim;
+  };
+  const moving = outSim();
+  const caught = run(moving, def.graceMs + 200, { moveX: 1 });
+  assert.ok(caught.some(event => event.type === "seen") && moving.downReason === "put-back", "seen moving: put back");
+  const frozen = outSim();
+  run(frozen, def.watchMs - 100, {});
+  assert.strictEqual(frozen.phase, "play", "frozen while he looks: not seen");
+  const away = outSim();
+  run(away, def.watchMs + 50, {});
+  run(away, 600, { moveX: 1 });
+  assert.strictEqual(away.phase, "play", "moving while he looks away is safe");
+  const hidden = outSim();
+  const shadow = Content.ROOMS.intake.hides[0];
+  hidden.player.x = shadow.x + 6; hidden.player.y = shadow.y + shadow.h / 2;
+  run(hidden, def.graceMs + 300, { moveX: 1 });
+  assert.ok(D.hiddenIn(hidden), "still in the shadow");
+  assert.strictEqual(hidden.phase, "play", "behind a crate he can move under his eye");
+});
+test("factory: the belts carry him; a crate on the belt hides him, a tray of jars does not; catwalk lamps watch the floor", () => {
+  const sim = D.createSim({ roomId: "factory" });
+  sim.enemies = [];
+  const belt = Content.ROOMS.factory.belts[0];
+  sim.player.x = 100; sim.player.y = belt.y + belt.h / 2;
+  run(sim, 1000, {});
+  near(sim.player.x - 100, belt.speed, 1.5, "carried one second of belt");
+  assert.strictEqual(sim.player.moving, false, "riding is not walking");
+  const items = D.beltItems(belt, sim.t, Content.ROOMS.factory.w);
+  const crate = items.find(item => item.kind === "crate" && item.x > 40 && item.x < 280) || items.find(item => item.kind === "crate");
+  const tray = items.find(item => item.kind === "jars" && item.x > 40 && item.x < 280) || items.find(item => item.kind === "jars");
+  sim.player.x = crate.x; sim.player.y = crate.y;
+  assert.strictEqual(D.hiddenIn(sim), true, "pressed to a crate");
+  sim.player.x = tray.x; sim.player.y = tray.y;
+  assert.strictEqual(D.hiddenIn(sim), false, "jars are see-through");
+  const watch = D.createSim({ roomId: "factory" });
+  const w1 = watch.enemies.find(enemy => enemy.id === "fac-w1");
+  watch.player.x = 160; watch.player.y = 60;
+  let south = 0, samples = 0;
+  for (let index = 0; index < 240; index += 1) { D.step(watch, {}); samples += 1; if (w1.aimY > 0.8) south += 1; }
+  assert.ok(south / samples > 0.95, "his lamp stays on the floor below, swinging");
+  assert.ok(w1.x > 70.5, "while he walks his catwalk");
+  assert.strictEqual(w1.y, 120, "never stepping off it");
+});
+test("vents: moving on a lit grate is heard and he is caught; frozen on it, or on a dark one, he is not", () => {
+  const geo = Content.ROOMS.vents;
+  const grate = geo.listens[0];
+  const onGrate = t => { const sim = D.createSim({ roomId: "vents" }); sim.t = t; sim.player.x = grate.x + 12; sim.player.y = grate.y + grate.h / 2; return sim; };
+  assert.ok(D.listenLit(geo, 0, 10) && !D.listenLit(geo, 2, 10), "the light comes up under the far grate first");
+  assert.ok(D.listenLit(geo, 2, 2 * geo.listen.stepMs + 10), "and walks down the duct toward him");
+  assert.ok(geo.listens[0].y < geo.listens[2].y, "the far grate is the top one: the light comes at him");
+  const loud = onGrate(10);
+  const heard = steer(loud, [[grate.x + 30, grate.y + 15], [grate.x + 10, grate.y + 15], [grate.x + 30, grate.y + 15]], 700);
+  assert.ok(heard.some(event => event.type === "heard") && loud.downReason === "heard", "heard: caught");
+  const across = onGrate(10);
+  across.player.y = grate.y + grate.h + 8;
+  steer(across, [[grate.x + 20, grate.y - 10]], 700);
+  // Walking straight up the duct, he is caught most of the time (the rest hear a "?" and can still freeze);
+  // freezing whenever a grate under him or just ahead is lit always gets him through.
+  let walkedInto = 0, starts = 0;
+  for (let offset = 0; offset < geo.listen.period; offset += 150) {
+    starts += 1;
+    const walker = D.createSim({ roomId: "vents" });
+    walker.t = offset; walker.player.x = 220; walker.player.y = 300;
+    for (let index = 0; index < 300 && walker.phase === "play"; index += 1) D.step(walker, { moveY: -1 });
+    if (walker.downReason === "heard") walkedInto += 1;
+    const careful = D.createSim({ roomId: "vents" });
+    careful.t = offset; careful.player.x = 220; careful.player.y = 300;
+    for (let index = 0; index < 900 && careful.phase === "play" && careful.player.y > 100; index += 1) {
+      const p = careful.player;
+      const danger = geo.listens.some((item, at) => D.listenLit(geo, at, careful.t) && p.y + p.r + 2 >= item.y && p.y - p.r - 2 <= item.y + item.h);
+      D.step(careful, danger ? {} : { moveY: -1 });
+    }
+    assert.strictEqual(careful.phase, "play", `freezing for the light gets him through (start ${offset})`);
+    assert.ok(careful.player.y <= 100, `and up the duct (start ${offset})`);
+  }
+  assert.ok(walkedInto / starts >= 0.6, `most straight walks are caught (${walkedInto}/${starts})`);
+  assert.strictEqual(across.downReason, "heard", "walking straight over a lit grate is heard");
+  const still = onGrate(10);
+  run(still, 900, {});
+  assert.strictEqual(still.phase, "play", "frozen on a lit grate: nothing heard");
+  const dark = onGrate(geo.listen.litMs + 100);
+  steer(dark, [[grate.x + 30, grate.y + 15], [grate.x + 10, grate.y + 15]], 600);
+  assert.strictEqual(dark.phase, "play", "a dark grate is just a grate");
+});
+test("the tin bell: a lured collector walks over to the sound, looks at it a while, then goes back to his line", () => {
+  const sim = D.createSim({ roomId: "hangrow" });
+  const lamp = sim.enemies.find(enemy => enemy.id === "row-collector");
+  sim.player.x = 250; sim.player.y = 60;
+  const bell = Content.ROOMS.hangrow.props.find(prop => prop.id === "row-bell");
+  assert.strictEqual(bell.kind, "bell");
+  const lured = D.lure(sim, bell.lure.x, bell.lure.y);
+  assert.deepStrictEqual(lured.map(event => event.type), ["lured"]);
+  const events = run(sim, 13000, {});
+  assert.ok(events.some(event => event.type === "resume"), "he gives up on it");
+  assert.ok(!events.some(event => event.type === "spotted"), "he never looked the other way");
+  const sim2 = D.createSim({ roomId: "hangrow" });
+  const lamp2 = sim2.enemies[0];
+  sim2.player.x = 250; sim2.player.y = 60;
+  D.lure(sim2, bell.lure.x, bell.lure.y);
+  let closest = Infinity;
+  for (let index = 0; index < 480; index += 1) { D.step(sim2, {}); closest = Math.min(closest, Math.hypot(lamp2.x - bell.lure.x, lamp2.y - bell.lure.y)); }
+  assert.ok(closest < 20, `he walks right up to the bell (${closest.toFixed(1)})`);
+  assert.ok(lamp.kind === "collector" && lamp2.lured !== undefined);
+});
+test("save bounds: every room, beat and find of a whole journey survives a reload", () => {
+  const data = D.newCampaign({ pet, id: "threshold-long01" });
+  data.world.visitedRooms = [...Content.BUILT_ROOMS];
+  data.story.committedSceneBeats = Array.from({ length: 90 }, (_, index) => `beat:${index}`);
+  data.journal.discoveredEntryIds = Array.from({ length: 60 }, (_, index) => `find-${index}`);
+  for (const flag of Content.ROOM_FLAGS) data.world.durableRoomFlags[flag] = true;
+  const out = D.normalizeSlice(clone(data)).data;
+  assert.deepStrictEqual(out.world.visitedRooms, Content.BUILT_ROOMS, "the last rooms of the Rows were being dropped after sixteen");
+  assert.strictEqual(out.story.committedSceneBeats.length, 90);
+  assert.strictEqual(out.journal.discoveredEntryIds.length, 60);
+  assert.strictEqual(Object.keys(out.world.durableRoomFlags).length, Content.ROOM_FLAGS.length);
+  assert.strictEqual(D.summary(data).bestLabel, `ESCAPE ${Content.BUILDING_ROOMS.length}/${Content.BUILDING_ROOMS.length}`);
+});
 function deepJourney() {
   const data = D.newCampaign({ pet, id: "threshold-old111" });
   data.settings = { assist: true, textSpeed: "instant" };
@@ -793,7 +1153,7 @@ test("restart: the player's Dungeon settings and an unconfirmed reward are kept"
   assert.deepStrictEqual(out.settings, { assist: true, textSpeed: "instant" });
   assert.deepStrictEqual(out.pendingRewards, [{ receiptId: "threshold-old111:threshold-complete", entitlements: ["first-knot", "shared-hearth"] }]);
 });
-test("restart: the result is a valid threshold-v3 slice that reloads unchanged", () => {
+test("restart: the result is a valid threshold-v4 slice that reloads unchanged", () => {
   const out = D.restartSlice(deepJourney(), { pet, id: "threshold-new222" });
   const reloaded = D.normalizeSlice(clone(out));
   assert.strictEqual(reloaded.status, "ok");
@@ -802,7 +1162,7 @@ test("restart: the result is a valid threshold-v3 slice that reloads unchanged",
 test("restart: an empty or older-revision slice restarts; one from another build is never dropped", () => {
   assert.strictEqual(D.restartSlice({}, { pet, id: "threshold-new222" }).continuation.roomId, "car");
   const v2 = deepJourney(); v2.campaign.contentRevision = "threshold-v2";
-  assert.strictEqual(D.restartSlice(v2, { pet, id: "threshold-new222" }).campaign.contentRevision, "threshold-v3");
+  assert.strictEqual(D.restartSlice(v2, { pet, id: "threshold-new222" }).campaign.contentRevision, "threshold-v4");
   const other = deepJourney(); other.campaign.contentRevision = "threshold-v9";
   assert.strictEqual(D.restartSlice(other, { pet, id: "threshold-new222" }), null);
   assert.throws(() => D.restartSlice(deepJourney(), { pet, id: "nope" }));

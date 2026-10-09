@@ -36,12 +36,10 @@
   const ACTOR_UNITS = 34;
   const STAGE_SCALE = { spark: 0.82, kid: 0.9, teen: 0.96, beast: 1, legend: 1.04 };
   const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
-  // CALLER_SYMBOL: PLACEHOLDER ONLY. The real glyph is an owner/art decision
-  // (narrative package v0.3 §3.6). This deliberately neutral dashed frame is
-  // not a letter, face, mark or the Rizo blue; replace this one function.
-  // On a phone lying in the rain it is seen through water on the glass, so the
-  // placeholder reads as a real screen, not a missing image.
-  const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-placeholder="true" viewBox="0 0 40 40" aria-hidden="true"><rect x="10" y="10" width="20" height="20" rx="4" fill="#d9d4c6"/></svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
+  // CALLER_SYMBOL is The Boss's mark (story spine v0.4): a bell jar with a
+  // light shut inside, the same mark on his cards and his collectors. No text.
+  // On a phone lying in the rain it is seen through water on the glass.
+  const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-mark="boss" viewBox="0 0 40 40" aria-hidden="true">${Art.markSvg("#eef5f9", "#ffffff", 2)}</svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
   function deviceMarkup() {
@@ -53,9 +51,11 @@
       <div class="dungeon-screen" aria-label="Rizo Dungeon screen">
         <canvas class="dungeon-canvas" aria-hidden="true"></canvas>
         <div class="dungeon-actors" aria-hidden="true"><div class="dungeon-actor"><div class="dungeon-pose"></div></div></div>
+        <canvas class="dungeon-front" aria-hidden="true"></canvas>
         <div class="dungeon-barks" aria-live="polite"></div>
         <div class="dungeon-thought" hidden aria-live="polite"></div>
         <div class="dungeon-hud" aria-hidden="true"><span class="dungeon-flame"></span><b class="dungeon-room-name"></b></div>
+        <div class="dungeon-objective" hidden aria-live="polite"><i aria-hidden="true">▲</i><span></span></div>
         <div class="dungeon-prompt" hidden aria-hidden="true"></div>
         <div class="dungeon-cue" hidden aria-hidden="true"></div>
         <div class="dungeon-banner" hidden aria-live="polite"></div>
@@ -86,14 +86,18 @@
     const $ = selector => arena.querySelector(selector);
     const el = {
       device: $(".dungeon-device"), slot: $(".dungeon-slot"), screen: $(".dungeon-screen"), canvas: $(".dungeon-canvas"), actors: $(".dungeon-actors"),
-      actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
+      actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), objective: $(".dungeon-objective"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
       prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), lineText: $(".dungeon-line-text"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
       fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), dpad: $(".dungeon-dpad"),
-      thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"),
+      thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"), front: $(".dungeon-front"),
       keys: { primary: $('[data-dungeon-key="primary"]'), secondary: $('[data-dungeon-key="secondary"]'), system: $('[data-dungeon-key="system"]') }
     };
     const ctx = el.canvas.getContext("2d");
+    // What stands in front of him (cage bars, the crate he is pressed behind):
+    // a second canvas above the DOM Rizo, drawn only in rooms that need it.
+    const frontCtx = el.front.getContext("2d");
+    let frontLive = false;
     const metrics = { cssW: 0, cssH: 0, dpr: 1, scale: 1, viewW: CAMERA_WIDTH, viewH: 200 };
     const camera = { x: 0, y: 0, ready: false };
     const effects = [];
@@ -137,6 +141,11 @@
       el.canvas.height = Math.round(cssH * dpr);
       el.canvas.style.width = `${cssW}px`;
       el.canvas.style.height = `${cssH}px`;
+      el.front.width = Math.round(cssW * dpr);
+      el.front.height = Math.round(cssH * dpr);
+      el.front.style.width = `${cssW}px`;
+      el.front.style.height = `${cssH}px`;
+      frontLive = true;
       camera.ready = false;
       el.dialogue.dataset.placed = "";
       sizeActor();
@@ -263,6 +272,8 @@
         case "latch": Art.latch(ctx, actor.x, actor.y, o); break;
         case "nell": Art.nell(ctx, actor.x, actor.y, o); break;
         case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
+        // v0.5: a collector as a figure in a scene (held at the counter by Nell).
+        case "collector": Art.collector(ctx, actor.x, actor.y, { face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor, time), t }); break;
         default: break;
       }
     }
@@ -332,11 +343,51 @@
           cx = cooler.rest.x + (enemy.x - cooler.rest.x) * ease; cy = cooler.rest.y + (enemy.y - cooler.rest.y) * ease;
         }
         Art.cooler(ctx, cx, cy, { wobble: enemy.state === "windup" && !reducedMotion ? Math.sin(sim.t / 40) * 1.2 : 0 });
+      } else if (enemy.kind === "collector") {
+        const walking = enemy.state === "patrol" && sim.t >= (enemy.pauseUntil || 0);
+        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: sim.roomId === "factory" && walking ? "watch-down" : enemy.state, bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t });
+      } else if (enemy.kind === "runner") {
+        // On his trail: not drawn until it is through the door, or while it goes round.
+        if (enemy.state === "waiting" || enemy.state === "detour") return;
+        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state === "caught" ? "grab" : "run", bob: !reducedMotion ? Math.sin(sim.t / 70) * 2.6 : 0, t });
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
         Art.porter(ctx, x, y, { t, open, settled: enemy.state === "settled", flash, lean, lampAim: enemy.state === "sweep-tell" || enemy.state === "sweep" ? enemy.sweepDir || 0 : 0 });
       }
+    }
+    // A collector's lamp: a cold fan on the floor, stopped by walls and posts.
+    // Seen, it locks bright on him; searching, it dims and wanders.
+    function paintLamp(enemy, sim, time) {
+      const def = Content.ENEMIES.collector, geo = Core.geoOf(sim);
+      const ox = enemy.x + enemy.aimX * 6, oy = enemy.y + enemy.aimY * 4 - 2;
+      const base = Math.atan2(enemy.aimY, enemy.aimX), rays = 16, pts = [];
+      for (let index = 0; index <= rays; index += 1) {
+        const a = base - def.halfAngle + (2 * def.halfAngle * index) / rays, dx = Math.cos(a), dy = Math.sin(a);
+        const length = Core.rayLength(geo, ox, oy, dx, dy, def.range);
+        pts.push([ox + dx * length, oy + dy * length]);
+      }
+      const spot = enemy.state === "spot", search = enemy.state === "search";
+      const flicker = reducedMotion ? 0 : Math.sin(time / 70) * 0.04;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const gradient = ctx.createRadialGradient(ox, oy, 2, ox, oy, def.range);
+      const a = (spot ? 0.34 : search ? 0.14 : 0.2) + flicker;
+      gradient.addColorStop(0, `rgba(214,232,244,${a})`); gradient.addColorStop(0.75, `rgba(170,198,218,${a * 0.45})`); gradient.addColorStop(1, "rgba(150,180,205,0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath(); ctx.moveTo(ox, oy); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.closePath(); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = spot ? "rgba(238,245,249,.75)" : "rgba(184,201,212,.32)"; ctx.lineWidth = spot ? 1.2 : 0.8;
+      ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(pts[0][0], pts[0][1]); ctx.moveTo(ox, oy); ctx.lineTo(pts[rays][0], pts[rays][1]); ctx.stroke();
+      if (spot) {
+        // The lamp has him: a hard ring and a closing bracket of time.
+        const k = Math.min(1, (sim.t - enemy.stateAt) / (def.spotMs * (sim.assist ? Core.T.ASSIST_ANTICIPATION : 1)));
+        const p = sim.player;
+        ctx.strokeStyle = "rgba(238,245,249,.9)"; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(p.x, p.y - 2, 16 - k * 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
+        Art.label(ctx, "!", enemy.x, enemy.y - 88, { size: 14, weight: 900, color: P.cold[3], align: "center" });
+      }
+      ctx.restore();
     }
     // Before the first jolt the cooler sits by the seats, at the front of the bay.
     const COOLER_HOME = Object.freeze({ x: 28, y: 104 });
@@ -431,12 +482,26 @@
       const hits = Math.ceil(enemy.hp / 2), max = Math.ceil(enemy.maxHp / 2);
       for (let index = 0; index < max; index += 1) Art.rect(ctx, index < hits ? P.paper[3] : "rgba(233,223,199,.25)", enemy.x - (max * 6) / 2 + index * 6, enemy.y - enemy.r - (enemy.kind === "needle" ? 30 : 12), 4, 2);
     }
+    // The runner's reach, on the floor where it is real: the ring a catch
+    // happens inside. Faint while he keeps ahead; hard and bright as it closes.
+    function paintReach(enemy, sim) {
+      const def = Content.ENEMIES.runner, p = sim.player, reach = def.catchRadius + p.r;
+      const gap = Math.hypot(p.x - enemy.x, p.y - enemy.y) - reach;
+      const k = Math.max(0, Math.min(1, 1 - gap / 70));
+      ctx.save();
+      ctx.globalAlpha = 0.14 + k * 0.6;
+      ctx.strokeStyle = k > 0.6 ? P.cold[3] : P.cold[2]; ctx.lineWidth = 0.8 + k * 1.2;
+      if (k < 0.6) ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(enemy.x, enemy.y, reach, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     function paintTelegraphs(sim, geo) {
       for (const enemy of sim.enemies) {
         if (enemy.kind === "draftling" && enemy.state === "windup") paintLane(enemy, Content.ENEMIES.draftling);
         else if (enemy.kind === "needle" && (enemy.state === "indicate" || enemy.state === "pulse")) paintThread(enemy, sim);
         else if (enemy.kind === "cargo" && enemy.state === "windup") paintSlide(enemy);
         else if (enemy.kind === "porter") paintPorterTell(enemy, sim, geo);
+        else if (enemy.kind === "runner" && enemy.state === "run") paintReach(enemy, sim);
         if ((enemy.kind === "draftling" || enemy.kind === "needle") && enemy.aware && enemy.state !== "gone") notches(enemy);
         // Not yet aware, at the edge of his light: two pale points looking back.
         if (enemy.kind === "draftling" && !enemy.aware && enemy.state !== "gone") {
@@ -527,6 +592,11 @@
           const wob = Math.sin(age * 9 + fx.seed) * 2.4;
           Art.rect(ctx, P.paper[3], fx.x + fx.vx * age + wob * -fx.vy / 40 - 1.1, fx.y + fx.vy * age + wob * fx.vx / 40 - 1.1, 2.2, 2.2);
         }
+        else if (fx.kind === "frost") {
+          // Frost letting go of glass: a few cold chips that drop and melt.
+          ctx.globalAlpha = (1 - age) * 0.9;
+          Art.rect(ctx, age < 0.4 ? "#eef5f9" : "#b8c9d4", fx.x + fx.vx * 7 * age, fx.y + Math.abs(fx.vy) * 3 + age * age * 14, 1.6 * (1 - age * 0.5), 1.1);
+        }
         else if (fx.kind === "deflect") { ctx.strokeStyle = P.paper[3]; ctx.lineWidth = 1.4; for (let d = 0; d < 3; d += 1) { ctx.beginPath(); ctx.moveTo(fx.x + (d - 1) * 6 - 3, fx.y - age * 10 + 2); ctx.lineTo(fx.x + (d - 1) * 6, fx.y - age * 10 - 2); ctx.lineTo(fx.x + (d - 1) * 6 + 3, fx.y - age * 10 + 2); ctx.stroke(); } }
         ctx.restore();
       }
@@ -540,10 +610,11 @@
       }
     }
     function addEffect(kind, x, y, count = 1, time = performance.now()) {
+      if (reducedMotion && kind === "frost") return;
       for (let index = 0; index < count; index += 1) {
         if (effects.length >= MAX_EFFECTS) effects.shift();
         const angle = Math.random() * Math.PI * 2;
-        effects.push({ kind, x, y, vx: Math.cos(angle), vy: Math.sin(angle), at: time, life: kind === "spark" ? 360 : kind === "glint" ? 1100 : 460 });
+        effects.push({ kind, x, y, vx: Math.cos(angle), vy: Math.sin(angle), at: time, life: kind === "spark" ? 360 : kind === "glint" ? 1100 : kind === "frost" ? 700 : 460 });
       }
       if (kind === "spark") { if (effects.length >= MAX_EFFECTS) effects.shift(); effects.push({ kind: "impact", x, y, vx: 0, vy: 0, at: time, life: 140 }); }
     }
@@ -617,6 +688,7 @@
       // The van's sort point is its near side, so people climbing out stand in front of it.
       for (const actor of extras.npcs || []) bodies.push({ y: actor.kind === "van" ? actor.y - 30 : actor.y, draw: () => paintNpc(actor, time) });
       for (const enemy of sim.enemies) bodies.push({ y: enemy.y + (enemy.kind === "porter" ? 20 : enemy.r), draw: () => paintEnemy(enemy, sim, time) });
+      for (const body of Scenery.bodies(geo, scene)) bodies.push({ y: body.y, draw: () => body.draw(ctx) });
       if (geo.theme === "van") {
         if (cooler.sim !== sim) { cooler.sim = sim; cooler.rest = null; }
         if (!latestCargo(sim)) { cooler.rest = { ...COOLER_HOME }; bodies.push({ y: COOLER_HOME.y + 9, draw: () => Art.cooler(ctx, COOLER_HOME.x, COOLER_HOME.y, {}) }); }
@@ -636,12 +708,25 @@
       // Fire briefly lights what it reaches, using the existing bounded light
       // pass. A dying flame still shortens the ordinary pool after the action.
       if (lightScale > 0 && p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active") lit.list.push({ x: pos.x + p.act.fx * 18, y: pos.y + p.act.fy * 18, r: geo.world ? 38 : 64, strength: 0.65, warm: 1 });
+      for (const enemy of sim.enemies) if (enemy.kind === "collector" || (enemy.kind === "runner" && enemy.state === "run")) lit.list.push({ x: enemy.x + enemy.aimX * 30, y: enemy.y + enemy.aimY * 30 - 4, r: 44, strength: 0.5, warm: 0 });
       lighting.apply(ctx, view, lit.ambient, lit.list);
       Scenery.paintOver?.(ctx, geo, scene);
+      for (const enemy of sim.enemies) if (enemy.kind === "collector") paintLamp(enemy, sim, time);
       // Waking in the dark: a pinprick of his flame before anything else.
       const actorLight = extras.actorLight ?? 1;
       if (actorLight > 0 && actorLight < 0.6) { ctx.save(); ctx.globalAlpha = 1 - actorLight; Art.flame(ctx, pos.x, pos.y - 4, 1.4 + actorLight * 4, reducedMotion ? 0 : time); ctx.restore(); }
       setActorLight(actorLight);
+      // A window lamp in his eyes: a cold white glare where he stands.
+      if (sim.t < (p.dazzledUntil ?? -1)) {
+        const k = (p.dazzledUntil - sim.t) / Content.ENEMIES.runner.dazzleMs;
+        ctx.save(); ctx.globalAlpha = 0.55 * k; Art.oval(ctx, pos.x, pos.y - 6, 22, 16, P.cold[3]); ctx.globalAlpha = 0.8 * k; Art.oval(ctx, pos.x, pos.y - 6, 9, 7, "#ffffff"); ctx.restore();
+      }
+      // Caught: a lamp full in his face for a beat, before the dark comes down.
+      const caughtAge = lastRoom.caughtAt != null ? extrasTime - lastRoom.caughtAt : Infinity;
+      if (caughtAge >= 0 && caughtAge < 360) {
+        const k = 1 - caughtAge / 360, grow = reducedMotion ? 0 : 1 - k;
+        ctx.save(); ctx.globalAlpha = 0.6 * k; Art.oval(ctx, pos.x, pos.y - 6, 20 + grow * 16, 15 + grow * 12, P.cold[3]); ctx.globalAlpha = 0.9 * k; Art.oval(ctx, pos.x, pos.y - 6, 8, 6, "#ffffff"); ctx.restore();
+      }
       paintTelegraphs(sim, geo);
       paintFocus(extras.focus);
       paintKindle(sim, geo);
@@ -653,6 +738,13 @@
       // In the van he sways with everyone else.
       const sway = geo.theme === "van" && !reducedMotion ? ` rotate(${(Art.vanRide(time, false).surge * 3).toFixed(2)}deg)` : "";
       el.actor.style.transform = `translate3d(${(ax - size / 2).toFixed(1)}px, ${(ay - size * 0.84).toFixed(1)}px, 0)${sway}`;
+      if (Scenery.hasFront(geo)) {
+        frontCtx.setTransform(1, 0, 0, 1, 0, 0);
+        frontCtx.clearRect(0, 0, el.front.width, el.front.height);
+        frontCtx.setTransform(s, 0, 0, s, (-camera.x + ox) * s, (-camera.y + oy) * s);
+        Scenery.paintFront(frontCtx, geo, scene);
+        frontLive = true;
+      } else if (frontLive) { frontCtx.setTransform(1, 0, 0, 1, 0, 0); frontCtx.clearRect(0, 0, el.front.width, el.front.height); frontLive = false; }
       // Full-line space is reserved before the typewriter starts. Choose the
       // end of the screen that leaves Rizo and the speaking body most visible.
       if (!el.dialogue.hidden && !el.dialogue.dataset.placed) {
@@ -765,6 +857,8 @@
       const seen = new Set();
       const occupied = [rizo];
       if (!el.dialogue.hidden) { const h = el.dialogue.offsetHeight; occupied.push({ x: 8, y: el.dialogue.classList.contains("at-top") ? 30 : metrics.cssH - h - 8, w: metrics.cssW - 16, h }); }
+      // The goal line under the HUD is read at a glance; a bubble never sits on it.
+      if (!el.objective.hidden) occupied.push({ x: el.objective.offsetLeft, y: el.objective.offsetTop, w: el.objective.offsetWidth, h: el.objective.offsetHeight + 4 });
       for (const item of list) {
         const actor = actors.find(entry => entry.id === item.id);
         if (!actor) continue;
@@ -773,6 +867,7 @@
         if (!node) { node = document.createElement("div"); node.className = "dungeon-bark"; el.barks.appendChild(node); barkNodes.set(item.id, node); }
         if (node.textContent !== item.text) node.textContent = item.text;
         node.classList.toggle("is-quiet", Boolean(item.quiet));
+        if (node.dataset.speaker !== (item.speaker || "")) node.dataset.speaker = item.speaker || "";
         // Seated figures (the van) are short; they say where their heads are.
         const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
         // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.
@@ -814,6 +909,19 @@
       el.flame.setAttribute("aria-label", `Flame ${flame} of ${max}`);
     }
     function setRoomName(name) { el.roomName.textContent = name; }
+    // What he is trying to do now. A new one flashes once; the same one stays quiet.
+    // Hidden (a line being read, a comic) keeps the text: it does not flash again on return.
+    let objectiveText = "";
+    function setObjective(text, visible = true) {
+      const next = String(text || "");
+      const hide = !next || !visible;
+      if (el.objective.hidden !== hide) el.objective.hidden = hide;
+      if (next === objectiveText) return;
+      objectiveText = next;
+      el.objective.querySelector("span").textContent = next;
+      el.objective.classList.remove("is-new");
+      if (next && !hide && !reducedMotion) { void el.objective.offsetWidth; el.objective.classList.add("is-new"); }
+    }
     function setKeys(state) {
       if (state.dir !== lastDir) { el.dpad.dataset.dir = state.dir; lastDir = state.dir; }
       const signature = `${state.primary}${state.secondary}${state.system}`;
@@ -850,7 +958,7 @@
     function showCue(markup) { if (!markup) { if (!el.cue.hidden) { el.cue.hidden = true; el.cue.innerHTML = ""; } return; } if (el.cue.innerHTML !== markup) el.cue.innerHTML = markup; el.cue.hidden = false; }
     function banner(text) { el.banner.textContent = text || ""; el.banner.hidden = !text; }
     // Dialogue: a speaker's portrait (data-driven expression) beside the line.
-    function dialogue(text, { done = false, speaker = null, expr = null, fullText = text } = {}) {
+    function dialogue(text, { done = false, speaker = null, expr = null, fullText = text, auto = false, last = false } = {}) {
       // null, not "": the next line always redraws its portrait (narration hides it).
       if (text === null) { el.dialogue.hidden = true; el.lineText.textContent = ""; el.line.dataset.fullText = ""; lastPortrait = null; lastLine = ""; el.dialogue.dataset.placed = ""; el.dialogue.classList.remove("at-top"); return; }
       el.dialogue.hidden = false;
@@ -870,7 +978,9 @@
       const lineKey = `${speaker}:${fullText}`;
       if (lastLine !== lineKey) { lastLine = lineKey; el.line.dataset.fullText = fullText; el.dialogue.dataset.placed = ""; }
       if (el.lineText.textContent !== text) el.lineText.textContent = text;
-      el.more.textContent = done ? "▼" : "";
+      // Keep a stable footer while the line reveals; the whole card is the target.
+      el.dialogue.dataset.reading = done ? "ready" : "revealing";
+      el.more.textContent = !done ? "TAP TO REVEAL" : auto ? "TAP TO CONTINUE · AUTO" : last ? "TAP TO CLOSE ▾" : "TAP TO CONTINUE ▾";
     }
     // `line` ({ speaker, text }): the question, kept above its answers.
     function choice(options, selected = 0, line = null) {
@@ -897,7 +1007,7 @@
     function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
-    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
+    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
   return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });

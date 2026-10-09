@@ -17,7 +17,8 @@ jobs:
   verify:
     name: Current release suites
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # 45, not 30: the suites took 27 minutes before Chapter 3's browser suite was added.
+    timeout-minutes: 45
     steps:
       - name: Check out the candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,7 +69,7 @@ jobs:
         shell: bash
         run: |
           status=0
-          for suite in browser-home-world browser-home-alive browser-dungeon browser-dungeon-controls browser-dungeon-cohesion browser-dungeon-depth browser-dungeon-gamefeel browser-dungeon-character-lab save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
+          for suite in browser-home-world browser-home-alive browser-visual-uphaul browser-dungeon browser-dungeon-controls browser-dungeon-cohesion browser-dungeon-depth browser-dungeon-gamefeel browser-dungeon-character-lab browser-dungeon-escape browser-dungeon-reading save-safety browser-defense-integration mode-contract training-contract browser-launch-recovery browser-v88-training-fixes browser-v88-authored browser-v87-arcade-freeze; do
             extra_args=()
             if [[ "$suite" == browser-dungeon-cohesion ]]; then
               extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-cohesion")
@@ -81,6 +82,9 @@ jobs:
             fi
             if [[ "$suite" == browser-dungeon-character-lab ]]; then
               extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-character-lab")
+            fi
+            if [[ "$suite" == browser-dungeon-escape ]]; then
+              extra_args=(--evidence "$RUNNER_TEMP/rizo-qa/dungeon-escape")
             fi
             if ! python "tests/$suite.py" "${extra_args[@]}" 2>&1 | tee "$RUNNER_TEMP/rizo-qa/$suite.log"; then
               status=1

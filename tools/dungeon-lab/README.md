@@ -69,7 +69,8 @@ python3 tools/dungeon-lab/capture.py --out /tmp/lab --format png
 - **Rizo**: 37 poses: still, walking, flare, spark, tuck, kindle, hurt, down, the 26 `pose-*` stagings, wet, warm, and wearing the wrap. All five stages are available.
 - **Latch**: standing, walking, pinned, pulling, seated, unloaded. Expressions: procedural, startled, dry, soft, urgent.
 - **Nell**: work, support, lift, clear, point, listen, fix, walk, eat, brace, tired, fit, sit.
-- **Orr**: tray, carry, walking, hands free.
+- **Orr**: tray, carry, walking, hands free. World expressions: serving, irritated, dry.
+- **Nell world expressions**: work, measuring, listening, amused, irritated, tired; independently selectable from her working pose.
 - **Night Porter**: closed, opening, open, hit, charge tell, charge, lamp sweep, settled.
 - **The kidnappers**:
   - tall hood: standing, walking, grab, flinch;
@@ -78,12 +79,18 @@ python3 tools/dungeon-lab/capture.py --out /tmp/lab --format png
 - **YOU (Keeper)**: standing, walking. **YOU in the car**: idle, reach, keys, turn, look, look-back, reach-up.
 - **The van crew, seated** (where they sit in the van; fixed facings): idle, talking (small, driver), quiet, filming, freeze (the phone), stare (the capped one points).
 - **Draftling, Needle**: their idle, telegraph, attack, recover and hit states.
+- **Collector** (v0.4, the Boss's hunter below): patrol, walking, spot (lamp up), search (lamp swinging), run (v0.5: the Long Hall chase). Never fought.
+- **White coats and the jars** (v0.5): a bell jar asleep, and woken by his warmth.
+- **The Boss**: only his calling card and his mark at world scale. He is never drawn in the world before the finale; comics show his hands, cufflinks, tie and silhouette.
 - **Portraits**:
   - YOU: neutral;
   - Nell: work, measuring, listening, amused, irritated, tired;
   - Orr: serving, irritated, dry;
   - Latch: his five expressions;
-  - tall hood, small hood, driver.
+  - tall hood, small hood, driver: neutral, scared;
+  - capped hood: neutral (his face, finally);
+  - The Boss: calm, cold — his caller ID, the mark on a dark phone screen. No face.
+  - White coat (v0.5): a coat, a pen and a clipboard with his mark; the head is out of frame.
 
 ## Limits
 

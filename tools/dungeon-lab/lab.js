@@ -61,11 +61,11 @@
       ]
     },
     {
-      id: "nell", name: "Nell", role: "the Mending Rows mender: work coat, apron, strap, head wrap", shell: "locked", units: Art.HEIGHT.nell, portraits: "nell", world: Art.nell,
+      id: "nell", name: "Nell", role: "the Mending Rows mender: work coat, apron, strap, head wrap", shell: "locked", units: Art.HEIGHT.nell, portraits: "nell", world: Art.nell, exprs: ["work", "measuring", "listening", "amused", "irritated", "tired"],
       states: NELL_STATES.map(state => ({ id: state, o: { state }, walk: state === "walk" }))
     },
     {
-      id: "orr", name: "Orr", role: "the kitchen runner: low cap, towel shoulder, apron, an oversized tray", shell: "locked", units: Art.HEIGHT.orr, portraits: "orr", world: Art.orr,
+      id: "orr", name: "Orr", role: "the kitchen runner: low cap, towel shoulder, apron, an oversized tray", shell: "locked", units: Art.HEIGHT.orr, portraits: "orr", world: Art.orr, exprs: ["serving", "irritated", "dry"],
       states: [{ id: "tray", o: { state: "tray" } }, { id: "carry (leaving with the tray)", o: { state: "carry" } }, { id: "walking (carry)", o: { state: "carry" }, walk: true }, { id: "hands free", o: { state: "serving" } }]
     },
     {
@@ -83,10 +83,10 @@
     {
       id: "hood-small", name: "Small hood", role: "kidnapping crew: puffer jacket, mustard beanie, filming on his phone", shell: "open", units: Art.RULES.scale["hood-small"], portraits: "hood-small",
       world: (ctx, x, y, o) => Art.hood(ctx, "hood-small", x, y, o),
-      states: [{ id: "standing (filming)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "phone off", o: { phoneOff: true } }, { id: "flinch", o: { flinch: true } }]
+      states: [{ id: "standing (filming)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "phone off", o: { phoneOff: true } }, { id: "reading screen (Intake)", o: { state: "phone-away" } }, { id: "look-back tell (Intake)", o: { state: "phone-tell" } }, { id: "flinch", o: { flinch: true } }]
     },
     {
-      id: "hood-cap", name: "Cap hood", role: "kidnapping crew: track jacket, backwards cap, the pillowcase", shell: "open", units: Art.RULES.scale["hood-cap"],
+      id: "hood-cap", name: "Cap hood", role: "kidnapping crew: track jacket, backwards cap, the pillowcase; the quiet one who leaves the Boss's card", shell: "open", units: Art.RULES.scale["hood-cap"], portraits: "hood-cap",
       world: (ctx, x, y, o) => Art.hood(ctx, "hood-cap", x, y, o),
       states: [{ id: "standing (pillowcase on shoulder)", o: {} }, { id: "walking", o: {}, walk: true }, { id: "grab (pillowcase out)", o: { state: "grab" } }, { id: "flinch", o: { flinch: true } }]
     },
@@ -118,6 +118,30 @@
         { id: "quiet (“What's he even want it for?”)", o: { talker: "hood-small", quiet: true } }, { id: "filming (“Say hi.”)", o: { phone: "film" } },
         { id: "freeze (the phone rings)", o: { state: "freeze", phone: "call" } }, { id: "stare (“It's listening.”)", o: { state: "stare" } }
       ]
+    },
+    {
+      // v0.4: The Boss's collectors. Grey coverall, hood and goggles, a glass jar
+      // on his back, a cold lamp on a pole. No face. They are never fought.
+      id: "collector", name: "Collector", role: "the Boss's hunter below: walks a patrol with a cold lamp; seen for a second, Rizo is caught", shell: "locked", units: Art.RULES.scale.collector, enemy: true,
+      world: (ctx, x, y, o) => Art.collector(ctx, x, y, o),
+      states: [{ id: "patrol", o: {} }, { id: "walking", o: { bob: 2 }, walk: true }, { id: "spot (lamp up)", o: { state: "spot" } }, { id: "search (lamp swinging)", o: { state: "search", t: 600 } }, { id: "run (the Long Hall)", o: { state: "run", bob: 2, t: 600 } }, { id: "grab (caught)", o: { state: "grab" } }, { id: "slam (night gate)", o: { state: "slam" } }, { id: "catwalk: lamp down", o: { state: "watch-down" } }]
+    },
+    {
+      // v0.5: the Boss's people in white coats, heard through a vent grate. Their
+      // portrait is a coat, a pen and a clipboard: never a face. In the world,
+      // what they measure: a bell jar with a small light holding still in it.
+      id: "coat", name: "White coats (and the jars)", role: "heard through a grate in the vents: 'Holding at four.' In the world, the collection's bell jars, asleep or woken by his warmth", shell: "locked", units: 34, portraits: "coat", facing: false,
+      // The six he can reach each wake as someone (Art JAR_SOULS: the light only; the jar is the same jar).
+      world: (ctx, x, y, o) => Art.jar(ctx, x, y, { size: 1.8, t: 0, awake: o.state === "awake", soul: o.soul, tag: true }),
+      states: [{ id: "a jar, asleep", o: {} }, { id: "a jar, woken", o: { state: "awake" } },
+        ...[["moth", "Moth (a porch light)"], ["pip", "Pip (a bus stop, in the rain)"], ["bean", "Bean (a school bus)"], ["spark", "Spark (the third candle)"], ["wick", "Wick (a night-light)"], ["old", "no name, a number"]].map(([soul, id]) => ({ id, o: { state: "awake", soul } }))]
+    },
+    {
+      // The Boss is never drawn in the world before the finale. Here: his
+      // calling card and his mark, at world scale; his portrait is his caller ID.
+      id: "boss", name: "The Boss (mark and card)", role: "never seen: a voice on the phone, hands and a tie in a comic, a silhouette behind glass. His mark turns up wherever a Rizo goes missing", shell: "open", units: 30, portraits: "boss", facing: false,
+      world: (ctx, x, y, o) => (o.state === "mark" ? Art.mark(ctx, x, y - 14, 26) : Art.callingCard(ctx, x, y - 8, { angle: 0 })),
+      states: [{ id: "calling card", o: {} }, { id: "the mark", o: { state: "mark" } }]
     },
     {
       id: "draftling", name: "Draftling", role: "enemy: a torn paper dart; its nose is the attack", shell: "locked", units: Art.RULES.scale.draftling, enemy: true,
