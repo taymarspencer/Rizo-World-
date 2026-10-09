@@ -1746,8 +1746,10 @@
         S.wait(650),
         S.call(() => walk("nell", 238, 174, 600)),
         S.wait(650),
-        S.call(() => { nellState("support"); setTransient("catchReady", true); }),
-        S.say(L.rowsCatchAsk)
+        S.call(() => nellState("support")),
+        S.say(L.rowsCatchAsk),
+        // Ready means Primary can actually warm it, after the instruction.
+        S.call(() => setTransient("catchReady", true))
       ], { control: true });
     }
     function tableMeal() {
@@ -3710,6 +3712,14 @@
         for (let left = Math.max(0, ms); left > 0; left -= 100) {
           const slice = Math.min(100, left);
           if (comic?.playing()) { comic.tick(slice); continue; }
+          // A WARM already begun must finish on the rules clock before an
+          // accelerated scene expires its prop and offers the next job.
+          // Leave movement and encounters to qaAdvance/the real frame loop.
+          if (running() && sim.player.act?.kind === "kindle") {
+            for (let elapsed = 0; elapsed < slice; elapsed += Core.STEP_MS) {
+              handleEvents(Core.step(sim, {}));
+            }
+          }
           sceneTime += slice; tickNpcs(slice / 1000); tickScene(); tickRoom();
           if (poseOverride && sceneTime > poseOverride.until) poseOverride = null;
         }
