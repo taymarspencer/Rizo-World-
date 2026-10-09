@@ -465,7 +465,7 @@
       const lift = Math.max(0, swing) * 3;
       shape(ctx, [hip - 3, -30, hip + 3, -30, knee + 3, -15,
         heel + 2.8, -3 - lift, heel - 2.8, -3 - lift, knee - 3, -15],
-        side < 0 ? P.a.denim : P.a.track, { ink: 1.1, amp: 0.12 });
+        P.a.denim, { ink: 1.1, amp: 0.12 });
       oval(ctx, heel + 1.5, -2 - lift, 4.6, 2.3, P.ink, true, 0.8);
     }
     ctx.translate(0, o.walking ? -Math.abs(step) * 0.9 : 0);

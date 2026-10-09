@@ -1,0 +1,431 @@
+[
+  {
+    "scene": "walk",
+    "sceneTime": 87366.13399999982,
+    "opening": {
+      "phase": "leaving",
+      "reactions": [
+        "window"
+      ],
+      "dome": 1,
+      "parkedAt": 4033.234,
+      "youOutside": false,
+      "hiding": false
+    },
+    "npcs": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "keeper",
+        "x": 110,
+        "y": 189,
+        "visible": true,
+        "state": "walk",
+        "face": -1
+      }
+    ],
+    "pose": "press-glass"
+  },
+  {
+    "scene": "door",
+    "sceneTime": 90266.13399999985,
+    "opening": {
+      "phase": "leaving",
+      "reactions": [
+        "window"
+      ],
+      "dome": 1,
+      "parkedAt": 4033.234,
+      "youOutside": false,
+      "hiding": false
+    },
+    "npcs": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "keeper",
+        "x": 163,
+        "y": 108,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      }
+    ],
+    "pose": "press-glass"
+  },
+  {
+    "scene": "window",
+    "sceneTime": 92949.43399999983,
+    "opening": {
+      "phase": "waiting",
+      "reactions": [
+        "window"
+      ],
+      "dome": 1,
+      "seenYou": false,
+      "waitStart": 91916.03399999984,
+      "parkedAt": 4033.234,
+      "youOutside": false,
+      "hiding": false,
+      "domeOut": false,
+      "cartDone": false,
+      "you": {
+        "x": 139.24715204482033,
+        "visible": true,
+        "walking": true,
+        "stride": 7.350569591035935,
+        "back": true,
+        "wave": false,
+        "waveTime": 0
+      }
+    },
+    "npcs": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "keeper",
+        "x": 176,
+        "y": 92,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      }
+    ],
+    "pose": null
+  },
+  {
+    "scene": "reach",
+    "sceneTime": 211415.4340000031,
+    "opening": {
+      "phase": "taken",
+      "reactions": [
+        "window"
+      ],
+      "dome": 0,
+      "seenYou": false,
+      "waitStart": 91916.03399999984,
+      "parkedAt": 4033.234,
+      "sweepAt": 185982.33400000198,
+      "vanParked": 189048.83400000213,
+      "storeCheckAt": 197482.23400000273,
+      "doorTeamAt": 208982.13400000308,
+      "youOutside": false,
+      "tapAt": 208382.13400000308,
+      "passengerDoor": 209898.83400000306,
+      "flares": 0,
+      "hiding": false,
+      "domeOut": true,
+      "cartDone": true,
+      "you": {
+        "x": 292,
+        "visible": true,
+        "back": true,
+        "counter": true,
+        "wave": false,
+        "waveTime": 0
+      },
+      "hands": {
+        "x": 236,
+        "y": 248
+      }
+    },
+    "npcs": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "keeper",
+        "x": 176,
+        "y": 92,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "cart",
+        "x": -50,
+        "y": 126,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "van",
+        "x": 238,
+        "y": 452,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "driver",
+        "x": 292,
+        "y": 452,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": 250,
+        "y": 260,
+        "visible": true,
+        "state": "brace",
+        "face": -1
+      },
+      {
+        "id": "hood-small",
+        "x": 272,
+        "y": 302,
+        "visible": true,
+        "state": "cup",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 252,
+        "y": 286,
+        "visible": true,
+        "state": "brace",
+        "face": -1
+      }
+    ],
+    "pose": null
+  },
+  {
+    "scene": "comic",
+    "sceneTime": 213432.13400000325,
+    "opening": {
+      "phase": "taken",
+      "reactions": [
+        "window"
+      ],
+      "dome": 0,
+      "seenYou": false,
+      "waitStart": 91916.03399999984,
+      "parkedAt": 4033.234,
+      "sweepAt": 185982.33400000198,
+      "vanParked": 189048.83400000213,
+      "storeCheckAt": 197482.23400000273,
+      "doorTeamAt": 208982.13400000308,
+      "youOutside": false,
+      "tapAt": 208382.13400000308,
+      "passengerDoor": 209898.83400000306,
+      "grabbed": true,
+      "carryAt": 213432.13400000325,
+      "flares": 0,
+      "hiding": false,
+      "domeOut": true,
+      "cartDone": true,
+      "you": {
+        "x": 292,
+        "visible": true,
+        "back": true,
+        "counter": true,
+        "wave": false,
+        "waveTime": 0
+      },
+      "hands": {
+        "x": 209,
+        "y": 242
+      }
+    },
+    "npcs": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "keeper",
+        "x": 176,
+        "y": 92,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "cart",
+        "x": -50,
+        "y": 126,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "van",
+        "x": 238,
+        "y": 452,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "driver",
+        "x": 292,
+        "y": 452,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": 250,
+        "y": 260,
+        "visible": true,
+        "state": "brace",
+        "face": -1
+      },
+      {
+        "id": "hood-small",
+        "x": 272,
+        "y": 302,
+        "visible": true,
+        "state": "cup",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 252,
+        "y": 286,
+        "visible": true,
+        "state": "grab",
+        "face": -1
+      }
+    ],
+    "pose": "held"
+  },
+  {
+    "scene": "grip",
+    "sceneTime": 215065.53400000336,
+    "opening": {
+      "phase": "taken",
+      "reactions": [
+        "window"
+      ],
+      "dome": 0,
+      "seenYou": false,
+      "waitStart": 91916.03399999984,
+      "parkedAt": 4033.234,
+      "sweepAt": 185982.33400000198,
+      "vanParked": 189048.83400000213,
+      "storeCheckAt": 197482.23400000273,
+      "doorTeamAt": 208982.13400000308,
+      "youOutside": false,
+      "tapAt": 208382.13400000308,
+      "passengerDoor": 209898.83400000306,
+      "grabbed": true,
+      "carryAt": 213432.13400000325,
+      "youCounter": true,
+      "flares": 0,
+      "hiding": false,
+      "domeOut": true,
+      "cartDone": true,
+      "you": {
+        "x": 292,
+        "visible": true,
+        "back": true,
+        "counter": true,
+        "wave": false,
+        "waveTime": 0
+      },
+      "hands": {
+        "x": 209,
+        "y": 242
+      }
+    },
+    "npcs": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "keeper",
+        "x": 176,
+        "y": 92,
+        "visible": false,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "cart",
+        "x": -50,
+        "y": 126,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "van",
+        "x": 238,
+        "y": 452,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "driver",
+        "x": 292,
+        "y": 452,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": 250,
+        "y": 260,
+        "visible": true,
+        "state": "brace",
+        "face": -1
+      },
+      {
+        "id": "hood-small",
+        "x": 272,
+        "y": 302,
+        "visible": true,
+        "state": "cup",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 252,
+        "y": 286,
+        "visible": true,
+        "state": "grab",
+        "face": -1
+      }
+    ],
+    "pose": "held"
+  }
+]

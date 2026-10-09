@@ -1,0 +1,28 @@
+{
+  "output": "/tmp/rizo-dungeon-itu_m27w/site",
+  "files": 166,
+  "build": "v97-dungeon-collection",
+  "ads_txt": false,
+  "fingerprint": "d4f3d23bfd459894823bdb14c588706197ab58de8bf0309cddc39026d2590df9"
+}
+320 walk
+320 door
+320 window
+320 reach
+320 comic
+320 grip
+PASS 320: all six opening scenes captured
+PASS 320: shopping ends at a steady checkout, without walking or repeated waves
+PASS 320: opening has no page errors
+PASS 320: phone has no horizontal overflow
+390 walk
+390 door
+390 window
+390 reach
+390 comic
+390 grip
+PASS 390: all six opening scenes captured
+PASS 390: shopping ends at a steady checkout, without walking or repeated waves
+PASS 390: opening has no page errors
+PASS 390: phone has no horizontal overflow
+8/8 opening direction checks passed
