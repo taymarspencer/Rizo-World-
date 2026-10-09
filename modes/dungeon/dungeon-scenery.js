@@ -212,15 +212,12 @@
         P.a.denim, { ink: 1, amp: 0.1 });
       oval(ctx, x + swing * 5 + 1, -1, 4.2, 2, P.ink);
     }
-    A.cut(ctx,"M-7-75Q-19-74-20-64L-15-48L-19-27Q-7-24 0-28L4-26L18-28L13-49L18-64Q15-73 7-75Z",P.wood[2],1.4);
-    A.cut(ctx,"M-7-73Q-15-71-17-64L-12-46L-14-28L-5-27L-3-55Z",P.wood[1],0);
-    A.cut(ctx,"M-6-72L-12-66L-6-57L0-65L6-57L13-66L6-73Z",P.wood[3],1);
-    A.cut(ctx,"M-9-76Q0-79 10-74L7-67Q0-65-9-70Z",P.a.maroon,1.1);
+    A.youCoat(ctx);
     if (o.back) {
       // Back at checkout: show his cropped coils, never eyes through the
       // back of his head. The car turn and portrait establish the same face.
-      A.cut(ctx,"M-10-82Q-13-89-9-94Q-7-99-2-97Q3-100 8-96Q13-92 11-84L8-77L-5-76Z",P.inkSoft,1.3);
-      A.cut(ctx,"M-8-92Q0-98 7-91",null,1.4,P.wood[1]);
+      A.cut(ctx,"M-11-81Q-14-88-10-93Q-11-99-5-98Q-2-103 3-99Q9-101 11-94Q14-89 10-82L3-76L-6-78Z",P.inkSoft,1.3);
+      A.cut(ctx,"M-9-93Q-6-97-2-95M1-97Q5-98 8-93",null,1.4,P.wood[1]);
     } else A.characterHead(ctx,"you",0,-84);
     const lift = o.reach ? 12 : o.counter ? 5 : 0;
     shape(ctx, [10, -70, 15, -68, 19, -56 - lift, 14, -50 - lift, 9, -55 - lift, 12, -59 - lift], P.wood[2], { ink: 1.1, amp: 0.1 });
