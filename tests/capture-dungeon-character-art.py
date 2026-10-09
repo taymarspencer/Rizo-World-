@@ -37,7 +37,7 @@ SCENES = [
     ('latch', 'hem', {}, [], 100),
     ('nell', 'drytable', FLAGS, [], 2600),
     ('nell-dialogue', 'drytable', FLAGS, [], 4600),
-    ('orr-hatch', 'eyelet', FLAGS, ['rows:eyelet'], 200),
+    ('orr-hatch', 'eyelet', FLAGS, ['rows:split', 'rows:eyelet'], 200),
     ('meal', 'drytable', {**FLAGS, 'rowsGrille': True}, ['rows:met'], 2600),
     ('meal-dialogue', 'drytable', {**FLAGS, 'rowsGrille': True}, ['rows:met'], 4600),
     ('intake-crew', 'intake', {}, [], 1800),
@@ -58,6 +58,19 @@ with sync_playwright() as pw:
                                       service_workers='block', reduced_motion='reduce', device_scale_factor=2)
             page = ctx.new_page(); errors = []
             page.on('pageerror', lambda err: errors.append(str(err)))
+            # Hold the real frame at capture time, then redraw with dt=0.
+            # This is capture-only; production art and animation are unchanged.
+            page.add_init_script('''(()=>{
+                const raf=requestAnimationFrame.bind(window), cancel=cancelAnimationFrame.bind(window);
+                const pending=new Map(), times=new Map();let frozen=false;
+                window.requestAnimationFrame=fn=>{if(frozen)return 0;
+                    const id=raf(t=>{pending.delete(id);times.set(fn,t);fn(t)});pending.set(id,fn);return id;};
+                window.__freezeCharacterEvidence=fixtures=>{
+                    frozen=true;const draws=[...pending.values()];for(const id of pending.keys())cancel(id);
+                    for(const f of fixtures)RizoRuntimeQA.dungeonEnemyForQA(f.id,{x:f.x,y:f.y,state:f.state});
+                    for(const draw of draws)if(times.has(draw))draw(times.get(draw));
+                };
+            })()''')
             page.goto(URL); page.wait_for_function('!!window.RizoRuntimeQA')
             page.evaluate(SETUP); page.evaluate("RizoRuntimeQA.setViewForQA('go')")
             page.wait_for_timeout(150); page.locator('[data-mode="dungeon"]').click()
@@ -77,6 +90,7 @@ with sync_playwright() as pw:
                 page.set_viewport_size({'width': width, 'height': height})
                 page.wait_for_timeout(150)
             page.evaluate('ms=>RizoRuntimeQA.dungeonSceneTimeForQA(ms)', ms)
+            enemy_fixtures = []
             if name == 'van-quiet':
                 # The authored post-call silence exposes all four seated
                 # silhouettes without removing dialogue or moving the camera.
@@ -93,22 +107,36 @@ with sync_playwright() as pw:
             elif name.endswith('collector') or name in {'hall-runner', 'factory-sentry'}:
                 s = page.evaluate(ST)
                 enemy = next(e for e in s['sim']['enemies'] if e['kind'] in {'collector', 'runner'})
+                # Select authored patrol anchors, not a variable real-time
+                # point on the route. All sentries stay visible in the scene.
+                if name != 'hall-runner':
+                    enemy_fixtures = page.evaluate('''r=>RizoDungeonContent.ROOMS[r].encounters
+                      .filter(e=>e.kind==='collector').map(e=>({id:e.id,x:e.x,y:e.y,
+                        state:'patrol'}))''', room)
+                    for fixture in enemy_fixtures:
+                        page.evaluate('f=>RizoRuntimeQA.dungeonEnemyForQA(f.id,{x:f.x,y:f.y})', fixture)
+                    enemy = next(f for f in enemy_fixtures if f['id'] == enemy['id'])
                 page.evaluate('([x,y])=>RizoRuntimeQA.dungeonTeleportForQA(x,y)', [enemy['x'] - 35, enemy['y'] + 40])
                 if name == 'hall-runner':
                     assert page.evaluate("id=>RizoRuntimeQA.dungeonEnemyForQA(id,{state:'run',x:100,y:420})", enemy['id'])
                     page.evaluate('RizoRuntimeQA.dungeonTeleportForQA(150,510)')
+                    enemy_fixtures = [{'id': enemy['id'], 'x': 100, 'y': 420, 'state': 'run'}]
             page.wait_for_timeout(200)
             if name.endswith('dialogue'):
                 dialogue = page.evaluate(ST).get('dialogue')
                 if dialogue and dialogue['shown'] < len(dialogue['text']):
                     page.keyboard.press('z')  # the normal tap-to-reveal action
                     page.wait_for_timeout(50)
+            page.evaluate('fixtures=>window.__freezeCharacterEvidence(fixtures)', enemy_fixtures)
             page.screenshot(path=str(out / f'{name}-{width}.png'), scale='css')
             state = page.evaluate(ST)
+            if name == 'orr-hatch':
+                assert any(actor['id'] == 'orr' for actor in state['npcs']), 'Orr is absent from his hatch evidence'
             screen = page.locator('.dungeon-screen').bounding_box()
             okay = not errors and page.evaluate('document.documentElement.scrollWidth<=innerWidth && innerWidth===%d' % width)
             results.append({'scene': name, 'viewport': [width, height], 'passed': okay, 'errors': errors,
                             'room': state['sim']['roomId'], 'actors': state['npcs'], 'dialogue': state.get('dialogue'),
+                            'enemies': state['sim']['enemies'], 'player': state['sim']['player'],
                             'sceneTime': state['sceneTime'], 'depth': state['depth'], 'barks': state['barks'],
                             'screen': screen})
             print(('PASS' if okay else 'FAIL'), width, name, flush=True)

@@ -1,0 +1,66 @@
+[
+  {
+    "scene": "window-comic",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "comic": "window-opens",
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "chute-comic",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "comic": "chute",
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "window-comic",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "comic": "window-opens",
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "chute-comic",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "comic": "chute",
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  }
+]

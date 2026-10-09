@@ -22,7 +22,7 @@ with sync_playwright() as pw:
     h1{font-size:18px;margin:0 0 8px}h2{font-size:14px;margin:20px 0 12px;color:#bfb190}
     p{margin:0 0 14px;color:#9fadb5}.row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
     .face{display:flex;gap:8px;align-items:flex-end}.frame{text-align:center;width:200px;padding:8px;background:#22251f}
-    svg{display:block;background:#0b0e14;border:1px solid #8f8167}small{display:block;margin-top:5px;color:#9fadb5;font-size:11px}
+    svg{display:block;background:#1a1714;border:2px solid #786b55;border-radius:7px;overflow:hidden;box-shadow:inset 0 0 12px #0005}small{display:block;margin-top:5px;color:#9fadb5;font-size:11px}
     .figure{text-align:center}canvas{display:block}</style><main></main>''')
     page.add_script_tag(path=str(args.source / 'modes/dungeon/dungeon-art.js'))
     page.evaluate('''()=>{
@@ -43,6 +43,24 @@ with sync_playwright() as pw:
       }
     }''')
     page.screenshot(path=str(args.evidence / 'portrait-study.png'), full_page=True, scale='css')
+    page.set_viewport_size({'width': 480, 'height': 450})
+    page.evaluate('''()=>{
+      const A=RizoDungeonArt,main=document.querySelector('main');
+      main.innerHTML='<h1>Actual dialogue portraits · 46 / 56px</h1>';
+      for(const who of ['nell','orr','you','hood-tall','hood-small','hood-cap','driver','latch']) {
+        const heading=document.createElement('h2');heading.textContent=who.toUpperCase();main.append(heading);
+        const row=document.createElement('div');row.className='row';main.append(row);
+        for(const [expr,art] of Object.entries(A.PORTRAITS[who])) {
+          const card=document.createElement('div');card.className='figure';row.append(card);
+          const face=document.createElement('div');face.className='face';card.append(face);
+          for(const size of [46,56]) {const wrap=document.createElement('div');wrap.innerHTML=art;
+            const svg=wrap.querySelector('svg');svg.style.width=size+'px';svg.style.height=size+'px';face.append(wrap);}
+          const label=document.createElement('small');label.textContent=expr;card.append(label);
+        }
+      }
+    }''')
+    page.screenshot(path=str(args.evidence / 'portraits-mobile.png'), full_page=True, scale='css')
+    page.set_viewport_size({'width': 960, 'height': 420})
     page.evaluate('''()=>{
       const A=RizoDungeonArt,main=document.querySelector('main');
       const cast=[['NELL','nell',{}],['ORR','orr',{state:'serving'}],['TALL','hood',{kind:'hood-tall'}],
