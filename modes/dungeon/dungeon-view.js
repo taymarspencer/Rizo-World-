@@ -236,20 +236,27 @@
         sy > 65 && sy < metrics.cssH - 98 &&
         px > 25 && px < metrics.cssW - 25 &&
         py > 35 && py < metrics.cssH - 35;
-      const key = inside ? `${geo.id}:${id}:${Math.round(sx / 12)}:${Math.round(sy / 12)}` : "";
+      // Project both subjects through the proposed optical move. If either
+      // would be pushed under a bezel/HUD edge, keep the wider shot.
+      const x = Math.max(50, Math.min(metrics.cssW - 50, sx * .68 + px * .32));
+      const y = Math.max(65, Math.min(metrics.cssH - 75, sy * .64 + py * .36));
+      const zoom = 1.14, project = (v, origin) => origin + (v - origin) * zoom;
+      const safe = inside &&
+        [sx, px].every(v => project(v, x) > 38 && project(v, x) < metrics.cssW - 38) &&
+        project(sy, y) > 55 && project(sy, y) < metrics.cssH - 95 &&
+        project(py, y) > 30 && project(py, y) < metrics.cssH - 30;
+      // Never re-anchor an active conversation every frame as camera easing
+      // settles; that turns a quiet shot into an unwanted tracking loop.
+      const key = safe ? `${geo.id}:${id}` : "";
       if (key === storyShot) return;
       storyShot = key;
-      if (!inside) {
+      if (!safe) {
         el.worldstage.style.transform = "";
         el.worldstage.style.transformOrigin = "";
         return;
       }
-      // Lean toward the speaker, keeping the little flame inside the shot.
-      // Origin is set once per line/position, never chased each frame.
-      const x = Math.max(50, Math.min(metrics.cssW - 50, sx * .68 + px * .32));
-      const y = Math.max(65, Math.min(metrics.cssH - 75, sy * .64 + py * .36));
       el.worldstage.style.transformOrigin = `${Math.round(x)}px ${Math.round(y)}px`;
-      el.worldstage.style.transform = "scale(1.14)";
+      el.worldstage.style.transform = `scale(${zoom})`;
     }
 
     // ---- the cached room layer: static scenery painted once per room and layout
@@ -780,6 +787,22 @@
       const flame = Math.max(0, p.flame);
       const lightScale = extras.lightScale ?? 1;
       if (lightScale > 0) lit.list.push({ x: pos.x, y: pos.y - 2, r: ((geo.world ? 30 : 46) + flame * 8) * lightScale, strength: geo.world ? 0.75 : 1, warm: geo.world ? 0.3 : 0.6 });
+      // In close, player-paced conversations a little of Rizo's warmth
+      // reaches the speaker's face. This is bounced firelight, not an
+      // unmotivated spotlight: it vanishes with his flame and never follows
+      // distant radio calls, collectors, or active stealth gameplay.
+      const speakerId = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
+      const closeSpeaker = speakerId && (extras.npcs || []).find(actor =>
+        actor.visible !== false && actor.id === speakerId &&
+        ["nell", "orr", "latch"].includes(actor.kind));
+      if (closeSpeaker && lightScale > 0 && flame > 0) {
+        const distance = Math.hypot(closeSpeaker.x - pos.x, closeSpeaker.y - pos.y);
+        if (distance < 115) {
+          const bounce = (1 - distance / 115) * Math.min(1, flame / 2);
+          lit.list.push({ x: closeSpeaker.x, y: closeSpeaker.y - (Art.HEIGHT[closeSpeaker.kind] || 70) * .62,
+            r: 40 + 12 * bounce, strength: .23 * bounce, warm: .55 * bounce });
+        }
+      }
       // Fire briefly lights what it reaches, using the existing bounded light
       // pass. A dying flame still shortens the ordinary pool after the action.
       if (lightScale > 0 && p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active") lit.list.push({ x: pos.x + p.act.fx * 18, y: pos.y + p.act.fy * 18, r: geo.world ? 38 : 64, strength: 0.65, warm: 1 });
