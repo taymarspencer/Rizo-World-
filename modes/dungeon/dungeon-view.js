@@ -958,7 +958,7 @@
     function showCue(markup) { if (!markup) { if (!el.cue.hidden) { el.cue.hidden = true; el.cue.innerHTML = ""; } return; } if (el.cue.innerHTML !== markup) el.cue.innerHTML = markup; el.cue.hidden = false; }
     function banner(text) { el.banner.textContent = text || ""; el.banner.hidden = !text; }
     // Dialogue: a speaker's portrait (data-driven expression) beside the line.
-    function dialogue(text, { done = false, speaker = null, expr = null, fullText = text } = {}) {
+    function dialogue(text, { done = false, speaker = null, expr = null, fullText = text, auto = false, last = false } = {}) {
       // null, not "": the next line always redraws its portrait (narration hides it).
       if (text === null) { el.dialogue.hidden = true; el.lineText.textContent = ""; el.line.dataset.fullText = ""; lastPortrait = null; lastLine = ""; el.dialogue.dataset.placed = ""; el.dialogue.classList.remove("at-top"); return; }
       el.dialogue.hidden = false;
@@ -978,7 +978,9 @@
       const lineKey = `${speaker}:${fullText}`;
       if (lastLine !== lineKey) { lastLine = lineKey; el.line.dataset.fullText = fullText; el.dialogue.dataset.placed = ""; }
       if (el.lineText.textContent !== text) el.lineText.textContent = text;
-      el.more.textContent = done ? "▼" : "";
+      // Keep a stable footer while the line reveals; the whole card is the target.
+      el.dialogue.dataset.reading = done ? "ready" : "revealing";
+      el.more.textContent = !done ? "TAP TO REVEAL" : auto ? "TAP TO CONTINUE · AUTO" : last ? "TAP TO CLOSE ▾" : "TAP TO CONTINUE ▾";
     }
     // `line` ({ speaker, text }): the question, kept above its answers.
     function choice(options, selected = 0, line = null) {

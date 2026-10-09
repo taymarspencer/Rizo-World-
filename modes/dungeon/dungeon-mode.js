@@ -557,7 +557,7 @@
       const line = dialogueState.lines[dialogueState.index];
       const instant = settings.textSpeed === "instant";
       dialogueState.shown = instant ? line.text.length : Math.min(line.text.length, Math.floor(((time - dialogueState.startAt) / 1000) * TEXT_CPS));
-      view.dialogue(line.text.slice(0, dialogueState.shown), { done: dialogueState.shown >= line.text.length, speaker: line.speaker, expr: line.expr, fullText: line.text });
+      view.dialogue(line.text.slice(0, dialogueState.shown), { done: dialogueState.shown >= line.text.length, speaker: line.speaker, expr: line.expr, fullText: line.text, auto: Boolean(dialogueState.auto), last: dialogueState.index === dialogueState.lines.length - 1 });
       if (line.speaker && npcs.has(line.speaker)) npcs.get(line.speaker).expr = line.expr;
     }
     // A fresh Primary press reveals the line, another advances it.
@@ -683,6 +683,7 @@
     }
     function bark(id, line, ms) {
       const item = lineOf(line);
+      if (item.speaker && npcs.has(item.speaker)) npcs.get(item.speaker).expr = item.expr;
       barks = barks.filter(entry => entry.id !== id);
       barks.push({ id, text: item.text, speaker: item.speaker, until: sceneTime + ms });
     }
@@ -708,6 +709,7 @@
           if (item.pose) { setPose(item.pose, item.ms); state.next += item.ms || 0; continue; }
           // A weighted line stays up longer; a quiet one is set smaller. Neither changes the words.
           const ms = Math.round(barkMs(item.text) * (item.weight || 1));
+          if (item.speaker && npcs.has(item.speaker)) npcs.get(item.speaker).expr = item.expr;
           barks = barks.filter(entry => entry.id !== item.speaker);
           barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true, quiet: Boolean(item.quiet) });
           state.next += ms + TALK_GAP_MS;
@@ -1745,7 +1747,7 @@
         S.call(() => walk("nell", 238, 174, 600)),
         S.wait(650),
         S.call(() => { nellState("support"); setTransient("catchReady", true); }),
-        talk([...L.rowsCatchAsk])
+        S.say(L.rowsCatchAsk)
       ], { control: true });
     }
     function tableMeal() {
@@ -1768,8 +1770,8 @@
         const outcome = commitData(next => { next.story.choices["rows-meal"] = value; next.world.durableRoomFlags.rowsPressOpen = true; addBeat(next, "rows:meal"); });
         if (outcome.status === "failed") renderSaveFailedPanel("moment");
         const after = value === "sit"
-          ? [S.call(() => { room.seatFrom = { x: sim.player.x, y: sim.player.y }; room.seatAt = sceneTime; room.seatTarget = { x: 150, y: 196 }; }), S.until(() => seatWalk()), S.pose("settle", 3200), S.call(() => { duck(3200, 0.3); sound("nell"); flameMood("warm", 3200); }), S.wait(3200), S.say(L.rowsCrunchy), S.wait(800), S.control(true), talk([...L.rowsPressNext]), S.call(() => departMeal())]
-          : [S.control(true), talk([...L.rowsPressNext, ...L.rowsTakeEdge]), S.call(() => departMeal())];
+          ? [S.call(() => { room.seatFrom = { x: sim.player.x, y: sim.player.y }; room.seatAt = sceneTime; room.seatTarget = { x: 150, y: 196 }; }), S.until(() => seatWalk()), S.pose("settle", 3200), S.call(() => { duck(3200, 0.3); sound("nell"); flameMood("warm", 3200); }), S.wait(3200), S.say(L.rowsCrunchy), S.wait(800), S.control(true), S.say(L.rowsPressNext), S.call(() => departMeal())]
+          : [S.control(true), S.say(L.rowsPressNext), talk([...L.rowsTakeEdge]), S.call(() => departMeal())];
         current.steps.push(...after);
       };
     }
