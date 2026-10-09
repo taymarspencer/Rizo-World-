@@ -221,7 +221,8 @@
     // buttons and text never scale. No cut if either actor would be cropped.
     function directConversation(geo, pos, extras) {
       const id = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
-      const actor = id && !extras.peek && !reducedMotion && !extras.comic
+      const actor = id && !extras.peek && !reducedMotion && !extras.comic &&
+        !(extras.barks || []).length && el.choice.hidden && el.phone.hidden
         ? (extras.npcs || []).find(entry => entry.visible !== false &&
             (entry.id === id || (id === "you" && ["keeper", "you-seat"].includes(entry.kind))))
         : null;
@@ -240,7 +241,7 @@
       // would be pushed under a bezel/HUD edge, keep the wider shot.
       const x = Math.max(50, Math.min(metrics.cssW - 50, sx * .68 + px * .32));
       const y = Math.max(65, Math.min(metrics.cssH - 75, sy * .64 + py * .36));
-      const zoom = 1.14, project = (v, origin) => origin + (v - origin) * zoom;
+      const zoom = 1.19, project = (v, origin) => origin + (v - origin) * zoom;
       const safe = inside &&
         [sx, px].every(v => project(v, x) > 38 && project(v, x) < metrics.cssW - 38) &&
         project(sy, y) > 55 && project(sy, y) < metrics.cssH - 95 &&
