@@ -95,8 +95,8 @@ with sync_playwright() as pw:
                 enemy = next(e for e in s['sim']['enemies'] if e['kind'] in {'collector', 'runner'})
                 page.evaluate('([x,y])=>RizoRuntimeQA.dungeonTeleportForQA(x,y)', [enemy['x'] - 35, enemy['y'] + 40])
                 if name == 'hall-runner':
-                    page.evaluate("RizoRuntimeQA.dungeonEnemyForQA('hall-runner',{state:'chase',x:100,y:420})")
-                    page.evaluate('RizoRuntimeQA.dungeonTeleportForQA(140,460)')
+                    assert page.evaluate("id=>RizoRuntimeQA.dungeonEnemyForQA(id,{state:'run',x:100,y:420})", enemy['id'])
+                    page.evaluate('RizoRuntimeQA.dungeonTeleportForQA(150,510)')
             page.wait_for_timeout(200)
             if name.endswith('dialogue'):
                 dialogue = page.evaluate(ST).get('dialogue')
