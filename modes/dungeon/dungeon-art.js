@@ -457,28 +457,45 @@
     drop(ctx, x, y, 14, 3.6);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (state === "look-back") ctx.rotate(-0.055);
-    legs(ctx, 0, 0, -34, 3.2, 5, P.a.denim, bob, P.ink);
+    const step = o.walking ? Math.sin(o.stride || 0) : 0;
+    // Bent knees and alternating planted heels; no sliding trouser columns.
+    for (const side of [-1, 1]) {
+      const swing = step * side, hip = side * 4.5;
+      const heel = hip + swing * 5.5, knee = hip + swing * 3;
+      const lift = Math.max(0, swing) * 3;
+      shape(ctx, [hip - 3, -30, hip + 3, -30, knee + 3, -15,
+        heel + 2.8, -3 - lift, heel - 2.8, -3 - lift, knee - 3, -15],
+        side < 0 ? P.a.denim : P.a.track, { ink: 1.1, amp: 0.12 });
+      oval(ctx, heel + 1.5, -2 - lift, 4.6, 2.3, P.ink, true, 0.8);
+    }
+    ctx.translate(0, o.walking ? -Math.abs(step) * 0.9 : 0);
     // Coat: long, camel, one pocket flap; the back half falls into the dark band.
-    shape(ctx, [-11, -76, 10, -76, 14, -30, -14, -29], P.wood[2], { ink: CH, seed: 11, amp: CA });
-    shape(ctx, [-11, -74, -3, -74, -6, -30, -14, -30], P.wood[1], { ink: false, seed: 12, amp: CA });
-    line(ctx, 2, -72, 4, -31, P.inkSoft, 0.9);
+    shape(ctx, [-7, -73, 7, -73, 14, -67, 12, -49, 16 + step, -28, 1, -27, -16 + step, -28, -12, -49, -14, -67], P.wood[2], { ink: CH, seed: 11, amp: CA });
+    shape(ctx, [-7, -73, -3, -70, -5, -48, -3, -28, -16 + step, -28, -12, -49, -14, -67], P.wood[1], { ink: false, seed: 12, amp: CA });
+    line(ctx, 2, -69, 3, -30, P.inkSoft, 0.9);
     box(ctx, 5, -50, 6, 2.4, P.wood[1], { ink: 0.8, amp: 0.2 });
-    rect(ctx, P.wood[3], -8, -76, 16, 1.6);
+    line(ctx, -7, -71, -3, -63, P.wood[3], 1.4); line(ctx, 7, -71, 3, -63, P.wood[3], 1.4);
     // Scarf and chin, the umbrella's shadow over everything above it.
-    shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
-    oval(ctx, 1, -83, 5.5, 4.5, P.skin[1], true, 1.1);
+    shape(ctx, [-6, -78, 6, -78, 8, -71, -8, -71], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
+    oval(ctx, 1, -81, 6.4, 6, P.skin[1], true, 1.1);
     ctx.globalAlpha = 0.55; oval(ctx, 1, -85, 6, 3, P.ink); ctx.globalAlpha = 1;
     // Arm up to the shaft. The free arm carries the tiny acting beats: a
     // glance back toward the car, then a hand toward the store door.
-    shape(ctx, [5, -74, 10, -72, 9, -60, 4, -61], P.wood[2], { ink: 1.2, seed: 14, amp: 0.3 });
-    oval(ctx, 7, -60, 2.2, 2, P.skin[1], true, 0.9);
-    line(ctx, 7, -60, 4, -96, P.ink, 1.3, 15, 0.1);
+    shape(ctx, [9, -69, 14, -66, 14, -58, 8, -54, 4, -59, 9, -61], P.wood[2], { ink: 1.2, seed: 14, amp: 0.3 });
+    oval(ctx, 7, -58, 2.7, 2.3, P.skin[1], true, 0.9);
+    line(ctx, 7, -58, 4, -96, P.ink, 1.3, 15, 0.1);
     if (state === "look-back") {
       shape(ctx, [-7, -72, -11, -69, -19, -61, -16, -58], P.wood[2], { ink: 1.1, seed: 141, amp: 0.25 });
       oval(ctx, -19, -60, 2.2, 2, P.skin[1], true, 0.8);
     } else if (state === "door") {
       shape(ctx, [-6, -73, -10, -70, -15, -79, -11, -81], P.wood[2], { ink: 1.1, seed: 142, amp: 0.25 });
       oval(ctx, -14, -80, 2.2, 2, P.skin[1], true, 0.8);
+    } else {
+      const swing = step * 3;
+      shape(ctx, [-10, -69, -15, -65, -17 - swing, -51,
+        -13 - swing, -43, -9 - swing, -46, -12 - swing, -53, -8, -64],
+        P.wood[1], { ink: 1.1, amp: 0.16 });
+      oval(ctx, -11 - swing, -44, 2.7, 2.4, P.skin[1], true, 0.8);
     }
     // The umbrella: eight panels, a lit top band, a bent rib (it has been through weather before).
     const canopy = [-24, -90, -18, -97, -9, -102, 4, -104, 16, -101, 26, -95, 30, -89];
@@ -616,13 +633,15 @@
       shape(ctx, [-16, -72, -8, -73, -9, -35, -16, -35], "#24472f", { ink: false, seed: 52, amp: CA });
       rect(ctx, P.a.white, 12, -72, 2, 30);
       line(ctx, 0, -74, 0, -36, P.ink, 0.9);
-      limb(ctx,[13,-69,20,-53,12,-45],P.a.track,6,P.skin[0]);
-      line(ctx,17,-67,19,-54,P.a.white,1.8);
+      if (!o.reaching) {
+        limb(ctx,[13,-69,20,-53,12,-45],P.a.track,6,P.skin[0]);
+        line(ctx,17,-67,19,-54,P.a.white,1.8);
+      }
       // The pillowcase.
       if (!grab) {
         shape(ctx, [-14, -76, -24, -70, -28, -52, -22, -44, -14, -50], P.a.white, { ink: 1.3, seed: 53, amp: 0.6 });
         rect(ctx, P.a.denim, -26, -60, 10, 2);
-        limb(ctx,[-13,-68,-20,-73,-17,-77],P.a.track,5.5,P.skin[0]);
+        if (!o.reaching) limb(ctx,[-13,-68,-20,-73,-17,-77],P.a.track,5.5,P.skin[0]);
         line(ctx,-25,-56,-20,-49,P.paper[0],1);
       } else {
         shape(ctx, [10, -66, 26, -58, 30, -40, 18, -38], P.a.white, { ink: 1.3, seed: 54, amp: 0.6 });

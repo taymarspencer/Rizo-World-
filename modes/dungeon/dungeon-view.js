@@ -253,11 +253,11 @@
       const t = reducedMotion ? 0 : time;
       const o = { face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state, expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated };
       switch (actor.kind) {
-        case "keeper": Art.keeper(ctx, actor.x, actor.y, o); break;
+        case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0 }); break;
         case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
         case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
         case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;
-        case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
+        case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, reaching: actor.kind === "hood-cap" && Boolean(lastRoom.hands), flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
         case "van-seat": case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y, crewOptions(actor, t)); break;
         case "taillights": {
           // Far off they are two red points; braking, they flare.
