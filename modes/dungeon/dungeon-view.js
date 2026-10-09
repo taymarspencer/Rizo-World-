@@ -331,7 +331,7 @@
         face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state,
         expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated,
         addressed: speakingToRizo, look: closeToRizo
-          ? { x: Math.max(-1, Math.min(1, (crewRizo.x - actor.x) / 40)),
+          ? { x: Math.max(-1, Math.min(1, (crewRizo.x - actor.x) / 40)) * (actor.face || 1),
               y: Math.max(-1, Math.min(1, (crewRizo.y - actor.y + 45) / 60)) }
           : { x: 0, y: 0 }
       };
