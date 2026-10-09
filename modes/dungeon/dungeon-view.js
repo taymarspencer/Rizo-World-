@@ -274,12 +274,17 @@
 
     const inShelter = (geo, x, y) => (geo.shelters || []).some(rect => x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h);
     // Rain: two streak lengths on a slant, rings where it lands; never under a roof.
-    function rain(geo, time, intensity, wind = 0.25) {
+    function rain(geo, time, intensity, wind = 0.25, layer = "back") {
       if (intensity <= 0 || reducedMotion) return;
-      const count = Math.round(80 * intensity);
-      ctx.strokeStyle = P.rain; ctx.lineWidth = 0.9; ctx.lineCap = "round";
+      // Storms have depth. Most rain falls between the street and the cast;
+      // only one quarter crosses faces. The total number of streaks is unchanged.
+      // Floor ripples belong behind the actors, never pasted onto clothing.
+      const count = Math.round(80 * intensity), split = Math.ceil(count * 0.75);
+      const first = layer === "front" ? split : 0, last = layer === "front" ? count : split;
+      ctx.strokeStyle = P.rain; ctx.lineWidth = layer === "front" ? 0.65 : 0.9;
+      ctx.lineCap = "round";
       ctx.beginPath();
-      for (let index = 0; index < count; index += 1) {
+      for (let index = first; index < last; index += 1) {
         const speed = 0.42 + hash(index) * 0.2, long = index % 3 === 0 ? 12 : 7;
         const x = camera.x + ((hash(index + 9) * metrics.viewW * 1.2 + time * speed * wind) % (metrics.viewW * 1.2)) - metrics.viewW * 0.1;
         const y = camera.y + ((hash(index + 3) * (metrics.viewH + 40) + time * speed) % (metrics.viewH + 40)) - 20;
@@ -287,6 +292,7 @@
         ctx.moveTo(x, y); ctx.lineTo(x - long * wind, y - long);
       }
       ctx.stroke();
+      if (layer === "front") return;
       ctx.strokeStyle = "rgba(176,196,222,.26)"; ctx.lineWidth = 0.7;
       for (let index = 0; index < Math.round(14 * intensity); index += 1) {
         const k = ((time / 600) + hash(index + 40)) % 1;
@@ -294,6 +300,16 @@
         if (inShelter(geo, x, y)) continue;
         ctx.beginPath(); ctx.ellipse(x, y, 1 + k * 4, (1 + k * 4) * 0.36, 0, 0, Math.PI * 2); ctx.stroke();
       }
+    }
+
+    // Both passes use identical weather and world positions so a storm
+    // still reads as one continuous event, not two overlapping animations.
+    function paintWeather(geo, pos, time, layer) {
+      if (geo.world && geo.theme !== "drain" && geo.theme !== "van") {
+        const worse = geo.theme === "road" ? Math.max(0, 1 - pos.y / 700) * 0.6 : 0;
+        rain(geo, time, (geo.rain || 0) + worse, 0.25 + worse * 0.4, layer);
+      } else if (geo.theme === "van") rain({ shelters: Scenery.shelterOf(geo) }, time, 0.8, 1.5, layer);
+      else if (geo.theme === "drain") rain({ shelters: [{ x: 0, y: 0, w: geo.w, h: geo.h - 12 }] }, time, 0.7, 0.6, layer);
     }
 
     // ===== ACTORS (Art cutouts; feet at x,y) =====
@@ -737,6 +753,9 @@
       const room = roomLayer(geo);
       ctx.drawImage(room.canvas, -room.mx, -room.my, room.w, room.h);
       Scenery.paintDynamic(ctx, geo, scene);
+      // Behind-camera rain builds the weather without washing out the actors'
+      // new facial art. A lighter foreground pass finishes the depth cue.
+      paintWeather(geo, pos, time, "back");
       // The Rizo's contact with the ground: a hard shadow, and outside, his light on the wet.
       const sheltered = inShelter(geo, pos.x, pos.y);
       if (geo.world && !sheltered && geo.theme !== "van") { ctx.save(); ctx.globalAlpha = 0.22; Art.rect(ctx, P.wet[3], pos.x - 2, pos.y + 9, 4, 3); Art.rect(ctx, P.wet[3], pos.x - 1.5, pos.y + 13.5, 3, 2); ctx.restore(); }
@@ -755,11 +774,7 @@
       }
       bodies.sort((a, b) => a.y - b.y);
       for (const body of bodies) body.draw();
-      if (geo.world && geo.theme !== "drain" && geo.theme !== "van") {
-        const worse = geo.theme === "road" ? Math.max(0, 1 - pos.y / 700) * 0.6 : 0;
-        rain(geo, time, (geo.rain || 0) + worse, 0.25 + worse * 0.4);
-      } else if (geo.theme === "van") rain({ shelters: Scenery.shelterOf(geo) }, time, 0.8, 1.5);
-      else if (geo.theme === "drain") rain({ shelters: [{ x: 0, y: 0, w: geo.w, h: geo.h - 12 }] }, time, 0.7, 0.6);
+      paintWeather(geo, pos, time, "front");
       // The dark, and what cuts it.
       const lit = Scenery.lights(geo, scene);
       const flame = Math.max(0, p.flame);
