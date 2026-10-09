@@ -786,7 +786,10 @@
     }
     ctx.translate(0, o.walking ? -Math.abs(step) * 0.9 : 0);
     youCoat(ctx);
-    characterHead(ctx, "you", 0, -84, { tilt: state === "look-back" ? -.12 : -.015 });
+    characterHead(ctx, "you", 0, -84, {
+      tilt: state === "look-back" ? -.12 : o.addressed ? -.06 : -.015,
+      look: o.look
+    });
     // Arm up to the shaft. The free arm carries the tiny acting beats: a
     // glance back toward the car, then a hand toward the store door.
     cut(ctx, "M12-69Q19-67 18-60L12-54L5-56L4-62L11-61Z", P.wood[2], 1.3);
@@ -1197,7 +1200,7 @@
     ctx.save();ctx.translate(hx,hy);ctx.scale(-1,1);
     // The head still turns with the existing talk/stare poses.
     ctx.rotate(turn*.13);
-    characterHead(ctx,"driver",0,0,{expr:k.quiet ? "quiet" : "neutral"});
+    characterHead(ctx,"driver",0,0,{expr:k.state === "stare" ? "scared" : k.quiet ? "quiet" : "neutral",look:k.look});
     if(k.talking) oval(ctx,3,12,1.5,.8+Math.abs(k.talk)*.5,P.wood[0]);
     ctx.restore();ctx.restore();
   }
