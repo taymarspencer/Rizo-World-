@@ -633,16 +633,50 @@
       add(vp("M-5 9L-3 14L2 16L7 14", null, 1.2, P.inkSoft));
     } else if (who.startsWith("collector")) {
       const marshal = who.endsWith("marshal"), runner = who.endsWith("runner"), gatherer = who.endsWith("gatherer");
-      add(vp(marshal ? "M-12 12L-15-5L-8-19L3-21L13-9L14 10L7 14Z" : runner ? "M-12 10L-14-7L-6-18L9-14L15-3L10 12Z" : "M-13 11L-14-7Q-11-19 0-19Q13-18 14-5L12 12Z", P.metal[0]));
-      add(vp("M-10 7L-10-6Q0-14 10-6L12 6L5 13L-4 12Z", P.suit[1], 1));
-      add(vp("M-12-8Q-3-16 6-11L12-5", null, 2.2, P.metal[2]));
-      // Real cold glass in a dark gasket, rather than a pair of glow dots.
-      add(vp("M-8-4L-1-5L0 1L-7 2Z", P.cold[1], 1.2));
-      add(vp(gatherer ? "M3-5Q11-7 11-1Q11 4 4 3Z" : "M3-5L10-4L10 2L3 1Z", P.cold[2], 1.2));
-      add(vp("M-6-2h3M5-2h3", null, 1, P.cold[3]));
-      add(vp("M0 2L5 1L9 6L4 11L-3 8Z", P.metal[2], 1));
-      add(vp("M0 5L5 6M0 8L4 9", null, .9, P.suit[0]));
-      add(vp("M-11 8L-6 5L-2 13L-8 15Z", P.metal[1], .9));
+      // One faction, four working constructions. These are protective cloth
+      // and cold glass, not interchangeable combat helmets with colour swaps.
+      if (marshal) {
+        add(vp("M-10 13L-14-7L-8-22L4-21L11-11L13 11L5 16Z", P.metal[0]));
+        add(vp("M-9-18L1-18L8-10L7-5L-10-7Z", P.metal[1], 0));
+        add(vp("M-9-6L10-7L11-1L-8 0Z", P.suit[0], 1));
+        add(vp("M-7-5L8-5L8-2L-7-2Z", P.cold[2], .6));
+        add(vp("M1-5V-2", null, 1.1, P.metal[0]));
+        add(vp("M-7 1L8 0L13 9L5 14L-6 10Z", P.metal[2], 1));
+        add(vp("M-4 5L7 4M-3 8L8 7", null, 1.3, P.suit[1]));
+        add(vp("M-12 7L-8 10L-4 19L-10 15Z", P.metal[1], 1));
+      } else if (gatherer) {
+        add(vp("M-17 4Q-20-13-8-17Q5-21 15-9L17 7L9 15L-10 13Z", P.metal[0]));
+        add(vp("M-14-9Q-5-17 7-11L12-6L-5-8Z", P.metal[1], 0));
+        add(vp("M-13-4L14-6L15 1L-13 3Z", P.suit[1], 1));
+        add(ve(-7, -.5, 4, 3.6, P.cold[1], 1));
+        add(ve(7, -1.5, 6, 5.4, P.cold[2], 1.2));
+        add(vp("M5-3L9-4L8-1", null, 1.1, P.cold[3]));
+        add(vp("M-5 5L9 3L13 8L7 14L-5 12L-10 8Z", P.metal[1], 1));
+        add(ve(-8, 7, 4.2, 4.2, P.metal[2], 1.1));
+        add(vp("M-10 6L-6 6M-10 8L-6 8", null, 1.2, P.suit[0]));
+        add(vp("M1 7L7 6L7 10L1 11Z", P.suit[1], .7));
+      } else if (runner) {
+        add(vp("M-16 5L-17-6L-10-18L4-16L15-7L18 3L12 10L0 15Z", P.metal[0]));
+        add(vp("M-14-8L-8-14L5-13L12-7L3-8Z", P.metal[1], 0));
+        add(vp("M-9-4L14-5L16 0L-3 4L-9 1Z", P.suit[0], 1));
+        add(vp("M-7-3L12-4L13-1L-3 2Z", P.cold[1], .7));
+        add(vp("M2-2L10-3", null, 1.3, P.cold[2]));
+        add(vp("M-3 5L15 1L19 7L9 15L0 11Z", P.metal[2], 1.1));
+        add(vp("M6 7L13 5M7 10L14 8", null, 1.2, P.suit[1]));
+        add(vp("M-14 2L-9 3L-7 12L-13 10Z", P.metal[1], 1));
+      } else {
+        // Flat factory hood with a vertical glass shutter and side filter.
+        // The rigid square reads like a machine operator even over a rail.
+        add(vp("M-14 9L-15-11L-10-17L10-17L15-11L14 12L-8 14Z", P.metal[0]));
+        add(vp("M-11-13L8-13L10-9L-10-9Z", P.metal[2], 0));
+        add(vp("M-10-7L9-7L10 9L-8 10Z", P.suit[0], 1));
+        add(vp("M-7-5L6-5L7 1L-6 2Z", P.cold[1], 1));
+        add(vp("M-5-3L4-3", null, 1.3, P.cold[2]));
+        add(vp("M-5 4L6 3L6 8L-4 9Z", P.metal[2], .8));
+        add(vp("M-2 5V8M2 5V8", null, 1, P.suit[1]));
+        add(ve(12, 5, 3.9, 4.6, P.metal[1], 1));
+        add(vp("M11 3L14 3M11 6L14 6", null, .9, P.suit[0]));
+      }
     }
     return parts;
   }
@@ -1653,7 +1687,8 @@
       oval(ctx, -9 + stride, -1, 5.7, 2.4, P.suit[0], true, 0.8);
       oval(ctx, 11 - stride, -1 - Math.max(0, stride) * 0.45, 5.7, 2.4, P.suit[0], true, 0.8);
     } else {
-      workLegs(ctx,-30,5.5,8,P.metal[0],bob,P.suit[1]);
+      workLegs(ctx,-30,profile === "gatherer" ? 8 : profile === "sentry" ? 7 : 5.5,
+        profile === "gatherer" ? 9 : profile === "marshal" ? 6.5 : 8,P.metal[0],bob,P.suit[1]);
     }
     if (state === "spot" || state === "grab" || state === "watch-down") {
       ctx.translate(0, -30);
@@ -1663,33 +1698,61 @@
     if (state === "slam") { ctx.translate(0, -30); ctx.rotate(-0.1); ctx.translate(0, 30); }
     // Running (the Long Hall): a forward lean and a visibly swinging jar.
     if (state === "run") { ctx.translate(0, -30); ctx.rotate(0.24 + Math.sin(t / 70) * 0.04); ctx.translate(0, 30); }
-    // A rigid glass capture vessel on a proper harness, with a padded
-    // shoulder between the weight and the person carrying it.
     const gatherer = profile === "gatherer", marshal = profile === "marshal", runner = profile === "runner";
-    const jx = gatherer ? -24 : -20, jarTop = gatherer ? -71 : -65;
-    cut(ctx,`M${jx-6}-38L${jx-6} ${jarTop+9}Q${jx-6} ${jarTop} ${jx} ${jarTop}Q${jx+6} ${jarTop} ${jx+6} ${jarTop+9}L${jx+6}-38Z`,P.cold[0],1.1,P.cold[1]);
-    line(ctx,jx-3,jarTop+10,jx-3,-45,P.cold[2],1.1);
-    cut(ctx,`M${jx-8}-41H${jx+8}V-36H${jx-8}Z`,P.metal[1],1);
-    oval(ctx,jx,jarTop-2,2,1.5,P.metal[2],true,.8);
-    // Shoulder yoke, tapered belted waist and a split service-coat skirt.
-    // The marshal's long wedge is different from the runner's short jacket;
-    // the gatherer carries a rounder back and the factory wears a rigid vest.
-    const half = gatherer ? 20 : runner ? 17 : 16;
-    cut(ctx,`M-7-64Q${-half}-66 ${-half-2}-56L${-half}-44L-12-28L12-28L${half}-45L${half+1}-57Q${half}-64 8-65Z`,P.metal[1]);
-    cut(ctx,`M${-half}-56L-8-60L-7-31L-12-29L${-half}-43Z`,P.metal[0],0);
-    cut(ctx,"M-10-61L-4-65L1-58L7-65L13-60L8-49L1-52L-6-48Z",P.metal[2],1);
+    // The vessel is part of the role's silhouette. None is a weapon or a
+    // decorative backpack: slender queue tube, full Rows retort, flat chase
+    // flask, squared factory reservoir. Lamp endpoints below stay unchanged.
+    if (gatherer) {
+      cut(ctx,"M-34-37Q-41-48-37-64Q-34-75-25-72Q-18-70-17-56L-13-37Z",P.cold[0],1.2,P.cold[1]);
+      cut(ctx,"M-33-63Q-38-49-31-42",null,1.8,P.cold[2]);
+      cut(ctx,"M-36-41L-14-42L-13-36L-34-35Z",P.metal[1],1);
+      oval(ctx,-28,-74,3,1.7,P.metal[2],true,.8);
+    } else if (runner) {
+      cut(ctx,"M-24-63L-15-66L-10-37L-20-35L-27-58Z",P.cold[0],1.1,P.cold[1]);
+      line(ctx,-22,-58,-17,-41,P.cold[2],1.3);
+      cut(ctx,"M-22-40L-11-43L-10-36L-20-33Z",P.metal[1],1);
+    } else if (marshal) {
+      cut(ctx,"M-23-36V-60Q-23-69-19-69Q-14-69-14-60V-36Z",P.cold[0],1.1,P.cold[1]);
+      line(ctx,-21,-61,-21,-43,P.cold[2],1.2);
+      cut(ctx,"M-25-41H-12V-36H-25Z",P.metal[1],1);
+    } else {
+      cut(ctx,"M-26-62L-23-67H-14L-11-62L-12-36H-26Z",P.cold[0],1.1,P.cold[1]);
+      cut(ctx,"M-25-59H-15V-44H-25Z",P.cold[1],.8);
+      line(ctx,-23,-57,-23,-47,P.cold[2],1.2);
+      cut(ctx,"M-28-41H-11V-36H-28Z",P.metal[1],1);
+    }
     if(marshal) {
-      cut(ctx,"M-12-38L13-38L18-15L6-10L1-23L-5-12L-17-16Z",P.metal[1],1.3);
-      cut(ctx,"M-12-35L-6-36L-8-16L-16-18Z",P.metal[0],0);
-    } else if(gatherer) cut(ctx,"M-15-37Q0-41 16-37L18-24Q4-19-17-25Z",P.metal[0],1);
-    else if(runner) cut(ctx,"M-14-38L13-38L14-28L5-25L-14-29Z",P.suit[2],1);
-    else cut(ctx,"M-11-53L9-54L11-39L-11-39Z",P.metal[0],1);
-    cut(ctx,"M-15-39Q0-42 15-39L14-35L-14-35Z",P.suit[1],1);
-    // One diagonal harness and the Boss's mark. No emissive trim.
-    line(ctx,-11,-60,7,-38,P.suit[0],3.2);
-    line(ctx,-11,-60,7,-38,P.metal[2],1.3);
-    mark(ctx,6,-47,8,P.cold[2]);
-    characterHead(ctx,`collector-${profile}`,1,-67,{tilt:runner ? -.1 : 0});
+      cut(ctx,"M-7-66L-17-61L-16-48L-10-36L-17-13L-7-10L0-19L7-10L18-15L10-37L15-56L9-65Z",P.metal[1]);
+      cut(ctx,"M-14-59L-8-61L-5-37L-10-15L-16-14L-10-36Z",P.metal[0],0);
+      cut(ctx,"M-9-64L0-56L9-65L13-60L6-48L0-52L-6-47L-12-59Z",P.metal[2],1);
+      cut(ctx,"M-5-49L6-49L8-32L-5-32Z",P.metal[0],1);
+      line(ctx,2,-45,3,-37,P.cold[1],1.4);
+      cut(ctx,"M-10-37L11-37L11-33L-11-32Z",P.suit[1],1);
+    } else if(gatherer) {
+      cut(ctx,"M-9-64Q-23-63-26-53L-22-41L-20-26Q-1-17 21-26L24-39L24-50Q22-61 9-64Z",P.metal[1]);
+      cut(ctx,"M-24-54L-14-58L-10-38L-13-24L-20-26L-23-42Z",P.metal[0],0);
+      cut(ctx,"M-17-58L-9-63L2-54L12-62L20-57L12-44L1-48L-10-42Z",P.metal[2],1.1);
+      cut(ctx,"M-12-44L14-46L20-27Q3-21-15-28Z",P.metal[0],1.2);
+      cut(ctx,"M-12-39L13-40L16-34L-10-32Z",P.metal[1],1);
+      line(ctx,-17,-50,-9,-29,P.suit[0],3.5);
+    } else if(runner) {
+      cut(ctx,"M-8-63L-19-55L-13-42L-11-29L1-24L13-29L14-48L18-56L7-65Z",P.metal[1]);
+      cut(ctx,"M-17-55L-10-57L-6-39L-6-27L-11-29L-13-42Z",P.metal[0],0);
+      cut(ctx,"M-10-61L-2-54L9-62L13-56L5-45L-5-46Z",P.metal[2],1);
+      cut(ctx,"M-10-34L12-34L13-29L1-24L-10-28Z",P.suit[2],1);
+      cut(ctx,"M0-49L10-53L9-38L2-37Z",P.metal[0],1);
+    } else {
+      cut(ctx,"M-9-63L-22-60L-22-45L-18-30L17-30L21-46L21-60L9-63Z",P.metal[1]);
+      cut(ctx,"M-20-57L-13-57L-10-33L-17-31L-21-45Z",P.metal[0],0);
+      cut(ctx,"M-15-58H14V-48H-15Z",P.metal[2],1);
+      cut(ctx,"M-11-48L12-48L15-31L-14-31Z",P.metal[0],1.2);
+      cut(ctx,"M-8-44H9V-39H-8Z",P.metal[1],.9);
+      cut(ctx,"M-18-35H17V-29H-18Z",P.suit[1],1);
+    }
+    line(ctx,-11,-60,7,-38,P.suit[0],3.4);
+    line(ctx,-11,-60,7,-38,P.metal[2],1.35);
+    mark(ctx,gatherer ? 7 : 5,-47,8,P.cold[2]);
+    characterHead(ctx,`collector-${profile}`,1,gatherer ? -61 : -67,{tilt:runner ? -.1 : 0});
     // The lamp on its pole, out in front. Up when he has seen something.
     const raise = state === "spot" ? -9 : state === "watch-down" ? 24 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
     if (state === "watch-down") {

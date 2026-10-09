@@ -73,12 +73,12 @@
   </g>`;
   const card = (x, y, s = 1, rot = -12) => `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})"><rect x="-16" y="-10" width="32" height="20" rx="1.5" fill="${K.suit}" stroke="${K.coldMid}" stroke-width="0.8"/><g transform="translate(-10 -10) scale(0.5)">${MARK(K.cold)}</g></g>`;
 
-  // These are the same cowl, goggles and respirator seen on the actual
-  // collectors, with a fitted service yoke and harness rather than a blob.
+  // Shared heads plus the role's actual garment construction: the marshal's
+  // formal folded lapels and the runner's cropped diagonal work jacket.
   const collectorBust = (x, y, s, profile) => `<g transform="translate(${x} ${y}) scale(${s})" stroke="${K.ink}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M-8 9Q-22 10-24 24L-20 49H22L24 23Q21 10 8 9Z" fill="#3f4b53"/>
-    <path d="M-22 23L-9 14L-8 45L-18 49Z" fill="#283036" stroke="none"/>
-    <path d="M-12 13L-5 9L1 16L8 9L15 14L9 25L1 21L-7 25Z" fill="#647480"/>
+    <path d="${profile === "marshal" ? "M-8 9L-20 16L-18 32L-13 49H16L22 27L19 13L9 9Z" : "M-8 9L-23 22L-16 39L-12 49L3 53L18 47L20 27L24 18L9 8Z"}" fill="#3f4b53"/>
+    <path d="M-18 20L-9 14L-6 42L-14 49L-18 34Z" fill="#283036" stroke="none"/>
+    <path d="${profile === "marshal" ? "M-12 11L0 22L10 10L16 16L8 33L0 27L-8 34L-16 18Z" : "M-14 15L-2 25L12 12L18 20L8 37L-5 35Z"}" fill="#647480"/>
     <path d="M-12 17L9 45" fill="none" stroke="#1b1e24" stroke-width="4"/>
     <path d="M-12 17L9 45" fill="none" stroke="#647480" stroke-width="1.2"/>
     <g transform="translate(4 24) scale(.22)">${MARK(K.coldMid)}</g>
