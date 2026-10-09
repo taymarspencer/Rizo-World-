@@ -195,6 +195,10 @@
       // A room may ask to keep one line in view when the screen is short (the
       // car keeps the store window), as long as the Rizo still fits below it.
       if (roomGeo.cameraKeep && maxY > 0 && !peek) targetY = Math.max(0, Math.min(maxY, Math.max(py - metrics.viewH + 16, Math.min(targetY, roomGeo.cameraKeep.y))));
+      // Intake's crew stands against the north wall. Their redesigned heads
+      // extend above it; frame that opening tableau below the HUD at the
+      // same scale. Once Rizo moves south, ordinary following takes over.
+      if (roomGeo.id === "intake" && py < 260 && !peek) targetY = Math.min(targetY, -90);
       if (!camera.ready) { camera.x = targetX; camera.y = targetY; camera.ready = true; return; }
       const k = reducedMotion ? 1 : Math.min(1, dt * (peek ? 3 : 7));
       camera.x += (targetX - camera.x) * k;
@@ -856,6 +860,18 @@
       if (!list.length && !barkNodes.size) return;
       const seen = new Set();
       const occupied = [rizo];
+      // Dialogue may cover a hem or the floor; it should not erase the new
+      // faces. Use the existing head-height contracts for standing/seated
+      // actors, including Latch, when choosing a bubble attachment.
+      for (const actor of actors) {
+        if (!actor.visible) continue;
+        const seated = ["van-seat", "driver-seat", "passenger-seat"].includes(actor.kind);
+        const h = seated ? Art.CREW_HEIGHT[actor.id] : Art.HEIGHT[actor.kind];
+        if (!h || actor.kind === "van" || actor.kind === "porter") continue;
+        const [hx, hy] = toScreen(actor.x, actor.y - h);
+        const w = Math.min(34, h * .7) * metrics.scale, height = Math.min(30, h * .6) * metrics.scale;
+        occupied.push({ x: hx - w / 2, y: hy, w, h: height });
+      }
       if (!el.dialogue.hidden) { const h = el.dialogue.offsetHeight; occupied.push({ x: 8, y: el.dialogue.classList.contains("at-top") ? 30 : metrics.cssH - h - 8, w: metrics.cssW - 16, h }); }
       // The goal line under the HUD is read at a glance; a bubble never sits on it.
       if (!el.objective.hidden) occupied.push({ x: el.objective.offsetLeft, y: el.objective.offsetTop, w: el.objective.offsetWidth, h: el.objective.offsetHeight + 4 });
@@ -879,7 +895,7 @@
         // Someone sitting under somebody else (the driver, under the tall one)
         // speaks from below, so the tail can only mean them.
         const below = y + height + lift * metrics.scale + 12;
-        const candidates = actor.barkBelow ? [[x, below], [x + width * 0.55, below], [x - width * 0.55, below], [x, y]] : [[x, y], [x + width * 0.55, y], [x - width * 0.55, y], [x, y - height - 12], [x, below]];
+        const candidates = actor.barkBelow ? [[x, below], [x + width * 0.55, below], [x - width * 0.55, below], [x, y], [x, below + height + 16]] : [[x, y], [x + width * 0.55, y], [x - width * 0.55, y], [x, y - height - 12], [x, below], [x, below + height + 16]];
         let best = null;
         for (const [cx, cy] of candidates) {
           const bx = Math.min(metrics.cssW - width / 2 - edge, Math.max(width / 2 + edge, cx));
@@ -1004,9 +1020,14 @@
     function setFade(value) { const next = String(Math.round(value * 100) / 100); if (el.fade.style.opacity !== next) el.fade.style.opacity = next; }
     function setPhase(phase) { el.device.dataset.phase = phase; }
     function setShell(state) { if (el.device.dataset.shell !== state) { el.device.dataset.shell = state; requestAnimationFrame(() => layout()); } }
-    function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
+    function destroy() { slotObserver?.disconnect(); lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
+    // The mode stylesheet and shell transition can change the slot after
+    // launch's first frame. Keep cutouts at the real phone size instead of
+    // retaining a short launch canvas that clips the seated crew's heads.
+    const slotObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => layout()) : null;
+    slotObserver?.observe(el.slot);
     return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 

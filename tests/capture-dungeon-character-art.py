@@ -54,7 +54,7 @@ with sync_playwright() as pw:
         for name, room, flags, beats, ms in SCENES:
             if args.only and name not in args.only.split(','):
                 continue
-            ctx = browser.new_context(viewport={'width': width, 'height': height}, has_touch=True,
+            ctx = browser.new_context(viewport={'width': width, 'height': height}, has_touch=True, is_mobile=True,
                                       service_workers='block', reduced_motion='reduce', device_scale_factor=2)
             page = ctx.new_page(); errors = []
             page.on('pageerror', lambda err: errors.append(str(err)))
@@ -65,9 +65,17 @@ with sync_playwright() as pw:
             # The dynamic mode stylesheet and initial shell layout must settle
             # before jumping rooms; otherwise evidence uses the launch size.
             page.wait_for_timeout(1200)
+            # A native viewport resize settles the baseline build's initial
+            # measurements too; both versions use the same final viewport.
+            page.set_viewport_size({'width': width+1, 'height': height})
+            page.set_viewport_size({'width': width, 'height': height})
+            page.wait_for_timeout(150)
             if room:
                 page.evaluate('([r,f,b])=>RizoRuntimeQA.dungeonGotoForQA(r,null,f,b)', [room, flags, beats])
                 page.wait_for_timeout(350)
+                page.set_viewport_size({'width': width+1, 'height': height})
+                page.set_viewport_size({'width': width, 'height': height})
+                page.wait_for_timeout(150)
             page.evaluate('ms=>RizoRuntimeQA.dungeonSceneTimeForQA(ms)', ms)
             if name == 'van-quiet':
                 # The authored post-call silence exposes all four seated
@@ -90,10 +98,15 @@ with sync_playwright() as pw:
                     page.evaluate("RizoRuntimeQA.dungeonEnemyForQA('hall-runner',{state:'chase',x:100,y:420})")
                     page.evaluate('RizoRuntimeQA.dungeonTeleportForQA(140,460)')
             page.wait_for_timeout(200)
+            if name.endswith('dialogue'):
+                dialogue = page.evaluate(ST).get('dialogue')
+                if dialogue and dialogue['shown'] < len(dialogue['text']):
+                    page.keyboard.press('z')  # the normal tap-to-reveal action
+                    page.wait_for_timeout(50)
             page.screenshot(path=str(out / f'{name}-{width}.png'), scale='css')
             state = page.evaluate(ST)
             screen = page.locator('.dungeon-screen').bounding_box()
-            okay = not errors and page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+            okay = not errors and page.evaluate('document.documentElement.scrollWidth<=innerWidth && innerWidth===%d' % width)
             results.append({'scene': name, 'viewport': [width, height], 'passed': okay, 'errors': errors,
                             'room': state['sim']['roomId'], 'actors': state['npcs'], 'dialogue': state.get('dialogue'),
                             'sceneTime': state['sceneTime'], 'depth': state['depth'], 'barks': state['barks'],

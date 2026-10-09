@@ -46,7 +46,7 @@ SETUP = """()=>{const s=RizoRuntimeQA.defaultState();
   RizoRuntimeQA.loadForQA(s);RizoRuntimeQA.saveForQA();return s.pet.id;}"""
 
 def boot(browser, seed=None, block_dungeon=False, viewport=(390, 844), wait=1200):
-    ctx = browser.new_context(service_workers="block", viewport={"width": viewport[0], "height": viewport[1]}, has_touch=True)
+    ctx = browser.new_context(service_workers="block", viewport={"width": viewport[0], "height": viewport[1]}, has_touch=True, is_mobile=True)
     if seed is not None:
         ctx.add_init_script("(()=>{if(sessionStorage.getItem('seeded'))return;sessionStorage.setItem('seeded','1');localStorage.clear();const seed=%s;for(const[k,v]of Object.entries(seed))localStorage.setItem(k,v);})()" % json.dumps(seed))
     if block_dungeon:
@@ -62,6 +62,10 @@ def launch(page):
     # A real player cannot press the shelf through a hub modal.
     assert not page.evaluate("document.getElementById('modalOverlay').classList.contains('show')"), page.evaluate("document.querySelector('#modalOverlay .modal-card')?.className")
     page.evaluate("document.querySelector('[data-mode=\"dungeon\"]').click()"); page.wait_for_timeout(700)
+    viewport = page.viewport_size
+    page.set_viewport_size({"width": viewport["width"] + 1, "height": viewport["height"]})
+    page.set_viewport_size(viewport)
+    page.wait_for_timeout(100)
     return page.evaluate(ST)
 
 def skip(page):
