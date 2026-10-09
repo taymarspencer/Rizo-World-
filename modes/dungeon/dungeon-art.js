@@ -496,50 +496,71 @@
       add(vp("M3-1L4 2L2 3", null, .9, P.skin[0]));
       add(vp("M1 6q3 1.8 6-1", null, 1.2, P.paper[1]));
     } else if (who === "nell") {
-      add(vp("M-5 6L-5 13L6 14L7 6Z", P.skin[0]));
-      add(vp("M-10-4Q-9-12 0-13Q10-13 11-3L13 1L10 3Q10 10 3 12Q-4 12-8 6Z", P.skin[1]));
-      add(vp("M-9-1Q-7 7-1 10L3 12Q-4 12-8 6Z", P.skin[0], 0));
-      add(ve(-8, 1, 2.7, 3.2, P.skin[1], 1));
-      add(vp("M-10-2Q-14-10-7-16Q2-20 10-11L12-4Q7-6 4-8Q0-4-6-4L-6 1Z", P.wood[0]));
-      // A swept wrap with an actual tied end. Broad arc against a rounded
-      // cheek: not Latch's cap/collar, and not an accessory-covered stick.
-      add(vp("M-12-8Q-13-18-2-18Q8-18 12-10Q4-14-1-11L-8-6Z", P.a.maroon));
-      add(vp("M-9-14Q0-18 8-13L3-13Q-4-14-9-11Z", P.a.maroonLight, 0));
-      add(vp("M-13-13Q-18-14-17-8Q-15-5-12-8Q-10-11-13-13Z", P.a.maroon));
-      add(vp("M-15-7Q-18-2-15 5L-11 1L-11-8Z", P.a.maroon));
-      add(vp("M-13-8q-2 6 0 9", null, .8, P.a.maroonLight));
-      add(vp("M-9-1L-5-4", null, 2.1, P.paper[3])); // chalk behind ear
       const amused = expr === "amused", tired = expr === "tired", measuring = expr === "measuring", irritated = expr === "irritated";
-      for (const [ex, ey] of [[-1, .3], [7, -.3]]) {
-        if (amused) add(vp(`M${ex-2} ${ey+1}q2-3 4 0`, null, 1.4));
-        else if (tired || (measuring && ex < 0)) add(vp(`M${ex-2} ${ey}q2 1 4 0`, null, 1.5));
-        else {
-          add(ve(ex, ey, 2.1, expr === "listening" ? 2.2 : 1.7, P.paper[3]));
-          add(ve(ex + (expr === "listening" ? -.6 : .4), ey + .2, .95, 1.1, P.ink));
-        }
+      const listening = expr === "listening";
+      // A narrow chin and strong cheek plane, framed by a heavy swept twist.
+      // The wrap holds hair out of the job; the chalk is her only small prop.
+      add(vp("M-11-10Q-20-9-19-1Q-22 4-15 8L-9 7L-7-9Z", P.wood[0]));
+      add(vp("M-16-6Q-20-2-16 3M-12-6Q-16 0-12 5", null, 1.5, P.wood[1]));
+      add(vp("M-5 7L-6 14L3 17L8 11L6 4Z", P.skin[0]));
+      add(vp(amused ? "M-10-5Q-7-14 2-13L10-9L11-2L15 1L11 4Q10 9 3 12L-3 10L-9 4Z" : "M-10-5Q-7-14 2-13L10-9L11-2L15 1L11 4L9 9L2 12L-4 9L-9 3Z", P.skin[1]));
+      add(vp("M-8-3L-4-7L-4 3L-1 8L2 12L-4 9L-9 3Z", P.skin[0], 0));
+      add(vp("M1-8L7-7L9-2L12 1L8 2L7 6L1 5Z", P.skin[2], 0));
+      add(vp("M-9-3Q-15-5-14 1Q-12 6-8 3Z", P.skin[1], 1));
+      add(vp("M-12 0Q-9-2-9 2", null, .9, P.skin[0]));
+      add(vp("M-11-5Q-16-13-7-18Q3-21 11-13L13-5L7-9Q3-5-3-8L-7-3L-7 2L-10 1Z", P.wood[0]));
+      add(vp("M-5-13Q1-17 8-12L6-10Q0-11-3-10Z", P.wood[1], 0));
+      add(vp("M-10-8L-8-10L-7-3L-9 0Z", P.paper[0], 0));
+      // The wrap is a folded crescent, with one knot behind the temple.
+      add(vp("M-15-8Q-18-18-8-21L1-20L11-15L7-12Q-1-17-9-13L-11-5Z", P.a.maroon));
+      add(vp("M-13-16Q-6-21 1-17L6-14Q-4-18-11-11Z", P.a.maroonLight, 0));
+      add(vp("M-14-12L-20-14L-21-8L-16-5L-12-8Z", P.a.maroon, 1.1));
+      add(vp("M-17-7L-20 4L-14 1L-12-8Z", P.a.maroon, 1));
+      add(vp("M-12-2L-6-5", null, 2.1, P.paper[3]));
+      // Six different eye planes, cheeks and mouths; none is a brow swap.
+      if (amused) {
+        add(vp("M-4 0Q-1-3 2 0M5-1Q8-4 11-1", null, 1.4));
+        add(vp("M-5 3L-2 4M8 3L11 2", null, 1.1, P.skin[0]));
+        add(vp("M-1 5Q5 7 10 3Q8 12 2 10Z", P.wood[0], 1));
+        add(vp("M0 5.5Q5 7 9 4.5L7 7L2 7Z", P.paper[3], 0));
+      } else if (tired) {
+        add(vp("M-4 0Q-1 2 2 0M5 0Q8 2 10 0", null, 1.3));
+        add(vp("M-4 3L1 4M6 4L10 2", null, .9, P.skin[0]));
+        add(vp("M1 8Q5 6 8 8", null, 1.2));
+      } else {
+        add(vp(measuring ? "M-4 0L2 0L0 1Z" : irritated ? "M-4-1L2 0Q0 3-3 2Z" : listening ? "M-4 0Q-1-4 2-1Q3 3-2 3Z" : "M-4 0Q-1-2 2-1Q2 3-2 2Z", P.paper[3], .8));
+        add(vp(irritated ? "M5 0L10-2L11 1Q8 3 6 2Z" : listening ? "M5-1Q8-5 11-2Q12 2 8 2Z" : "M5-1Q8-3 11-2L10 1Q7 2 5 1Z", P.paper[3], .8));
+        if (!measuring) add(ve(listening ? -1.7 : -.1, .5, 1.05, 1.25, P.ink, 0, true));
+        add(ve(listening ? 7 : 8.4, -.4, 1, 1.2, P.ink, 0, true));
+        add(vp(irritated ? "M1 8L8 6L9 7" : listening ? "M2 7Q5 5 7 7L6 9L3 9Z" : measuring ? "M0 7L5 7L7 5" : "M0 6Q4 9 8 5", listening ? P.wood[0] : null, 1.15));
       }
-      add(vp(irritated ? "M-3-3L1-1M5-1L9-4" : tired ? "M-3-3h4M5-3h4" : "M-3-3q2-1 4 0M5-4q2-1 4 0", null, 1.3));
-      add(vp("M3 0L4 3L2 4", null, .8, P.skin[0]));
-      add(vp(amused ? "M0 6Q4 11 8 5Q3 6 0 6Z" : irritated ? "M1 8L7 7" : tired ? "M2 8q2-1 4 0" : "M1 7q3 2 6-1", amused ? P.wood[0] : null, 1.1));
-      if (amused) add(vp("M1 6.5L6.5 6", null, 1.4, P.paper[3]));
-      add(vp("M-3 4l-2-.5M9 3l1-.4", null, .9, P.skin[0]));
+      add(vp(irritated ? "M-4-4L2-2M5-2L10-5" : tired ? "M-4-4L1-3M5-3L10-4" : listening ? "M-4-5Q-1-7 2-4M5-5L10-6" : "M-4-4Q-1-6 2-4M5-5L10-5", null, 1.4));
+      add(vp("M4 0L4 3L7 3", null, 1, P.skin[0]));
     } else if (who === "orr") {
-      add(vp("M-6 6L-5 12L8 12L8 5Z", P.skin[0]));
-      add(vp("M-10-4Q-10-13 1-13Q10-13 12-5L11 1L15 4L11 6Q9 13 1 14Q-8 13-10 5Z", P.skin[0]));
-      add(vp("M1-8L8-7L9 1L13 4L8 5L6 9L0 7Z", P.skin[1], 0));
-      add(ve(-9, 1, 3, 3.4, P.skin[0], 1));
-      add(vp("M-8 3L-4 5L-1 7L5 7L10 5L11 8Q7 16-1 15L-7 12Z", P.inkSoft, .9));
-      add(vp("M-3 6Q3 4 8 6", null, 1.6));
-      add(vp(expr === "irritated" ? "M-5-3L0-1M5-1L10-4" : expr === "dry" ? "M-5-5q3-3 6 0M6-2h4" : "M-5-3q3-1 6 0M5-3h5", null, 1.6));
-      for (const ex of [-2, 8]) {
-        add(ve(ex, .3, 2.1, expr === "irritated" ? 1.1 : 1.6, P.paper[2]));
-        add(ve(ex+.4, .6, .85, 1, P.ink));
-      }
-      add(vp(expr === "dry" ? "M0 10q4 1 7-2" : expr === "irritated" ? "M0 11q3-2 6-1" : "M0 9q3 2 6 0", null, 1.2, P.paper[1]));
-      add(vp("M-11-6Q-14-17-2-17Q9-18 12-9L10-6Z", P.cloth[2]));
-      add(vp("M-9-12Q-2-17 6-13", null, 1.6, P.cloth[3]));
-      add(vp("M-10-7L14-8Q17-7 13-4L1-4Z", P.cloth[1]));
-      add(vp("M-6-15L-1-15L-1-11L-6-11Z", P.paper[0], .7));
+      const dry = expr === "dry", irritated = expr === "irritated";
+      // Low horizontal face, broad bridge and a hanging horseshoe moustache.
+      // Hospitality lives in the cheek; stubbornness lives in the lower jaw.
+      add(vp("M-7 6L-8 14Q0 19 9 13L9 4Z", P.skin[0]));
+      add(vp("M-12-7Q-7-14 5-11L12-6L12 2L15 5L12 11L6 14L-3 14L-11 10Z", P.skin[0]));
+      add(vp("M0-7Q9-7 11 0L13 5L9 10L1 11L-2 5Z", P.skin[1], 0));
+      add(vp("M-11-4Q-18-6-17 1Q-16 7-11 6L-9 2Z", P.skin[0], 1));
+      add(vp("M-15-1L-12 0L-14 3", null, 1, P.wood[0]));
+      add(vp("M-12-6L-8-5L-8 5L-11 7Z", P.inkSoft, 0));
+      add(vp(irritated ? "M-6-2L0-1L-1 2L-5 2Z" : dry ? "M-6-2Q-2-5 0-2L-1 2L-5 1Z" : "M-6-2Q-3-4 0-2L-1 1L-5 1Z", P.paper[2], .75));
+      add(vp(irritated ? "M6-1L12-3L12 0L7 1Z" : "M6-2L11-3L12 0L7 1Z", P.paper[2], .75));
+      add(ve(-2.5, -.7, .85, 1.05, P.ink, 0, true), ve(9, -1, .85, 1, P.ink, 0, true));
+      add(vp(irritated ? "M-7-5L0-3M6-4L12-6" : dry ? "M-7-6Q-3-9 0-6M6-4H12" : "M-7-5Q-4-6 0-5M6-5L12-5", null, 1.6));
+      add(vp("M1-3Q4-5 6-1Q10-1 10 3Q9 6 4 6Q-1 5-1 2Z", P.skin[1], 1));
+      add(vp("M2 1Q4-1 6 1", null, 1.2, P.skin[2]));
+      add(vp("M1 5Q-5 3-7 8L-8 12L-4 10L-2 7L1 8L5 8L9 7L11 11L13 12L13 7Q10 3 6 5Z", P.inkSoft, 1));
+      add(vp("M-5 7L-6 10M10 7L11 10", null, 1.25, P.paper[0]));
+      add(vp(irritated ? "M0 11H7" : dry ? "M-1 11Q4 14 9 9L7 13L2 14Z" : "M0 10Q4 13 8 10", dry ? P.wood[0] : null, 1));
+      add(vp("M-2 15Q2 16 5 15", null, 1.4, P.inkSoft));
+      // Soft sloping cap, not another rounded helmet. A single old repair.
+      add(vp("M-15-6L-14-13Q-10-20 0-18L9-15L14-8L9-5Z", P.cloth[2]));
+      add(vp("M-12-13Q-5-18 4-15L9-10L-3-11Z", P.cloth[3], 0));
+      add(vp("M-14-8L15-8L18-5L12-3L-9-4Z", P.cloth[1], 1.1));
+      add(vp("M-9-15L-4-16L-3-12L-8-11Z", P.paper[0], .8));
     } else if (who === "hood-tall") {
       add(vp("M-12 11L-15-5Q-14-13-6-17L6-15L15-5L14 7L9 13Z", P.cloth[2]));
       add(vp("M-12 8L-12-5L-6-14L-5-6L-6 10Z", P.cloth[1], 0));
@@ -1239,32 +1260,31 @@
       ctx.moveTo(18, cy + 4 + lift); ctx.quadraticCurveTo(13, cy + 10, 9, cy + 7); ctx.stroke(); ctx.restore();
     }
 
-    // Nell's silhouette is a rounded working shoulder above a broad,
-    // off-center wrap skirt. Weight sits at the hips, not on stick legs.
-    cut(ctx,"M-7-65Q-18-66-21-56L-19-42L-22-24Q-15-19-4-23L3-20Q14-19 21-26L17-42L17-54Q15-63 7-65Z",P.service[2]);
-    cut(ctx,"M-17-58L-9-59L-9-38L-14-22L-21-24Z",P.service[1],0);
-    cut(ctx,"M-11-62L-4-66L1-60L8-65L14-61L8-51L0-54L-7-51Z",P.service[3],1.1);
-    // The apron wraps her instead of hanging as another vertical rectangle.
-    // One pale folded panel, one deep-green hip; the waist knot is functional.
-    cut(ctx,"M-8-50L10-49L17-25Q10-19 3-18L-12-23L-15-37Z",P.service[0],1.2);
-    cut(ctx,"M-8-47L3-44L1-24L-10-22L-14-34Z",P.service[1],0);
-    cut(ctx,"M4-44L13-43L17-25L8-21L5-28Z",P.paper[0],1);
-    cut(ctx,"M-16-43Q0-46 17-42L17-38Q0-41-16-39Z",P.a.maroon,1);
-    cut(ctx,"M-15-39L-19-26L-12-27L-9-39Z",P.a.maroon,1);
-    box(ctx,-10,-34,11,10,P.service[3],{ink:1,amp:.18,seed:87});
-    stitches(ctx,-9,-33,0,-33,P.paper[1],3,1,.7);
-    line(ctx,-7,-35,-7,-41,P.paper[3],1.6);
-    // A measuring tape draped over the shoulder, with a loop at the hip.
-    cut(ctx,"M-12-61Q-9-66-6-61L-2-44L3-32",null,4,P.ink);
-    cut(ctx,"M-12-61Q-9-66-6-61L-2-44L3-32",null,2.5,P.paper[1]);
-    line(ctx,-6,-54,-3,-54,P.inkSoft,.7);
-    line(ctx,-4,-46,-1,-46,P.inkSoft,.7);
-    // Tools in a side holster form one useful shape at phone scale.
-    cut(ctx,"M13-39L20-37L18-25L12-27Z",P.wood[1],.9);
-    oval(ctx,16,-37,2.5,2.8,null,true,1);
-    oval(ctx,20,-36,2.4,2.6,null,true,1);
-    line(ctx,18,-34,17,-27,P.metal[3],1.2);
-    cut(ctx,"M-17-39L-12-39L-11-30L-17-31Z",P.paper[2],.8);
+    // Cropped fitted jacket over a bias-cut work apron. Shoulder → narrow
+    // waist → weighted hip makes a complete silhouette without tool noise.
+    cut(ctx,"M-7-65Q-17-64-18-57L-16-46L-20-34L-13-30L-8-35L11-33L19-37L14-48L15-58Q13-64 7-65Z",P.service[2]);
+    cut(ctx,"M-16-57L-9-60L-8-43L-14-34L-19-35Z",P.service[1],0);
+    cut(ctx,"M-10-62L-5-65L0-58L8-64L13-60L7-48L0-53L-6-49Z",P.service[0],1.1);
+    cut(ctx,"M-8-60L-4-63L0-57L-3-53Z M8-62L11-59L6-51L3-54Z",P.service[3],0);
+    cut(ctx,"M-10-42L12-43L22-24L12-18L5-20L-4-16L-18-22L-19-29Z",P.service[0],1.2);
+    cut(ctx,"M-9-41L10-42L14-27L5-22L-4-17L-16-22L-15-32Z",P.paper[1],1.1);
+    cut(ctx,"M-14-33L-7-38L-7-24L-4-18L-16-22Z",P.paper[0],0);
+    cut(ctx,"M10-38L20-24L12-20L7-22Z",P.service[1],0);
+    cut(ctx,"M-14-45L13-45L14-40L-13-39Z",P.a.maroon,1);
+    cut(ctx,"M-14-43L-20-38L-17-33L-12-40Z M-15-39L-20-26L-13-28L-11-39Z",P.a.maroon,1);
+    // A single patched pocket and the scissor holster are used in her work.
+    cut(ctx,"M-10-32L1-34L3-25L-7-23Z",P.service[2],1);
+    line(ctx,-9,-30,1,-32,P.paper[2],1.1);
+    cut(ctx,"M11-38L19-35L16-26L10-28Z",P.wood[1],1);
+    oval(ctx,14,-36,2.4,2.6,null,true,1.1);
+    oval(ctx,18,-35,2.2,2.4,null,true,1.1);
+    line(ctx,16,-33,15,-27,P.metal[3],1.3);
+    // The broad tape gives the jacket one readable diagonal, then hangs free.
+    cut(ctx,"M-13-59Q-11-66-7-61L0-43L5-34L3-30",null,4.7,P.ink);
+    cut(ctx,"M-13-59Q-11-66-7-61L0-43L5-34L3-30",null,3.1,P.paper[2]);
+    line(ctx,-7,-55,-4,-56,P.inkSoft,.8);
+    line(ctx,-4,-48,-1,-49,P.inkSoft,.8);
+    line(ctx,0,-40,3,-41,P.inkSoft,.8);
 
     // Holding a board steady for him: out in front at her hands, where it
     // meets whatever she is holding (the table's support, the grille, the press).
@@ -1325,18 +1345,18 @@
 
     sleeve(ctx, state === "carry" ? [-7, -57, -11, -45, -9, -34] : [-7, -57, 0, -48, 10, -46], P.a.mustard, 6.4, P.skin[0]);
 
-    // A compact barrel chest and sturdy waist. His hospitality has physical
-    // weight: rounded apron, short legs, broad forearms under the two portions.
-    cut(ctx,"M-8-61Q-21-61-23-51L-21-38Q-17-24 0-23Q17-22 22-34L23-48Q19-59 8-61Z",P.a.mustard);
-    cut(ctx,"M-18-54Q-19-59-10-57L-8-38L-13-27Q-21-32-20-42Z",P.wood[2],0);
-    cut(ctx,"M-9-61L-6-54L0-51L8-56L10-62L3-58Z",P.paper[1],1);
-    // Rounded bib and split hem: Orr isn't another long narrow coat.
-    cut(ctx,"M-8-53L9-52L15-36L14-19Q8-13 0-17Q-6-12-15-19L-15-36Z",P.paper[1],1.3);
-    cut(ctx,"M-8-51L-3-49L-4-34L-10-18L-15-19L-15-36Z",P.paper[0],0);
-    cut(ctx,"M-13-32Q1-35 16-31",null,2.5,P.wood[1]);
-    cut(ctx,"M-7-28L8-28L9-20L-6-20Z",P.paper[0],.8);
-    stitches(ctx,-6,-27,7,-27,P.wood[1],3.4,1,.7);
-    line(ctx,0,-21,1,-16,P.wood[2],1);
+    // Low sloping shoulders and a pear-shaped kitchen smock. The apron is
+    // one broad, squared plane; Nell's wrap has a completely different cut.
+    cut(ctx,"M-9-59Q-19-59-21-50L-22-38Q-24-23-11-21L10-20Q23-23 24-36L21-49Q18-59 8-60Z",P.a.mustard);
+    cut(ctx,"M-18-52L-11-55L-9-36L-14-22Q-23-24-21-37Z",P.wood[2],0);
+    cut(ctx,"M-9-59L-4-60L0-54L8-59L11-55L5-49L-2-50Z",P.paper[1],1);
+    cut(ctx,"M-11-52L8-52L16-38L18-18L-17-18L-18-35Z",P.paper[2],1.3);
+    cut(ctx,"M-12-48L-7-49L-7-33L-10-19L-17-19L-18-34Z",P.paper[0],0);
+    cut(ctx,"M-7-50L6-50L9-35L-9-35Z",P.paper[1],.9);
+    cut(ctx,"M-18-34Q-3-37 17-33L17-30L-18-30Z",P.wood[1],1);
+    cut(ctx,"M-5-27L11-27L10-21L-4-21Z",P.paper[0],.9);
+    line(ctx,-3,-25,9,-25,P.paper[3],1);
+    line(ctx,4,-20,4,-18,P.wood[2],1.2);
     // The long striped kitchen towel has its own mass on his low shoulder.
     cut(ctx,"M7-62Q15-66 19-59L17-42L13-33L6-35L8-47Z",P.paper[3],1.2);
     for(const sy of [-55,-48,-41]) line(ctx,9,sy,16,sy+1,P.a.red,1.2);
@@ -1885,23 +1905,24 @@
     const tilt = expr === "listening" ? -9 : expr === "tired" ? 6 : expr === "measuring" ? 4 : expr === "amused" ? -4 : 0;
     const ruler = expr === "measuring" ? `<g transform="rotate(-20 18 48)"><path d="M2 45H34V51H2Z" fill="${P.paper[2]}" ${ink} stroke-width="1.4"/><path d="M7 45v3M13 45v2M19 45v3M25 45v2M31 45v3" stroke="${P.ink}" stroke-width="1.2"/></g>` : "";
     return svg(`${disc(P.below[1],P.service[0],P.service[1])}
-<path d="M2 64Q0 48 17 46L46 46Q61 47 63 64Z" fill="${P.service[2]}" ${ink}/>
-<path d="M6 64L10 51L20 47L19 64Z" fill="${P.service[1]}"/>
-<path d="M21 51L37 53L45 64H17Z" fill="${P.service[0]}" ${ink} stroke-width="1.6"/>
-<path d="M43 52L52 55L50 64H39Z" fill="${P.paper[0]}" ${ink} stroke-width="1.2"/>
-<path d="M10 49Q17 44 20 50L25 64" stroke="${P.ink}" stroke-width="5" fill="none"/>
-<path d="M10 49Q17 44 20 50L25 64" stroke="${P.paper[1]}" stroke-width="2.8" fill="none"/>
-<g transform="translate(34 31) rotate(${tilt}) scale(1.55)">${characterHeadSvg("nell",expr)}</g>${ruler}`);
+<path d="M2 64L5 54Q10 46 20 46L43 47Q57 46 61 64Z" fill="${P.service[2]}" ${ink}/>
+<path d="M6 64L10 52L20 47L17 64Z" fill="${P.service[1]}"/>
+<path d="M21 48L30 55L43 47L48 53L39 64L30 59L23 64L16 54Z" fill="${P.service[0]}" ${ink} stroke-width="1.5"/>
+<path d="M22 49L29 55L25 60L20 54Z M44 49L46 53L39 61L35 57Z" fill="${P.service[3]}"/>
+<path d="M9 53Q13 45 18 50L25 64" stroke="${P.ink}" stroke-width="5.4" fill="none"/>
+<path d="M9 53Q13 45 18 50L25 64" stroke="${P.paper[2]}" stroke-width="3.2" fill="none"/>
+<path d="M17 55L21 54M20 61L24 60" stroke="${P.inkSoft}" stroke-width="1"/>
+<g transform="translate(35 33) rotate(${tilt}) scale(1.38)">${characterHeadSvg("nell",expr)}</g>${ruler}`);
   }
   function orrPortrait(expr) {
     const tilt = expr === "dry" ? -8 : expr === "irritated" ? 5 : 0;
     return svg(`${disc(P.below[1],P.wood[1],P.wood[2])}
-<path d="M1 64Q0 49 18 46H45Q61 47 63 64Z" fill="${P.a.mustard}" ${ink}/>
-<path d="M19 49Q31 46 45 50L49 64H15Z" fill="${P.paper[1]}" ${ink} stroke-width="1.8"/>
-<path d="M21 59H42" stroke="${P.wood[1]}" stroke-width="2.3"/>
+<path d="M0 64L4 54Q7 49 17 48L43 48Q56 49 61 57L64 64Z" fill="${P.a.mustard}" ${ink}/>
+<path d="M17 48L27 55L40 48L45 52L34 60L23 59Z" fill="${P.paper[1]}" ${ink} stroke-width="1.3"/>
+<path d="M17 52L19 59L16 64H47L44 58L42 52L37 56L24 56Z" fill="${P.paper[2]}" ${ink} stroke-width="1.5"/>
 <path d="M46 44Q57 43 58 52L55 64H45Z" fill="${P.paper[3]}" ${ink} stroke-width="1.6"/>
 <path d="M48 52L56 53M48 58L55 59" stroke="${P.a.red}" stroke-width="1.8"/>
-<g transform="translate(31 29) rotate(${tilt}) scale(1.55)">${characterHeadSvg("orr",expr)}</g>`);
+<g transform="translate(31 29) rotate(${tilt}) scale(1.42)">${characterHeadSvg("orr",expr)}</g>`);
   }
   function youPortrait() {
     return svg(`${disc(P.night[0],P.night[1],P.night[2],34,20)}${rainLines}
