@@ -239,13 +239,20 @@
         py > 35 && py < metrics.cssH - 35;
       // Project both subjects through the proposed optical move. If either
       // would be pushed under a bezel/HUD edge, keep the wider shot.
-      const x = Math.max(50, Math.min(metrics.cssW - 50, sx * .68 + px * .32));
-      const y = Math.max(65, Math.min(metrics.cssH - 75, sy * .64 + py * .36));
-      const zoom = 1.19, project = (v, origin) => origin + (v - origin) * zoom;
+      // In a narrow room Rizo may be close to the left bezel while Nell is
+      // across the table. Frame BOTH, not the actor alone; a small downward
+      // truck preserves the head beneath the HUD without moving gameplay.
+      const x = Math.max(38, Math.min(metrics.cssW - 38, sx * .45 + px * .55));
+      const y = Math.max(52, Math.min(metrics.cssH - 62, sy * .82 + py * .18));
+      const zoom = 1.19, pushY = 12;
+      const project = (v, origin) => origin + (v - origin) * zoom;
+      const bodyTop = toScreen(actor?.x || 0, (actor?.y || 0) - height)[1];
       const safe = inside &&
-        [sx, px].every(v => project(v, x) > 38 && project(v, x) < metrics.cssW - 38) &&
-        project(sy, y) > 55 && project(sy, y) < metrics.cssH - 95 &&
-        project(py, y) > 30 && project(py, y) < metrics.cssH - 30;
+        project(px, x) > 23 && project(px, x) < metrics.cssW - 23 &&
+        project(sx, x) > 30 && project(sx, x) < metrics.cssW - 30 &&
+        project(bodyTop, y) + pushY > 37 &&
+        project(sy, y) + pushY < metrics.cssH - 95 &&
+        project(py, y) + pushY > 35 && project(py, y) + pushY < metrics.cssH - 30;
       // Never re-anchor an active conversation every frame as camera easing
       // settles; that turns a quiet shot into an unwanted tracking loop.
       const key = safe ? `${geo.id}:${id}` : "";
@@ -257,7 +264,7 @@
         return;
       }
       el.worldstage.style.transformOrigin = `${Math.round(x)}px ${Math.round(y)}px`;
-      el.worldstage.style.transform = `scale(${zoom})`;
+      el.worldstage.style.transform = `translate3d(0, ${pushY}px, 0) scale(${zoom})`;
     }
 
     // ---- the cached room layer: static scenery painted once per room and layout
