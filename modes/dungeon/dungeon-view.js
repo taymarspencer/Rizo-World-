@@ -49,9 +49,11 @@
     <div class="dungeon-bezel">
       <div class="dungeon-slot">
       <div class="dungeon-screen" aria-label="Rizo Dungeon screen">
-        <canvas class="dungeon-canvas" aria-hidden="true"></canvas>
-        <div class="dungeon-actors" aria-hidden="true"><div class="dungeon-actor"><div class="dungeon-pose"></div></div></div>
-        <canvas class="dungeon-front" aria-hidden="true"></canvas>
+        <div class="dungeon-worldstage" aria-hidden="true">
+          <canvas class="dungeon-canvas"></canvas>
+          <div class="dungeon-actors"><div class="dungeon-actor"><div class="dungeon-pose"></div></div></div>
+          <canvas class="dungeon-front"></canvas>
+        </div>
         <div class="dungeon-barks" aria-live="polite"></div>
         <div class="dungeon-thought" hidden aria-live="polite"></div>
         <div class="dungeon-hud" aria-hidden="true"><span class="dungeon-flame"></span><b class="dungeon-room-name"></b></div>
@@ -85,7 +87,7 @@
     arena.innerHTML = deviceMarkup();
     const $ = selector => arena.querySelector(selector);
     const el = {
-      device: $(".dungeon-device"), slot: $(".dungeon-slot"), screen: $(".dungeon-screen"), canvas: $(".dungeon-canvas"), actors: $(".dungeon-actors"),
+      device: $(".dungeon-device"), slot: $(".dungeon-slot"), screen: $(".dungeon-screen"), worldstage: $(".dungeon-worldstage"), canvas: $(".dungeon-canvas"), actors: $(".dungeon-actors"),
       actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), objective: $(".dungeon-objective"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
       prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), lineText: $(".dungeon-line-text"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
@@ -100,6 +102,10 @@
     let frontLive = false;
     const metrics = { cssW: 0, cssH: 0, dpr: 1, scale: 1, viewW: CAMERA_WIDTH, viewH: 200 };
     const camera = { x: 0, y: 0, ready: false };
+    // A presentation-only camera move for a named character speaking.
+    // World, canonical Rizo and foreground props share one plane. HUD, barks
+    // and reading cards remain full-sized and tappable outside that plane.
+    let storyShot = "";
     const effects = [];
     const barkNodes = new Map();
     // Only an oversized modal card scrolls. The page and game retain their
@@ -147,6 +153,9 @@
       el.front.style.height = `${cssH}px`;
       frontLive = true;
       camera.ready = false;
+      storyShot = "";
+      el.worldstage.style.transform = "";
+      el.worldstage.style.transformOrigin = "";
       el.dialogue.dataset.placed = "";
       sizeActor();
       return true;
@@ -206,6 +215,43 @@
     }
     const toScreen = (x, y) => [(x - camera.x) * metrics.scale, (y - camera.y) * metrics.scale];
 
+    // Let character conversations briefly carry the composition, instead of
+    // showing every story beat from the same distant room camera. This is a
+    // restrained optical push on the rendered world; simulation, hitboxes,
+    // buttons and text never scale. No cut if either actor would be cropped.
+    function directConversation(geo, pos, extras) {
+      const id = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
+      const actor = id && !extras.peek && !reducedMotion && !extras.comic
+        ? (extras.npcs || []).find(entry => entry.visible !== false &&
+            (entry.id === id || (id === "you" && ["keeper", "you-seat"].includes(entry.kind))))
+        : null;
+      const height = actor ? (Art.HEIGHT[actor.kind] || 0) : 0;
+      // Special scenes, the Boss's radio and unnamed narration keep the wide
+      // composition. Meaningful nearby, visible exchanges get a closer shot.
+      const dist = actor ? Math.hypot(actor.x - pos.x, actor.y - pos.y) : Infinity;
+      const [sx, sy] = actor ? toScreen(actor.x, actor.y - height * .55) : [0, 0];
+      const [px, py] = toScreen(pos.x, pos.y);
+      const inside = height > 0 && dist < 205 &&
+        sx > 42 && sx < metrics.cssW - 42 &&
+        sy > 65 && sy < metrics.cssH - 98 &&
+        px > 25 && px < metrics.cssW - 25 &&
+        py > 35 && py < metrics.cssH - 35;
+      const key = inside ? `${geo.id}:${id}:${Math.round(sx / 12)}:${Math.round(sy / 12)}` : "";
+      if (key === storyShot) return;
+      storyShot = key;
+      if (!inside) {
+        el.worldstage.style.transform = "";
+        el.worldstage.style.transformOrigin = "";
+        return;
+      }
+      // Lean toward the speaker, keeping the little flame inside the shot.
+      // Origin is set once per line/position, never chased each frame.
+      const x = Math.max(50, Math.min(metrics.cssW - 50, sx * .68 + px * .32));
+      const y = Math.max(65, Math.min(metrics.cssH - 75, sy * .64 + py * .36));
+      el.worldstage.style.transformOrigin = `${Math.round(x)}px ${Math.round(y)}px`;
+      el.worldstage.style.transform = "scale(1.14)";
+    }
+
     // ---- the cached room layer: static scenery painted once per room and layout
     const layer = { key: "", canvas: null, mx: 0, my: 0, w: 0, h: 0 };
     function roomLayer(geo) {
@@ -255,7 +301,16 @@
     const walkBob = (actor, time) => (actor.walking && !reducedMotion ? Math.sin(time / 110) * 2 : 0);
     function paintNpc(actor, time) {
       const t = reducedMotion ? 0 : time;
-      const o = { face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state, expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated };
+      const closeToRizo = Math.hypot(actor.x - crewRizo.x, actor.y - crewRizo.y) < 140;
+      const speakingToRizo = !el.dialogue.hidden && el.dialogue.dataset.speaker === actor.id;
+      const o = {
+        face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state,
+        expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated,
+        addressed: speakingToRizo, look: closeToRizo
+          ? { x: Math.max(-1, Math.min(1, (crewRizo.x - actor.x) / 40)),
+              y: Math.max(-1, Math.min(1, (crewRizo.y - actor.y + 45) / 60)) }
+          : { x: 0, y: 0 }
+      };
       switch (actor.kind) {
         case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0 }); break;
         case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
@@ -669,6 +724,7 @@
       const p = sim.player;
       crewRizo = { x: pos.x, y: pos.y };
       follow(pos.x, pos.y, geo, dt, extras.peek, p.moving ? { x: p.fx || 0, y: p.fy || 0 } : null);
+      directConversation(geo, pos, extras);
       const shake = extras.shake && !reducedMotion ? extras.shake * 2 : 0;
       const ox = shake ? (Math.sin(time / 23) * shake) : 0, oy = shake ? (Math.cos(time / 29) * shake) : 0;
       const s = metrics.scale * metrics.dpr;
@@ -1020,7 +1076,7 @@
     function setFade(value) { const next = String(Math.round(value * 100) / 100); if (el.fade.style.opacity !== next) el.fade.style.opacity = next; }
     function setPhase(phase) { el.device.dataset.phase = phase; }
     function setShell(state) { if (el.device.dataset.shell !== state) { el.device.dataset.shell = state; requestAnimationFrame(() => layout()); } }
-    function destroy() { slotObserver?.disconnect(); lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
+    function destroy() { slotObserver?.disconnect(); el.worldstage.style.transform = ""; lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
     // The mode stylesheet and shell transition can change the slot after
