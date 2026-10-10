@@ -84,6 +84,35 @@ try {
       checkDraw("collector " + profile + "/" + state, ctx => Art.collector(ctx, 120, 180, { profile, state, t: 900, face: -1 }));
     }
   }
+  // A stationary runner must literally hold the same body pose across
+  // animation frames. The pursuit animation only advances on traveled steps.
+  function collectorShapeSignature(options) {
+    const trace = [];
+    const drawing = new Proxy({}, {
+      get(_target, key) {
+        return (...args) => {
+          if (["translate", "rotate", "scale", "ellipse", "arc",
+            "lineTo", "moveTo", "quadraticCurveTo", "bezierCurveTo"].includes(key))
+            trace.push([key, ...args.map(arg =>
+              typeof arg === "number" ? Number(arg.toFixed(3)) : String(arg))]);
+        };
+      },
+      set(target, key, value) { target[key] = value; return true; }
+    });
+    Art.collector(drawing, 120, 180, options);
+    return JSON.stringify(trace);
+  }
+  assert.equal(
+    collectorShapeSignature({ id: "runner", state: "run", moving: false, t: 50 }),
+    collectorShapeSignature({ id: "runner", state: "run", moving: false, t: 5200 }),
+    "stationary runner limbs cannot loop on the global clock"
+  );
+  assert.notEqual(
+    collectorShapeSignature({ id: "runner", state: "run", moving: true, stride: 3, t: 500 }),
+    collectorShapeSignature({ id: "runner", state: "run", moving: true, stride: 8, t: 500 }),
+    "runner poses must actually respond to traveled distance"
+  );
+  checks += 2;
   // A collector must have a complete body in each readable threat state:
   // search, recognition, committed pursuit. These are poses, not new AI.
   for (const profile of ["marshal", "gatherer", "runner", "sentry"]) {
