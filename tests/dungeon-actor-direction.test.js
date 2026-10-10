@@ -13,7 +13,7 @@ try {
   globalThis.RizoDungeonScenery = {};
   delete require.cache[require.resolve("../modes/dungeon/dungeon-view.js")];
   require("../modes/dungeon/dungeon-view.js");
-  const { performanceForActor: direct, footfall, visibleActors, nextRunnerMotion } = globalThis.RizoDungeonView;
+  const { performanceForActor: direct, footfall, visibleActors, nextRunnerMotion, projectStagePoint } = globalThis.RizoDungeonView;
   const nell = { id: "nell", kind: "nell", x: 90, y: 120, face: 1, state: "work", walking: false, visible: true };
   const orr = { id: "orr", kind: "orr", x: 115, y: 112, face: -1, state: "tray", walking: false, visible: true };
   const small = { id: "hood-small", kind: "hood-small", x: 80, y: 145, face: 1, state: "search", walking: false, visible: true };
@@ -119,6 +119,29 @@ try {
   });
   check("reduced motion plants feet", () => {
     assert.equal(footfall({ walking: true, stride: 3 }, true), 0);
+  });
+  check("unzoomed story bubbles preserve regular CSS coordinates", () => {
+    const bounds = { left: 20, top: 30, width: 320 };
+    assert.deepEqual(projectStagePoint([110, 80], bounds, bounds, 320), [110, 80]);
+  });
+  check("story camera zoom keeps speaker attached at the zoom center", () => {
+    const screen = { left: 20, top: 30, width: 320 };
+    const stage = { left: -12, top: -6, width: 384 };
+    const [x, y] = projectStagePoint([160, 80], stage, screen, 320);
+    assert.equal(x, 160);
+    assert.equal(y, 60);
+  });
+  check("device-shell CSS scaling does not displace cinematic speech", () => {
+    const screen = { left: 20, top: 30, width: 160 };
+    const stage = { left: 4, top: 12, width: 192 };
+    const [x, y] = projectStagePoint([160, 80], stage, screen, 320);
+    assert.equal(x, 160);
+    assert.equal(y, 60);
+  });
+  check("a panning scene transports dialogue bubble anchors together", () => {
+    const screen = { left: 20, top: 30, width: 320 };
+    const stage = { left: 20, top: 42, width: 320 };
+    assert.deepEqual(projectStagePoint([80, 100], stage, screen, 320), [80, 112]);
   });
   check("scene exits remove hidden cast without altering visible identity", () => {
     assert.deepEqual(visibleActors([nell, { ...orr, visible: false }, small]).map(x => x.id),
