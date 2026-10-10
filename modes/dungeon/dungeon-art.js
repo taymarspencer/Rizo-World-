@@ -1261,12 +1261,18 @@
     // Face strip: skin between collar and brim; the eyes carry the expression.
     oval(ctx, 1, -31 + lift, 5.4, 4.4, P.skin[2], true, 1.1);
     const ey = -31.6 + lift;
+    // Latch keeps his distinctive narrow eye-strip design. His eyes now
+    // acknowledge a nearby companion or speaker without moving his cap,
+    // satchel, pinned coat or altering his canonical expressions.
+    ctx.save();
+    if (o.look && !o.pinned) ctx.translate((o.look.x || 0) * .95, (o.look.y || 0) * .35);
     ctx.strokeStyle = P.ink; ctx.fillStyle = P.ink; ctx.lineWidth = 1; ctx.lineCap = "round";
     if (expr === "startled") { oval(ctx, -0.8, ey, 1.4, 1.5, P.paper[3], true, 0.7); oval(ctx, 3.4, ey, 1.4, 1.5, P.paper[3], true, 0.7); oval(ctx, -0.6, ey, 0.6, 0.6, P.ink); oval(ctx, 3.6, ey, 0.6, 0.6, P.ink); }
     else if (expr === "soft") { ctx.beginPath(); ctx.arc(-0.8, ey - 0.4, 1.1, 0.2, Math.PI - 0.2); ctx.moveTo(4.5, ey - 0.4); ctx.arc(3.4, ey - 0.4, 1.1, 0.2, Math.PI - 0.2); ctx.stroke(); }
     else if (expr === "dry") { line(ctx, -2, ey, 0.4, ey, P.ink, 1); ctx.beginPath(); ctx.arc(3.4, ey + 0.6, 1.2, Math.PI + 0.3, -0.3); ctx.stroke(); }
     else if (expr === "urgent") { line(ctx, -2.2, ey - 1.4, 0.4, ey - 0.4, P.ink, 1); line(ctx, 5, ey - 1.4, 2.4, ey - 0.4, P.ink, 1); oval(ctx, -0.8, ey + 0.6, 0.7, 0.7, P.ink); oval(ctx, 3.6, ey + 0.6, 0.7, 0.7, P.ink); }
     else { line(ctx, -2, ey, 0.4, ey, P.ink, 1.1); line(ctx, 2.4, ey, 4.8, ey, P.ink, 1.1); }
+    ctx.restore();
     // The collar: two stiff paper flaps up past the chin, a brass clasp at the throat.
     shape(ctx, [-6, -26 + low, -7, -35 + low, -1, -29.5 + low, 0.5, -25 + low], P.paper[3], { ink: 1.2, seed: 71, amp: 0.25 });
     shape(ctx, [8, -26 + low, 8.6, -35.5 + low, 2.6, -29.5 + low, 1, -25 + low], P.paper[2], { ink: 1.2, seed: 72, amp: 0.25 });
