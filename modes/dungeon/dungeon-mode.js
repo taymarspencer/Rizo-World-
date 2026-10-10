@@ -3901,7 +3901,7 @@
       dungeonSummaryForQA: () => Modes.summary(MODE_ID),
       // The notes an adaptive track would play over some steps, as data (no sound).
       dungeonTrackForQA: (id, from = 0, count = 16) => {
-        const track = [DUNGEON_TRACK, VAN_TRACK, DRAIN_TRACK, HEARTH_TRACK, PORTER_TRACK, HOME_TRACK].find(item => item.id === id);
+        const track = [PROLOGUE_TRACK, DUNGEON_TRACK, VAN_TRACK, DRAIN_TRACK, HEARTH_TRACK, PORTER_TRACK, HOME_TRACK].find(item => item.id === id);
         if (!track) return null;
         const notes = [];
         for (let step = from; step < from + count; step += 1) track.beat(step, (note, duration, volume, delay, type) => notes.push({ step, note, volume, type }));
