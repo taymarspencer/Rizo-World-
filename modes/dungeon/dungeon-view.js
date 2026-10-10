@@ -322,6 +322,21 @@
     // restrained optical push on the rendered world; simulation, hitboxes,
     // buttons and text never scale. No cut if either actor would be cropped.
     function directConversation(geo, pos, extras) {
+      // A scene-directed insert takes priority over automatic conversation
+      // framing. It never changes the camera scale used by game geometry or
+      // hitboxes, only the shared rendered world plane.
+      const cut = extras.cinematic && !reducedMotion &&
+        extras.room?.storyShot && extras.sceneTime < extras.room.storyShot.until
+        ? extras.room.storyShot : null;
+      if (cut) {
+        const key = `directed:${geo.id}:${cut.until}`;
+        if (storyShot !== key) {
+          storyShot = key;
+          el.worldstage.style.transformOrigin = "50% 50%";
+          el.worldstage.style.transform = `scale(${Math.max(1, Math.min(1.13, cut.zoom))})`;
+        }
+        return;
+      }
       const id = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
       const actor = id && !extras.peek && !reducedMotion && !extras.comic &&
         !(extras.barks || []).length && el.choice.hidden && el.phone.hidden
