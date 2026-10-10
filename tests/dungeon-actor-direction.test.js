@@ -32,6 +32,19 @@ try {
     assert.equal(act.listening, true);
     assert.ok(act.look.x > 0);
   });
+  check("portrait conversations direct a nearby listener's eyes", () => {
+    const act = direct(orr, context({ speaker: "nell", player: far }));
+    assert.equal(act.cue, "listen");
+    assert.equal(act.listening, true);
+    assert.ok(act.look.x > 0 === false, "Orr faces Nell using mirrored local gaze");
+  });
+  check("portrait speaking actor gets priority over listening", () => {
+    assert.equal(direct(nell, context({ speaker: "nell" })).cue, "address");
+  });
+  check("distant on-screen portraits do not telepathically direct bystanders", () => {
+    const isolated = { ...orr, x: 390, y: 340 };
+    assert.equal(direct(isolated, context({ speaker: "nell", player: far, actors: [nell, isolated] })).cue, "job");
+  });
   check("silent worker does not stare indefinitely", () => {
     assert.equal(direct(nell, context()).cue, "job");
   });
