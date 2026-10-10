@@ -762,7 +762,9 @@
     cut(ctx,"M7-73L14-66L8-61L12-56L4-47L3-67Z",P.wood[3],1.2);
     cut(ctx,"M-1-49L0-28M6-40L14-44L13-39L6-36",null,1.2,P.wood[1]);
     cut(ctx,"M-12-43L-5-40L-6-35L-13-38Z",P.wood[1],.9);
-    for(const by of [-48,-37]) oval(ctx,-2,by,1.25,1.25,P.paper[0]);
+    // At the world camera two pearl buttons flickered as noise: one coat
+    // clasp is a stronger cue, with the maroon front still the silhouette.
+    oval(ctx,-2,-44,1.6,1.6,P.paper[0],true,.6);
     cut(ctx,"M-9-76Q0-80 10-74L8-68Q0-66-9-71Z",P.a.maroon,1.2);
     cut(ctx,"M-5-70L1-69L-1-56L-8-58Z",P.a.maroon,1);
   }
@@ -875,7 +877,9 @@
       cut(ctx,"M-17-83L-10-83L-7-61L-11-39L-16-40L-12-57Z",P.cloth[1],0);
       cut(ctx,"M-13-86L5-87L13-77L6-67L-7-60L-11-62L1-75Z",P.cloth[3],1);
       cut(ctx,"M-9-61L7-68L9-54L-5-51Z",P.cloth[1],1);
-      cut(ctx,"M-12-41L-5-40L-3-46M4-45L10-42",null,1.3,P.cloth[0]);
+      // Replace two dark hem scratches with one readable shoulder seam.
+      // Tall's enormous asymmetric coat remains the defining silhouette.
+      line(ctx,-16,-82,-15,-67,P.cloth[3],1.5,811,0);
       oval(ctx,3,-75,1.6,1.5,P.paper[0],true,.6);
       if (grab) sleeve(ctx,[9,-80,19,-69,25,-61],P.cloth[2],6.6,P.skin[1]);
       else sleeve(ctx,[11,-80,16,-65,7,-55],P.cloth[2],6.6,P.skin[1]);
