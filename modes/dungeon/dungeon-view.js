@@ -115,6 +115,20 @@
   // those presentation paths, rather than checking it inconsistently.
   const visibleActors = actors => (actors || []).filter(actor => actor && actor.visible !== false);
 
+  // Rendering tracks actual footsteps separately from pursuit AI. No global
+  // clock can animate a planted foot, and a scripted offscreen teleport is
+  // not mistaken for twenty steps of running.
+  function nextRunnerMotion(was, runner, simTime, phase = "play") {
+    const continuous = was && simTime >= was.t && runner.state === "run";
+    const traveledRaw = continuous ? Math.hypot(runner.x - was.x, runner.y - was.y) : 0;
+    const traveled = traveledRaw > 28 ? 0 : traveledRaw;
+    const lastMoved = traveled > .15 ? simTime : continuous ? was.lastMoved : -Infinity;
+    const moving = runner.state === "run" && phase === "play" &&
+      simTime - lastMoved < 110;
+    const stride = (continuous ? was.stride : 0) + traveled / 7;
+    return { x: runner.x, y: runner.y, t: simTime, lastMoved, stride, moving };
+  }
+
   // Distance-driven leg cycle, shared by authored travel and chase poses.
   // Replaying the same path at a different frame rate produces the same feet.
   const footfall = (actor, reduced = false) =>
@@ -543,14 +557,9 @@
       }
       const key = enemy.id || "runner";
       const was = runnerSteps.get(key);
-      const valid = was && sim.t >= was.t && enemy.state === "run";
-      const traveled = valid ? Math.hypot(enemy.x - was.x, enemy.y - was.y) : 0;
-      const lastMoved = traveled > .15 ? sim.t : (valid ? was.lastMoved : -Infinity);
-      const moving = enemy.state === "run" && sim.phase === "play" &&
-        sim.t - lastMoved < 110;
-      const stride = (valid ? was.stride : 0) + Math.min(traveled, 22) / 7;
-      runnerSteps.set(key, { x: enemy.x, y: enemy.y, t: sim.t, lastMoved, stride });
-      return { moving, stride };
+      const pose = nextRunnerMotion(was, enemy, sim.t, sim.phase);
+      runnerSteps.set(key, pose);
+      return pose;
     }
     function paintEnemy(enemy, sim, time) {
       const flash = sim.t < enemy.flashUntil, t = reducedMotion ? 0 : time, p = sim.player;
@@ -1336,5 +1345,5 @@
     return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, prologue, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
-  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall, visibleActors });
+  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall, visibleActors, nextRunnerMotion });
 });
