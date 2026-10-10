@@ -110,6 +110,11 @@
     };
   }
 
+  // A character who has left the shot must not draw, illuminate, catch the
+  // player's gaze or anchor a speech bubble. Keep one common rule for all of
+  // those presentation paths, rather than checking it inconsistently.
+  const visibleActors = actors => (actors || []).filter(actor => actor && actor.visible !== false);
+
   // Distance-driven leg cycle, shared by authored travel and chase poses.
   // Replaying the same path at a different frame rate produces the same feet.
   const footfall = (actor, reduced = false) =>
@@ -329,7 +334,7 @@
       const id = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
       const actor = id && !extras.peek && !reducedMotion && !extras.comic &&
         !(extras.barks || []).length && el.choice.hidden && el.phone.hidden
-        ? (extras.npcs || []).find(entry => entry.visible !== false &&
+        ? visibleActors(extras.npcs).find(entry =>
             (entry.id === id || (id === "you" && ["keeper", "you-seat"].includes(entry.kind))))
         : null;
       const height = actor ? (Art.HEIGHT[actor.kind] || 0) : 0;
@@ -439,6 +444,7 @@
     // Stopping mid-step now plants the feet instead of sliding in place.
     const walkBob = actor => footfall(actor, reducedMotion);
     function paintNpc(actor, time) {
+      if (!actor || actor.visible === false) return;
       const t = reducedMotion ? 0 : time;
       const acting = performanceForActor(actor, {
         player: crewRizo, actors: lastNpcs, barks: lastBarks,
@@ -877,7 +883,7 @@
         pos = { x: from.x + (228 - from.x) * eased, y: from.y + (248 - from.y) * eased };
       }
       speaking = new Set((extras.barks || []).map(item => item.id));
-      lastBarks = extras.barks || []; lastNpcs = extras.npcs || [];
+      lastBarks = extras.barks || []; lastNpcs = visibleActors(extras.npcs);
       if (lastCrewRoom !== geo.id) {
         crewTalk.current = null; crewTalk.previous = null;
         crewTalk.signature = ""; crewTalk.startedAt = extrasTime;
@@ -925,7 +931,7 @@
       // Actors and enemy bodies in depth order: whoever stands lower is in front.
       const bodies = [];
       // The van's sort point is its near side, so people climbing out stand in front of it.
-      for (const actor of extras.npcs || []) bodies.push({ y: actor.kind === "van" ? actor.y - 30 : actor.y, draw: () => paintNpc(actor, time) });
+      for (const actor of lastNpcs) bodies.push({ y: actor.kind === "van" ? actor.y - 30 : actor.y, draw: () => paintNpc(actor, time) });
       for (const enemy of sim.enemies) bodies.push({ y: enemy.y + (enemy.kind === "porter" ? 20 : enemy.r), draw: () => paintEnemy(enemy, sim, time) });
       for (const body of Scenery.bodies(geo, scene)) bodies.push({ y: body.y, draw: () => body.draw(ctx) });
       if (geo.theme === "van") {
@@ -945,8 +951,8 @@
       // unmotivated spotlight: it vanishes with his flame and never follows
       // distant radio calls, collectors, or active stealth gameplay.
       const speakerId = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
-      const closeSpeaker = speakerId && (extras.npcs || []).find(actor =>
-        actor.visible !== false && actor.id === speakerId &&
+      const closeSpeaker = speakerId && lastNpcs.find(actor =>
+        actor.id === speakerId &&
         ["nell", "orr", "latch"].includes(actor.kind));
       if (closeSpeaker && lightScale > 0 && flame > 0) {
         const distance = Math.hypot(closeSpeaker.x - pos.x, closeSpeaker.y - pos.y);
@@ -1001,7 +1007,7 @@
       if (!el.dialogue.hidden && !el.dialogue.dataset.placed) {
         const height = el.dialogue.offsetHeight || 72;
         const protectedBodies = [{ x: ax - size / 2, y: ay - size * 0.84, w: size, h: size, weight: 3 }];
-        const speaker = (extras.npcs || []).find(actor => actor.id === el.dialogue.dataset.speaker);
+        const speaker = lastNpcs.find(actor => actor.id === el.dialogue.dataset.speaker);
         if (speaker) {
           const [sx, sy] = toScreen(speaker.x, speaker.y);
           const h = (Art.HEIGHT[speaker.kind] || 54) * metrics.scale;
@@ -1011,7 +1017,7 @@
         el.dialogue.classList.toggle("at-top", cost(30) < cost(metrics.cssH - height - 8));
         el.dialogue.dataset.placed = "1";
       }
-      renderBarks(extras.barks || [], extras.npcs || [], { x: ax - size / 2 - 4, y: ay - size * 0.84 - 4, w: size + 8, h: size + 8 });
+      renderBarks(extras.barks || [], lastNpcs, { x: ax - size / 2 - 4, y: ay - size * 0.84 - 4, w: size + 8, h: size + 8 });
       renderThought(extras.thought, pos);
     }
     // Reachable things share a quiet pair of brackets. Fire still has its own
@@ -1305,5 +1311,5 @@
     return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, prologue, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
-  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall });
+  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall, visibleActors });
 });
