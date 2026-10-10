@@ -452,6 +452,17 @@
         addressed: acting.addressed, listening: acting.listening,
         look: acting.look
       };
+      // Reduce WORLD actors around their planted feet, not their geometric
+      // center. This makes helpful NPCs Latch-sized without squashing bones,
+      // adding limb pieces, or changing pathfinding, comic or portrait art.
+      // The carrier, van cabin and canonical Rizo stay at their own scale.
+      ctx.save();
+      const actorScale = Art.WORLD_SCALE?.[actor.kind] ?? 1;
+      if (actorScale !== 1) {
+        ctx.translate(actor.x, actor.y);
+        ctx.scale(actorScale, actorScale);
+        ctx.translate(-actor.x, -actor.y);
+      }
       switch (actor.kind) {
         case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0 }); break;
         case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
@@ -476,6 +487,7 @@
         case "collector": Art.collector(ctx, actor.x, actor.y, { id: actor.id, face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor), t }); break;
         default: break;
       }
+      ctx.restore();
     }
 
     // The van crew: who each of them is looking at, as a world point. Whoever
