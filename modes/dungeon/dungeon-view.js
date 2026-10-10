@@ -104,6 +104,11 @@
     };
   }
 
+  // Distance-driven leg cycle, shared by authored travel and chase poses.
+  // Replaying the same path at a different frame rate produces the same feet.
+  const footfall = (actor, reduced = false) =>
+    actor?.walking && !reduced ? Math.sin((actor.stride || 0) * 1.9) * 2 : 0;
+
   function deviceMarkup() {
     return `<div class="dungeon-device" data-phase="enter" data-shell="locked">
   <div class="dungeon-shell">
@@ -393,8 +398,7 @@
     let extrasTime = 0, lastRoom = {}, speaking = new Set(), lastBarks = [], lastNpcs = [], lastFlare = false, crewRizo = { x: 0, y: 0 };
     // Feet move with measured distance, not a free-running global clock.
     // Stopping mid-step now plants the feet instead of sliding in place.
-    const walkBob = actor => (actor.walking && !reducedMotion
-      ? Math.sin((actor.stride || 0) * 1.9) * 2 : 0);
+    const walkBob = actor => footfall(actor, reducedMotion);
     function paintNpc(actor, time) {
       const t = reducedMotion ? 0 : time;
       const acting = performanceForActor(actor, {
@@ -1218,5 +1222,5 @@
     return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
-  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor });
+  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall });
 });
