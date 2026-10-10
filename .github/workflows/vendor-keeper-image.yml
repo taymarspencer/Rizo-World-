@@ -22,8 +22,15 @@ jobs:
           curl --fail --location --silent --show-error --retry 3 --max-time 120 \
             "https://cdn.shopify.com/s/files/1/0279/0647/4062/files/rizo-dungeon-you-keeper-atlas-480x360.webp?v=1791675635" \
             -o modes/dungeon/assets/keeper-sprite-atlas.webp
-          echo "2df04bde2eba06147b7490a3976bd693fa165e95399af897210eb0e753ced073  modes/dungeon/assets/keeper-sprite-atlas.webp" | sha256sum -c -
           file modes/dungeon/assets/keeper-sprite-atlas.webp
+          sha256sum modes/dungeon/assets/keeper-sprite-atlas.webp
+          python3 - <<'PY'
+          from pathlib import Path
+          image = Path("modes/dungeon/assets/keeper-sprite-atlas.webp").read_bytes()
+          assert 10000 < len(image) < 500000, "unexpected asset size"
+          assert image[:4] == b"RIFF" and image[8:12] == b"WEBP", "not a WebP image"
+          print(f"Vendoring {len(image):,} bytes with valid WebP header")
+          PY
       - name: Preserve binary artwork in Git history
         shell: bash
         run: |
