@@ -490,7 +490,7 @@
         case "nell": Art.nell(ctx, actor.x, actor.y, o); break;
         case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
         // v0.5: a collector as a figure in a scene (held at the counter by Nell).
-        case "collector": Art.collector(ctx, actor.x, actor.y, { id: actor.id, face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor), t }); break;
+        case "collector": Art.collector(ctx, actor.x, actor.y, { id: actor.id, face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor), moving: Boolean(actor.walking && !reducedMotion), stride: actor.stride || 0, t }); break;
         default: break;
       }
       ctx.restore();
@@ -531,6 +531,27 @@
     }
 
     // ===== ENEMIES: bodies (lit with the room), then telegraphs (above the dark) =====
+    // Gameplay owns the chase. The camera only remembers how far a runner
+    // really traveled so the feet cannot sprint in place against a wall.
+    // This local state never touches saves, attack timing or pathfinding.
+    const runnerSteps = new Map();
+    let runnerRoom = null;
+    function runnerPose(enemy, sim) {
+      if (runnerRoom !== sim.roomId) {
+        runnerSteps.clear();
+        runnerRoom = sim.roomId;
+      }
+      const key = enemy.id || "runner";
+      const was = runnerSteps.get(key);
+      const valid = was && sim.t >= was.t && enemy.state === "run";
+      const traveled = valid ? Math.hypot(enemy.x - was.x, enemy.y - was.y) : 0;
+      const lastMoved = traveled > .15 ? sim.t : (valid ? was.lastMoved : -Infinity);
+      const moving = enemy.state === "run" && sim.phase === "play" &&
+        sim.t - lastMoved < 110;
+      const stride = (valid ? was.stride : 0) + Math.min(traveled, 22) / 7;
+      runnerSteps.set(key, { x: enemy.x, y: enemy.y, t: sim.t, lastMoved, stride });
+      return { moving, stride };
+    }
     function paintEnemy(enemy, sim, time) {
       const flash = sim.t < enemy.flashUntil, t = reducedMotion ? 0 : time, p = sim.player;
       // A hit knocks the body back a little (presentation only; the sim never moves).
@@ -573,7 +594,11 @@
       } else if (enemy.kind === "runner") {
         // On his trail: not drawn until it is through the door, or while it goes round.
         if (enemy.state === "waiting" || enemy.state === "detour") return;
-        Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state === "caught" ? "grab" : "run", bob: !reducedMotion ? Math.sin(sim.t / 70) * 2.6 : 0, t });
+        const pose = runnerPose(enemy, sim);
+        Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1,
+          state: enemy.state === "caught" ? "grab" : "run",
+          bob: pose.moving && !reducedMotion ? Math.sin(pose.stride * 1.9) * 2 : 0,
+          moving: pose.moving && !reducedMotion, stride: pose.stride, t });
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
