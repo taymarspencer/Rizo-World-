@@ -96,8 +96,24 @@
     scale: Object.freeze({ rizo: 28, latch: 38, keeper: 94, "hood-tall": 98, "hood-small": 66, "hood-cap": 84, porter: 84, draftling: 20, needle: 30, door: 40, collector: 76 }),
     minDetail: 1.5
   });
-  // How far above its feet an actor's head is (speech bubbles, prompts).
-  const HEIGHT = Object.freeze({ keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88, latch: 42, van: 84, porter: 90, nell: 86, orr: 82, collector: 80 });
+  // Gameplay is a little diorama, not a character-sheet showcase. Latch
+  // established the right read: compact, clear, and lovable. Keep full-size
+  // authored drawings for comic/portrait close-ups, but draw the world cast
+  // at the following authored scale. Sizes never affect collision or AI.
+  const WORLD_SCALE = Object.freeze({
+    keeper: .77, "hood-tall": .76, "hood-small": .82, "hood-cap": .78,
+    latch: 1, nell: .65, orr: .67, collector: .83
+  });
+  const BASE_HEIGHT = Object.freeze({
+    keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88,
+    latch: 42, van: 84, porter: 90, nell: 86, orr: 82, collector: 80
+  });
+  // Visible world height—not unscaled concept-art size—for camera, bubbles
+  // and Rizo's bounced lighting. Anchor is always the feet.
+  const HEIGHT = Object.freeze(Object.fromEntries(
+    Object.entries(BASE_HEIGHT).map(([kind, height]) =>
+      [kind, Math.round(height * (WORLD_SCALE[kind] ?? 1))])
+  ));
 
   // ===== 6. WOBBLE: seeded, never per frame =====
   function seedOf(value) {
@@ -2178,7 +2194,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
 
   return Object.freeze({
     characterHead, characterHeadSvg, cut,
-    P, RULES, HEIGHT, rng, seedOf, trace, inkStroke, shape, box, oval, line, rect, drop,
+    P, RULES, HEIGHT, WORLD_SCALE, rng, seedOf, trace, inkStroke, shape, box, oval, line, rect, drop,
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
