@@ -1750,8 +1750,10 @@
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (state === "run") {
       // Two separate, planted boots: a real stride rather than a sliding body.
-      // No animation when t=0 (reduced motion), but the silhouette still runs.
-      const stride = Math.sin(t / 96 + 0.75) * 8;
+      // A running state is not proof that the body actually moved. Track
+      // traveled distance from the renderer instead of cycling giant legs
+      // whenever a runner is blocked, caught or the story is paused.
+      const stride = o.moving ? Math.sin((o.stride || 0) * 1.9) * 4.8 : 0;
       limb(ctx, [-6, -30, -10 + stride * 0.35, -16, -11 + stride, -2], P.metal[1], 5.5);
       limb(ctx, [6, -30, 8 - stride * 0.35, -17, 9 - stride, -2 - Math.max(0, stride) * 0.45], P.metal[0], 5.5);
       oval(ctx, -9 + stride, -1, 5.7, 2.4, P.suit[0], true, 0.8);
@@ -1767,7 +1769,11 @@
     }
     if (state === "slam") { ctx.translate(0, -30); ctx.rotate(-0.1); ctx.translate(0, 30); }
     // Running (the Long Hall): a forward lean and a visibly swinging jar.
-    if (state === "run") { ctx.translate(0, -30); ctx.rotate(0.24 + Math.sin(t / 70) * 0.04); ctx.translate(0, 30); }
+    if (state === "run") {
+      ctx.translate(0, -30);
+      ctx.rotate(o.moving ? .18 + Math.sin((o.stride || 0) * 1.9) * .022 : .065);
+      ctx.translate(0, 30);
+    }
     const gatherer = profile === "gatherer", marshal = profile === "marshal", runner = profile === "runner";
     // The vessel is part of the role's silhouette. None is a weapon or a
     // decorative backpack: slender queue tube, full Rows retort, flat chase
