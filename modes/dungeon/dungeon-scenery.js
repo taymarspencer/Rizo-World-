@@ -2081,8 +2081,14 @@
         A.concrete(c, 0, 0, geo.w, geo.h, "factory", { tone: ["#1c2024", "#24292e", "#2e343a", "#3d444b"], joint: 60 });
         // The stair down from the vent landing.
         for (let y = 96; y < 150; y += 8) { box(c, 22, y, 40, 7, P.metal[1], { ink: 0.9, amp: 0.05 }); rect(c, P.metal[2], 23, y + 1, 38, 1.2); }
-        // Walkways for the staff, painted yellow, and their stencils.
-        for (const y of [112, 272, 424]) { rect(c, P.a.mustard, 64, y - 1, 220, 1.6); rect(c, P.a.mustard, 64, y + 17, 220, 1.6); stencil(c, "WALKWAY", 250, y + 12, { size: 5 }); }
+        // Keep actual yellow walkway boundaries: they teach the safe route.
+        // Only the entrance needs a label; repeating tiny stencil text across
+        // each rail competes with dark collector silhouettes on phone screens.
+        for (const y of [112, 272, 424]) {
+          rect(c, P.a.mustard, 64, y - 1, 220, 1.6);
+          rect(c, P.a.mustard, 64, y + 17, 220, 1.6);
+        }
+        stencil(c, "WALKWAY", 250, 124, { size: 5 });
         // Connecting utility line: all three machines receive from one run.
         const pipe = [[64, 243], [250, 241], [160, 391]];
         for (let k = 1; k < pipe.length; k += 1) {
