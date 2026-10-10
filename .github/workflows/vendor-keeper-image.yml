@@ -21,15 +21,15 @@ jobs:
           mkdir -p modes/dungeon/assets
           curl --fail --location --silent --show-error --retry 3 --max-time 120 \
             "https://cdn.shopify.com/s/files/1/0279/0647/4062/files/rizo-dungeon-you-keeper-atlas-480x360.webp?v=1791675635" \
-            -o modes/dungeon/assets/keeper-sprite-atlas.webp
-          file modes/dungeon/assets/keeper-sprite-atlas.webp
-          sha256sum modes/dungeon/assets/keeper-sprite-atlas.webp
+            -o modes/dungeon/assets/keeper-sprite-atlas.png
+          file modes/dungeon/assets/keeper-sprite-atlas.png
+          echo "c0d09bd5f28226f49d4cb72f2475dbfa8b997f692d50f688b229104817fda5ae  modes/dungeon/assets/keeper-sprite-atlas.png" | sha256sum -c -
           python3 - <<'PY'
           from pathlib import Path
-          image = Path("modes/dungeon/assets/keeper-sprite-atlas.webp").read_bytes()
+          image = Path("modes/dungeon/assets/keeper-sprite-atlas.png").read_bytes()
           assert 10000 < len(image) < 500000, "unexpected asset size"
-          assert image[:4] == b"RIFF" and image[8:12] == b"WEBP", "not a WebP image"
-          print(f"Vendoring {len(image):,} bytes with valid WebP header")
+          assert image[:8] == b"\\x89PNG\\r\\n\\x1a\\n", "not a PNG image"
+          print(f"Vendoring {len(image):,} bytes with valid PNG header")
           PY
       - name: Preserve binary artwork in Git history
         shell: bash
@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add modes/dungeon/assets/keeper-sprite-atlas.webp
+          git add modes/dungeon/assets/keeper-sprite-atlas.png
           if git diff --staged --quiet; then exit 0; fi
           git commit -m "Vendor original YOU sprite atlas locally for offline game runtime"
           git push origin HEAD:feat/keeper-asset-first-redesign
