@@ -1132,7 +1132,13 @@
         node.classList.toggle("is-quiet", Boolean(item.quiet));
         if (node.dataset.speaker !== (item.speaker || "")) node.dataset.speaker = item.speaker || "";
         // Seated figures (the van) are short; they say where their heads are.
-        const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
+        const worldScale = Art.WORLD_SCALE?.[actor.kind] ?? 1;
+        // Scene authors specified lifts before the world cast was made small.
+        // Convert those offsets into the same Latch-sized visual coordinate
+        // system; van-seat bubbles and offstage radios remain untouched.
+        const lift = actor.barkLift == null
+          ? (Art.HEIGHT[actor.kind] || 54) + 4
+          : actor.barkLift * worldScale;
         // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.
         let [x, y] = toScreen(actor.x + (actor.barkDx || 0), actor.y - lift);
         const width = node.offsetWidth || 120, height = node.offsetHeight || 30, edge = 8;
