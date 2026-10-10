@@ -806,11 +806,85 @@
   function keeperCanopy(ctx, x, y) {
     ctx.save(); ctx.translate(x,y); paintParts(ctx, keeperCanopyParts); ctx.restore();
   }
+  // YOU / Keeper — authored 8-frame art sheet (walk x4, idle, look back,
+  // reach, front). The old procedural figure remains a safe loading/offline
+  // fallback, NOT the normal production character. We intentionally reuse
+  // a single sprite atlas instead of re-sculpting body polygons per scene.
+  // The image is 480 × 360, organized in a 4-column × 2-row grid.
+  const KEEPER_ATLAS = Object.freeze({
+    src: "https://cdn.shopify.com/s/files/1/0279/0647/4062/files/rizo-dungeon-you-keeper-atlas-480x360.webp?v=1791675635",
+    columns: 4, rows: 2, cellW: 120, cellH: 180,
+    // At the existing world draw scale: 78 × 117 native world units.
+    width: 78, height: 117
+  });
+  let keeperImage = null, keeperImageState = "unavailable";
+  const keeperImageListeners = new Set();
+  function onKeeperImageChange(callback) {
+    if (typeof callback !== "function") return () => {};
+    keeperImageListeners.add(callback);
+    return () => keeperImageListeners.delete(callback);
+  }
+  function keeperImageUpdate(state) {
+    keeperImageState = state;
+    for (const callback of Array.from(keeperImageListeners)) {
+      try { callback(state); } catch (_) { /* listeners are optional */ }
+    }
+  }
+  function loadKeeperImage() {
+    if (keeperImage || keeperImageState === "error" || typeof Image !== "function") return;
+    keeperImageState = "loading";
+    const img = new Image();
+    // Without this, an externally hosted atlas taints the game canvas and
+    // screenshots/save thumbnails stop working. Shopify CDN serves CORS.
+    img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      if (img.naturalWidth === 480 && img.naturalHeight === 360) {
+        keeperImage = img;
+        keeperImageUpdate("ready");
+      } else keeperImageUpdate("error");
+    };
+    img.onerror = () => keeperImageUpdate("error");
+    img.src = KEEPER_ATLAS.src;
+  }
+  function keeperSpriteFrame(o = {}) {
+    // Travel-distance driven animation: stopping cannot advance the cycle.
+    if (o.walking) {
+      const cycle = (((((o.stride || 0) * 1.9) / TAU) % 1) + 1) % 1;
+      return Math.min(3, Math.floor(cycle * 4));
+    }
+    const state = String(o.state || "").toLowerCase();
+    if (state === "look-back" || state === "turn" || o.back) return 5;
+    if (state === "reach" || state === "door" || state === "grab" || o.reach) return 6;
+    if (o.addressed || o.front) return 7;
+    return 4;
+  }
+  function keeperSprite(ctx, x, y, o = {}) {
+    if (!keeperImage || keeperImageState !== "ready" || typeof ctx.drawImage !== "function") return false;
+    const frame = keeperSpriteFrame(o);
+    const { cellW, cellH, width, height, columns } = KEEPER_ATLAS;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(o.face === -1 ? -1 : 1, 1);
+    // All frames retain the original bottom-center foot anchor. Draw
+    // bitmaps in one single pass: no extra arms, knees or overlay limbs.
+    ctx.drawImage(keeperImage, (frame % columns) * cellW,
+      Math.floor(frame / columns) * cellH, cellW, cellH,
+      -width / 2, -height, width, height);
+    ctx.restore();
+    return true;
+  }
+  // The image request starts once. Browser animation remains 100% driven by
+  // the game's existing traveled stride; reduced-motion holds the idle frame.
+  loadKeeperImage();
   // Keep the established walk/interaction state contract; reuse the existing
   // sleeve rig and shared head/garment rather than another procedural anatomy.
   function keeper(ctx, x, y, o = {}) {
     const bob = o.bob || 0, t = o.t || 0, state = o.state || "idle";
     drop(ctx, x, y, 15, 3.6);
+    // The new sprites replace the in-game character; generated art is not
+    // just a separate concept sheet or unused repository attachment.
+    if (keeperSprite(ctx, x, y, o)) return;
     ctx.save(); ctx.translate(x,y); ctx.scale(o.face || 1,1);
     if(state === "look-back") ctx.rotate(-.055);
     const step = o.walking ? Math.sin((o.stride || 0)*1.9) : 0;
@@ -1810,7 +1884,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
-    keeper, keeperLegs, sleeve, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
+    keeper, keeperSprite, keeperSpriteFrame, keeperSpriteStatus: () => keeperImageState, onKeeperImageChange, KEEPER_ATLAS, keeperLegs, sleeve, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
     mark, markSvg, callingCard, collector, collectorProfile, jar, jarLight, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });
