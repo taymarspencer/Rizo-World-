@@ -155,6 +155,17 @@
     return `threshold-${id}`;
   }
 
+  // The mythology is told in small, player-paced tableaux before the FIRST
+  // journey. It doesn't explain BELOW or spoil The Boss: it gives the player
+  // something to love before the kidnappers arrive. No borrowed dialogue.
+  const PROLOGUE_BEATS = Object.freeze([
+    { visual: "dark", line: "Some creatures are born to survive the dark." },
+    { visual: "home", line: "A Rizo is born to light it." },
+    { visual: "belong", line: "Give one a home, and you'll have a companion who remembers your kindness." },
+    { visual: "taken", line: "But some people see a little flame and think only of what they could take." },
+    { visual: "warning", line: "If you're lucky enough to have a Rizo... protect your little flame." }
+  ]);
+
   // Scene steps. A scene is a short list; branching lives in the room logic.
   const S = {
     // `auto`: a line spoken TO Rizo closes itself this long after it is fully shown.
@@ -227,6 +238,7 @@
     let dirty = false, lastCommitAt = 0, unsaved = false, lastOutcome = null;
     let dialogueState = null, choiceState = null, scene = null;
     let sceneTime = 0;
+    let intro = null; // unsaved presentation. Completion is one committed beat.
     let exitState = null;
     let facingLeft = false;
     let cue = { moved: false, flare: false, tuck: false, noticed: false };
@@ -528,7 +540,7 @@
       acc = 0; lastFrame = now();
       refreshPet();
       enterSim(Content.START_ROOM, Content.ROOMS[Content.START_ROOM].entryAnchor, Core.T.FLAME_MAX);
-      onEnterRoom(Content.START_ROOM, "new");
+      beginPrologue();
       log({ restart: data.campaign.id });
     }
     function renderSaveFailedPanel(context) {
@@ -3257,6 +3269,10 @@
       // A press belongs to whatever had the input when it happened: the menu,
       // a dialogue line, a choice, or play. The press that closes a line never Flares.
       const playHadInput = ui === "play" && holds.length === 0;
+      if (ui === "prologue" && edges.primaryPressed) {
+        advancePrologue();
+        edges.primaryPressed = false;
+      }
       if (edges.systemPressed) {
         if (ui === "panel" && panelKind === "pause") playerResume();
         // MENU from the restart question is "keep my journey".
@@ -3265,7 +3281,7 @@
       }
       if (holds.length === 0 && !exitState && comic?.playing()) {
         if (edges.primaryPressed) comic.skip(); else comic.tick(Math.min(dt, 100));
-      } else if (holds.length === 0 && !exitState) {
+      } else if (holds.length === 0 && !exitState && ui !== "prologue") {
         sceneTime += Math.min(dt, 100);
         tickNpcs(Math.min(dt, 100) / 1000);
         tickScene();
@@ -3433,6 +3449,46 @@
     }
 
     // ===== ENTRY =====
+    function beginPrologue() {
+      if (host.debug || beats().includes("opening:little-flame")) {
+        onEnterRoom("car", "new");
+        return;
+      }
+      intro = { index: 0 };
+      scene = null; dialogueState = null; choiceState = null;
+      ui = "prologue"; input.clear("prologue");
+      pending = { primary: false, secondary: false };
+      view.setShell("open");
+      view.dialogue(null);
+      view.choice(null);
+      view.prologue(PROLOGUE_BEATS[0], 0, PROLOGUE_BEATS.length, pet);
+      // The real soundtrack can resume in the car. The first sound here is
+      // triggered by a user's next/skip gesture, never browser-blocked autoplay.
+      setMusic(SILENT_TRACK);
+    }
+    function advancePrologue(skip = false) {
+      if (!intro) return;
+      const next = skip ? PROLOGUE_BEATS.length : intro.index + 1;
+      if (next < PROLOGUE_BEATS.length) {
+        intro.index = next;
+        view.prologue(PROLOGUE_BEATS[next], next, PROLOGUE_BEATS.length, pet);
+        try { host.audio?.tone?.(next === 3 ? 207.65 : 392, 0.18, "triangle", 0.018); } catch (error) {}
+        return;
+      }
+      intro = null;
+      view.prologue(null);
+      ui = "play";
+      input.clear("prologue-end"); pending = { primary: false, secondary: false };
+      // The beat is idempotent; restarting cannot make the narrator repeat
+      // during a previously completed journey.
+      const outcome = commitData(nextData => addBeat(nextData, "opening:little-flame"));
+      if (outcome.status !== "committed") { renderSaveFailedPanel("moment"); return; }
+      try {
+        host.audio?.tone?.(329.63, .3, "sine", .024);
+        host.audio?.tone?.(392, .35, "sine", .018, .16);
+      } catch (error) {}
+      onEnterRoom("car", "new");
+    }
     function refreshPet() {
       pet = host.pet();
       view.setPet(pet);
@@ -3464,7 +3520,8 @@
         setContinuation(next, roomId, anchorId, cont.roomEntryFlame, opening ? "opening" : cont.resumeKind || "room-entry");
       });
       if (outcome.status === "failed" || (fromMigration && outcome.status !== "committed")) renderSaveFailedPanel("moment");
-      onEnterRoom(roomId, context);
+      if (roomId === "car" && context === "new") beginPrologue();
+      else onEnterRoom(roomId, context);
     }
     function openingResume(cont) {
       const done = beat => beats().includes(beat);
@@ -3491,6 +3548,7 @@
       input.bind();
       view.el.panel.addEventListener("click", onPanelClick);
       view.el.choice.addEventListener("click", onChoiceClick);
+      view.el.prologue.addEventListener("click", onPrologueClick);
       // Action moments cut to a comic page drawn over the screen (story spine v0.4).
       const ComicKit = root?.RizoDungeonComic;
       if (ComicKit) comic = ComicKit.create({ mount: view.el.screen, reducedMotion: reducedMotion(), petMarkup: () => (pet ? host.petMarkup(pet, { context: "dungeon", extraClass: "comic-rizo-art", label: pet.name || "Rizo" }) : ""), lines: Content.LINES, speakers: Content.SPEAKERS, onPanel: (id, index) => { const hit = COMIC_HITS[id]?.[index]; if (hit) sound(hit); } });
@@ -3512,8 +3570,8 @@
         data = { ...Core.newCampaign({ pet, id: campaignId() }), settings: { ...settings } };
         enterSim(Content.START_ROOM, Content.ROOMS[Content.START_ROOM].entryAnchor, Core.T.FLAME_MAX);
         const outcome = commit(sliceWithSettings(data));
-        onEnterRoom(Content.START_ROOM, "new");
         if (outcome.status !== "committed") renderSaveFailedPanel("moment");
+        else beginPrologue();
       } else {
         data = result.data;
         settings = { ...settings, ...data.settings };
@@ -3566,6 +3624,12 @@
       try { host.event("chapterComplete", { boundaryId: "homecoming", campaignId: data.campaign.id, tone: "protected", interruption: "none" }); } catch (error) {}
       beginExit("homecoming", "", { homecoming: true });
     }
+    function onPrologueClick(event) {
+      const button = event.target.closest("[data-prologue-action]");
+      if (!intro || !button || !view.el.prologue.contains(button)) return;
+      event.preventDefault(); event.stopPropagation();
+      advancePrologue(button.dataset.prologueAction === "skip");
+    }
     function onPanelClick(event) {
       const action = event.target.closest("[data-dungeon-action]")?.dataset.dungeonAction;
       if (!action) return;
@@ -3609,6 +3673,7 @@
       comic = null;
       view?.el.panel.removeEventListener("click", onPanelClick);
       view?.el.choice.removeEventListener("click", onChoiceClick);
+      view?.el.prologue.removeEventListener("click", onPrologueClick);
       view?.destroy();
       releasePage?.();
       releasePage = null;
