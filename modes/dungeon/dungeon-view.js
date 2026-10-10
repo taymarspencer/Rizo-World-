@@ -48,7 +48,7 @@
   // verify the priority of every response without booting the whole scene.
   const bounded = n => Math.max(-1, Math.min(1, n));
   function performanceForActor(actor, frame = {}) {
-    const { player, actors = [], barks = [], speaker = "", t = 0,
+    const { player, actors = [], barks = [], speaker = "",
       reduced = false, flare = false } = frame;
     const still = { look: { x: 0, y: 0 }, addressed: false,
       listening: false, startled: false, cue: "job" };
@@ -58,7 +58,6 @@
     const reading = speaker === actor.id ||
       (actor.kind === "keeper" && speaker === "you");
     const speakingNow = Boolean(liveSpeech || reading);
-    const warm = ["keeper", "nell", "orr", "latch"].includes(actor.kind);
     const hood = ["hood-tall", "hood-small", "hood-cap"].includes(actor.kind);
     // The observer looks at the actual current speaker, not always at Rizo.
     // This is only relevant when close and available, never during travel.
@@ -87,20 +86,10 @@
       const dest = Number.isFinite(actor.toX) && Number.isFinite(actor.toY)
         ? { x: actor.toX, y: actor.toY } : null;
       if (dest && !near(dest, 6)) { target = dest; cue = "travel"; }
-    } else {
-      // The underground residents notice a rare flame, but they are also
-      // occupied people. Gaze comes and goes in long held, deterministic
-      // beats rather than locking onto the player on every idle frame.
-      const phase = [...String(actor.id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 1900;
-      const window = warm ? 1900 : hood ? 700 : 0;
-      const notice = window > 0 && (t + phase) % 6500 < window;
-      if (notice && near(player, warm ? 108 : 72)) {
-        target = player; cue = "notice";
-      }
     }
-    // Reduced motion removes incidental glances, but preserves meaningful
-    // speech, chase and danger directions.
-    if (reduced && (cue === "notice" || cue === "travel")) {
+    // Their resting pose belongs to their job. Stop directing the eyes with
+    // artificial idle timers; we only animate attention for actual events.
+    if (reduced && cue === "travel") {
       target = null; cue = "job";
     }
     // Actual heads are not at characters' feet. When two NPCs speak, they
