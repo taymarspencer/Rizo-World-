@@ -1724,7 +1724,7 @@
     // Portrait and street share exact coat, face and umbrella vector geometry.
     // The framing is the only change; no separately redrawn "YOU".
     return svg(`${disc(P.night[0],P.night[1],P.night[2],34,20)}${rainLines}
-<g transform="translate(32 5) scale(1.05)">${partsSvg(keeperCanopyParts)}</g>
+<g transform="translate(32 14) scale(1.05)">${partsSvg(keeperCanopyParts)}</g>
 <g transform="translate(32 49) scale(1.3)">${characterBodySvg("you")}</g>
 <g transform="translate(32 29) scale(1.3)">${characterHeadSvg("you")}</g>`);
   }
