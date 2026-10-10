@@ -1,0 +1,166 @@
+{
+  "checks": [
+    {
+      "name": "invested Rizo keeps a persistent field progression mark",
+      "pass": true,
+      "detail": {
+        "towerClass": "defense-tower defense-variant-classic defense-tier-awakened defense-upgrade-2 defense-mastery-0 defense-captain-tower feel-idle-breathe defense-doctrine-power defense-range-label-low ability-ready",
+        "opacity": "0.88",
+        "glyph": "\"\u25c6\"",
+        "lit": [
+          "rgb(22, 200, 255)",
+          "rgb(22, 200, 255)",
+          "rgb(65, 56, 71)"
+        ]
+      }
+    },
+    {
+      "name": "upgrade sheet exposes a five-step evolution arc",
+      "pass": true,
+      "detail": {
+        "exists": true,
+        "label": "RIZO 01 evolution, level 3 of 5, POWER PATH",
+        "nodes": [
+          {
+            "text": "1",
+            "cls": "done   "
+          },
+          {
+            "text": "2",
+            "cls": "done   "
+          },
+          {
+            "text": "\u25c6",
+            "cls": "done current path-node "
+          },
+          {
+            "text": "4",
+            "cls": "   "
+          },
+          {
+            "text": "\u2605",
+            "cls": "   max-node"
+          }
+        ],
+        "rect": {
+          "x": 27,
+          "y": 508.609375,
+          "width": 336,
+          "height": 46.765625,
+          "top": 508.609375,
+          "right": 363,
+          "bottom": 555.375,
+          "left": 27
+        }
+      }
+    },
+    {
+      "name": "evolution arc carries doctrine identity without extra instructions",
+      "pass": true,
+      "detail": "RIZO 01 evolution, level 3 of 5, POWER PATH"
+    },
+    {
+      "name": "grouped powers expose per-copy charge reserves",
+      "pass": true,
+      "detail": {
+        "group": true,
+        "pips": 2,
+        "charged": 1,
+        "chargeVar": "60%",
+        "barWidth": "135.375px",
+        "text": "2 RIZOS \u2022 1 CHARGEDRALLY1 READY\u203a"
+      }
+    },
+    {
+      "name": "grouped power rail exposes the next staggered cooldown",
+      "pass": true,
+      "detail": {
+        "group": true,
+        "pips": 2,
+        "charged": 1,
+        "chargeVar": "60%",
+        "barWidth": "135.375px",
+        "text": "2 RIZOS \u2022 1 CHARGEDRALLY1 READY\u203a"
+      }
+    },
+    {
+      "name": "perfect clear has distinct authored treatment",
+      "pass": true,
+      "detail": {
+        "kind": "money",
+        "count": 1,
+        "priority": 6,
+        "untilReal": 4.439699999999999,
+        "hidden": false,
+        "className": "defense-moment moment-money tone-perfect dismissible",
+        "text": "\u2605WAVE 1 CLEARPERFECT CLEAR+46 GOLD \u2022 NOTHING TOUCHED THE GATE\u00d7",
+        "shellMoment": "money",
+        "stagePulse": true,
+        "ending": false,
+        "endingReason": null,
+        "reducedMotion": false
+      }
+    },
+    {
+      "name": "milestone clear has distinct authored treatment",
+      "pass": true,
+      "detail": {
+        "kind": "money",
+        "count": 2,
+        "priority": 7,
+        "untilReal": 4.672999999999999,
+        "hidden": false,
+        "className": "defense-moment moment-money tone-milestone dismissible",
+        "text": "\u2726WAVE 10 CLEARTHE GATE HELD.+82 GOLD \u2022 CHAPTER ONE CLEAR. SOMETHING ELSE HEARD THAT.\u00d7",
+        "shellMoment": "money",
+        "stagePulse": true,
+        "ending": false,
+        "endingReason": null,
+        "reducedMotion": false
+      }
+    },
+    {
+      "name": "depth surfaces emit no runtime errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "depth additions stay horizontally contained at 320\u00d7568",
+      "pass": true,
+      "detail": {
+        "innerWidth": 320,
+        "innerHeight": 568,
+        "p": {
+          "x": 12,
+          "y": 231.796875,
+          "width": 296,
+          "height": 261.265625,
+          "top": 231.796875,
+          "right": 308,
+          "bottom": 493.0625,
+          "left": 12
+        },
+        "r": {
+          "x": 27,
+          "y": 365.578125,
+          "width": 266,
+          "height": 40,
+          "top": 365.578125,
+          "right": 293,
+          "bottom": 405.578125,
+          "left": 27
+        },
+        "scrollWidth": 320
+      }
+    },
+    {
+      "name": "compact depth pass emits no runtime errors",
+      "pass": true,
+      "detail": []
+    }
+  ],
+  "notes": [],
+  "passed": 10,
+  "total": 10,
+  "all_passed": true
+}

@@ -2,6 +2,13 @@ from pathlib import Path
 import re, base64, mimetypes
 ROOT = Path(__file__).resolve().parents[1]
 
+# Every stylesheet index.html actually loads gets inlined, in document order. Keep
+# this as a named constant: it replaced a hard-coded filename list that silently
+# stopped covering each new specialist layer, and a bare inline pattern here is a
+# magnet for merge damage when several branches add a stylesheet link at once.
+STYLESHEET_LINK_RE = r'<link href="\./([A-Za-z0-9_./-]+\.css)" rel="stylesheet"'
+SCRIPT_SRC_RE = r'<script src="\./([A-Za-z0-9_./-]+\.js)"></script>'
+
 def _embed_asset_refs(text):
     cache={}
     pattern=re.compile(r"\./assets/[A-Za-z0-9_./-]+\.(?:png|webp|svg|jpg|jpeg|gif)",re.I)
@@ -16,13 +23,29 @@ def _embed_asset_refs(text):
         return cache[ref]
     return pattern.sub(replace,text)
 
+def _rebase_css_urls(text, sheet):
+    # A stylesheet in a mode folder writes url('../../../assets/x.svg'); once it
+    # is inlined into the page those refs must be relative to the page instead.
+    def replace(match):
+        quote, ref = match.group(1), match.group(2)
+        if ref.startswith(('data:', 'http:', 'https:', '#', '/')): return match.group(0)
+        target = (sheet.parent/ref).resolve()
+        try: rebased = './' + target.relative_to(ROOT.resolve()).as_posix()
+        except ValueError: return match.group(0)
+        return f'url({quote}{rebased}{quote})'
+    return re.sub(r"url\((['\"]?)([^'\")]+)\1\)", replace, text)
+
 def build_inline_app(qa=False, embed_assets=False):
     html=(ROOT/'index.html').read_text()
+    # Derive the stylesheet list from index.html instead of hard-coding it.
+    # A hard-coded list silently stopped exercising every new specialist layer
+    # (Worker I flagged exactly this blind spot); reading the real document keeps
+    # browser regression coverage honest as stylesheets are added or reordered.
     local_css = {}
-    for name in ['launch-v79-defense-alive.css','v81-art.css','arcade-v75.css','arcade-v83.css','arcade-v84-depth.css','rizo-v85-handmade.css']:
+    for name in re.findall(STYLESHEET_LINK_RE, html):
         path=ROOT/name
         if path.exists():
-            text=path.read_text()
+            text=_rebase_css_urls(path.read_text(), path)
             local_css[name]=_embed_asset_refs(text) if embed_assets else text
     if embed_assets:
         html=_embed_asset_refs(html)
@@ -32,7 +55,9 @@ def build_inline_app(qa=False, embed_assets=False):
     html=re.sub(r'<link href="\./manifest\.webmanifest" rel="manifest"\s*/?>','',html)
     storage='''<script>const __testStore={};const __testStorage={getItem:k=>Object.prototype.hasOwnProperty.call(__testStore,k)?__testStore[k]:null,setItem:(k,v)=>{__testStore[k]=String(v)},removeItem:k=>{delete __testStore[k]},clear:()=>{for(const k of Object.keys(__testStore))delete __testStore[k]},key:i=>Object.keys(__testStore)[i]||null,get length(){return Object.keys(__testStore).length}};</script>'''
     html=html.replace('</head>',storage+'</head>')
-    for name in ['rizo-config.js','install-manager.js','monetization.js','defense-core-v79.js','defense-canvas-v79.js','game-v79-defense.js']:
+    # Like stylesheets, scripts come from index.html itself so a new runtime file
+    # (core/, modes/, training/) is exercised by every browser suite automatically.
+    for name in re.findall(SCRIPT_SRC_RE, html):
         js=(ROOT/name).read_text().replace('localStorage','__testStorage')
         if embed_assets:
             js=_embed_asset_refs(js)

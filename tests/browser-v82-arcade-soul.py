@@ -34,21 +34,21 @@ with sync_playwright() as p:
         page.wait_for_timeout(360 if mode=='rhythm' else 180)
         visible=page.locator(selector).count()==1 and not page.locator('#miniGameOverlay').get_attribute('hidden')
         record(f'{mode} boots cleanly',visible)
-        page.evaluate('RizoRuntimeQA.finishMiniGame(true)'); page.wait_for_timeout(25)
+        page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})'); page.wait_for_timeout(25)
 
     # Spark Catch now has a payoff phase instead of being an endless same-tempo tap test.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("spark")');page.wait_for_timeout(60)
     spark=page.evaluate('RizoRuntimeQA.arcadeSparkCatchForQA("normal",5)')
     record('spark clean chain triggers Spark Rush',spark['frenzy'] and spark['frenzies']==1,str(spark))
     record('spark rush is visibly surfaced',page.locator('.spark-world.frenzy').count()==1)
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)');page.wait_for_timeout(25)
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})');page.wait_for_timeout(25)
 
     # Memory rule manipulation is now real gameplay, not a label-only flourish.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("memory")');page.wait_for_timeout(80)
     mem=page.evaluate('RizoRuntimeQA.arcadeMemoryRoundForQA(5)')
     record('memory round five introduces ROTATE corruption',mem['mode']=='rotate',str(mem))
     record('memory corruption transforms the shown sequence',mem['expected']!=mem['sequence'],str(mem))
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)');page.wait_for_timeout(25)
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})');page.wait_for_timeout(25)
 
     # Runaway: connected board, real Rizo, three distinct hunters, queued movement.
     page.evaluate(SETUP_STATE);page.evaluate('RizoRuntimeQA.startMiniGame("maze")');page.wait_for_timeout(120)
@@ -78,7 +78,7 @@ with sync_playwright() as p:
     animation=retro.evaluate('(n)=>getComputedStyle(n).animationName')
     transform=retro.evaluate('(n)=>getComputedStyle(n).transform')
     record('skybound retro no longer overrides flight transform',animation=='none' and transform!='none',f'animation={animation} transform={transform}')
-    page.evaluate('RizoRuntimeQA.finishMiniGame(true)')
+    page.evaluate('RizoRuntimeQA.finishMiniGame(true,null,{discard:true})')
 
     record('arcade soul regression has no page errors',not errors,'; '.join(errors[:6]))
     browser.close()

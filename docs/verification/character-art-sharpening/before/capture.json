@@ -1,0 +1,2354 @@
+[
+  {
+    "scene": "you-car",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "car",
+    "actors": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 203,
+      "y": 252,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2283.27,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 1683.27,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "you-seat",
+          "state": "idle",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 4,
+      "y": 4,
+      "width": 312,
+      "height": 372
+    }
+  },
+  {
+    "scene": "van-crew",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 74,
+      "y": 98,
+      "flame": 5,
+      "act": null,
+      "fx": -0.9079593845004517,
+      "fy": 0.41905817746174695,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 4899.836,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2299.836,
+      "facing": {
+        "x": -0.9079593845004517,
+        "y": 0.41905817746174695
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "driver",
+        "text": "I thought you said he didn't do that fire shit.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 4,
+      "y": 4,
+      "width": 312,
+      "height": 372
+    }
+  },
+  {
+    "scene": "van-quiet",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "cooler-1",
+        "kind": "cargo",
+        "state": "gone",
+        "hp": 1,
+        "aware": false,
+        "x": 176.00000000000003,
+        "y": 98
+      },
+      {
+        "id": "cooler-2",
+        "kind": "cargo",
+        "state": "gone",
+        "hp": 1,
+        "aware": false,
+        "x": 176,
+        "y": 98
+      }
+    ],
+    "player": {
+      "x": 108,
+      "y": 98,
+      "flame": 5,
+      "act": null,
+      "fx": -0.9469787003150827,
+      "fy": -0.3212963447497602,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 85149.93600000002,
+    "depth": {
+      "mood": "fear",
+      "danger": 0,
+      "home": false,
+      "hush": "wipers",
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2349.936,
+      "facing": {
+        "x": -0.9469787003150827,
+        "y": -0.3212963447497602
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 4,
+      "y": 4,
+      "width": 312,
+      "height": 372
+    }
+  },
+  {
+    "scene": "latch",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hem",
+    "actors": [
+      {
+        "id": "latch",
+        "x": 190,
+        "y": 232,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 6,
+      "lines": 2,
+      "speaker": "latch",
+      "expr": "procedural",
+      "text": "Latch is frozen. I'm Latch. Like the door bit. Different problem."
+    },
+    "enemies": [],
+    "player": {
+      "x": 180,
+      "y": 260,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2305.499999999953,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2255.5999999999535,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "latch",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "nell",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 4899.936,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2299.936,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "nell",
+        "text": "Warm room's here.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "nell-dialogue",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 6933.799999999955,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2333.7999999999533,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "orr-hatch",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "eyelet",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 70,
+        "y": 104,
+        "visible": true,
+        "state": "support",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 120,
+        "y": 96,
+        "visible": true,
+        "state": "tray",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 36,
+      "y": 230,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2449.9359999999997,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2249.9359999999997,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "support",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "meal",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 4899.801999999999,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2299.802,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "meal-dialogue",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 23,
+      "lines": 7,
+      "speaker": "nell",
+      "expr": "irritated",
+      "text": "Not on the cleared bit."
+    },
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 6916.899999999954,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2316.8999999999533,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "intake-crew",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "intake",
+    "actors": [
+      {
+        "id": "hood-small",
+        "x": 186,
+        "y": 132,
+        "visible": true,
+        "state": "phone-watch",
+        "face": -1
+      },
+      {
+        "id": "hood-cap",
+        "x": 262,
+        "y": 88,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "boss",
+        "x": 104,
+        "y": 26,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": 140,
+        "y": 96,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "intake-guard",
+        "kind": "guard",
+        "state": "watch",
+        "hp": 1,
+        "aware": false,
+        "x": 186,
+        "y": 132
+      }
+    ],
+    "player": {
+      "x": 62,
+      "y": 136,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 4066.502,
+    "depth": {
+      "mood": null,
+      "danger": 0.08,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2266.502,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "hood-small",
+          "state": "phone-watch",
+          "face": -1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "hood-small",
+        "text": "It's IT. It's the one from the van!",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "queue-collector",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "queue",
+    "actors": [],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "queue-collector",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 56,
+        "y": 224
+      }
+    ],
+    "player": {
+      "x": 21,
+      "y": 264,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2416.636,
+    "depth": {
+      "mood": null,
+      "danger": 0.1,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2316.636,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "row-collector",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hangrow",
+    "actors": [],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "row-collector",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 290,
+        "y": 280
+      }
+    ],
+    "player": {
+      "x": 255,
+      "y": 320,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2466.4700000000003,
+    "depth": {
+      "mood": null,
+      "danger": 0.11,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2366.4700000000003,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "hall-runner",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "longhall",
+    "actors": [
+      {
+        "id": "radio",
+        "x": 100,
+        "y": 420,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "runner",
+        "kind": "runner",
+        "state": "run",
+        "hp": 1,
+        "aware": true,
+        "x": 100,
+        "y": 420
+      }
+    ],
+    "player": {
+      "x": 150,
+      "y": 510,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2416.57,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.43,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2316.57,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "radio",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "factory-sentry",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "factory",
+    "actors": [
+      {
+        "id": "boss",
+        "x": 160,
+        "y": 36,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "fac-w1",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 70,
+        "y": 120
+      },
+      {
+        "id": "fac-w2",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 258,
+        "y": 280
+      },
+      {
+        "id": "fac-w3",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 70,
+        "y": 432
+      }
+    ],
+    "player": {
+      "x": 39.333333333333364,
+      "y": 160,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2421.1000000000467,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.58,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2321.1000000000467,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "boss",
+        "text": "Everyone. Lamps up.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "porter",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "porter",
+    "actors": [],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "night-porter",
+        "kind": "porter",
+        "state": "waiting",
+        "hp": 28,
+        "aware": false,
+        "x": 180,
+        "y": 78
+      }
+    ],
+    "player": {
+      "x": 180,
+      "y": 226,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2358.400000000186,
+    "depth": {
+      "mood": null,
+      "danger": 0.04,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2258.400000000186,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "you-car",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "car",
+    "actors": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 203,
+      "y": 252,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2436.3999999999996,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 1853,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "you-seat",
+          "state": "idle",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 8,
+      "y": 24,
+      "width": 374,
+      "height": 561
+    }
+  },
+  {
+    "scene": "van-crew",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 74,
+      "y": 98,
+      "flame": 5,
+      "act": null,
+      "fx": -0.9079593845004517,
+      "fy": 0.41905817746174695,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 4966.600000000139,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2366.70000000014,
+      "facing": {
+        "x": -0.9079593845004517,
+        "y": 0.41905817746174695
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "driver",
+        "text": "I thought you said he didn't do that fire shit.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 8,
+      "y": 24,
+      "width": 374,
+      "height": 561
+    }
+  },
+  {
+    "scene": "van-quiet",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "cooler-1",
+        "kind": "cargo",
+        "state": "gone",
+        "hp": 1,
+        "aware": false,
+        "x": 176.00000000000003,
+        "y": 98
+      },
+      {
+        "id": "cooler-2",
+        "kind": "cargo",
+        "state": "gone",
+        "hp": 1,
+        "aware": false,
+        "x": 176,
+        "y": 98
+      }
+    ],
+    "player": {
+      "x": 108,
+      "y": 98,
+      "flame": 5,
+      "act": null,
+      "fx": -0.9469787003150827,
+      "fy": -0.3212963447497602,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 85016.60200000001,
+    "depth": {
+      "mood": "fear",
+      "danger": 0,
+      "home": false,
+      "hush": "wipers",
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2416.6020000000003,
+      "facing": {
+        "x": -0.9469787003150827,
+        "y": -0.3212963447497602
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 8,
+      "y": 24,
+      "width": 374,
+      "height": 561
+    }
+  },
+  {
+    "scene": "latch",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hem",
+    "actors": [
+      {
+        "id": "latch",
+        "x": 190,
+        "y": 232,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 7,
+      "lines": 2,
+      "speaker": "latch",
+      "expr": "procedural",
+      "text": "Latch is frozen. I'm Latch. Like the door bit. Different problem."
+    },
+    "enemies": [],
+    "player": {
+      "x": 180,
+      "y": 260,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2483.3700000000003,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2383.3700000000003,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "latch",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "nell",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 4945.799999999954,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2412.4999999999536,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "nell",
+        "text": "Warm room's here.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "nell-dialogue",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 7166.436000000002,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2716.5359999999996,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "orr-hatch",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "eyelet",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 70,
+        "y": 104,
+        "visible": true,
+        "state": "support",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 120,
+        "y": 96,
+        "visible": true,
+        "state": "tray",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 36,
+      "y": 230,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2351.699999999814,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2151.699999999814,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "support",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "meal",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 5019.300000000096,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2419.4000000000933,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "meal-dialogue",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 23,
+      "lines": 7,
+      "speaker": "nell",
+      "expr": "irritated",
+      "text": "Not on the cleared bit."
+    },
+    "enemies": [],
+    "player": {
+      "x": 40,
+      "y": 170,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 7066.57,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2466.57,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "intake-crew",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "intake",
+    "actors": [
+      {
+        "id": "hood-small",
+        "x": 186,
+        "y": 132,
+        "visible": true,
+        "state": "phone-watch",
+        "face": -1
+      },
+      {
+        "id": "hood-cap",
+        "x": 262,
+        "y": 88,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "boss",
+        "x": 104,
+        "y": 26,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": 140,
+        "y": 96,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "intake-guard",
+        "kind": "guard",
+        "state": "watch",
+        "hp": 1,
+        "aware": false,
+        "x": 186,
+        "y": 132
+      }
+    ],
+    "player": {
+      "x": 62,
+      "y": 136,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 4137.399999999954,
+    "depth": {
+      "mood": null,
+      "danger": 0.09,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2370.6999999999534,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "hood-small",
+          "state": "phone-watch",
+          "face": -1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "hood-small",
+        "text": "It's IT. It's the one from the van!",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "queue-collector",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "queue",
+    "actors": [],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "queue-collector",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 56,
+        "y": 224
+      }
+    ],
+    "player": {
+      "x": 21,
+      "y": 264,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2352.6000000000467,
+    "depth": {
+      "mood": null,
+      "danger": 0.07,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2252.6000000000467,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "row-collector",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hangrow",
+    "actors": [],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "row-collector",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 290,
+        "y": 280
+      }
+    ],
+    "player": {
+      "x": 255,
+      "y": 320,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2466.6020000000003,
+    "depth": {
+      "mood": null,
+      "danger": 0.11,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2366.6020000000003,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "hall-runner",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "longhall",
+    "actors": [
+      {
+        "id": "radio",
+        "x": 100,
+        "y": 420,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "runner",
+        "kind": "runner",
+        "state": "run",
+        "hp": 1,
+        "aware": true,
+        "x": 100,
+        "y": 420
+      }
+    ],
+    "player": {
+      "x": 150,
+      "y": 510,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2519.499999999907,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.43,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2419.499999999907,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "radio",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "factory-sentry",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "factory",
+    "actors": [
+      {
+        "id": "boss",
+        "x": 160,
+        "y": 36,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "fac-w1",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 70,
+        "y": 120
+      },
+      {
+        "id": "fac-w2",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 258,
+        "y": 280
+      },
+      {
+        "id": "fac-w3",
+        "kind": "collector",
+        "state": "patrol",
+        "hp": 1,
+        "aware": true,
+        "x": 70,
+        "y": 432
+      }
+    ],
+    "player": {
+      "x": 39.6666666666667,
+      "y": 160,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2583.2019999999998,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.6,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2483.2019999999998,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "boss",
+        "text": "Everyone. Lamps up.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "porter",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "porter",
+    "actors": [],
+    "dialogue": null,
+    "enemies": [
+      {
+        "id": "night-porter",
+        "kind": "porter",
+        "state": "waiting",
+        "hp": 28,
+        "aware": false,
+        "x": 180,
+        "y": 78
+      }
+    ],
+    "player": {
+      "x": 180,
+      "y": 226,
+      "flame": 5,
+      "act": null,
+      "fx": 0,
+      "fy": -1,
+      "attacks": 0,
+      "tuckReadyAt": 0,
+      "leashed": false
+    },
+    "sceneTime": 2400.002,
+    "depth": {
+      "mood": null,
+      "danger": 0.04,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2300.002,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  }
+]

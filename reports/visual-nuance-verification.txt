@@ -1,0 +1,15 @@
+Rizo Defense — Visual Nuance Follow-up
+Build: v87-first-ten-visual-nuance
+
+PASS 31/31 Defense core
+PASS 4/4 service-worker policy
+PASS 80/80 static Defense audit
+PASS 41/41 first-ten playthrough checks
+PASS 77/77 browser Defense integration
+PASS 76/76 Defense surfaces
+PASS 17/17 strategy/feel
+PASS 11/11 canvas/flow
+PASS 5/5 launch recovery
+PASS mobile-size inline runtime exercised at 390x844 with canvas renderer and no page errors
+
+Gameplay/balance unchanged. Visual changes are presentation-only except ephemeral hit-direction metadata.

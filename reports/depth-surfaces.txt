@@ -1,0 +1,78 @@
+PASS tower surface contained 320x568 {'left': 12, 'right': 308, 'top': 231.796875, 'bottom': 493.0625, 'w': 296, 'h': 261.265625}
+PASS tower type floor 320x568 []
+PASS tower usable controls 320x568 []
+PASS field-menu surface contained 320x568 {'left': 12, 'right': 308, 'top': 231.796875, 'bottom': 493.0625, 'w': 296, 'h': 261.265625}
+PASS field-menu type floor 320x568 []
+PASS field-menu usable controls 320x568 []
+PASS powers surface contained 320x568 {'left': 12, 'right': 308, 'top': 345.15625, 'bottom': 493.0625, 'w': 296, 'h': 147.90625}
+PASS powers type floor 320x568 []
+PASS powers usable controls 320x568 []
+PASS intel surface contained 320x568 {'left': 12, 'right': 308, 'top': 298.84375, 'bottom': 493.0625, 'w': 296, 'h': 194.21875}
+PASS intel type floor 320x568 []
+PASS intel usable controls 320x568 []
+PASS field-guide modal contained 320x568 {'left': 14, 'right': 306, 'top': 16, 'bottom': 552, 'w': 292, 'h': 536}
+PASS field-guide modal type floor 320x568 []
+PASS records modal contained 320x568 {'left': 14, 'right': 306, 'top': 16, 'bottom': 552, 'w': 292, 'h': 536}
+PASS records modal type floor 320x568 []
+PASS lobby modal contained 320x568 {'left': 14, 'right': 306, 'top': 14, 'bottom': 566, 'w': 292, 'h': 552}
+PASS lobby modal type floor 320x568 []
+PASS no runtime errors surface suite 320x568 
+PASS tower surface contained 390x844 {'left': 12, 'right': 378, 'top': 374.828125, 'bottom': 763.0625, 'w': 366, 'h': 388.234375}
+PASS tower type floor 390x844 []
+PASS tower usable controls 390x844 []
+PASS field-menu surface contained 390x844 {'left': 12, 'right': 378, 'top': 456.984375, 'bottom': 763.0625, 'w': 366, 'h': 306.078125}
+PASS field-menu type floor 390x844 []
+PASS field-menu usable controls 390x844 []
+PASS powers surface contained 390x844 {'left': 12, 'right': 378, 'top': 615.15625, 'bottom': 763.0625, 'w': 366, 'h': 147.90625}
+PASS powers type floor 390x844 []
+PASS powers usable controls 390x844 []
+PASS intel surface contained 390x844 {'left': 12, 'right': 378, 'top': 568.84375, 'bottom': 763.0625, 'w': 366, 'h': 194.21875}
+PASS intel type floor 390x844 []
+PASS intel usable controls 390x844 []
+PASS field-guide modal contained 390x844 {'left': 14, 'right': 376, 'top': 16, 'bottom': 828, 'w': 362, 'h': 812}
+PASS field-guide modal type floor 390x844 []
+PASS records modal contained 390x844 {'left': 14, 'right': 376, 'top': 16, 'bottom': 828, 'w': 362, 'h': 812}
+PASS records modal type floor 390x844 []
+PASS lobby modal contained 390x844 {'left': 14, 'right': 376, 'top': 159.703125, 'bottom': 684.296875, 'w': 362, 'h': 524.59375}
+PASS lobby modal type floor 390x844 []
+PASS no runtime errors surface suite 390x844 
+PASS tower surface contained 844x390 {'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}
+PASS tower type floor 844x390 []
+PASS tower usable controls 844x390 []
+PASS field-menu surface contained 844x390 {'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}
+PASS field-menu type floor 844x390 []
+PASS field-menu usable controls 844x390 []
+PASS powers surface contained 844x390 {'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}
+PASS powers type floor 844x390 []
+PASS powers usable controls 844x390 []
+PASS intel surface contained 844x390 {'left': 619.40625, 'right': 830.40625, 'top': 5.59375, 'bottom': 342.015625, 'w': 211, 'h': 336.421875}
+PASS intel type floor 844x390 []
+PASS intel usable controls 844x390 []
+PASS field-guide modal contained 844x390 {'left': 202, 'right': 642, 'top': 16, 'bottom': 374, 'w': 440, 'h': 358}
+PASS field-guide modal type floor 844x390 []
+PASS records modal contained 844x390 {'left': 202, 'right': 642, 'top': 16, 'bottom': 374, 'w': 440, 'h': 358}
+PASS records modal type floor 844x390 []
+PASS lobby modal contained 844x390 {'left': 202, 'right': 642, 'top': 14, 'bottom': 388, 'w': 440, 'h': 374}
+PASS lobby modal type floor 844x390 []
+PASS no runtime errors surface suite 844x390 
+PASS tower surface contained 768x1024 {'left': 74, 'right': 694, 'top': 532.3125, 'bottom': 896.03125, 'w': 620, 'h': 363.71875}
+PASS tower type floor 768x1024 []
+PASS tower usable controls 768x1024 []
+PASS field-menu surface contained 768x1024 {'left': 74, 'right': 694, 'top': 614.078125, 'bottom': 896.03125, 'w': 620, 'h': 281.953125}
+PASS field-menu type floor 768x1024 []
+PASS field-menu usable controls 768x1024 []
+PASS powers surface contained 768x1024 {'left': 74, 'right': 694, 'top': 765.25, 'bottom': 896.03125, 'w': 620, 'h': 130.78125}
+PASS powers type floor 768x1024 []
+PASS powers usable controls 768x1024 []
+PASS intel surface contained 768x1024 {'left': 74, 'right': 694, 'top': 698.9375, 'bottom': 896.03125, 'w': 620, 'h': 197.09375}
+PASS intel type floor 768x1024 []
+PASS intel usable controls 768x1024 []
+PASS field-guide modal contained 768x1024 {'left': 164, 'right': 604, 'top': 16, 'bottom': 1008, 'w': 440, 'h': 992}
+PASS field-guide modal type floor 768x1024 []
+PASS records modal contained 768x1024 {'left': 164, 'right': 604, 'top': 16, 'bottom': 1008, 'w': 440, 'h': 992}
+PASS records modal type floor 768x1024 []
+PASS lobby modal contained 768x1024 {'left': 164, 'right': 604, 'top': 226.65625, 'bottom': 797.34375, 'w': 440, 'h': 570.6875}
+PASS lobby modal type floor 768x1024 []
+PASS no runtime errors surface suite 768x1024 
+
+76/76 surface checks passed

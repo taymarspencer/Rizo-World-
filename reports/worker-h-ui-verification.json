@@ -1,0 +1,34 @@
+{
+  "passed": 4,
+  "total": 4,
+  "checks": [
+    {
+      "name": "visible Powers button opens grouped tray",
+      "passed": true,
+      "detail": {
+        "hidden": false,
+        "expanded": "true"
+      }
+    },
+    {
+      "name": "upgrade purchase renders signed spend feedback",
+      "passed": true,
+      "detail": {
+        "delta": "\u2212110"
+      }
+    },
+    {
+      "name": "boss HUD is stage-visible and wave badge yields",
+      "passed": true,
+      "detail": {
+        "boss": "BOSS THE WARDEN BREAK 0%",
+        "waveVisibility": "hidden"
+      }
+    },
+    {
+      "name": "targeted UI flow has no page errors",
+      "passed": true,
+      "detail": []
+    }
+  ]
+}

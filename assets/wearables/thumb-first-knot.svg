@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+<!-- Original Rizo.game artwork: First Knot thumbnail. -->
+<path d="M14 54 C40 64 90 64 114 52 L112 76 C88 88 40 88 16 78 Z" fill="#e2b36a" stroke="#080b0f" stroke-width="5" stroke-linejoin="round"/>
+<path d="M58 60 L78 60 L79 80 L59 81 Z" fill="#b8693a" stroke="#080b0f" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M22 70 C14 84 10 98 10 112 C18 110 24 112 30 116 C30 102 34 90 40 80 Z" fill="#c99446" stroke="#080b0f" stroke-width="5" stroke-linejoin="round"/>
+<path d="M12 56 C22 46 40 48 46 60 C42 74 26 78 16 70 C10 66 9 60 12 56 Z" fill="#edc57c" stroke="#080b0f" stroke-width="4.5" stroke-linejoin="round"/>
+<path d="M44 76 L56 86 L49 99 L37 91 Z" fill="#f2e6cf" stroke="#080b0f" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="47" cy="83" r="2.2" fill="#080b0f"/>
+</svg>

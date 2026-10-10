@@ -1,0 +1,237 @@
+/* Home owns the room; Training and Go stay outside it. No mode-internal rules.
+   The three places should read like game choices, not tiny utility tabs. */
+body.rizo-handmade .bottom-nav{
+  --nav-gap:6px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  width:min(calc(100% - 16px),500px);
+  height:76px;
+  padding:7px;
+  gap:var(--nav-gap);
+  bottom:calc(var(--safe-bottom) + 2px);
+  border:2px solid #2c3834;
+  border-radius:14px 14px 5px 5px;
+  background:linear-gradient(#111914,#080d0b);
+  box-shadow:0 -3px 0 #050806,0 13px 34px rgba(0,0,0,.55);
+  overflow:visible;
+}
+body.rizo-handmade .bottom-nav:before{
+  content:"PICK A PLACE";
+  left:10px;
+  top:-9px;
+  padding:2px 6px;
+  color:#b9c8b8;
+  background:#0b110e;
+  border:1px solid #2d3c35;
+  font-size:5.5px;
+  letter-spacing:.15em;
+}
+body.rizo-handmade .bottom-nav button{
+  --nav-accent:#d8d3b2;
+  --nav-face:#1a211d;
+  --nav-tilt:0deg;
+  min-width:0;
+  min-height:58px;
+  height:58px;
+  padding:6px 7px;
+  border:2px solid #35443d;
+  border-right:2px solid #35443d;
+  border-radius:8px 8px 3px 3px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--nav-face),#fff 7%),var(--nav-face));
+  color:#dce3d9;
+  box-shadow:0 4px 0 #050806,0 7px 12px rgba(0,0,0,.28);
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  align-content:center;
+  align-items:center;
+  justify-items:start;
+  column-gap:7px;
+  row-gap:1px;
+  text-align:left;
+  transform:rotate(var(--nav-tilt));
+  transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease,filter .14s ease;
+}
+body.rizo-handmade .bottom-nav button:last-child{border-right:2px solid #35443d}
+body.rizo-handmade .bottom-nav button[data-nav="home"]{--nav-accent:#f0d27d;--nav-face:#292217;--nav-tilt:-.45deg}
+body.rizo-handmade .bottom-nav button[data-nav="arcade"]{--nav-accent:#d8ec52;--nav-face:#202616;--nav-tilt:.55deg}
+body.rizo-handmade .bottom-nav button[data-nav="go"]{--nav-accent:#91d5b4;--nav-face:#15251e;--nav-tilt:-.3deg}
+body.rizo-handmade .bottom-nav button span{
+  grid-column:1;
+  grid-row:1/3;
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--nav-accent),#000 32%);
+  background:#0b100d;
+  color:var(--nav-accent);
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,.35),1px 2px 0 #050806;
+  font-family:"JetBrains Mono",monospace;
+  font-size:19px;
+  line-height:1;
+}
+body.rizo-handmade .bottom-nav button b{
+  grid-column:2;
+  grid-row:1;
+  min-width:0;
+  color:#f2eee2;
+  font-family:Anton,Impact,sans-serif;
+  font-size:11px;
+  font-weight:400;
+  line-height:1;
+  letter-spacing:.08em;
+}
+body.rizo-handmade .bottom-nav button:after{
+  position:static;
+  grid-column:2;
+  grid-row:2;
+  width:auto;
+  height:auto;
+  background:none;
+  color:color-mix(in srgb,var(--nav-accent),#9aa59e 45%);
+  font:800 5.8px/1 "JetBrains Mono",monospace;
+  letter-spacing:.12em;
+}
+body.rizo-handmade .bottom-nav button[data-nav="home"]:after{content:"DEN"}
+body.rizo-handmade .bottom-nav button[data-nav="arcade"]:after{content:"DRILLS"}
+body.rizo-handmade .bottom-nav button[data-nav="go"]:after{content:"WORLD"}
+body.rizo-handmade .bottom-nav button.active{
+  border-color:var(--nav-accent);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--nav-face),var(--nav-accent) 14%),var(--nav-face));
+  color:#fff;
+  box-shadow:0 6px 0 #050806,0 10px 18px rgba(0,0,0,.34);
+  transform:translateY(-3px) rotate(var(--nav-tilt));
+}
+body.rizo-handmade .bottom-nav button.active span{
+  background:var(--nav-accent);
+  color:#111711;
+  border-color:#090d0a;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.2),2px 3px 0 #050806;
+  animation:home-nav-icon 2.6s ease-in-out infinite;
+}
+body.rizo-handmade .bottom-nav button:active{
+  transform:translateY(2px) rotate(0deg);
+  box-shadow:0 1px 0 #050806;
+  filter:brightness(1.08);
+}
+@keyframes home-nav-icon{0%,100%{translate:0 0}50%{translate:0 -2px}}
+@media(max-width:350px){
+  body.rizo-handmade .bottom-nav{height:70px;padding:5px;gap:4px}
+  body.rizo-handmade .bottom-nav button{min-height:56px;height:56px;padding:5px;grid-template-columns:26px minmax(0,1fr);column-gap:5px}
+  body.rizo-handmade .bottom-nav button span{width:26px;height:26px;font-size:16px}
+  body.rizo-handmade .bottom-nav button b{font-size:9.5px;letter-spacing:.05em}
+  body.rizo-handmade .bottom-nav button:after{font-size:5.2px;letter-spacing:.08em}
+}
+@media(orientation:landscape) and (max-height:500px){
+  body.rizo-handmade .game-shell{padding-bottom:calc(62px + var(--safe-bottom))}
+  body.rizo-handmade .bottom-nav{height:54px;padding:4px;gap:4px;border-radius:8px 8px 3px 3px}
+  body.rizo-handmade .bottom-nav:before{display:none}
+  body.rizo-handmade .bottom-nav button{min-height:44px;height:44px;padding:3px 6px;grid-template-columns:24px minmax(0,1fr);column-gap:5px;box-shadow:0 3px 0 #050806}
+  body.rizo-handmade .bottom-nav button span{width:24px;height:24px;font-size:14px}
+  body.rizo-handmade .bottom-nav button b{font-size:8.5px}
+  body.rizo-handmade .bottom-nav button:after{font-size:4.8px}
+  body.rizo-handmade .bottom-nav button.active{transform:translateY(-1px) rotate(var(--nav-tilt));box-shadow:0 4px 0 #050806}
+}
+body.reduce-motion.rizo-handmade .bottom-nav button.active span{animation:none}
+@media(prefers-reduced-motion:reduce){body.rizo-handmade .bottom-nav button.active span{animation:none}}
+#gardenGrowth{display:none}
+body.rizo-handmade .habitat-scene{height:350px}
+body.rizo-handmade .habitat-card:before{content:"HOME / OUR CORNER"}
+body.rizo-handmade .habitat-card:after{content:"⌂";color:#a6b4b2}
+#habitatScene .den-placement{position:absolute;left:clamp(var(--den-edge,70px),var(--den-x,50%),calc(100% - var(--den-edge,70px)));bottom:calc(9% + var(--den-y,0%));width:292px;height:282px;z-index:8;transform:translateX(-50%);transition:left 850ms cubic-bezier(.3,.05,.25,1),bottom 850ms cubic-bezier(.3,.05,.25,1);pointer-events:none}
+#habitatScene .den-placement.den-arriving{transition:none}
+#habitatScene .den-placement #petTapTarget,#habitatScene .den-placement #petTapTarget.tutorial-focus{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:100%!important;height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;pointer-events:none}
+#habitatScene #petActor,#habitatScene #eggActor{pointer-events:auto}
+/* Old authored motion keyframes used to own world coordinates on this node.
+   They no longer do: stage/health scale remains here, reaction stays inside. */
+#habitatScene #petActor{animation:none!important}
+#habitatScene #petActor.behavior-ball .rizo-motion-shell{animation:home-nudge .5s ease-in-out 3}
+#habitatScene #petActor.behavior-window .rizo-motion-shell{animation:home-look 1.5s ease-in-out}
+#habitatScene #petActor.behavior-zoomies .rizo-motion-shell{animation:home-nudge .3s ease-in-out 6}
+#habitatScene #petActor.happy-jump .rizo-motion-shell{animation:home-hop .5s ease-out!important}
+#habitatScene #petActor.head-no .rizo-motion-shell{animation:home-no .15s ease-in-out 4!important}
+#habitatScene #petActor.tap-sick-queasy .rizo-motion-shell{animation:home-no .25s ease-in-out 5!important}
+@keyframes home-nudge{50%{transform:translateY(-5px) rotate(5deg) scale(1.02,.98)}}
+@keyframes home-look{50%{transform:rotate(-4deg) translateY(-3px)}}
+@keyframes home-hop{50%{transform:translateY(-12px) scale(1.03,.97)}}
+@keyframes home-no{50%{transform:translateX(4px) rotate(3deg)}}
+#habitatScene .habitat-toys{z-index:24;pointer-events:none}
+#habitatScene .garden-toy{min-width:44px;min-height:44px;pointer-events:auto;touch-action:manipulation;transition:filter .2s,scale .2s}
+#habitatScene.den-playing .garden-toy{filter:drop-shadow(0 0 5px #fff4b8);outline:2px dashed #f3deab;outline-offset:2px}
+#habitatScene .toy-in-play{animation:home-toy 1.8s ease-in-out}
+@keyframes home-toy{0%,100%{translate:0}35%{translate:24px -12px;rotate:30deg}65%{translate:-8px -3px;rotate:-12deg}}
+#habitatScene .toy-puddle{background:#639da6;box-shadow:inset 0 -4px #416a70,0 2px #16343a;color:#c7f4f3}
+.den-play-tray{position:absolute;z-index:30;left:8px;right:8px;top:52px;padding:7px 8px;background:#142b2bed;color:#fff0d3;border:1px solid #afc0a0;display:flex;align-items:center;gap:6px;font:10px/1.4 system-ui}
+.den-play-tray span{flex:1}.den-play-tray button{min-width:44px;min-height:44px;border:1px solid #8e9982;background:#31453f;font:900 11px monospace}
+.den-bed{position:absolute;z-index:23;right:5%;bottom:23%;width:70px;height:48px;padding:0;border:2px solid #383b38;background:#9a8e78;box-shadow:3px 4px #262929;transform:skewY(-5deg);border-radius:5px 5px 2px 2px;touch-action:manipulation}
+.den-bed i{position:absolute;left:4px;top:5px;width:21px;height:18px;border-radius:5px;background:#d1c7ad;border:2px solid #817c6a}
+.den-bed span{position:absolute;right:9px;bottom:5px;color:#f3e9c6;font:18px monospace}.den-bed.occupied{border-color:#e6d5ad;box-shadow:3px 4px #262929,0 0 12px #ffdf8c44}
+#habitatScene[data-home-tier="0"] .den-bed{height:44px;background:#817e75;box-shadow:2px 3px #353a35}
+#habitatScene[data-home-tier="0"] .den-bed i{background:#b1ac98}
+.home-arch,.home-lamp,.home-books,.home-balcony,.home-stringlights,.home-telescope,.home-rug{position:absolute;pointer-events:none;display:none}
+#habitatScene:not([data-home-tier="0"]) .home-rug{display:block;z-index:2;width:58%;height:16%;left:18%;bottom:15%;background:repeating-linear-gradient(0deg,#8b5b50 0 4px,#b07c64 4px 6px);border:4px solid #694338;border-radius:45%;box-shadow:0 0 0 2px #d0a085;transform:rotate(-4deg)}
+#habitatScene:not([data-home-tier="0"]) .home-lamp{display:block;z-index:4;left:10%;top:28%;width:34px;height:76px;border-bottom:4px solid #2e3b36;background:linear-gradient(90deg,transparent 45%,#354d41 46% 55%,transparent 56%)}
+.home-lamp:before{content:"";position:absolute;top:0;left:0;width:34px;height:26px;background:#f0d5a1;border:3px solid #56604b;clip-path:polygon(20% 0,80% 0,100% 100%,0 100%)}
+.home-lamp:after{content:"";position:absolute;top:15px;left:-35px;width:105px;height:100px;background:radial-gradient(ellipse at top,#ffe2a65c,transparent 65%)}
+#habitatScene[data-home-tier="2"] .home-arch,#habitatScene[data-home-tier="3"] .home-arch{display:block;z-index:1;width:43%;height:52%;left:2%;top:14%;border:8px solid #9ca596;border-bottom:0;border-radius:52% 52% 0 0;background:linear-gradient(#3b5456 0 65%,#656c57 65%);box-shadow:inset 4px 0 #243a3c,5px 0 #435952}
+.home-arch:before{content:"";position:absolute;left:14%;right:14%;top:24%;height:27%;border:4px solid #66807c;background:linear-gradient(140deg,#a0b5ad,#6b8591)}
+.home-arch i{position:absolute;left:12%;right:12%;bottom:8%;height:12%;background:#9a7754;border:3px solid #4e5142;box-shadow:0 10px #44504b}
+#habitatScene[data-home-tier="2"] .home-books,#habitatScene[data-home-tier="3"] .home-books{display:flex;gap:4px;z-index:3;left:11%;top:26%;width:77px;height:42px;align-items:end;border-bottom:5px solid #384a42}
+.home-books i{width:12px;height:25px;background:#dc997a;border:2px solid #534b46;transform:rotate(-8deg)}.home-books i:nth-child(2){height:33px;background:#91b6a0;transform:rotate(3deg)}.home-books i:nth-child(3){height:30px;background:#8da5bf;transform:rotate(9deg)}
+#habitatScene[data-home-tier="2"] .habitat-shelf,#habitatScene[data-home-tier="3"] .habitat-shelf{left:51%;width:41%;top:21%}
+#habitatScene[data-home-tier="2"] .habitat-window,#habitatScene[data-home-tier="3"] .habitat-window{left:57%;width:30%;height:32%;top:35%}
+#habitatScene[data-home-tier="2"] .home-lamp,#habitatScene[data-home-tier="3"] .home-lamp{left:45%;top:35%}
+#habitatScene[data-home-tier="3"] .home-balcony{display:block;z-index:2;right:4%;left:48%;top:54%;height:34px;border-top:5px solid #a2b2aa;border-bottom:5px solid #748d84;background:repeating-linear-gradient(90deg,transparent 0 21px,#607971 22px 26px)}
+#habitatScene[data-home-tier="3"] .home-stringlights{display:flex;z-index:4;top:17%;left:6%;right:6%;justify-content:space-around;border-top:2px solid #405449;transform:rotate(-5deg)}
+.home-stringlights i{margin-top:3px;width:6px;height:9px;border-radius:50%;background:#ffe3a4;box-shadow:0 0 13px 4px #ffe3a444}
+#habitatScene[data-home-tier="3"] .home-telescope{display:block;z-index:4;right:14%;top:42%;width:30px;height:53px;border-left:3px solid #384b49;transform:rotate(6deg)}
+.home-telescope i{position:absolute;top:0;left:-14px;width:46px;height:13px;border:3px solid #30453f;background:#b2d0c6;transform:rotate(-22deg)}
+.home-built .home-lamp,.home-built .home-arch,.home-built .home-telescope{animation:home-arrive 1.2s ease-out}
+@keyframes home-arrive{0%{opacity:0;translate:0 12px}100%{opacity:1;translate:0}}
+.den-keepsakes{position:absolute;z-index:6;top:31%;left:9%;display:flex;gap:5px;align-items:end}
+.den-keepsakes span{font:900 10px monospace;min-width:24px;height:26px;padding:6px 4px;background:#a09673;color:#25362c;border:2px solid #354a3b;box-shadow:1px 2px #344d42;transform:rotate(-4deg)}
+.den-keepsakes .den-defense-memory{background:#baa277;transform:rotate(6deg)}.den-keepsakes .den-knot-memory{background:transparent;border:0;font-size:28px;color:#935f41;box-shadow:none}
+.den-keepsakes .den-hearth-memory{background:#dbb56d;color:#fff0b4;box-shadow:0 0 16px #ffe4a8;border:3px solid #5b6048}
+#habitatScene[data-home-tier="2"] .den-keepsakes,#habitatScene[data-home-tier="3"] .den-keepsakes{left:55%;top:29%}
+.home-goal{position:relative;width:100%;text-align:left;background:#121d1d;border:1px solid #516259;border-left:3px solid #aabd9b;display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:10px 29px 9px 10px;margin:10px 0 0;color:#e8e5cf;min-height:65px}
+.home-goal small{grid-column:1/-1;font-size:8px;letter-spacing:.11em;color:#a2b4a5}.home-goal b{font:900 12px system-ui}.home-goal span{font:9px monospace;align-self:center}.home-goal u{grid-column:1/-1;height:3px;background:#35453f}.home-goal i{display:block;height:100%;background:#cbd197;transition:width .4s}.home-goal em{position:absolute;right:10px;top:23px;font-style:normal}.home-goal.ready{border-color:#d8d9aa}.home-return{color:#b6c8af;margin:6px 0;font:9px/1.4 monospace}
+.home-tools{display:flex;gap:5px;margin:12px 0}.home-tools button{flex:1;min-width:0;min-height:44px;border:1px solid #35443e;background:#15201e;font-size:9px;letter-spacing:.07em;color:#c4d0c3}
+.home-notes,.training-library,.training-records,.go-expeditions{border-top:1px solid #3b4541;margin:18px 0;min-width:0}
+.home-notes>summary,.training-library>summary,.training-records>summary,.go-expeditions>summary{cursor:pointer;min-height:48px;padding:15px 2px;color:#d5d6c6;font:900 11px/1.4 system-ui;list-style:none;display:flex;justify-content:space-between;gap:8px}
+.home-notes>summary span,.training-library>summary span,.training-records>summary span,.go-expeditions>summary span{color:#86978c;font:8px/1.6 monospace}.home-notes .brand-drop-card{margin-bottom:8px}
+.training-heading,.go-heading{padding:24px 2px 18px}.training-heading small,.go-heading small{color:#b4c3ad;font:9px monospace;letter-spacing:.14em}.training-heading h1,.go-heading h1{margin:7px 0 5px;font:900 clamp(28px,8vw,40px)/1 system-ui;letter-spacing:-.04em}.training-heading p,.go-heading p{color:#b2bcb3;font:12px/1.5 system-ui;margin:8px 0}
+.training-focus{display:flex;gap:5px;margin:0 0 14px;flex-wrap:wrap}.training-focus button{flex:1;min-height:44px;padding:7px;border:1px solid #47534b;background:#18221f;font:900 9px monospace}.training-focus button[aria-pressed="true"]{color:#18221f;background:#c5d0b2}
+.training-featured{display:grid;grid-template-columns:34% 1fr;gap:14px;min-height:205px;position:relative;padding:17px 12px;border:1px solid #627165;background:radial-gradient(ellipse at 15% 60%,#4a625055,transparent 55%),#172420;box-shadow:inset 0 -4px #0e1714}
+.training-companion{display:grid;place-items:center;overflow:hidden;min-width:0}.training-rizo{position:relative;width:120px;height:145px}.training-pick{align-self:center;min-width:0}.training-pick small{font:8px monospace;color:#d7d6a6;letter-spacing:.1em}.training-pick h2{font:900 22px/1.08 system-ui;margin:6px 0 10px}.training-pick p{font:11px/1.5 system-ui;color:#b4c6b5;margin:0 0 12px}.training-pick button{width:100%;min-height:46px;background:#c5d0b2;color:#16261a;border:0;font:900 11px system-ui}.training-home-goal{font:10px/1.5 monospace;color:#bac4ac;margin:12px 2px}
+body.rizo-handmade #trainingLibrary .game-card{margin:0;transform:none;border:0;border-top:1px solid #35453b;border-radius:0;background:#121b18;padding:12px 10px;box-shadow:none;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;min-height:84px}
+body.rizo-handmade #trainingLibrary .game-card h2{font:900 15px/1.1 system-ui;margin:0 0 5px}
+body.rizo-handmade #trainingLibrary .game-card p{font:10px/1.45 system-ui;margin:0;color:#9dac9f;max-width:38ch}
+body.rizo-handmade #trainingLibrary .game-card small{font-size:7px;color:#c1cdaa}
+body.rizo-handmade #trainingLibrary .game-art{width:38px;height:46px;min-width:0;border:0;background:transparent;overflow:hidden}
+body.rizo-handmade #trainingLibrary .game-art span{display:none}
+body.rizo-handmade #trainingLibrary .game-card button{min-width:56px;max-width:84px;min-height:44px;border:1px solid #5d7059;background:#283c2b;box-shadow:none;font-size:9px;padding:6px;white-space:normal;writing-mode:horizontal-tb;transform:none;align-self:center;height:auto}
+body.rizo-handmade #trainingLibrary .game-meta{display:none}
+.destination{position:relative;isolation:isolate;min-width:0;overflow:hidden;padding:27px 20px 20px;margin:0 0 22px;border:1px solid #657565;background:#1a2420;display:grid;grid-template-columns:1fr}
+.destination .game-art{position:absolute;inset:0;z-index:-1;width:auto;height:auto;opacity:.27;border:0;border-radius:0;pointer-events:none}.destination .game-art img{display:none}.destination .game-art span{display:none}
+.dungeon-destination .game-art{background:linear-gradient(0deg,#080f11 6%,#080f1180 75%),url('./assets/public/threshold.png') center/cover}
+.defense-destination .game-art{background:linear-gradient(0deg,#102515 3%,#19342380 80%),url('./assets/defense-pine-bend.svg') center/cover}
+.destination small{font:8px monospace;letter-spacing:.14em;color:#dad8b5}.destination h2{font:900 31px/1.04 system-ui;letter-spacing:-.04em;margin:12px 0}.destination p{font:13px/1.55 system-ui;max-width:36ch;color:#d5dcd2;margin:0 0 13px}.destination .game-meta{display:flex;gap:20px;margin:18px 0 14px}.destination .game-meta span{display:grid;gap:5px}.destination .game-meta b{font:900 13px monospace}.destination .game-meta small{font-size:7px;color:#95ad9b}
+.destination>button{min-height:50px;background:#d2d4b7;border:0;color:#142119;font:900 12px system-ui;letter-spacing:.05em}.destination .departure-note{font:10px/1.6 monospace;max-width:none;color:#c6d4c5}
+.destination .mode-badge{position:absolute;right:14px;top:14px;padding:5px 7px;background:#8b673b;color:#ffedcb;font:900 9px monospace;letter-spacing:.05em}.destination .game-blocked{opacity:.7}
+.home-plan-scene{position:relative;height:120px;display:grid;place-items:center;background:linear-gradient(0deg,#62765c 0 23%,#233c34 23%);border:1px solid #60785d;overflow:hidden}.home-plan-scene b{font:75px/1 system-ui;color:#b1c4a1}.home-plan-scene span{position:absolute;bottom:8px;left:10px;font:9px monospace}.home-plan-copy{font:13px/1.5 system-ui;color:#c0cbba;margin:16px 0}.home-plan-tiers{padding:0;margin:0;list-style:none;display:grid;gap:0}.home-plan-tiers li{display:grid;grid-template-columns:25px 1fr auto;gap:8px;border-top:1px solid #3b5040;padding:13px 0;align-items:center}.home-plan-tiers li>span{font:12px monospace;color:#809375}.home-plan-tiers li b{font:900 13px system-ui}.home-plan-tiers li p{font:12px/1.45 system-ui;color:#a5b59f;margin:5px 0 0}.home-plan-tiers li small{font:9px monospace;color:#c6d5b6}.home-plan-tiers li.next{border-left:3px solid #c8d4a8;padding-left:8px}.home-plan-tiers li.built>span{color:#c9dea4}.home-plan-tiers li.later{opacity:.72}.home-build-button{margin:15px 0;width:100%;min-height:50px;border:1px solid #9daf89;background:#cee0ad;color:#1a291d;font:900 12px system-ui}.home-build-button:disabled{background:#384834;color:#a9b3a4}
+.home-horizon{display:flex;gap:10px;border-top:1px dashed #5c675b;padding:20px 0 10px;color:#cbd7c1}.home-horizon>span{font-size:27px}.home-horizon b{font:900 11px system-ui}.home-horizon p{font:11px/1.5 system-ui;margin:5px 0;color:#8c9f8f}
+.result-home-progress{font:11px/1.6 monospace;color:#d4ddba}
+@media(max-width:350px){body.rizo-handmade .habitat-scene{height:300px}.home-goal{grid-template-columns:1fr}.home-goal span{font-size:9px}.training-featured{padding:14px 8px;gap:8px;grid-template-columns:30% 1fr}.training-rizo{width:98px;height:130px}.training-pick h2{font-size:20px}.destination{padding:25px 15px 17px}.destination h2{font-size:27px}#trainingLibrary .game-card p{max-width:25ch}.home-plan-tiers li{grid-template-columns:20px 1fr}.home-plan-tiers li small{grid-column:2}.den-bed{right:3%;width:62px}}
+body.reduce-motion #habitatScene .den-placement{transition:none!important}
+body.reduce-motion #habitatScene #petActor .rizo-motion-shell,body.reduce-motion #habitatScene .toy-in-play,body.reduce-motion .home-built *{animation:none!important}
+@media(prefers-reduced-motion:reduce){#habitatScene .den-placement{transition:none!important}#habitatScene #petActor .rizo-motion-shell,#habitatScene .toy-in-play,.home-built *{animation:none!important}}
+/* A closed tray must not contribute offscreen content to the phone's document. */
+.bottom-sheet:not(.show),.sheet-backdrop:not(.show){visibility:hidden}
+#habitatScene .toy-ball{touch-action:none;user-select:none;-webkit-user-select:none}
+#habitatScene .toy-dragging{animation:none;translate:var(--toy-drag-x,0px) var(--toy-drag-y,0px);z-index:30;scale:1.1}
+
+/* The Power Tape actor is scenery; it must never intercept a called strike. */
+#miniGameOverlay[data-training="power"] .power-rizo{pointer-events:none}
+#miniGameOverlay[data-training="power"] .power-techniques button{min-height:44px}
+
+#habitatScene[data-home-tier="3"] .habitat-window{background:radial-gradient(circle at 22% 21%,#f3e8cb 0 1px,transparent 2px),radial-gradient(circle at 75% 38%,#d8e8df 0 1px,transparent 2px),radial-gradient(circle at 61% 12%,#fff2c7 0 1px,transparent 2px),linear-gradient(#20303f,#435c68)}

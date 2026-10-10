@@ -10,9 +10,9 @@
 .game-card.power-card::after,.game-card.spark-card::after,.game-card.forage-card::after,.game-card.rush-card::after,.game-card.memory-card::after{content:"DX";position:absolute;right:8px;top:8px;color:#768999;font:1000 7px/1 Inter,sans-serif;letter-spacing:.14em}
 
 /* Shared arcade mastery HUD */
-.power-hud,.spark-hud,.glide-hud,.breaker-hud,.memory-top{position:absolute;left:10px;right:10px;top:10px;z-index:28;display:flex;justify-content:space-between;gap:7px;pointer-events:none}
-.power-hud span,.spark-hud span,.glide-hud span,.breaker-hud span,.memory-top span,.forage-chain{padding:6px 8px;border:1px solid rgba(255,255,255,.13);border-radius:9px;background:rgba(5,9,13,.72);backdrop-filter:blur(6px);font:900 7px/1 Inter,sans-serif;letter-spacing:.08em;color:#cbd7df}
-.power-hud b,.spark-hud b,.glide-hud b,.breaker-hud b{color:#fff;font-size:10px}
+.power-hud,.glide-hud,.breaker-hud,.memory-top{position:absolute;left:10px;right:10px;top:10px;z-index:28;display:flex;justify-content:space-between;gap:7px;pointer-events:none}
+.power-hud span,.glide-hud span,.breaker-hud span,.memory-top span,.forage-chain{padding:6px 8px;border:1px solid rgba(255,255,255,.13);border-radius:9px;background:rgba(5,9,13,.72);backdrop-filter:blur(6px);font:900 7px/1 Inter,sans-serif;letter-spacing:.08em;color:#cbd7df}
+.power-hud b,.glide-hud b,.breaker-hud b{color:#fff;font-size:10px}
 .arcade-result-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:10px 0}
 .arcade-result-grid span{display:grid;gap:4px;padding:9px;border:1px solid #28343f;border-radius:11px;background:#0c1117;color:#81909b;font-size:6px;font-weight:1000;letter-spacing:.08em;text-align:center}
 .arcade-result-grid b{font-size:17px;color:#f2f7fa}
@@ -29,7 +29,7 @@
 .spark-dx .spark-orb{transition:left .11s cubic-bezier(.2,.75,.25,1),top .11s cubic-bezier(.2,.75,.25,1),filter .08s}
 .spark-dx .spark-orb.gold{background:radial-gradient(circle,#fff 0 10%,#fff09c 12% 36%,#e3a91c 38% 68%,#70420d 70%);box-shadow:0 0 0 8px rgba(255,212,90,.16),0 0 34px rgba(255,212,90,.9);color:#fff7c2}
 .spark-dx .spark-orb.shadow{background:radial-gradient(circle,#6c548f 0 12%,#24172f 14% 58%,#09070e 61%);border-color:#b18aff;box-shadow:0 0 0 8px rgba(138,92,255,.12),0 0 28px rgba(124,82,222,.65);color:#d2c0ff;animation:sparkShadow .16s steps(2) infinite}
-.spark-hud{top:auto;bottom:10px;align-items:center}.spark-hud span:last-child{color:#7deaff}
+/* .spark-hud lives in arcade-v87-system.css (single authority). */
 @keyframes sparkShadow{50%{filter:brightness(1.35);transform:translateX(2px)}}
 
 /* Forest Forage DX */

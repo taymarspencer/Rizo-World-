@@ -1,0 +1,17 @@
+/* Public/game seam. Never restyle a mode's playfield or directional controls. */
+/* Bound the device's single grid row to its host viewport. Its implicit auto
+   row otherwise retains the portrait screen's intrinsic height on rotation.
+   The accepted mode styles, art and physical button sizes stay untouched. */
+.minigame-overlay[data-active-mode="dungeon"] .dungeon-device{grid-template-rows:minmax(0,1fr)}
+.origin-world-link{position:absolute;z-index:30;top:max(12px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));padding:12px 4px;min-height:44px;font:700 12px/1.5 system-ui;color:#eee8dc;text-underline-offset:5px}
+body :focus-visible{outline:2px solid #ecd292;outline-offset:3px}
+.game-header .store-pill{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}
+.game-shell .journal-tabs button,.game-shell .bottom-nav button{min-height:44px}
+.bottom-sheet header>button{min-height:44px;min-width:44px}
+.bottom-sheet .sheet-card button,.bottom-sheet .sheet-action-link{min-height:44px}
+.rizo-legal-links a{min-height:44px;display:inline-flex;align-items:center;font-size:11px!important;padding:10px 4px}
+.game-world-note{margin:24px 2px 4px;padding:16px 4px;border-top:1px solid #48463f;color:#b9b5ac;font:12px/1.5 system-ui}
+.game-world-note p{margin:0 0 8px}.game-world-note a{color:#eee8dc;display:inline-flex;align-items:center;min-height:44px;margin-right:18px;text-underline-offset:4px}
+#rizoBootShell .rizo-boot-actions a{color:#eee8dc;display:inline-flex;align-items:center;min-height:44px;font-size:14px;text-underline-offset:4px}
+.no-script-guide{position:fixed;inset:0;z-index:2147483647;overflow:auto;background:#151513;color:#eee8dc;padding:max(30px,env(safe-area-inset-top)) 24px;font:16px/1.65 system-ui}.no-script-guide h1{font-size:36px}.no-script-guide p{max-width:65ch}.no-script-guide a{color:#ecd292;text-underline-offset:4px}
+@media(prefers-reduced-motion:reduce){.origin-world-link,.game-world-note a{transition:none}}

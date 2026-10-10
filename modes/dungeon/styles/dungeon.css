@@ -1,0 +1,482 @@
+/* RIZO DUNGEON — the Rizo Field Unit / BELOW handheld.
+   Every rule is scoped to .dungeon-active (the shared stage while the Dungeon
+   owns it) or to the device's own classes. Nothing here restyles the hub. */
+
+.minigame-overlay.dungeon-active{padding:0!important;overflow:hidden;background:#060607;overscroll-behavior:none}
+.minigame-overlay.dungeon-active .minigame-shell{width:100%;height:100%;max-width:none;margin:0;padding:0;display:block;overflow:hidden;background:none;border:0;box-shadow:none}
+/* The inherited arcade header stays for assistive tech only; timer/actions go. */
+.minigame-overlay.dungeon-active .minigame-shell>header{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.minigame-overlay.dungeon-active .minigame-shell>p,
+.minigame-overlay.dungeon-active .mini-actions,
+.minigame-overlay.dungeon-active #miniPausePanel{display:none!important}
+.minigame-overlay.dungeon-active .mini-stage{height:100%;min-height:0;margin:0}
+.minigame-overlay.dungeon-active .mini-arena{width:100%;height:100%;min-height:0;padding:0;border:0;border-radius:0;overflow:hidden;background:none;box-shadow:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+.dungeon-device{--deck-h:clamp(168px,25vh,212px);--shell:#121214;--shell-hi:#232326;--mark:#e9dfc7;--warm:#ff9a3c;
+  position:absolute;inset:0;display:grid;place-items:center;box-sizing:border-box;
+  padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+  color:var(--mark);font-family:Inter,ui-rounded,system-ui,-apple-system,"Segoe UI",sans-serif;touch-action:none}
+.dungeon-shell{position:relative;box-sizing:border-box;width:min(100%,560px);height:100%;max-height:980px;display:grid;
+  grid-template-rows:minmax(0,1fr) var(--deck-h);gap:8px;padding:12px 12px 10px;border-radius:30px 30px 44px 30px;
+  background:linear-gradient(165deg,var(--shell-hi),var(--shell) 38%,#0b0b0c);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.07),inset 0 -6px 0 rgba(0,0,0,.45),0 18px 50px rgba(0,0,0,.6)}
+/* One worn edge and a strip of repair tape: functional asymmetry, not decoration. */
+.dungeon-shell::before{content:"";position:absolute;right:-1px;top:22%;width:5px;height:18%;border-radius:0 6px 6px 0;background:linear-gradient(#3a3631,#5a5248 40%,#2c2925);opacity:.85}
+.dungeon-shell::after{content:"";position:absolute;left:18px;bottom:16px;width:46px;height:10px;transform:rotate(-8deg);background:repeating-linear-gradient(90deg,rgba(233,223,199,.55) 0 3px,rgba(233,223,199,.38) 3px 6px);border-radius:2px;opacity:.55;pointer-events:none}
+.dungeon-bezel{min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:6px;padding:10px 10px 6px;border-radius:16px 16px 22px 16px;background:#050506;box-shadow:inset 0 0 0 2px #1d1d20}
+.dungeon-slot{min-height:0;min-width:0;display:grid;place-items:center}
+.dungeon-screen{position:relative;overflow:hidden;border-radius:6px;background:#000;box-shadow:0 0 0 2px #000,0 0 0 3px #2a2a2e;isolation:isolate}
+/* The world, characters and foreground occupy one photographic plane.
+   Story-dialogue pushes never enlarge captions, controls or touch targets. */
+.dungeon-worldstage{position:absolute;inset:0;z-index:0;pointer-events:none;
+  transform-origin:50% 50%;transition:transform 420ms cubic-bezier(.2,.74,.22,1);
+  will-change:transform}
+.minigame-overlay.dungeon-reduced-motion .dungeon-worldstage{transform:none!important;transition:none!important}
+.dungeon-canvas{position:absolute;left:0;top:0;display:block;image-rendering:auto}
+.dungeon-brand{display:flex;align-items:center;gap:7px;padding:0 4px;font:900 10px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.2em;color:rgba(233,223,199,.72)}
+.dungeon-brand em{font-style:normal;color:rgba(233,223,199,.42)}
+.dungeon-led{width:7px;height:7px;border-radius:50%;background:var(--warm);box-shadow:0 0 8px rgba(255,154,60,.7)}
+.dungeon-device.panel-open .dungeon-led{background:#6b4a2b;box-shadow:none}
+
+/* ---- actor plane: the hub's canonical Rizo, moved by a pose wrapper */
+.dungeon-actors{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.dungeon-actor{position:absolute;left:0;top:0;will-change:transform}
+.dungeon-front{position:absolute;left:0;top:0;z-index:3;pointer-events:none}
+.dungeon-pose{position:absolute;inset:0;transform-origin:50% 84%;--face:1;--lean:0deg;--sx:1;--sy:1;
+  transform:scaleX(var(--face)) rotate(var(--lean)) scale(var(--sx),var(--sy))}
+.dungeon-pose .mini-pet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;left:0!important;top:0!important;transform:none!important}
+.dungeon-pose.facing-left{--face:-1}
+.dungeon-pose.is-moving{animation:dungeonStep .34s ease-in-out infinite}
+.dungeon-pose.is-flare{--lean:7deg;--sx:1.06;--sy:.96}
+.dungeon-pose.is-tuck{--sx:1.18;--sy:.7;transition:none}
+.dungeon-pose.is-kindle{--sy:.9;--sx:1.04}
+.dungeon-pose.is-hurt{animation:dungeonHurt .12s steps(2,end) infinite}
+.dungeon-pose.is-down{opacity:.45;--sy:.82;transition:opacity .5s}
+.dungeon-pose.is-held,.dungeon-pose.is-held *{animation-play-state:paused!important}
+@keyframes dungeonStep{50%{translate:0 -2px}}
+@keyframes dungeonHurt{50%{opacity:.35}}
+
+/* ---- text on the screen: unscaled DOM, 14px and up */
+.dungeon-hud{position:absolute;left:8px;right:8px;top:7px;z-index:4;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.dungeon-flame{display:flex;gap:4px}
+.dungeon-flame i{width:12px;height:16px;clip-path:polygon(50% 0,80% 38%,100% 70%,82% 100%,18% 100%,0 70%,20% 38%);background:var(--warm)}
+.dungeon-flame i.spent{background:#463b32;box-shadow:inset 0 -2px 0 #968675}
+.dungeon-room-name{font:900 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.16em;color:rgba(233,223,199,.75)}
+.dungeon-prompt{position:absolute;left:0;top:0;z-index:5;padding:4px 8px;border-radius:3px;background:var(--mark);color:#0c0e12;font:900 14px/1.1 Inter,system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap;pointer-events:none;box-shadow:2px 2px 0 #000}
+.dungeon-cue{position:absolute;left:8px;bottom:8px;z-index:4;display:flex;gap:10px;flex-wrap:wrap;pointer-events:none;font:800 14px/1 Inter,system-ui,sans-serif;color:var(--mark)}
+.dungeon-cue span{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:4px;background:rgba(5,5,6,.78)}
+.dungeon-cue span.done{opacity:.4;text-decoration:line-through}
+.dungeon-cue kbd{font:800 12px/1 "JetBrains Mono",monospace;padding:2px 4px;border:1px solid rgba(233,223,199,.6);border-radius:3px}
+.dungeon-cue i{width:12px;height:12px;display:inline-block;background:var(--mark)}
+.dungeon-cue .cue-primary{background:var(--warm);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.dungeon-cue .cue-secondary{background:transparent;box-shadow:inset 0 0 0 2px var(--mark);border-radius:50%}
+.dungeon-cue .cue-dpad{clip-path:polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)}
+.dungeon-banner{position:absolute;left:50%;top:30px;z-index:5;transform:translateX(-50%);padding:6px 10px;background:rgba(5,5,6,.82);border:1px solid rgba(233,223,199,.4);font:900 14px/1.15 Inter,system-ui,sans-serif;letter-spacing:.08em;text-align:center;white-space:normal;width:max-content;max-width:calc(100% - 24px);box-sizing:border-box;pointer-events:none}
+.dungeon-banner[hidden],.dungeon-prompt[hidden],.dungeon-cue[hidden],.dungeon-dialogue[hidden],.dungeon-panel[hidden]{display:none!important}
+.dungeon-dialogue{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;min-height:64px;box-sizing:border-box;padding:12px 30px 12px 14px;background:#0c0b0a;border:2px solid var(--mark);border-radius:4px;box-shadow:3px 3px 0 #000}
+.dungeon-line{margin:0;display:grid;font:600 16px/1.4 Inter,system-ui,sans-serif;color:#f4ecd8}
+/* Reserve the complete line while only the typed span is visible/read aloud. */
+.dungeon-line::before{content:attr(data-full-text);visibility:hidden;grid-area:1/1;pointer-events:none}
+.dungeon-line-text{grid-area:1/1}
+.dungeon-more{position:absolute;right:10px;bottom:8px;font-size:14px;color:var(--warm);animation:dungeonMore .8s ease-in-out infinite alternate}
+@keyframes dungeonMore{to{transform:translateY(2px)}}
+.dungeon-fade{position:absolute;inset:0;z-index:3;background:#000;opacity:0;pointer-events:none}
+.dungeon-panel{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;padding:12px;background:rgba(5,5,6,.84);overflow:auto;overscroll-behavior:contain}
+/* The adventure opens with five deliberately simple illustrated frames.
+   One real Rizo carries each frame; the shadows, window and collection jar
+   tell the story without copying another game's introduction. */
+.dungeon-prologue[hidden]{display:none!important}
+.dungeon-prologue{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;
+  overflow:hidden;background:#090c12;color:#f4ecd8;isolation:isolate}
+.dungeon-prologue-art{position:relative;flex:1 1 48%;min-height:0;
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(ellipse at 51% 65%,#353345 0%,#131720 48%,#07090e 80%)}
+.dungeon-prologue-night{position:absolute;inset:12% 12% 16%;opacity:.44;
+  border:1px solid #525466;transform:perspective(260px) rotateX(8deg)}
+.dungeon-prologue-window{position:absolute;width:38%;height:58%;left:7%;top:22%;
+  box-shadow:inset 0 0 0 5px #343c48,0 7px 0 #212734;background:#161e31;
+  opacity:0;transform:translateY(12px)}
+.dungeon-prologue-person{position:absolute;width:19%;height:66%;right:12%;top:28%;
+  background:#171922;clip-path:polygon(29% 0,70% 0,85% 20%,87% 60%,100% 99%,0 99%,13% 60%,15% 20%);
+  opacity:0;transform:translateY(12px)}
+.dungeon-prologue-person:before{content:"";display:block;width:46%;height:21%;border-radius:48% 48% 38% 38%;
+  background:#35394a;margin:-6% auto 0}
+.dungeon-prologue-glass{position:absolute;width:26%;height:59%;right:13%;top:26%;
+  border:5px solid #667180;border-top:8px solid #8593a1;border-radius:38% 38% 12% 12%;
+  background:linear-gradient(115deg,rgba(174,210,223,.19),rgba(32,47,62,.35) 50%,rgba(156,199,217,.11));
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.5),0 9px 0 #1c2732;opacity:0;transform:translateY(12px)}
+.dungeon-prologue-pet{position:relative;width:clamp(58px,22vw,95px);height:clamp(58px,22vw,95px);
+  display:grid;place-items:center;z-index:1;filter:drop-shadow(0 0 19px rgba(248,152,76,.38))}
+.dungeon-prologue-pet .mini-pet{position:relative!important;inset:auto!important;
+  display:block!important;width:100%!important;height:100%!important;
+  max-width:100%!important;margin:0!important;transform:none!important}
+.dungeon-prologue-story{flex:0 0 auto;min-height:0;padding:12px 15px 14px;
+  background:linear-gradient(#12131a,#08090e);border-top:2px solid #b7a179;
+  display:grid;gap:10px;box-sizing:border-box}
+.dungeon-prologue-chapter{font:800 10px/1.3 "JetBrains Mono",ui-monospace,monospace;
+  letter-spacing:.12em;color:#ddad69}
+.dungeon-prologue-line{margin:0;min-height:3.4em;font:600 clamp(15px,4.3vw,19px)/1.33 Inter,system-ui,sans-serif;
+  text-wrap:pretty;max-width:37ch}
+.dungeon-prologue-progress{font:700 11px/1 "JetBrains Mono",ui-monospace,monospace;color:#ae9e84}
+.dungeon-prologue-actions{display:flex;gap:8px;justify-content:space-between}
+.dungeon-prologue-actions button{appearance:none;border:1px solid #9d947e;border-radius:3px;
+  padding:9px 12px;background:#15171d;color:#eee4d4;min-height:36px;
+  font:800 12px/1 "JetBrains Mono",ui-monospace,monospace;cursor:pointer}
+.dungeon-prologue-actions .primary{background:#e5ac66;border-color:#f7d59d;color:#19130f}
+.dungeon-prologue[data-beat="home"] .dungeon-prologue-window,
+.dungeon-prologue[data-beat="belong"] .dungeon-prologue-window{opacity:1;transform:none}
+.dungeon-prologue[data-beat="belong"] .dungeon-prologue-person{opacity:1;transform:none}
+.dungeon-prologue[data-beat="taken"] .dungeon-prologue-glass{opacity:1;transform:none}
+.dungeon-prologue[data-beat="taken"] .dungeon-prologue-pet{transform:translateX(-35%);filter:grayscale(.65) drop-shadow(0 0 4px rgba(235,238,249,.2))}
+.dungeon-prologue[data-beat="taken"] .dungeon-prologue-art{
+  background:radial-gradient(ellipse at 55% 75%,#252f41,#0a0d15 70%)}
+.dungeon-prologue[data-beat="warning"] .dungeon-prologue-art{
+  background:radial-gradient(ellipse at 53% 66%,#573a36,#090b10 72%)}
+.dungeon-prologue[data-beat="warning"] .dungeon-prologue-person{opacity:.4;transform:translateX(18%)}
+.dungeon-prologue:not([hidden]) .dungeon-prologue-art{animation:dungeonPrologueArrive .38s ease-out both}
+@keyframes dungeonPrologueArrive{from{opacity:.42}to{opacity:1}}
+.minigame-overlay.dungeon-reduced-motion .dungeon-prologue *,
+.minigame-overlay.dungeon-reduced-motion .dungeon-prologue{animation:none!important;transition:none!important}
+@media(max-height:550px){.dungeon-prologue-story{padding:8px 10px;gap:5px}
+  .dungeon-prologue-line{min-height:0;font-size:14px}
+  .dungeon-prologue-actions button{min-height:30px;padding:6px 9px}}
+
+.dungeon-panel::-webkit-scrollbar{width:4px}
+.dungeon-panel::-webkit-scrollbar-thumb{background:#9a917e;border-radius:2px}
+.dungeon-card{width:min(100%,320px);flex:none;margin:auto 0;box-sizing:border-box;display:grid;gap:10px;padding:16px 14px;text-align:center;background:#0f0e0c;border:2px solid var(--mark);box-shadow:4px 4px 0 #000}
+.dungeon-card small{font:900 11px/1 "JetBrains Mono",monospace;letter-spacing:.18em;color:var(--warm)}
+.dungeon-card h3{margin:0;font:900 22px/1.05 Anton,Impact,"Arial Black",sans-serif;letter-spacing:.03em;color:#f4ecd8}
+.dungeon-card p{margin:0;font:500 14px/1.45 Inter,system-ui,sans-serif;color:#d9d0bb}
+.dungeon-card .dungeon-fine{font-size:12px;color:#9a917e}
+.dungeon-card-actions{display:grid;gap:8px}
+.dungeon-card-actions button{min-height:46px;border:2px solid #000;border-radius:0;background:#2a2723;color:#f4ecd8;font:900 15px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;box-shadow:2px 2px 0 #000;cursor:pointer}
+.dungeon-card-actions button.primary{background:var(--mark);color:#0c0e12}
+.dungeon-card-actions button:disabled{opacity:.45;cursor:default}
+.dungeon-card-actions button.danger{background:#3a1712;color:#ffc2a8}
+/* Testing and starting over: present, findable, never competing with RESUME. */
+.dungeon-card-tools{display:grid;padding-top:8px;border-top:1px dashed rgba(233,223,199,.22)}
+.dungeon-card-tools button.quiet{min-height:44px;padding:0 10px;border:1px solid rgba(233,223,199,.28);border-radius:0;background:transparent;color:#b9b09c;font:800 12px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;cursor:pointer}
+/* The pause menu has two secondary actions (watch intro + restart).
+   At 320px they must share one row or the last tap target falls off screen.
+   Keep each target 44px tall, without introducing scrolling. */
+.dungeon-card.is-menu .dungeon-card-tools{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.dungeon-card.is-menu .dungeon-card-tools button{min-width:0;white-space:normal;overflow-wrap:break-word;letter-spacing:.04em}
+.dungeon-card-tools button.quiet:disabled{opacity:.4;cursor:default}
+.dungeon-card-tools button:focus-visible,.dungeon-card-actions button:focus-visible{outline:3px solid var(--warm);outline-offset:2px}
+/* Menu cards (pause, restart) on a short screen: tighter, and side by side when
+   there is width, so RESTART DUNGEON is not pushed below the screen's edge.
+   Taller cards (the chapter's boundary) keep their own size and scroll. */
+.dungeon-panel{container:dungeon-panel/size}
+@container dungeon-panel (max-height:440px){
+  .dungeon-card.is-menu{gap:7px;padding:12px}
+  .dungeon-card.is-menu h3{font-size:20px}
+  .dungeon-card.is-menu p{font-size:13px;line-height:1.35}
+  .dungeon-card.is-menu .dungeon-fine{font-size:11px}
+  .dungeon-card.is-menu .dungeon-card-actions{gap:6px}
+  .dungeon-card.is-menu .dungeon-card-tools{padding-top:6px}
+}
+@container dungeon-panel (max-height:440px) and (min-width:400px){
+  .dungeon-card.is-menu{width:min(100%,440px)}
+  .dungeon-card.is-menu .dungeon-card-actions{grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+}
+
+/* ---- the control deck: every key is drawn from the one action state */
+.dungeon-deck{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:4px 10px 6px;min-height:0}
+.dungeon-dpad{--size:clamp(120px,34vw,140px);position:relative;width:var(--size);height:var(--size);touch-action:none;cursor:pointer}
+.dungeon-dpad .arm,.dungeon-dpad .hub{position:absolute;background:#2a2a2e;box-shadow:inset 0 2px 0 rgba(255,255,255,.08),0 4px 0 #000}
+.dungeon-dpad .arm-up,.dungeon-dpad .arm-down{left:34%;width:32%;height:36%}
+.dungeon-dpad .arm-left,.dungeon-dpad .arm-right{top:34%;height:32%;width:36%}
+.dungeon-dpad .arm-up{top:0;border-radius:6px 6px 0 0}.dungeon-dpad .arm-down{bottom:0;border-radius:0 0 6px 6px}
+.dungeon-dpad .arm-left{left:0;border-radius:6px 0 0 6px}.dungeon-dpad .arm-right{right:0;border-radius:0 6px 6px 0}
+.dungeon-dpad .hub{left:33%;top:33%;width:34%;height:34%;box-shadow:none;background:#2a2a2e}
+.dungeon-dpad .hub::after{content:"";position:absolute;inset:32%;border-radius:50%;background:#1a1a1d}
+.dungeon-dpad .arm::after{content:"";position:absolute;left:50%;top:50%;width:0;height:0;border:6px solid transparent;transform:translate(-50%,-50%);opacity:.55}
+.dungeon-dpad .arm-up::after{border-bottom-color:var(--mark);margin-top:-3px}.dungeon-dpad .arm-down::after{border-top-color:var(--mark);margin-top:3px}
+.dungeon-dpad .arm-left::after{border-right-color:var(--mark);margin-left:-3px}.dungeon-dpad .arm-right::after{border-left-color:var(--mark);margin-left:3px}
+.dungeon-dpad[data-dir*="up"] .arm-up,.dungeon-dpad[data-dir*="down"] .arm-down,.dungeon-dpad[data-dir*="left"] .arm-left,.dungeon-dpad[data-dir*="right"] .arm-right{background:#1c1c1f;box-shadow:inset 0 2px 4px rgba(0,0,0,.6);transform:translateY(3px)}
+.dungeon-actions{justify-self:end;position:relative;width:150px;height:128px}
+.dungeon-key{position:absolute;display:grid;place-items:center;align-content:center;gap:2px;padding:0;border:0;border-radius:50%;color:var(--mark);cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(circle at 40% 30%,#3a3a40,#222226 70%);box-shadow:inset 0 2px 0 rgba(255,255,255,.12),0 5px 0 #000,0 7px 10px rgba(0,0,0,.45);transition:transform 50ms,box-shadow 50ms}
+.dungeon-key b{font:900 10px/1 Inter,system-ui,sans-serif;letter-spacing:.12em}
+.dungeon-key small{font:800 9px/1 "JetBrains Mono",monospace;opacity:.6}
+.dungeon-key-primary{right:0;top:6px;width:64px;height:64px;background:radial-gradient(circle at 40% 30%,#ffb066,var(--warm) 55%,#b8581c);color:#1a0d04}
+.dungeon-key-primary i{width:16px;height:20px;background:#1a0d04;clip-path:polygon(50% 0,80% 38%,100% 70%,82% 100%,18% 100%,0 70%,20% 38%);opacity:.8}
+.dungeon-key-secondary{left:6px;bottom:4px;width:54px;height:54px}
+.dungeon-key-secondary i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--mark)}
+.dungeon-key.is-down,.dungeon-key:active{transform:translateY(4px);box-shadow:inset 0 2px 6px rgba(0,0,0,.55),0 1px 0 #000}
+.dungeon-key-system{position:absolute;left:50%;top:2px;transform:translateX(-50%);width:58px;height:44px;border-radius:14px;background:#1d1d20}
+.dungeon-key-system i{width:16px;height:10px;background:linear-gradient(var(--mark) 0 2px,transparent 2px 4px,var(--mark) 4px 6px,transparent 6px 8px,var(--mark) 8px 10px);opacity:.75}
+.dungeon-key-system.is-down,.dungeon-key-system:active{transform:translateX(-50%) translateY(3px)}
+.dungeon-key:focus-visible{outline:3px solid var(--warm);outline-offset:3px}
+
+/* ===== PHONE-NATIVE CONTROLS (controls pass) =====
+   Everything below is about how the handheld is touched, not how it looks. */
+/* Never a pan, pinch or double-tap zoom anywhere inside the open handheld, whatever an element declares. */
+.minigame-overlay.dungeon-active,.minigame-overlay.dungeon-active *{touch-action:none!important}
+/* The page must not re-flow its text when the phone rotates. */
+.dungeon-device{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* Forgiving targets: the drawn control is unchanged, the part of it that answers a thumb is larger. */
+.dungeon-dpad::before{content:"";position:absolute;inset:-14px;border-radius:26px}
+.dungeon-key::before{content:"";position:absolute;inset:-8px;border-radius:inherit}
+/* On a 320 px phone the MENU key and the D-pad's empty corner used to share a patch of screen. */
+@media (max-width:340px){.dungeon-key-system{left:calc(50% + 10px)}}
+
+/* ---- enter / exit: the field rails click into a device (450–650 ms) */
+.dungeon-device[data-phase="enter"] .dungeon-shell{animation:dungeonEnter 560ms cubic-bezier(.2,.9,.25,1) both}
+.dungeon-device[data-phase="exit"] .dungeon-shell{animation:dungeonExit 520ms cubic-bezier(.55,0,.8,.2) both}
+.dungeon-device[data-phase="fade-in"]{animation:dungeonFadeIn 160ms ease-out both}
+.dungeon-device[data-phase="fade-out"]{animation:dungeonFadeIn 160ms ease-in reverse both}
+@keyframes dungeonEnter{0%{transform:translateY(36%) scale(.9) rotate(-2deg);opacity:0}60%{transform:translateY(-2%) scale(1.01) rotate(.4deg);opacity:1}100%{transform:none;opacity:1}}
+@keyframes dungeonExit{0%{transform:none;opacity:1}100%{transform:translateY(40%) scale(.9) rotate(2deg);opacity:0}}
+@keyframes dungeonFadeIn{from{opacity:0}to{opacity:1}}
+.minigame-overlay.dungeon-reduced-motion .dungeon-pose,.minigame-overlay.dungeon-reduced-motion .dungeon-pose *{animation:none!important;transition:none!important}
+
+/* ---- landscape phones: control wings beside a larger screen */
+@media (orientation:landscape) and (max-height:560px){
+  .dungeon-device{--deck-h:0px}
+  .dungeon-shell{width:100%;max-width:none;grid-template-columns:150px minmax(0,1fr) 160px;grid-template-rows:minmax(0,1fr);gap:8px;padding:8px 10px;border-radius:30px}
+  .dungeon-deck{display:contents}
+  .dungeon-dpad{grid-column:1;grid-row:1;align-self:center;justify-self:center;--size:clamp(120px,30vh,140px)}
+  .dungeon-bezel{grid-column:2;grid-row:1}
+  .dungeon-actions{grid-column:3;grid-row:1;align-self:end;margin-bottom:14px;justify-self:center}
+  .dungeon-key-system{position:relative;left:auto;top:auto;transform:none;grid-column:3;grid-row:1;align-self:start;justify-self:center;margin-top:10px}
+  .dungeon-key-system.is-down,.dungeon-key-system:active{transform:translateY(3px)}
+}
+/* A short phone's central screen is narrow: keep its meter and title distinct. */
+@media (orientation:landscape) and (max-width:640px) and (max-height:360px){
+  .dungeon-hud{align-items:flex-start;gap:6px}
+  .dungeon-flame{flex-shrink:0;gap:3px}
+  .dungeon-room-name{font-size:9px;line-height:1.15;letter-spacing:.06em;text-align:right;min-width:0}
+  .dungeon-brand{font-size:8px;letter-spacing:.12em;gap:5px}
+}
+/* ---- desktop: a substantially larger screen in the same device */
+@media (min-width:900px) and (min-height:620px){
+  .dungeon-device{--deck-h:190px}
+  .dungeon-shell{width:min(92vw,840px)}
+}
+@media (max-width:340px){
+  .dungeon-device{--deck-h:164px;padding:4px}
+  .dungeon-shell{padding:8px 8px 6px;gap:6px}
+  .dungeon-bezel{padding:6px 6px 4px}
+  .dungeon-actions{width:136px}
+}
+
+/* ===== PAGE LOCK (only while the Dungeon is open) =====
+   The page behind the handheld must not scroll, rubber-band or select text.
+   These classes are added on start and removed on stop by dungeon-mode.js. */
+html.dungeon-locked,html.dungeon-locked body{overflow:hidden!important;overscroll-behavior:none!important;height:100%!important}
+html.dungeon-locked body{position:fixed!important;inset:0!important;width:100%!important;touch-action:none}
+html.dungeon-locked,html.dungeon-locked body,html.dungeon-locked .minigame-overlay,html.dungeon-locked .minigame-overlay *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent}
+/* A held thumb near the Rizo or a portrait must not lift an image (iOS drag) either. */
+html.dungeon-locked .minigame-overlay img,html.dungeon-locked .minigame-overlay svg{-webkit-user-drag:none}
+.minigame-overlay.dungeon-active{touch-action:none;overscroll-behavior:none}
+.minigame-overlay.dungeon-active ::selection{background:transparent}
+
+/* ===== SHELL STATES: outside the world is the frame; below, the device ===== */
+.dungeon-rail{position:absolute;top:10%;bottom:30%;width:6px;border-radius:4px;background:linear-gradient(#2b2b2f,#3a3a40 50%,#1c1c1f);opacity:0;pointer-events:none}
+.dungeon-rail-l{left:-3px}.dungeon-rail-r{right:-3px}
+.dungeon-device[data-shell="open"] .dungeon-shell{background:transparent;box-shadow:none;padding:0 0 4px;border-radius:0;gap:4px}
+.dungeon-device[data-shell="open"] .dungeon-shell::before,.dungeon-device[data-shell="open"] .dungeon-shell::after{opacity:0}
+.dungeon-device[data-shell="open"] .dungeon-bezel{background:transparent;box-shadow:none;padding:0;border-radius:0}
+.dungeon-device[data-shell="open"] .dungeon-brand{visibility:hidden}
+.dungeon-device[data-shell="open"] .dungeon-screen{border-radius:10px;box-shadow:none}
+.dungeon-device[data-shell="open"] .dungeon-dpad .arm,.dungeon-device[data-shell="open"] .dungeon-dpad .hub{background:rgba(42,42,46,.62);box-shadow:inset 0 2px 0 rgba(255,255,255,.06)}
+.dungeon-device[data-shell="open"] .dungeon-key{background:rgba(40,40,46,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 3px 0 rgba(0,0,0,.4)}
+.dungeon-device[data-shell="open"] .dungeon-key-primary{background:rgba(255,154,60,.72)}
+.dungeon-device[data-shell="open"] .dungeon-key-system{background:rgba(30,30,34,.5)}
+/* The rails click in, the shell closes, the screen wakes (≈560 ms). */
+.dungeon-device[data-shell="locking"] .dungeon-shell{animation:dungeonLock 560ms cubic-bezier(.2,.9,.25,1) both}
+.dungeon-device[data-shell="locking"] .dungeon-rail{animation:dungeonRails 560ms cubic-bezier(.3,1.4,.4,1) both}
+.dungeon-device[data-shell="locking"] .dungeon-screen{animation:dungeonWake 560ms steps(6,end) both}
+@keyframes dungeonLock{0%{background:transparent;box-shadow:none;transform:scale(1.03)}55%{transform:scale(.985)}100%{transform:none}}
+@keyframes dungeonRails{0%{opacity:0;transform:scaleY(.2)}70%{opacity:1;transform:scaleY(1.05)}100%{opacity:0;transform:none}}
+@keyframes dungeonWake{0%{filter:brightness(0)}40%{filter:brightness(.2)}70%{filter:brightness(1.6) contrast(1.4)}100%{filter:none}}
+.minigame-overlay.dungeon-reduced-motion .dungeon-device[data-shell="locking"] .dungeon-shell,
+.minigame-overlay.dungeon-reduced-motion .dungeon-device[data-shell="locking"] .dungeon-rail,
+.minigame-overlay.dungeon-reduced-motion .dungeon-device[data-shell="locking"] .dungeon-screen{animation-duration:160ms}
+.dungeon-tape{display:inline-block;width:22px;height:6px;margin-left:auto;background:repeating-linear-gradient(90deg,rgba(233,223,199,.4) 0 3px,rgba(233,223,199,.22) 3px 6px);transform:rotate(-4deg)}
+
+/* ===== DIALOGUE WITH PORTRAIT ===== */
+.dungeon-dialogue{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;padding:10px 26px 10px 10px}
+.dungeon-dialogue.is-narration{grid-template-columns:minmax(0,1fr);padding-left:14px}
+.dungeon-portrait{width:56px;height:56px;border:2px solid var(--mark);background:#1a1714;box-shadow:2px 2px 0 #000;overflow:hidden}
+.dungeon-portrait svg,.dungeon-portrait img{display:block;width:100%;height:100%}
+.dungeon-portrait[hidden]{display:none}
+.dungeon-speech{min-width:0;display:grid;gap:3px}
+.dungeon-speaker{font:900 12px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;color:var(--warm)}
+.dungeon-dialogue.is-narration .dungeon-speaker{display:none}
+.dungeon-dialogue.is-narration .dungeon-line{font-style:italic;color:#d9d0bb}
+.dungeon-dialogue[data-speaker="latch"] .dungeon-portrait{background:#2a241c}
+@media (max-width:340px){.dungeon-portrait{width:46px;height:46px}.dungeon-line{font-size:15px}}
+
+/* ===== CHOICE ===== */
+.dungeon-choice{position:absolute;left:12px;right:12px;bottom:8px;z-index:7;display:grid;grid-template-columns:repeat(var(--choices,2),minmax(0,1fr));gap:8px;max-width:420px;margin:0 auto}
+.dungeon-choice[hidden]{display:none!important}
+.dungeon-choice button{min-width:0;min-height:48px;padding:7px 4px;border:2px solid #000;background:#2a2723;color:#f4ecd8;font:900 16px/1.15 Inter,system-ui,sans-serif;letter-spacing:.06em;box-shadow:3px 3px 0 #000;cursor:pointer}
+.dungeon-choice button.is-selected{background:var(--mark);color:#0c0e12;transform:translateY(-2px)}
+/* The line that asked, kept with its answers (it is read already: no typing, no ▼). */
+.dungeon-choice-line{grid-column:1/-1;margin:0 0 2px;padding:8px 12px 9px;background:#0c0b0a;border:2px solid var(--mark);border-radius:4px;box-shadow:3px 3px 0 #000;font:600 15px/1.35 Inter,system-ui,sans-serif;color:#f4ecd8;text-align:left;pointer-events:none}
+.dungeon-choice-line b{display:block;margin-bottom:4px;font:900 12px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;color:var(--warm)}
+
+/* ===== SPEECH BUBBLES OVER NPCs ===== */
+.dungeon-barks{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+.dungeon-bark{position:absolute;left:0;top:0;width:max-content;max-width:60%;padding:5px 9px;border:2px solid #0c0e12;border-radius:10px;background:#f4ecd8;color:#0c0e12;font:800 14px/1.2 Inter,system-ui,sans-serif;white-space:normal;text-align:center;box-shadow:2px 2px 0 rgba(0,0,0,.6)}
+/* The tail points at the speaker even when the bubble is pushed aside to stay on screen. */
+.dungeon-bark::after{content:"";position:absolute;left:var(--tail,50%);bottom:-7px;width:10px;height:10px;background:#f4ecd8;border-right:2px solid #0c0e12;border-bottom:2px solid #0c0e12;transform:translateX(-50%) rotate(45deg)}
+.dungeon-bark.is-below::after{top:-7px;bottom:auto;transform:translateX(-50%) rotate(225deg)}
+.dungeon-bark.is-edge::after{display:none}
+/* Said quietly (nobody is meant to hear it): same size, less voice. */
+.dungeon-bark.is-quiet{font-weight:600;font-style:italic;background:#d9d2c0;border-width:1.5px;box-shadow:1px 1px 0 rgba(0,0,0,.45);opacity:.9}
+.dungeon-bark.is-quiet::after{background:#d9d2c0;border-width:1.5px}
+
+/* ===== A CONTROL WAKES ONCE ===== */
+.dungeon-key.is-pulsing{animation:dungeonKeyPulse .5s ease-in-out 3}
+.dungeon-dpad.is-pulsing .arm{animation:dungeonPadPulse .5s ease-in-out 2}
+.dungeon-key.is-hinted{outline:3px solid var(--warm);outline-offset:3px}
+.dungeon-dpad.is-hinted .arm{background:#4a4a52}
+@keyframes dungeonKeyPulse{50%{box-shadow:0 0 0 4px rgba(255,154,60,.55),0 5px 0 #000}}
+@keyframes dungeonPadPulse{50%{background:#4a4a52}}
+
+/* ===== RIZO POSES (presentation only; never delay control) ===== */
+.dungeon-pose{--bob:0px}
+.dungeon-pose.is-spark{--lean:4deg;--sx:1.03;--sy:.97}
+.dungeon-pose.pose-look-up{--lean:-6deg;--sy:1.05}
+.dungeon-pose.pose-look-back{animation:dungeonLookBack .9s steps(1,end)}
+.dungeon-pose.pose-hesitate{animation:dungeonHesitate .45s ease-in-out 2}
+.dungeon-pose.pose-shiver{animation:dungeonShiver .14s linear infinite}
+.dungeon-pose.pose-shake{animation:dungeonShake .8s ease-in-out}
+.dungeon-pose.pose-recoil{--sx:.9;--sy:.86;animation:dungeonRecoil .5s ease-out}
+.dungeon-pose.pose-settle{--sy:.9;--sx:1.06;animation:dungeonSettle 1.6s ease-in-out}
+.dungeon-pose.pose-approach-stop{animation:dungeonApproachStop 1.1s ease-in-out}
+.dungeon-pose.pose-hop{animation:dungeonHop .7s ease-out}
+.dungeon-pose.pose-lying{--sy:.62;--sx:1.12;--lean:84deg;opacity:.9}
+.dungeon-pose.pose-getup{animation:dungeonGetUp .7s ease-out both}
+.dungeon-pose.pose-fall{animation:dungeonFall 1.1s ease-in both}
+.dungeon-pose.pose-land{animation:dungeonLand .5s ease-out}
+.dungeon-pose.is-wet .mini-pet{filter:saturate(.82) brightness(.94)}
+.dungeon-pose.is-warm .mini-pet{filter:saturate(1.08) brightness(1.04)}
+@keyframes dungeonLookBack{0%,100%{transform:scaleX(var(--face)) rotate(0)}35%,70%{transform:scaleX(calc(var(--face) * -1)) rotate(-3deg)}}
+@keyframes dungeonHesitate{50%{transform:scaleX(var(--face)) translateX(-2px) scale(.96,1.02)}}
+@keyframes dungeonShiver{0%,100%{translate:0 0}25%{translate:-1px 0}75%{translate:1px 0}}
+@keyframes dungeonShake{0%,100%{transform:scaleX(var(--face))}20%{transform:scaleX(var(--face)) rotate(-9deg)}40%{transform:scaleX(var(--face)) rotate(8deg)}60%{transform:scaleX(var(--face)) rotate(-6deg)}80%{transform:scaleX(var(--face)) rotate(4deg)}}
+@keyframes dungeonRecoil{0%{translate:0 0}40%{translate:-4px 1px}100%{translate:-2px 0}}
+@keyframes dungeonSettle{0%{transform:scaleX(var(--face))}40%,100%{transform:scaleX(var(--face)) scale(1.06,.9)}}
+@keyframes dungeonApproachStop{0%{translate:0 0}45%{translate:3px 0}55%,100%{translate:2px 0;transform:scaleX(var(--face)) rotate(-4deg)}}
+@keyframes dungeonHop{30%{translate:0 -6px}60%{translate:0 0;transform:scaleX(var(--face)) scale(1.06,.94)}}
+@keyframes dungeonGetUp{0%{transform:scaleX(var(--face)) rotate(84deg) scale(1.12,.62)}60%{transform:scaleX(var(--face)) rotate(-6deg) scale(.96,1.04)}100%{transform:scaleX(var(--face))}}
+@keyframes dungeonFall{0%{translate:0 0;opacity:1}30%{translate:0 -6px}100%{translate:0 40px;transform:scaleX(var(--face)) rotate(30deg) scale(.6);opacity:0}}
+@keyframes dungeonLand{0%{translate:0 -24px;transform:scaleX(var(--face)) scale(.9,1.1)}60%{translate:0 0;transform:scaleX(var(--face)) scale(1.15,.82)}100%{transform:scaleX(var(--face))}}
+.minigame-overlay.dungeon-reduced-motion .dungeon-pose[class*="pose-"]{animation:none!important}
+
+/* ===== RIZO STAGING (art pass): weight, anticipation, contact. Presentation only. ===== */
+/* Moving: lean into the heading, a step that lands with a little squash. */
+.dungeon-pose.is-moving{--lean:5deg}
+@keyframes dungeonStep{0%,100%{translate:0 0;scale:1 1}30%{translate:0 -2.5px;scale:.97 1.03}55%{translate:0 0;scale:1.05 .95}}
+/* Standing still: breathing, slow. */
+.dungeon-pose.is-still:not([class*="pose-"]):not(.is-flare):not(.is-spark):not(.is-tuck):not(.is-hurt){animation:dungeonBreathe 2.8s ease-in-out infinite}
+@keyframes dungeonBreathe{50%{scale:1.02 .985}}
+/* Flare: gather (squash back), release (stretch forward), settle. */
+.dungeon-pose.is-flare:not([class*="pose-"]),.dungeon-pose.is-spark:not([class*="pose-"]){animation:dungeonFlare .32s ease-out}
+@keyframes dungeonFlare{0%{scale:.9 1.08;translate:-1.5px 0}35%{scale:1.14 .9;translate:2px 0}100%{scale:1 1;translate:0 0}}
+/* Tuck: a hard curl down, then a springy recovery when it lets go. */
+.dungeon-pose.is-tuck:not([class*="pose-"]){animation:dungeonTuck .16s ease-out both}
+@keyframes dungeonTuck{0%{scale:1 1}100%{scale:1.04 .94}}
+/* Hit: a jolt back and a blink, not a long flash. */
+@keyframes dungeonHurt{0%{translate:-3px 0}50%{opacity:.4;translate:-1px 0}100%{translate:0 0}}
+/* Wet outside: a little colder; warm by the fire: a little brighter. */
+.dungeon-pose.is-wet .mini-pet{filter:saturate(.8) brightness(.93) hue-rotate(-6deg)}
+.dungeon-pose.is-warm .mini-pet{filter:saturate(1.1) brightness(1.06)}
+.minigame-overlay.dungeon-reduced-motion .dungeon-pose{animation:none!important;scale:none!important}
+
+/* ===== v0.3 OPENING (presentation only; never delays control) ===== */
+/* Fear and comfort, in his body: pressed to the glass, pulled in, curled
+   small, leaning back from the dark, straining toward it, trembling, slipping,
+   scrambling, held, loosening by a fire. Each has a still version under reduced motion. */
+.dungeon-pose.pose-press-glass{--lean:-8deg;--sx:.94;--sy:1.08}
+.dungeon-pose.pose-pull-in{--sx:.86;--sy:.84;animation:dungeonPullIn .4s ease-out}
+/* Holding his breath: feet stay in place, flame tucks into itself.
+   Only a slow almost-still squeeze; reduced-motion disables it below. */
+.dungeon-pose.pose-curl{--sx:.86;--sy:.67;--lean:6deg;translate:0 2px;animation:dungeonHeldBreath 3.4s ease-in-out infinite}
+@keyframes dungeonHeldBreath{0%,100%{scale:1 1}50%{scale:.985 .97}}
+.dungeon-pose.pose-lean-back{--lean:-11deg;--sx:.92;--sy:.98}
+.dungeon-pose.pose-edge{--lean:9deg;--sx:1.04;--sy:.94;animation:dungeonShiver .12s linear infinite}
+.dungeon-pose.pose-tremble{--sx:.9;--sy:.84;animation:dungeonShiver .09s linear infinite}
+.dungeon-pose.pose-slip{animation:dungeonSlip .6s ease-in both}
+.dungeon-pose.pose-scramble{animation:dungeonScramble .5s ease-out}
+.dungeon-pose.pose-held{--sx:.88;--sy:1.1;animation:dungeonShiver .1s linear infinite;translate:0 -5px}
+.dungeon-pose.pose-loosen{--sx:1.06;--sy:.95;animation:dungeonLoosen 2.4s ease-in-out}
+.dungeon-pose.pose-watch{animation:dungeonLookBack 2.4s steps(1,end);--lean:-4deg}
+/* Noticing something: a small lift toward it. Staring back: held still, no breath. */
+.dungeon-pose.pose-notice{animation:dungeonNotice .7s ease-out}
+.dungeon-pose.pose-stare{--sx:.94;--sy:1.05;--lean:-3deg;animation:none}
+@keyframes dungeonNotice{35%{translate:0 -2px;scale:.97 1.05}100%{translate:0 0;scale:1 1}}
+.dungeon-pose.in-sack,.dungeon-pose.is-gone{opacity:0;animation:none!important}
+@keyframes dungeonPullIn{from{scale:1.05 1.05}to{scale:1 1}}
+@keyframes dungeonSlip{0%{translate:0 0}40%{translate:0 -5px;transform:scaleX(var(--face)) rotate(-14deg)}100%{translate:0 -3px;transform:scaleX(var(--face)) rotate(-6deg) scale(.96,1)}}
+@keyframes dungeonScramble{0%{translate:0 -3px}40%{translate:0 2px;transform:scaleX(var(--face)) scale(1.08,.9)}100%{translate:0 0}}
+@keyframes dungeonLoosen{0%{scale:1 1;filter:none}50%{scale:1.04 .96;filter:brightness(1.12) saturate(1.1)}100%{scale:1 1;filter:none}}
+
+/* A thought: lowercase, small, beside him. No box, no name, no portrait. */
+.dungeon-thought{position:absolute;left:0;top:0;z-index:5;pointer-events:none;font:italic 500 13px/1 Georgia,"Times New Roman",serif;letter-spacing:.04em;color:#f6e7c8;text-shadow:0 0 6px rgba(255,170,80,.55),0 1px 0 #000;white-space:nowrap;transition:opacity .12s linear}
+.dungeon-thought[hidden]{display:none!important}
+
+/* The dropped phone's screen up close: CALLER_SYMBOL (placeholder) and, once connected, a timer. */
+.dungeon-phone{position:absolute;left:50%;top:34px;z-index:5;transform:translateX(-50%);pointer-events:none}
+.dungeon-phone[hidden]{display:none!important}
+.dungeon-phone-screen{display:grid;place-items:center;gap:4px;width:66px;height:104px;padding:10px 6px;box-sizing:border-box;border-radius:12px;border:3px solid #0b0b0c;background:linear-gradient(#22262b,#151719);box-shadow:0 0 0 1px rgba(233,223,199,.25),0 0 18px rgba(201,214,181,.25)}
+.dungeon-phone.is-ringing .dungeon-phone-screen{animation:dungeonRing 1s ease-in-out infinite}
+.dungeon-phone.is-connected .dungeon-phone-screen{box-shadow:0 0 0 1px rgba(233,223,199,.35),0 0 24px rgba(201,214,181,.4)}
+.dungeon-caller-symbol{width:34px;height:34px;display:block}
+.dungeon-phone-timer{font:700 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#c9d6b5;letter-spacing:.06em}
+@keyframes dungeonRing{0%,100%{transform:rotate(0)}10%{transform:rotate(-4deg)}20%{transform:rotate(4deg)}30%{transform:rotate(-3deg)}40%{transform:rotate(0)}}
+
+/* The fall's flame streak and glimpses sit above the black. */
+.dungeon-fallfx{position:absolute;left:0;top:0;z-index:4;pointer-events:none}
+
+/* A bubble from somebody off screen waits at the nearest edge, dashed. */
+.dungeon-bark.is-edge{border-style:dashed;opacity:.94}
+
+.minigame-overlay.dungeon-reduced-motion .dungeon-phone-screen,.minigame-overlay.dungeon-reduced-motion .dungeon-thought{animation:none!important;transition:none!important}
+/* A line that would cover the Rizo moves to the top of the screen. */
+.dungeon-dialogue.at-top{top:30px;bottom:auto}
+
+/* The caller's screen, wet: the symbol (still a placeholder) blurred by rain on the glass. */
+.dungeon-caller-glass{position:relative;display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:radial-gradient(circle,rgba(217,212,198,.22),rgba(217,212,198,0) 70%)}
+.dungeon-caller-glass .dungeon-caller-symbol{width:34px;height:34px;filter:blur(1.7px);opacity:.82}
+.dungeon-drop{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.75),rgba(180,200,220,.18) 60%,rgba(0,0,0,0) 72%);border:1px solid rgba(255,255,255,.25)}
+.dungeon-drop.d1{width:11px;height:12px;left:4px;top:6px}.dungeon-drop.d2{width:7px;height:8px;right:5px;top:15px}.dungeon-drop.d3{width:9px;height:9px;left:20px;bottom:2px}
+.dungeon-glare{position:absolute;left:-6px;top:20px;width:60px;height:3px;transform:rotate(-28deg);background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.28),rgba(255,255,255,0))}
+.dungeon-phone.is-ringing .dungeon-caller-glass{animation:dungeonCallerPulse 1.8s ease-in-out infinite}
+@keyframes dungeonCallerPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,212,198,.0)}50%{box-shadow:0 0 0 8px rgba(217,212,198,.12)}}
+.minigame-overlay.dungeon-reduced-motion .dungeon-caller-glass{animation:none!important}
+/* The Rows wrap, worn: a service-green cloth across his back, an ugly good seam, a brass clasp, a loose end. */
+.dungeon-wear{position:absolute;left:18%;right:18%;top:60%;height:16%;z-index:13;pointer-events:none;border-radius:42% 42% 50% 50%/55% 55% 45% 45%;background:#5a8578;border:1.5px solid #15110e;box-shadow:inset 0 2px 0 #8fb5a6,inset 0 -2px 0 #3d6157}
+.dungeon-wear::after{content:"";position:absolute;left:8%;top:70%;width:22%;height:85%;background:#5a8578;border:2px solid #15110e;border-top:0;border-radius:0 0 40% 60%;transform:rotate(14deg);transform-origin:50% 0}
+.dungeon-wear-strap{position:absolute;left:10%;right:10%;top:44%;border-top:2px dashed #e3d8bf}
+.dungeon-wear-clasp{position:absolute;right:4%;top:18%;width:22%;aspect-ratio:1;border-radius:50%;background:#ecc77d;border:2px solid #15110e}
+
+/* ===== v0.4 story overhaul ===== */
+/* What he is trying to do now: one short line under the HUD. */
+.dungeon-objective{position:absolute;left:8px;top:27px;z-index:4;max-width:calc(100% - 16px);display:flex;gap:5px;align-items:flex-start;padding:3px 7px 3px 5px;border-radius:4px;background:rgba(8,9,12,.62);color:#f1e6c8;font:800 10.5px/1.25 Inter,system-ui,sans-serif;letter-spacing:.06em;pointer-events:none;box-shadow:0 0 0 1px rgba(241,230,200,.14)}
+.dungeon-objective[hidden]{display:none}
+.dungeon-objective i{font-style:normal;color:#ffaf4a;font-size:9px;line-height:13px}
+.dungeon-objective.is-new{animation:dungeon-objective-new 1.6s ease-out 1}
+@keyframes dungeon-objective-new{0%{background:rgba(224,112,42,.9);color:#fff8e6;transform:translateY(-3px)}30%{background:rgba(224,112,42,.75);transform:none}100%{background:rgba(8,9,12,.62)}}
+@media (max-width:340px){.dungeon-objective{font-size:9.5px;top:25px}}
+/* The Boss speaks only through phones and radios: cold, black, square. */
+.dungeon-bark[data-speaker="boss"]{background:#0b0c0f;color:#eef5f9;border-color:#b8c9d4;border-radius:2px;font-weight:700;letter-spacing:.02em;box-shadow:0 0 12px rgba(184,201,212,.45)}
+.dungeon-bark[data-speaker="boss"]::after{background:#0b0c0f;border-color:#b8c9d4}
+.dungeon-dialogue[data-speaker="boss"]{background:#0b0c0f;color:#eef5f9;border-color:#b8c9d4}
+.dungeon-dialogue[data-speaker="boss"] .dungeon-speaker{color:#b8c9d4}
+.dungeon-pause-goal{display:block;margin-top:6px;font-weight:900;letter-spacing:.06em;color:#ffaf4a}
+/* On a short landscape screen the pause card keeps its buttons; the HUD already shows the goal. */
+@media (max-height:520px){.dungeon-pause-goal{display:none}}
+
+/* The same reading card for intimate talk and discoveries. Reserved footer
+   space keeps the portrait and line still when REVEAL becomes CONTINUE. */
+.dungeon-dialogue{padding-bottom:29px;border-radius:8px;border-color:#786b55;background:linear-gradient(135deg,#211c16,#0c0b0a 72%);box-shadow:0 5px 16px #0009,inset 0 1px #f4ecd812;cursor:pointer}
+.dungeon-dialogue .dungeon-portrait{border-radius:7px;border-color:#786b55;box-shadow:inset 0 0 12px #0005}
+.dungeon-dialogue .dungeon-more{right:11px;bottom:9px;font:700 9px/1.2 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.06em;animation:none;color:#c2b499}
+.dungeon-dialogue[data-reading="ready"] .dungeon-more{color:var(--warm)}
+.dungeon-dialogue[data-speaker="boss"]{background:#0b0c0f;border-color:#b8c9d4}
+.dungeon-dialogue[data-speaker="boss"] .dungeon-more{color:#b8c9d4}

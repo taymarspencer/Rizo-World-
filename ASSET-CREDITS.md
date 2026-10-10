@@ -23,3 +23,11 @@ The Rizo character, compact Rizo-face mark, branding, color direction, item conc
 ## V18 final gear fit assets
 
 The V18 `shades-back.svg`, `shades-front.svg`, `headphones-body.svg`, `headphones-front.svg`, `bandana-back.svg`, `bandana-body.svg`, `bandana-front.svg`, `scarf-back.svg`, `scarf-body.svg`, and `scarf-front.svg` files are original Rizo.game redraws created locally for this project. No new third-party artwork, remote files, fonts, or media were introduced.
+
+## Worker G Defense world plates
+
+`assets/defense-ember-switchback.svg`, `assets/defense-moon-loop.svg`, `assets/defense-storm-circuit.svg`, `assets/defense-whiteout-pass.svg`, and `assets/defense-eclipse-ridge.svg` are original Rizo.game vector environment plates created locally for the Defense map/world pass. They do not use BTD layouts or third-party art, and this pass introduced no new remote assets, fonts, or media dependencies.
+
+## Public World captures — October 2026
+
+`assets/public/den.png` and `assets/public/threshold.png` are browser captures of this repository's playable Den and Dungeon Hearth, taken with a local QA pet named RIZO. They contain the existing project artwork and authored interface; they are not generated concept art or records of a real player's save. The original credits and licenses above remain applicable to any source artwork within them. Public pages also display the existing original `assets/defense-pine-bend.svg` environment plate, identified as a plate rather than a gameplay screenshot. No new third-party images, photos, fonts or media services were introduced.

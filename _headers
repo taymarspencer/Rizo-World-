@@ -2,17 +2,56 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: object-src 'none'; base-uri 'self'
+
+/
+  Cache-Control: no-cache
+
+/play
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/journal
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/about
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/support
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/privacy
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/terms
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/404
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/ads.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300, must-revalidate
+
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: no-cache
+
+/sitemap.xml
+  Content-Type: application/xml; charset=utf-8
+  Cache-Control: no-cache
 
 /*.html
   Content-Type: text/html; charset=utf-8
   Cache-Control: no-cache
 
-/index.html
-  Content-Type: text/html; charset=utf-8
-  Cache-Control: no-cache
-
 /sw.js
-  Content-Type: application/javascript; charset=utf-8
   Cache-Control: no-cache
 
 /manifest.webmanifest
@@ -25,6 +64,20 @@
 
 /*.css
   Content-Type: text/css; charset=utf-8
+  Cache-Control: no-cache, must-revalidate
+
+# Shared contracts and game modes live in folders; keep them revalidating like
+# the root scripts (the service worker bumps its cache per build).
+/core/*
+  Cache-Control: no-cache, must-revalidate
+
+/providers/*
+  Cache-Control: no-cache, must-revalidate
+
+/training/*
+  Cache-Control: no-cache, must-revalidate
+
+/modes/*
   Cache-Control: no-cache, must-revalidate
 
 /assets/*

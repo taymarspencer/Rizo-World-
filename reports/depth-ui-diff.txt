@@ -1,0 +1,111 @@
+--- /mnt/data/worker-h-ui.before-depth.css	2026-09-12 23:30:08.261750447 +0000
++++ worker-h-ui.css	2026-09-12 23:32:50.548222179 +0000
+@@ -184,3 +184,108 @@
+   .defense-boss-overlay,.defense-stat,.defense-command-actions button,.defense-roster-pet,.defense-upgrade-big{border-width:3px}
+   .defense-message{background:#17151b}
+ }
++
++/* Worker H depth pass — progression should stay visible after the purchase sheet closes. */
++.defense-power-mark{
++  position:absolute;z-index:3;left:-7px;bottom:9px;display:flex;flex-direction:column;gap:2px;
++  align-items:center;pointer-events:none;opacity:0;transform-origin:50% 100%;
++  transition:opacity .16s ease,filter .16s ease,transform .16s ease;
++}
++.defense-power-mark>i{display:block;width:9px;height:3px;border:1px solid #17151b;border-radius:99px;background:#413847;box-shadow:0 1px 0 rgb(0 0 0/.35)}
++.defense-upgrade-1 .defense-power-mark,.defense-upgrade-2 .defense-power-mark,.defense-upgrade-3 .defense-power-mark,.defense-upgrade-4 .defense-power-mark{opacity:.88}
++.defense-upgrade-1 .defense-power-mark>i:nth-child(1),
++.defense-upgrade-2 .defense-power-mark>i:nth-child(-n+2),
++.defense-upgrade-3 .defense-power-mark>i,
++.defense-upgrade-4 .defense-power-mark>i{background:var(--tower-color);box-shadow:0 0 5px color-mix(in srgb,var(--tower-color) 62%,transparent),0 1px 0 #17151b}
++.defense-doctrine-power .defense-power-mark{transform:rotate(-8deg);filter:drop-shadow(0 0 3px #ff9b62)}
++.defense-doctrine-control .defense-power-mark{transform:rotate(8deg);filter:drop-shadow(0 0 3px #72e7ff)}
++.defense-doctrine-power .defense-power-mark::before,.defense-doctrine-control .defense-power-mark::before{
++  display:grid;place-items:center;width:15px;height:15px;margin-bottom:1px;border:1.5px solid #17151b;border-radius:50%;background:#fff2cf;color:#17151b;
++  font:950 .66rem/1 var(--def-font-mono);box-shadow:0 1px 0 #17151b;
++}
++.defense-doctrine-power .defense-power-mark::before{content:"◆";background:#ffb576}
++.defense-doctrine-control .defense-power-mark::before{content:"⌁";background:#bff4d6}
++.defense-upgrade-4 .defense-power-mark>i{height:4px}
++.defense-super-power .defense-power-mark,.defense-super-control .defense-power-mark{scale:1.12;opacity:1}
++.defense-shell[data-field-density="crowded"] .defense-tower:not(.selected) .defense-power-mark{opacity:.48;scale:.9}
++
++/* The sheet now communicates a run-long investment arc, not only the next transaction. */
++.defense-evolution-rail{
++  display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,1.25fr);align-items:center;gap:.5rem;
++  min-height:48px;padding:.38rem .48rem;border:1.5px solid #514758;border-radius:12px;background:rgb(18 15 22/.72);
++}
++.defense-evolution-copy{min-width:0;display:grid;gap:.08rem}
++.defense-evolution-copy small{font:950 .66rem/1 var(--def-font-mono);letter-spacing:.05em;color:#c9becf}
++.defense-evolution-copy b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:950 .76rem/1 var(--def-font-display);color:#fff2cf}
++.defense-evolution-track{position:relative;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;gap:.18rem}
++.defense-evolution-track::before{content:"";position:absolute;left:8%;right:8%;top:50%;height:3px;translate:0 -50%;border:1px solid #17151b;border-radius:99px;background:#3c3441}
++.defense-evolution-track>i{position:relative;z-index:1;display:grid;place-items:center;width:24px;height:24px;justify-self:center;border:1.5px solid #17151b;border-radius:50%;background:#433a48;color:#bdb4c3;font:950 .66rem/1 var(--def-font-mono);font-style:normal;box-shadow:0 1px 0 #09080a}
++.defense-evolution-track>i.done{background:var(--panel-accent,#ffd45a);color:#17151b}
++.defense-evolution-track>i.current{outline:2px solid #fff2cf;outline-offset:2px;scale:1.06}
++.defense-evolution-rail.doctrine-power .path-node{background:#ffb576}
++.defense-evolution-rail.doctrine-control .path-node{background:#bff4d6}
++.defense-evolution-track>.max-node.done{background:#fff2a8;box-shadow:0 0 0 2px rgb(255 242 168/.16),0 0 12px rgb(255 212 90/.38)}
++
++/* Grouped powers reveal staggered reserves and the next charge at a glance. */
++.defense-ability-card{position:relative;padding-bottom:.72rem}
++.defense-ability-charge{position:absolute;left:64px;right:38px;bottom:.22rem;display:grid;grid-template-columns:auto minmax(34px,1fr);align-items:center;gap:.28rem;height:8px;pointer-events:none}
++.defense-ability-charge-pips{display:flex;align-items:center;gap:2px}
++.defense-ability-charge-pips>i{display:block;width:6px;height:6px;border:1px solid #17151b;border-radius:50%;background:#4d4453;box-shadow:0 1px 0 #09080a}
++.defense-ability-charge-pips>i.charged{background:#73e890;box-shadow:0 0 5px rgb(115 232 144/.65),0 1px 0 #09080a}
++.defense-ability-charge-pips>u{font:950 .66rem/1 var(--def-font-mono);text-decoration:none;color:#d8cfdd}
++.defense-ability-charge-rail{height:6px;overflow:hidden;border:1px solid #17151b;border-radius:99px;background:#19151d}
++.defense-ability-charge-rail>i{display:block;width:var(--ability-charge,0%);height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--panel-accent,#73e890),#fff2a8);transition:width .18s linear}
++.defense-ability-group.ready .defense-ability-charge-rail>i{background:#73e890}
++.defense-abilities-button.ready-arrival{animation:worker-h-power-arrival .72s cubic-bezier(.2,.8,.2,1) both}
++@keyframes worker-h-power-arrival{0%,100%{filter:none}24%{filter:brightness(1.35);box-shadow:0 3px 0 #17151b,0 0 0 5px rgb(115 232 144/.3),0 0 18px rgb(115 232 144/.42)}52%{filter:brightness(1.08);box-shadow:0 3px 0 #17151b,0 0 0 2px rgb(115 232 144/.18)}}
++
++/* Ordinary income, perfect defense, and run milestones should not all feel like the same receipt. */
++.defense-moment.moment-money.tone-perfect .defense-moment-card{
++  border-color:#bcffca;background:linear-gradient(105deg,rgb(17 30 24/.97),rgb(31 42 29/.96));
++  box-shadow:0 6px 0 #000,0 0 0 4px rgb(188 255 202/.12),0 18px 38px rgb(0 0 0/.38);
++}
++.defense-moment.moment-money.tone-perfect .defense-moment-card>i{background:#bcffca}
++.defense-moment.moment-money.tone-perfect b{color:#bcffca}
++.defense-moment.moment-money.tone-milestone .defense-moment-card{
++  position:relative;border-color:#fff2a8;background:linear-gradient(110deg,rgb(38 25 45/.98),rgb(28 24 29/.98) 48%,rgb(48 35 20/.97));
++  box-shadow:0 7px 0 #000,0 0 0 4px rgb(255 242 168/.14),0 20px 44px rgb(0 0 0/.42);
++}
++.defense-moment.moment-money.tone-milestone .defense-moment-card::after{content:"×  ×  ×";position:absolute;right:44px;top:-10px;color:#ffcf5a;font:950 .66rem/1 var(--def-font-mono);letter-spacing:.12em;text-shadow:0 2px #17151b}
++.defense-moment.moment-money.tone-milestone .defense-moment-card>i{background:#fff2a8;box-shadow:0 2px 0 #000,0 0 12px rgb(255 212 90/.5)}
++.defense-moment.moment-money.tone-milestone b{color:#fff2a8}
++
++@media (max-width:599px) and (orientation:portrait){
++  .defense-evolution-rail{grid-template-columns:minmax(0,.82fr) minmax(145px,1.18fr);min-height:44px;padding:.32rem .4rem;gap:.35rem}
++  .defense-evolution-track>i{width:22px;height:22px}
++  .defense-ability-charge{left:58px;right:34px}
++}
++@media (max-width:359px), (max-height:650px) and (orientation:portrait){
++  .defense-evolution-copy small{display:none}
++  .defense-evolution-rail{grid-template-columns:minmax(70px,.65fr) minmax(138px,1.35fr);min-height:40px}
++  .defense-evolution-track>i{width:20px;height:20px}
++}
++@media (prefers-reduced-motion:reduce){
++  .defense-abilities-button.ready-arrival{animation:none;box-shadow:0 3px 0 #17151b,0 0 0 3px rgb(115 232 144/.24)}
++  .defense-ability-charge-rail>i,.defense-power-mark{transition:none}
++}
++
++/* Depth restraint: grouped power portraits stay inside their card instead of spilling into the sheet. */
++.defense-ability-stack{
++  position:relative;display:block;flex:0 0 54px;width:54px;height:48px;overflow:hidden;
++  border:1.5px solid #17151b;background:#211d27;isolation:isolate;
++}
++.defense-ability-stack>i{position:absolute;inset:0;display:block;overflow:hidden;font-style:normal;transform-origin:50% 100%}
++.defense-ability-stack>i:nth-child(1){z-index:3}
++.defense-ability-stack>i:nth-child(2){z-index:2;translate:7px 1px;scale:.88;opacity:.9}
++.defense-ability-stack>i:nth-child(3){z-index:1;translate:13px 2px;scale:.76;opacity:.78}
++.defense-ability-stack .defense-ability-rizo{
++  position:absolute;left:50%;bottom:-7px;width:52px;height:52px;max-width:none;max-height:none;translate:-50% 0;
++}
++.defense-ability-stack>u{
++  position:absolute;z-index:4;right:2px;top:2px;padding:2px 3px;border:1px solid #17151b;border-radius:7px;
++  background:#fff2cf;color:#17151b;font:950 .66rem/1 var(--def-font-mono);text-decoration:none;
++}
++@media (max-width:599px) and (orientation:portrait){
++  .defense-ability-stack{flex-basis:48px;width:48px;height:44px}
++  .defense-ability-stack .defense-ability-rizo{width:48px;height:48px}
++}

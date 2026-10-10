@@ -1,0 +1,6 @@
+PASS runtime JS is network-first even with poisoned cache
+PASS runtime JS falls back to repaired cache offline
+PASS navigation is network-first and cache-backed offline
+PASS worker has versioned release cache and optional best-effort install
+
+4/4 service-worker policy checks passed

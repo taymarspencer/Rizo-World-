@@ -2,14 +2,16 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v86-launch-hotfix";
+  const RIZO_RUNTIME_BUILD = "v97-dungeon-collection";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*
     RIZO LIFE CORE GAME
     ===================
-    This file owns game state, save migration, pet simulation, rendering, arcade
-    loops, collection/capsule logic, expeditions, sound, and event binding.
+    This file is the hub: game state, save migration, pet simulation, rendering,
+    collection/capsule logic, expeditions, sound, event binding, and the runner
+    and host adapter the training games (training/) and game modes (modes/)
+    play through. See ARCHITECTURE.md.
 
     Launch/install/ads are intentionally outside this file:
       - rizo-config.js       owner-editable IDs and switches
@@ -20,21 +22,36 @@
     without providing a migration. Players' pets live in localStorage.
   */
 
+  const SaveCore = globalThis.RizoSaveCore;
+  if (!SaveCore) throw new Error("RizoSaveCore failed to load before the game core.");
+  const CORE_LIMITS = SaveCore.LIMITS;
+  // Save keys. The v2 envelope lives under SAVE_V2_KEY. The v1 keys (SAVE_KEY,
+  // SAVE_BACKUP_KEY, LEGACY_KEY) are read as migration sources and are never
+  // written again, so every pre-v88 save survives untouched as a fallback and
+  // as the rollback point for an older build. SAVE_KEY is still the namespace
+  // for older side keys (checkpoints, warnings, pre-recovery).
   const SAVE_KEY = "rizo-life-overhaul-v2";
   const LEGACY_KEY = "rizo-life-save-v1";
-  const DefenseCore = globalThis.RizoDefenseCore;
-  if (!DefenseCore) throw new Error("RizoDefenseCore failed to load before the game core.");
-  const { PHASES: DEFENSE_PHASES, BUDGETS: DEFENSE_BUDGETS, LIMITS: DEFENSE_LIMITS } = DefenseCore;
   const SAVE_BACKUP_KEY = `${SAVE_KEY}:verified-backup-v1`;
+  const SAVE_V2_KEY = "rizo-save-v2";
+  const SAVE_V2_BACKUP_KEY = "rizo-save-v2:backup";
+  const SAVE_QUARANTINE_PREFIX = "rizo-save-quarantine:";
+  const SAVE_QUARANTINE_LIMIT = 5;
   const SAVE_VALIDATION_WARNING_KEY = `${SAVE_KEY}:save-validation-warning`;
-  const SAVE_ENVELOPE_VERSION = DefenseCore.STATE_SAVE_VERSION;
-  const DEFENSE_CHECKPOINT_KEY = `${SAVE_KEY}:defense-checkpoint-v68`;
-  const DEFENSE_LEGACY_CHECKPOINT_KEYS = [`${SAVE_KEY}:defense-checkpoint-v67`, `${SAVE_KEY}:defense-checkpoint-v66`, `${SAVE_KEY}:defense-checkpoint-v64`, `${SAVE_KEY}:defense-checkpoint-v42`];
-  const DEFENSE_VALIDATION_WARNING_KEY = `${SAVE_KEY}:defense-validation-warning`;
-  const DEFENSE_CHECKPOINT_VERSION = DefenseCore.VERSION;
-  const DEFENSE_CHECKPOINT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
-  const BASE_DEFENSE_STARTING_CASH = DefenseCore.ECONOMY.baseStartingCash;
-  const VERSION = 19;
+  const SAVE_ENVELOPE_VERSION = SaveCore.LATEST_SAVE_VERSION;
+  // Pre-v88 Defense checkpoint keys, newest first. Read once and handed to the
+  // Defense mode's run store (see MODE_LEGACY_RUN_KEYS); never written.
+  const LEGACY_DEFENSE_CHECKPOINT_KEYS = [`${SAVE_KEY}:defense-checkpoint-v68`, `${SAVE_KEY}:defense-checkpoint-v67`, `${SAVE_KEY}:defense-checkpoint-v66`, `${SAVE_KEY}:defense-checkpoint-v64`, `${SAVE_KEY}:defense-checkpoint-v42`];
+  // State version 20: Rizo Defense's records, settings and school moved out of
+  // the hub state into the Defense save slice (see modeInbox in normalizeState).
+  // State version 21: Ember Beat's song bag moved to state.trainingMemory.
+  // State version 23: shared home expansion and each pet's Den placement.
+  const VERSION = 23;
+  const Home = globalThis.RizoHome;
+  if (!Home) throw new Error("RizoHome failed to load before the hub.");
+  // Raw (unsigned) saves are trusted only if they predate save signing (v66,
+  // state version 18). Bumping VERSION must never widen that trust.
+  const RAW_SAVE_TRUST_BELOW = 19;
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const now = () => Date.now();
@@ -46,9 +63,15 @@
   let lastOverlayFocus = null;
 
   function syncUILock() {
-    const locked = el?.bottomSheet?.classList.contains("show") || el?.modalOverlay?.classList.contains("show") || (el?.miniGameOverlay && !el.miniGameOverlay.hidden);
+    const sheetOpen = el?.bottomSheet?.classList.contains("show"), modalOpen = el?.modalOverlay?.classList.contains("show");
+    const locked = adAudioHolds > 0 || sheetOpen || modalOpen || (el?.miniGameOverlay && !el.miniGameOverlay.hidden);
     document.documentElement.classList.toggle("ui-locked", Boolean(locked));
     document.body.classList.toggle("ui-locked", Boolean(locked));
+    if (el?.gameShell) el.gameShell.inert = Boolean(locked);
+    if (el?.originScreen) el.originScreen.inert = Boolean(locked);
+    if (el?.bottomSheet) el.bottomSheet.inert = adAudioHolds > 0 || !sheetOpen || Boolean(modalOpen);
+    if (el?.modalOverlay) el.modalOverlay.inert = adAudioHolds > 0 || !modalOpen;
+    if (el?.miniGameOverlay) el.miniGameOverlay.inert = adAudioHolds > 0 || Boolean(sheetOpen || modalOpen);
   }
 
   function isUILocked() {
@@ -76,7 +99,8 @@
     root.style.setProperty("--rizo-vv-left", `${view.left}px`);
     root.style.setProperty("--rizo-vv-scale", String(view.scale));
     root.dataset.rizoOrientation = view.width > view.height ? "landscape" : "portrait";
-    if (mini?.active) mini.lastFrame = performance.now();
+    if (trainingRun) trainingRun.lastFrame = performance.now();
+    if (state?.pet && currentView === "home") syncDenPosition();
     return view;
   }
 
@@ -85,29 +109,31 @@
     runtimeViewportFrame = requestAnimationFrame(() => {
       runtimeViewportFrame = null;
       syncRuntimeViewport();
-      scheduleDefenseTowerGeometrySync();
+      globalThis.RizoModes?.resizeActive?.(reason);
     });
     clearTimeout(runtimeViewportTimer);
     runtimeViewportTimer = setTimeout(() => {
       runtimeViewportTimer = null;
       syncRuntimeViewport();
-      scheduleDefenseTowerGeometrySync();
+      globalThis.RizoModes?.resizeActive?.(reason);
     }, reason === "orientation" ? 280 : 120);
   }
 
-  function lockDefenseViewport() {
-    if (!defenseViewportScroll) defenseViewportScroll = { x: window.scrollX || 0, y: window.scrollY || 0 };
+  // A game mode's stage owns the whole viewport while it is open. (The CSS class
+  // keeps its historical name; Defense was the first mode to need it.)
+  function lockStageViewport() {
+    if (!stageViewportScroll) stageViewportScroll = { x: window.scrollX || 0, y: window.scrollY || 0 };
     const root = document.documentElement;
-    root.style.setProperty("--rizo-lock-scroll-x", `${-(defenseViewportScroll.x || 0)}px`);
-    root.style.setProperty("--rizo-lock-scroll-y", `${-(defenseViewportScroll.y || 0)}px`);
+    root.style.setProperty("--rizo-lock-scroll-x", `${-(stageViewportScroll.x || 0)}px`);
+    root.style.setProperty("--rizo-lock-scroll-y", `${-(stageViewportScroll.y || 0)}px`);
     root.classList.add("defense-viewport-lock");
     document.body.classList.add("defense-viewport-lock");
     syncRuntimeViewport();
   }
 
-  function unlockDefenseViewport() {
-    const saved = defenseViewportScroll;
-    defenseViewportScroll = null;
+  function unlockStageViewport() {
+    const saved = stageViewportScroll;
+    stageViewportScroll = null;
     document.documentElement.classList.remove("defense-viewport-lock");
     document.body.classList.remove("defense-viewport-lock");
     document.documentElement.style.removeProperty("--rizo-lock-scroll-x");
@@ -120,53 +146,38 @@
       build: window.__RIZO_BUILD__ || "unknown",
       updateReady: releaseUpdateReady,
       hasController: Boolean(navigator.serviceWorker?.controller),
-      viewportScroll: defenseViewportScroll ? { ...defenseViewportScroll } : null,
+      viewportScroll: stageViewportScroll ? { ...stageViewportScroll } : null,
       suspendedAt: runtimeSuspendedAt || 0,
       suspendReason: runtimeSuspendReason || ""
     };
   }
 
   const CONFIG = {
-    ads: {
-      enabled: false,
-      provider: "none",
-      placements: ["home-feed", "arcade-between-games", "shop-footer", "death-revive", "capsule-bonus", "expedition-double"]
-    },
     cloud: {
       enabled: false,
       provider: "none"
     }
   };
 
-  /*
-    FUTURE MONETIZATION BRIDGE
-    ---------------------------------
-    A web ad network or native wrapper can replace these methods without changing game logic.
-    Example native flow: Capacitor + AdMob calls window.RizoAds.setProvider(nativeAdapter).
-  */
-  const AdBridge = {
-    provider: null,
-    setProvider(provider) {
-      this.provider = provider;
-      CONFIG.ads.enabled = Boolean(provider);
-      refreshAdSlots();
-    },
-    async showRewarded(placement) {
-      if (!CONFIG.ads.enabled || !this.provider?.showRewarded) return false;
-      try { return Boolean(await this.provider.showRewarded(placement)); }
-      catch (error) { console.warn("Rizo rewarded ad failed", error); return false; }
-    },
-    async showInterstitial(placement) {
-      if (!CONFIG.ads.enabled || !this.provider?.showInterstitial) return false;
-      try { return Boolean(await this.provider.showInterstitial(placement)); }
-      catch (error) { console.warn("Rizo interstitial failed", error); return false; }
-    },
-    mountBanner(placement, element) {
-      if (!CONFIG.ads.enabled || !this.provider?.mountBanner) return false;
-      try { this.provider.mountBanner(placement, element); return true; }
-      catch (error) { console.warn("Rizo banner failed", error); return false; }
-    }
-  };
+  let adAudioHolds = 0, adAudioWasRunning = false;
+  const AdBridge = globalThis.RizoAdCore?.createBridge({
+    enabled: () => window.RIZO_CONFIG?.ads?.enabled === true,
+    canRequestAds: () => window.RizoPrivacy?.canRequestAds() === true,
+    // The campaign and live runs are protected. Future mode-specific placements
+    // require an explicitly reviewed host opportunity; no event auto-requests ads.
+    contextSafe: () => !document.hidden && !globalThis.RizoModes?.active?.() && !mini?.active,
+    placements: window.RIZO_CONFIG?.ads?.placements || {},
+    timeoutMs: window.RIZO_CONFIG?.ads?.h5Games?.rewardTimeoutMs,
+    requestCooldownMs: window.RIZO_CONFIG?.ads?.requestCooldownMs,
+    interstitialCooldownMs: window.RIZO_CONFIG?.ads?.interstitialCooldownMs,
+    maxRequestsPerSession: window.RIZO_CONFIG?.ads?.maxRequestsPerSession,
+    onStart: detail => document.dispatchEvent(new CustomEvent("rizo:ad-start", { detail })),
+    onEnd: detail => document.dispatchEvent(new CustomEvent("rizo:ad-end", { detail })),
+    onChange: () => refreshAdSlots()
+  }) || Object.freeze({
+    setProvider: () => false, available: () => false, mountBanner: () => false,
+    showRewarded: async () => false, showInterstitial: async () => false
+  });
   window.RizoAds = AdBridge;
   window.dispatchEvent(new CustomEvent("rizo:adbridge-ready"));
 
@@ -188,22 +199,8 @@
   window.RizoCloud = CloudBridge;
 
   // ===== CONTENT DATABASE: collectible Rizos, food, cosmetics, lore =====
-  const VARIANTS = [
-    { id: "classic", name: "CLASSIC BLUE", rarity: "COMMON", weight: 39, color: "#16c8ff", sprite: "./assets/rizo-classic.png", source: "CAPSULE" },
-    { id: "ember", name: "EMBER RED", rarity: "UNCOMMON", weight: 17, color: "#ff4f3d", sprite: "./assets/rizo-ember.png", source: "CAPSULE" },
-    { id: "toxic", name: "TOXIC LIME", rarity: "RARE", weight: 10, color: "#8dff45", sprite: "./assets/rizo-toxic.png", source: "CAPSULE" },
-    { id: "violet", name: "VOID VIOLET", rarity: "RARE", weight: 7.5, color: "#a46cff", sprite: "./assets/rizo-violet.png", source: "CAPSULE" },
-    { id: "moss", name: "MOSS RIZO", rarity: "RARE", weight: 4.5, color: "#48c46f", sprite: "./assets/rizo-moss.png", source: "FOREST + CAPSULE" },
-    { id: "bubblegum", name: "BUBBLEGUM", rarity: "EPIC", weight: 5.5, color: "#ff64c8", sprite: "./assets/rizo-bubblegum.png", source: "CAPSULE" },
-    { id: "frost", name: "FROSTBITE", rarity: "EPIC", weight: 4.5, color: "#b7f4ff", sprite: "./assets/rizo-frost.png", source: "CAPSULE" },
-    { id: "glitch", name: "GLITCH RIZO", rarity: "MYTHIC", weight: 3.2, color: "#33ffe0", sprite: "./assets/rizo-glitch.png", source: "CAPSULE" },
-    { id: "obsidian", name: "OBSIDIAN", rarity: "MYTHIC", weight: 2.1, color: "#26304b", sprite: "./assets/rizo-obsidian.png", source: "CAPSULE" },
-    { id: "aurora", name: "AURORA RIZO", rarity: "MYTHIC", weight: 1.5, color: "#7df4ff", sprite: "./assets/rizo-aurora.png", source: "PRISM CAPSULE", prismOnly: true },
-    { id: "golden", name: "GOLDEN RIZO", rarity: "LEGENDARY", weight: 1.25, color: "#ffd54a", sprite: "./assets/rizo-golden.png", source: "CAPSULE" },
-    { id: "diamond", name: "DIAMOND RIZO", rarity: "SECRET", weight: .4, color: "#dffbff", sprite: "./assets/rizo-diamond.png", source: "CAPSULE" },
-    { id: "retro", name: "RETRO RIZO", rarity: "SECRET", weight: .35, color: "#18c8ff", sprite: "./assets/rizo-retro.png", source: "ARCADE SIGNAL", pixel: true, capsule: false },
-    { id: "shadow", name: "SHADOW RIZO", rarity: "FOREST SECRET", weight: 0, color: "#7954ff", sprite: "./assets/rizo-shadow.png", source: "DEEP FOREST", capsule: false }
-  ];
+  // Variants are shared content (core/rizo-catalog.js) so game modes can read them too.
+  const VARIANTS = globalThis.RizoCatalog.VARIANTS;
 
   const STAGES = [
     // Internal IDs remain untouched for save compatibility. Visible names are
@@ -274,7 +271,7 @@
     beanie:"head", flower:"right", horns:"head", halo:"head", crown:"head",
     cap:"head", bow:"head", antenna:"head", leafcrown:"head", starclip:"right", bucket:"head",
     shades:"face", eyepatch:"face", goggles:"face", visor:"face", mask:"face", earmuffs:"upper",
-    headphones:"upper", bandana:"lower", chain:"lower", scarf:"lower",
+    headphones:"upper", bandana:"lower", chain:"lower", scarf:"lower", "first-knot":"lower",
     wings:"back", cape:"back", backpack:"back"
   };
 
@@ -363,7 +360,10 @@
     { id: "starclip", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-starclip.png" alt="">', name: "STAR CLIP", description: "A small reward for being objectively adorable.", cost: 410, rarity: "legendary" },
     { id: "mask", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-mask.png" alt="">', name: "NIGHT MASK", description: "Secret identity: still Rizo.", cost: 445, rarity: "legendary" },
     { id: "earmuffs", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-earmuffs.png" alt="">', name: "FROST MUFFS", description: "Warm ears. Cold stare.", cost: 520, rarity: "legendary" },
-    { id: "bucket", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-bucket.png" alt="">', name: "RAIN BUCKET HAT", description: "Built for weather and accidental fame.", cost: 575, rarity: "legendary" }
+    { id: "bucket", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-bucket.png" alt="">', name: "RAIN BUCKET HAT", description: "Built for weather and accidental fame.", cost: 575, rarity: "legendary" },
+    // Earned, never sold: absent from the shop until owned, and from every
+    // capsule/ad pool. Granted only through a mode receipt (MODE_ENTITLEMENTS).
+    { id: "first-knot", icon: '<img class="wearable-item-icon" src="./assets/wearables/thumb-first-knot.svg" alt="">', name: "FIRST KNOT", description: "Latch tied it once. You kept it.", cost: 0, rarity: "epic", earned: true }
   ];
 
   const ROOMS = [
@@ -571,7 +571,7 @@
     habitatScene: $("#habitatScene"), gardenVisitor: $("#gardenVisitor"), visitorSprite: $("#visitorSprite"), visitorAccessory: $("#visitorAccessory"), visitorName: $("#visitorName"), weatherFx: $("#weatherFx"), denCareTrace: $("#denCareTrace"), moodChip: $("#moodChip"), sceneMenuButton: $("#sceneMenuButton"), thoughtBubble: $("#thoughtBubble"), petTapTarget: $("#petTapTarget"), eggActor: $("#eggActor"), petActor: $("#petActor"), petSprite: $("#petSprite"), faceFx: $("#faceFx"), statusFx: $("#statusFx"), accessoryLayer: $("#accessoryLayer"), tapCombo: $("#tapCombo"), petName: $("#petName"), petDescriptor: $("#petDescriptor"), petLevel: $("#petLevel"), growthTitle: $("#growthTitle"), growthText: $("#growthText"), growthBar: $("#growthBar"), needGrid: $("#needGrid"), careName: $("#careName"), sleepActionText: $("#sleepActionText"),
     hungerText: $("#hungerText"), moodText: $("#moodText"), energyText: $("#energyText"), hygieneText: $("#hygieneText"), hungerBar: $("#hungerBar"), moodBar: $("#moodBar"), energyBar: $("#energyBar"), hygieneBar: $("#hygieneBar"),
     questTitle: $("#questTitle"), questBar: $("#questBar"), questText: $("#questText"), questClaim: $("#questClaim"), memoryTitle: $("#memoryTitle"), memoryText: $("#memoryText"), journalJump: $("#journalJump"), moreCareButton: $("#moreCareButton"),
-    bestPower: $("#bestPower"), bestSpark: $("#bestSpark"), bestForage: $("#bestForage"), bestRush: $("#bestRush"), bestWalk: $("#bestWalk"), bestRhythm: $("#bestRhythm"), bestMemory: $("#bestMemory"), bestGlide: $("#bestGlide"), bestBreaker: $("#bestBreaker"), bestMaze: $("#bestMaze"), bestDefense: $("#bestDefense"), expeditionStatus: $("#expeditionStatus"), expeditionOptions: $("#expeditionOptions"), expeditionClaim: $("#expeditionClaim"),
+    miniPause: $("#miniPause"), miniPausePanel: $("#miniPausePanel"), bestPower: $("#bestPower"), bestSpark: $("#bestSpark"), bestForage: $("#bestForage"), bestRush: $("#bestRush"), bestWalk: $("#bestWalk"), bestRhythm: $("#bestRhythm"), bestMemory: $("#bestMemory"), bestGlide: $("#bestGlide"), bestBreaker: $("#bestBreaker"), bestMaze: $("#bestMaze"), expeditionStatus: $("#expeditionStatus"), expeditionOptions: $("#expeditionOptions"), expeditionClaim: $("#expeditionClaim"),
     closetActor: $("#closetActor"), closetSprite: $("#closetSprite"), closetAccessory: $("#closetAccessory"), closetName: $("#closetName"), closetVariant: $("#closetVariant"), shopList: $("#shopList"),
     profileActor: $("#profileActor"), profileSprite: $("#profileSprite"), profileAccessory: $("#profileAccessory"), profileRarity: $("#profileRarity"), profileName: $("#profileName"), profileBio: $("#profileBio"), renameButton: $("#renameButton"), journalContent: $("#journalContent"),
     farmContent: $("#farmContent"),
@@ -595,18 +595,34 @@
   let refuseUntil = 0;
   let overloadCooldownUntil = 0;
   let saveTimer = null;
-  let mini = { active: false, mode: null, score: 0, hits: 0, endAt: 0, timer: null, mover: null, currentGood: true, frame: null, intervals: [], entities: [] };
-  let defenseResizeFrame = null;
+  let modeSlices = {};
+  let saveWriteId = "";
+  let saveBlocked = null;
+  let saveFailureNotified = false;
+  let pendingRecoveryModes = {};
+  let mini = idleRunBoard();
   let runtimeViewportFrame = null;
   let runtimeViewportTimer = null;
   let runtimeSuspendedAt = 0;
   let runtimeSuspendReason = "";
-  let defenseViewportScroll = null;
+  // { modeId, away, deferred:Set } while a foreground-hold mode is open.
+  let modeCareHold = null;
+  // Dormant semantic events from modes (diagnostic ring; no consumer yet).
+  const modeEventLog = [];
+  let stageViewportScroll = null;
   let releaseUpdateReady = false;
-  let defenseRendererOverride = null;
   let releaseRegistration = null;
   let lastOfflineSummary = null;
   let activePetBehavior = null;
+  let denBehaviorTimer = null;
+  let denBehaviorSequence = 0;
+  const denReactions = new Map();
+  let denPlayActive = false;
+  // Transient presentation only (never saved): the build ceremony and the
+  // "we're back" beat after a journey or a drill.
+  let homeBuiltUntil = 0;
+  let pendingArrival = null;
+  let trainingFocus = "all";
   let petBehaviorTimer = null;
   let worldEventOpen = false;
   let activeMusicOverride = null;
@@ -687,6 +703,8 @@
       genes: createGenes(),
       alignment: 0,
       careProfile: { kind: 0, wild: 0, balanced: 0, foods: {}, games: {} },
+      storyMarks: [],
+      denPosition: Home.position(),
       form: "balanced",
       formHistory: [],
       generation: 1,
@@ -722,9 +740,9 @@
     const choices = [
       { type: "tap", title: "TAP YOUR RIZO 25 TIMES", target: 25, reward: 30 },
       { type: "feed", title: "SERVE 2 QUESTIONABLE MEALS", target: 2, reward: 35 },
-      { type: "play", title: "FINISH 1 ARCADE RUN", target: 1, reward: 40 },
+      { type: "play", title: "FINISH 1 TRAINING RUN", target: 1, reward: 40 },
       { type: "clean", title: "CLEAN YOUR RIZO ONCE", target: 1, reward: 30 },
-      { type: "train", title: "FINISH 1 POWER TAP RUN", target: 1, reward: 45 },
+      { type: "train", title: "FINISH 1 POWER TAPE OR EMBER FORGE RUN", target: 1, reward: 45 },
       { type: "walk", title: "TAKE RIZO ON 1 RAIN WALK", target: 1, reward: 45 }
     ];
     const seed = [...key].reduce((sum, c) => sum + c.charCodeAt(0), 0);
@@ -784,10 +802,10 @@
         lastVisitDate: dateKey(),
         tutorialStep: 0,
         tutorialDismissed: false,
-        keeperGuideSeen: false,
-        defenseSchool: { dismissed: false, completed: [], replay: false }
+        keeperGuideSeen: false
       },
       wallet: { embers: 100, shards: 0 },
+      home: Home.normalize(),
       pet: null,
       inventory: {
         accessories: ["none"],
@@ -802,7 +820,13 @@
       legacy: [],
       achievements: [],
       daily: createDaily(),
-      scores: { power: 0, spark: 0, forage: 0, rush: 0, walk: 0, rhythm: 0, memory: 0, glide: 0, breaker: 0, maze: 0, defense: 0, defenseMilestones: [], defenseMaps: {}, defensePerfectMaps: [], defenseHistory: [], defenseMastery: {}, defenseContracts: [] },
+      scores: { power: 0, spark: 0, forage: 0, rush: 0, walk: 0, rhythm: 0, memory: 0, glide: 0, breaker: 0, maze: 0 },
+      // Fields from before a game mode had its own save slice, waiting to be
+      // handed to that mode once (see prepareModeSlices).
+      modeInbox: {},
+      // Rewards a game mode has been granted, by mode and receipt id. A receipt
+      // is never pruned, so the same milestone can never pay twice.
+      modeReceipts: {},
       treasures: {},
       worldEvents: { lastAt: now(), count: 0, seen: [], lastBadLuckAt: 0, badLuckCount: 0 },
       garden: { toyUses: {}, favoriteToy: null, lastToyAt: 0, nextEggVariant: null, bondSeed: null, lastPairKeeper: null },
@@ -811,8 +835,8 @@
       season: { xp: 0, level: 1 },
       expedition: { active: false, ready: false, type: null, endAt: 0, result: null },
       loreUnlocked: ["keeper"],
-      settings: { sound: true, soundVolume: .85, music: true, musicVolume: .85, haptics: true, reducedMotion: false, defenseFx: "auto", defenseUiScale: "standard", defenseSignatures: true, defenseAutoStart: false, defenseWaveIntel: "simple", adPreview: false },
-      musicHistory: { emberBag: [], emberLast: null },
+      settings: { sound: true, soundVolume: .85, music: true, musicVolume: .85, haptics: true, reducedMotion: false, adPreview: false },
+      trainingMemory: {},
       meta: { totalHatched: 0, totalTaps: 0, totalCareActions: 0, totalGames: 0, totalWalks: 0, deaths: 0, recoveries: 0, rebirths: 0, bondEggs: 0, nextPetNumber: 1, capsules: 0, pity: 0, refusals: 0, overloads: 0, retroSignal: 0, shadowFinds: 0, unlockScenes: [], backupPrompts: [], lastBackupAt: 0 }
     };
     base.pet = createPet({ pity: 0, number: 1 });
@@ -831,6 +855,7 @@
       ...raw,
       player: { ...fresh.player, ...(raw.player && typeof raw.player === "object" ? raw.player : {}) },
       wallet: { ...fresh.wallet, ...(raw.wallet && typeof raw.wallet === "object" ? raw.wallet : {}) },
+      home: Home.normalize(raw.home, raw),
       inventory: { ...fresh.inventory, ...sourceInventory },
       scores: { ...fresh.scores, ...(raw.scores && typeof raw.scores === "object" ? raw.scores : {}) },
       treasures: raw.treasures && typeof raw.treasures === "object" && !Array.isArray(raw.treasures) ? raw.treasures : {},
@@ -838,7 +863,7 @@
       season: { ...fresh.season, ...(raw.season && typeof raw.season === "object" ? raw.season : {}) },
       expedition: normalizeExpeditionState(raw.expedition),
       settings: { ...fresh.settings, ...(raw.settings && typeof raw.settings === "object" ? raw.settings : {}) },
-      musicHistory: { ...fresh.musicHistory, ...(raw.musicHistory && typeof raw.musicHistory === "object" ? raw.musicHistory : {}) },
+      trainingMemory: normalizeTrainingMemory(raw),
       meta: { ...fresh.meta, ...(raw.meta && typeof raw.meta === "object" ? raw.meta : {}) },
       collection: raw.collection && typeof raw.collection === "object" && !Array.isArray(raw.collection) ? raw.collection : {},
       memories: Array.isArray(raw.memories) ? raw.memories.slice(0, 60) : [],
@@ -884,15 +909,17 @@
               housePet[key] = Number.isFinite(parsed) ? parsed : (Number(fresh.pet[key]) || 0);
             }
             for (const key of ["hatch", "bond", "strength", "overstimulation", "health", "hunger", "mood", "energy", "hygiene"]) housePet[key] = clamp(housePet[key]);
-            housePet.xp = DefenseCore.clampNumber(housePet.xp, 0, DEFENSE_LIMITS.MAX_PLAYER_XP, 0);
-            housePet.hype = DefenseCore.clampNumber(housePet.hype, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0);
-            housePet.taps = DefenseCore.clampInteger(housePet.taps, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0);
+            housePet.xp = SaveCore.clampNumber(housePet.xp, 0, CORE_LIMITS.MAX_PLAYER_XP, 0);
+            housePet.hype = SaveCore.clampNumber(housePet.hype, 0, CORE_LIMITS.MAX_META_COUNTER, 0);
+            housePet.taps = SaveCore.clampInteger(housePet.taps, 0, CORE_LIMITS.MAX_META_COUNTER, 0);
             const houseStageSeed = { egg: 0, spark: 2, kid: 7, teen: 15, beast: 28, legend: 45 }[housePet.stage] || 0;
             for (const skill of SKILLS) {
               housePet.genes[skill.id] = clamp(Number(housePet.genes[skill.id]) || 100, 82, 170);
               const rawHouseSkill = housePet.skills[skill.id], parsedHouseSkill = rawHouseSkill === null || rawHouseSkill === "" ? NaN : Number(rawHouseSkill);
               housePet.skills[skill.id] = clamp(Number.isFinite(parsedHouseSkill) ? parsedHouseSkill : (skill.id === "power" ? Math.max(houseStageSeed, housePet.strength || 0) : houseStageSeed), 0, housePet.genes[skill.id]);
             }
+            housePet.storyMarks = normalizeStoryMarks(housePet.storyMarks);
+            housePet.denPosition = Home.position(housePet.denPosition);
             housePet.alive = housePet.alive !== false;
             housePet.sleeping = Boolean(housePet.sleeping);
             housePet.sick = Boolean(housePet.sick);
@@ -921,16 +948,16 @@
           roster,
           unlockedRooms,
           activeRoom,
-          totalAdoptions: DefenseCore.clampInteger(rawFarm.totalAdoptions, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0),
-          totalReleased: DefenseCore.clampInteger(rawFarm.totalReleased, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0),
-          lastAdoptionAt: DefenseCore.clampNumber(rawFarm.lastAdoptionAt, 0, Number.MAX_SAFE_INTEGER, 0),
+          totalAdoptions: SaveCore.clampInteger(rawFarm.totalAdoptions, 0, CORE_LIMITS.MAX_META_COUNTER, 0),
+          totalReleased: SaveCore.clampInteger(rawFarm.totalReleased, 0, CORE_LIMITS.MAX_META_COUNTER, 0),
+          lastAdoptionAt: SaveCore.clampNumber(rawFarm.lastAdoptionAt, 0, Number.MAX_SAFE_INTEGER, 0),
           featureUnlocked: Boolean(rawFarm.featureUnlocked) || roster.length > 0 || unlockedRooms.length > 1,
           unlockSeen: Boolean(rawFarm.unlockSeen) || roster.length > 0 || unlockedRooms.length > 1,
           // Retained only so imported Farm saves never lose historical counters.
           plots: Array.isArray(rawFarm.plots) ? rawFarm.plots : [],
-          materials: DefenseCore.clampInteger(rawFarm.materials, 0, DEFENSE_LIMITS.MAX_INVENTORY_STACK, 0),
-          totalHarvests: DefenseCore.clampInteger(rawFarm.totalHarvests, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0),
-          totalCatches: DefenseCore.clampInteger(rawFarm.totalCatches, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0),
+          materials: SaveCore.clampInteger(rawFarm.materials, 0, CORE_LIMITS.MAX_INVENTORY_STACK, 0),
+          totalHarvests: SaveCore.clampInteger(rawFarm.totalHarvests, 0, CORE_LIMITS.MAX_META_COUNTER, 0),
+          totalCatches: SaveCore.clampInteger(rawFarm.totalCatches, 0, CORE_LIMITS.MAX_META_COUNTER, 0),
           lastEncounterAt: Math.max(0, Number(rawFarm.lastEncounterAt) || 0)
         };
       })(),
@@ -940,22 +967,14 @@
       pet: { ...fresh.pet, ...(raw.pet && typeof raw.pet === "object" ? raw.pet : {}) }
     };
 
-    const hadDefenseSchool = Boolean(raw.player && typeof raw.player === "object" && Object.prototype.hasOwnProperty.call(raw.player, "defenseSchool"));
-    const experiencedDefense = Math.max(0, Number(merged.scores?.defense) || 0) > 0 || (merged.scores?.defenseHistory || []).length > 0 || (merged.scores?.defenseMilestones || []).length > 0;
-    merged.player.defenseSchool = normalizeDefenseSchool(merged.player.defenseSchool, { experienced: experiencedDefense && !hadDefenseSchool });
+    merged.modeInbox = collectLegacyModeFields(raw, merged);
+    merged.modeReceipts = normalizeModeReceipts(raw.modeReceipts);
     merged.version = VERSION;
-    const validEmberTrackIds = new Set(typeof EMBER_BEAT_TRACKS === "undefined" ? [] : EMBER_BEAT_TRACKS.map(track => track.id));
-    merged.musicHistory.emberBag = Array.isArray(merged.musicHistory.emberBag) ? [...new Set(merged.musicHistory.emberBag.filter(id => validEmberTrackIds.has(id)))].slice(0, 6) : [];
-    merged.musicHistory.emberLast = validEmberTrackIds.has(merged.musicHistory.emberLast) ? merged.musicHistory.emberLast : null;
+    delete merged.musicHistory;
     merged.settings.sound = merged.settings.sound !== false;
     merged.settings.music = merged.settings.music !== false;
     merged.settings.haptics = merged.settings.haptics !== false;
     merged.settings.reducedMotion = Boolean(merged.settings.reducedMotion);
-    merged.settings.defenseFx = ["auto", "full", "low"].includes(merged.settings.defenseFx) ? merged.settings.defenseFx : "auto";
-    merged.settings.defenseUiScale = ["compact", "standard", "large"].includes(merged.settings.defenseUiScale) ? merged.settings.defenseUiScale : "standard";
-    merged.settings.defenseSignatures = merged.settings.defenseSignatures !== false;
-    merged.settings.defenseAutoStart = Boolean(merged.settings.defenseAutoStart);
-    merged.settings.defenseWaveIntel = ["off", "simple", "full"].includes(merged.settings.defenseWaveIntel) ? merged.settings.defenseWaveIntel : "simple";
     merged.settings.adPreview = Boolean(merged.settings.adPreview);
     merged.settings.soundVolume = clamp(Number(merged.settings.soundVolume ?? .85), 0, 1);
     merged.settings.musicVolume = clamp(Number(merged.settings.musicVolume ?? .85), 0, 1);
@@ -963,95 +982,20 @@
     merged.player.tutorialStep = clamp(Number(merged.player.tutorialStep) || 0, 0, 5);
     merged.player.tutorialDismissed = Boolean(merged.player.tutorialDismissed);
     merged.player.keeperGuideSeen = Boolean(merged.player.keeperGuideSeen);
-    merged.wallet.embers = DefenseCore.clampInteger(merged.wallet.embers, 0, DEFENSE_LIMITS.MAX_WALLET_EMBERS, 0);
-    merged.wallet.shards = DefenseCore.clampInteger(merged.wallet.shards, 0, DEFENSE_LIMITS.MAX_WALLET_SHARDS, 0);
+    merged.wallet.embers = SaveCore.clampInteger(merged.wallet.embers, 0, CORE_LIMITS.MAX_WALLET_EMBERS, 0);
+    merged.wallet.shards = SaveCore.clampInteger(merged.wallet.shards, 0, CORE_LIMITS.MAX_WALLET_SHARDS, 0);
     merged.collection = Object.fromEntries(Object.entries(merged.collection)
       .filter(([id]) => VARIANTS.some(item => item.id === id))
-      .map(([id,count]) => [id, DefenseCore.clampInteger(count, 0, DEFENSE_LIMITS.MAX_COLLECTION_COUNT, 0)]));
+      .map(([id,count]) => [id, SaveCore.clampInteger(count, 0, CORE_LIMITS.MAX_COLLECTION_COUNT, 0)]));
     merged.inventory.accessories = Array.isArray(sourceInventory.accessories) ? [...new Set(["none", ...sourceInventory.accessories.filter(id => ACCESSORIES.some(item => item.id === id))])] : ["none"];
     merged.inventory.rooms = Array.isArray(sourceInventory.rooms) ? [...new Set(["rain", ...sourceInventory.rooms.filter(id => ROOMS.some(item => item.id === id))])] : ["rain"];
-    for (const key of ["phoenix", "growth", "care"]) merged.inventory[key] = DefenseCore.clampInteger(merged.inventory[key], 0, DEFENSE_LIMITS.MAX_INVENTORY_STACK, 0);
-    for (const key of ["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze"]) merged.scores[key] = DefenseCore.clampNumber(merged.scores[key], 0, DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE, 0);
-    merged.scores.defense = DefenseCore.clampInteger(merged.scores.defense, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, 0);
-    merged.scores.defenseMilestones = Array.isArray(merged.scores.defenseMilestones) ? [...new Set(merged.scores.defenseMilestones.map(Number).filter(value => [10,25,50,100].includes(value)))].sort((a,b)=>a-b) : [];
-    merged.scores.defenseMaps = merged.scores.defenseMaps && typeof merged.scores.defenseMaps === "object" && !Array.isArray(merged.scores.defenseMaps)
-      ? Object.fromEntries(Object.entries(merged.scores.defenseMaps).filter(([id]) => ["grove","ember","moon","storm","blizzard","eclipse"].includes(id)).map(([id,value]) => [id,DefenseCore.clampInteger(value,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0)]))
-      : {};
-    merged.scores.defensePerfectMaps = Array.isArray(merged.scores.defensePerfectMaps)
-      ? [...new Set(merged.scores.defensePerfectMaps.filter(id => ["grove","ember","moon","storm","blizzard","eclipse"].includes(id)))]
-      : [];
-    merged.scores.defenseHistory = Array.isArray(merged.scores.defenseHistory)
-      ? merged.scores.defenseHistory.filter(item => item && typeof item === "object" && ["grove","ember","moon","storm","blizzard","eclipse"].includes(item.mapId)).slice(0, 12).map((item,index) => {
-          const clearedWave = DefenseCore.clampInteger(item.clearedWave ?? item.wave, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, 0);
-          const reachedWave = Math.max(clearedWave, DefenseCore.clampInteger(item.reachedWave ?? item.currentWave ?? item.wave, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, clearedWave));
-          const perfectWaveCount = Math.min(clearedWave, DefenseCore.clampInteger(item.perfectWaveCount ?? (item.perfect ? clearedWave : 0), 0, DEFENSE_LIMITS.MAX_REASONABLE_PERFECT_WAVES, 0));
-          return {
-            id: typeof item.id === "string" && item.id ? item.id.slice(0,80) : `legacy-run-${index}`,
-            at: Math.max(0, Number(item.at) || 0),
-            mapId: item.mapId,
-            wave: clearedWave,
-            clearedWave,
-            reachedWave,
-            kills: DefenseCore.clampInteger(item.kills, 0, DEFENSE_LIMITS.MAX_REASONABLE_KILLS, 0),
-            heartLoss: DefenseCore.clampInteger(item.heartLoss, 0, 9999, 0),
-            leaks: DefenseCore.clampInteger(item.leaks, 0, DEFENSE_LIMITS.MAX_REASONABLE_KILLS, 0),
-            bosses: DefenseCore.clampInteger(item.bosses, 0, DEFENSE_LIMITS.MAX_REASONABLE_BOSSES, 0),
-            perfect: clearedWave > 0 && perfectWaveCount === clearedWave,
-            perfectWaveCount,
-            ended: item.ended === "gate" ? "gate" : "banked",
-            mvpPetId: typeof item.mvpPetId === "string" ? item.mvpPetId.slice(0,80) : "",
-            mvpName: typeof item.mvpName === "string" ? item.mvpName.replace(/[<>\u0000-\u001F\u007F]/g, "").slice(0,14).toUpperCase() : "RIZO",
-            mvpVariant: VARIANTS.some(variant => variant.id === item.mvpVariant) ? item.mvpVariant : "classic",
-            mvpDamage: DefenseCore.clampNumber(item.mvpDamage, 0, DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE, 0),
-            powerPaths: DefenseCore.clampInteger(item.powerPaths, 0, DEFENSE_LIMITS.MAX_DEFENSE_TOWERS, 0),
-            controlPaths: DefenseCore.clampInteger(item.controlPaths, 0, DEFENSE_LIMITS.MAX_DEFENSE_TOWERS, 0),
-            contractId: typeof item.contractId === "string" ? item.contractId.slice(0,120) : "",
-            contractDate: /^\d{4}-\d{2}-\d{2}$/.test(String(item.contractDate||"")) ? String(item.contractDate).slice(0,10) : "",
-            contractComplete: clearedWave >= DEFENSE_CONTRACT_TARGET && Boolean(item.contractComplete)
-          };
-        })
-      : [];
-    merged.scores.defenseMastery = merged.scores.defenseMastery && typeof merged.scores.defenseMastery === "object" && !Array.isArray(merged.scores.defenseMastery)
-      ? Object.fromEntries(Object.entries(merged.scores.defenseMastery).filter(([id,value]) => typeof id === "string" && id && value && typeof value === "object").slice(0,80).map(([id,value]) => {
-          const runs = DefenseCore.clampInteger(value.runs, 0, DEFENSE_LIMITS.MAX_MASTERY_RUNS, 0);
-          const waves = Math.min(DEFENSE_LIMITS.MAX_MASTERY_WAVES, DefenseCore.clampInteger(value.waves, 0, DEFENSE_LIMITS.MAX_MASTERY_WAVES, 0), runs * DEFENSE_LIMITS.MAX_SUPPORTED_WAVE);
-          return [id.slice(0,80), {
-            petId: id.slice(0,80),
-            name: typeof value.name === "string" ? value.name.replace(/[<>\u0000-\u001F\u007F]/g, "").slice(0,14).toUpperCase() : "RIZO",
-            variant: VARIANTS.some(variant => variant.id === value.variant) ? value.variant : "classic",
-            runs,
-            waves,
-            bestWave: Math.min(waves, DefenseCore.clampInteger(value.bestWave, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, 0)),
-            pops: Math.min(DefenseCore.clampInteger(value.pops, 0, DEFENSE_LIMITS.MAX_REASONABLE_KILLS, 0), waves * 256),
-            damage: DefenseCore.clampNumber(value.damage, 0, DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE, 0),
-            bosses: DefenseCore.clampInteger(value.bosses, 0, DEFENSE_LIMITS.MAX_REASONABLE_BOSSES, 0),
-            powerPaths: DefenseCore.clampInteger(value.powerPaths, 0, DEFENSE_LIMITS.MAX_REASONABLE_KILLS, 0),
-            controlPaths: DefenseCore.clampInteger(value.controlPaths, 0, DEFENSE_LIMITS.MAX_REASONABLE_KILLS, 0),
-            lastAt: Math.max(0, Number(value.lastAt) || 0)
-          }];
-        }).filter(([,value]) => value.waves > 0))
-      : {};
-    const validDefenseContractRules = new Set(["unique","lean","no-sell","silent","power-only","control-only"]);
-    merged.scores.defenseContracts = Array.isArray(merged.scores.defenseContracts)
-      ? merged.scores.defenseContracts.filter(item => item && typeof item === "object" && /^\d{4}-\d{2}-\d{2}$/.test(String(item.date || "")) && ["grove","ember","moon","storm","blizzard","eclipse"].includes(item.mapId)).slice(0,35).map((item,index) => ({
-          id: typeof item.id === "string" && item.id ? item.id.slice(0,120) : `legacy-contract-${index}`,
-          date: String(item.date).slice(0,10),
-          mapId: item.mapId,
-          title: typeof item.title === "string" && item.title ? item.title.slice(0,80) : "DAILY TRAIL CONTRACT",
-          rules: Array.isArray(item.rules) ? [...new Set(item.rules.filter(rule => validDefenseContractRules.has(rule)))].slice(0,3) : [],
-          targetWave: 10,
-          bestWave: DefenseCore.clampInteger(item.bestWave, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, 0),
-          completed: DefenseCore.clampInteger(item.bestWave, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, 0) >= DEFENSE_CONTRACT_TARGET,
-          perfect: DefenseCore.clampInteger(item.bestWave, 0, DEFENSE_LIMITS.MAX_SUPPORTED_WAVE, 0) >= DEFENSE_CONTRACT_TARGET && Boolean(item.perfect),
-          firstAt: Math.max(0, Number(item.firstAt) || 0),
-          lastAt: Math.max(0, Number(item.lastAt) || 0)
-        })).filter(item => item.rules.length === 3)
-      : [];
+    for (const key of ["phoenix", "growth", "care"]) merged.inventory[key] = SaveCore.clampInteger(merged.inventory[key], 0, CORE_LIMITS.MAX_INVENTORY_STACK, 0);
+    for (const key of ["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze"]) merged.scores[key] = SaveCore.clampNumber(merged.scores[key], 0, CORE_LIMITS.MAX_ARCADE_SCORE, 0);
     merged.meta.unlockScenes = Array.isArray(merged.meta.unlockScenes) ? [...new Set(merged.meta.unlockScenes.filter(value => typeof value === "string"))] : [];
     merged.meta.backupPrompts = Array.isArray(merged.meta.backupPrompts) ? [...new Set(merged.meta.backupPrompts.filter(value => typeof value === "string"))] : [];
     merged.meta.lastBackupAt = Math.max(0, Number(merged.meta.lastBackupAt) || 0);
-    merged.season.xp = DefenseCore.clampNumber(merged.season.xp, 0, DEFENSE_LIMITS.MAX_SEASON_XP, 0);
-    merged.season.level = DefenseCore.clampInteger(merged.season.level, 1, DEFENSE_LIMITS.MAX_SEASON_LEVEL, 1);
+    merged.season.xp = SaveCore.clampNumber(merged.season.xp, 0, CORE_LIMITS.MAX_SEASON_XP, 0);
+    merged.season.level = SaveCore.clampInteger(merged.season.level, 1, CORE_LIMITS.MAX_SEASON_LEVEL, 1);
     merged.worldEvents.lastAt = Math.max(0, Number(merged.worldEvents.lastAt) || now());
     merged.worldEvents.count = Math.max(0, Math.floor(Number(merged.worldEvents.count) || 0));
     merged.worldEvents.lastBadLuckAt = Math.max(0, Number(merged.worldEvents.lastBadLuckAt) || 0);
@@ -1108,9 +1052,9 @@
       pet[key] = Number.isFinite(parsed) ? parsed : (Number(fresh.pet[key]) || 0);
     }
     for (const key of ["hatch", "bond", "strength", "overstimulation", "health", "hunger", "mood", "energy", "hygiene"]) pet[key] = clamp(pet[key]);
-    pet.xp = DefenseCore.clampNumber(pet.xp, 0, DEFENSE_LIMITS.MAX_PLAYER_XP, 0);
-    pet.hype = DefenseCore.clampNumber(pet.hype, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0);
-    pet.taps = DefenseCore.clampInteger(pet.taps, 0, DEFENSE_LIMITS.MAX_META_COUNTER, 0);
+    pet.xp = SaveCore.clampNumber(pet.xp, 0, CORE_LIMITS.MAX_PLAYER_XP, 0);
+    pet.hype = SaveCore.clampNumber(pet.hype, 0, CORE_LIMITS.MAX_META_COUNTER, 0);
+    pet.taps = SaveCore.clampInteger(pet.taps, 0, CORE_LIMITS.MAX_META_COUNTER, 0);
     pet.number = Math.max(1, Math.floor(Number(pet.number) || Math.max(1, merged.meta.nextPetNumber - 1)));
     const highestHouseNumber = merged.farm.roster.reduce((highest, resident) => Math.max(highest, Math.floor(Number(resident.number) || 0)), 0);
     merged.meta.nextPetNumber = Math.max(merged.meta.nextPetNumber, pet.number + 1, highestHouseNumber + 1);
@@ -1146,8 +1090,10 @@
     for (const key of ["filthSeen", "bathIncidentRemembered", "favoriteFoodRemembered"]) pet.lifeMemory[key] = Boolean(pet.lifeMemory[key]);
     pet.lifeMemory.washFromHygiene = clamp(Number(pet.lifeMemory.washFromHygiene) || 100);
     pet.lifeMemory.lastFoodId = FOODS.some(item => item.id === pet.lifeMemory.lastFoodId) ? pet.lifeMemory.lastFoodId : "";
-    pet.lifeMemory.lastArcadeMode = ["power","spark","forage","rush","walk","rhythm","memory","glide","breaker","maze","defense"].includes(pet.lifeMemory.lastArcadeMode) ? pet.lifeMemory.lastArcadeMode : "";
+    pet.lifeMemory.lastArcadeMode = /^[a-z][a-z0-9-]{1,31}$/.test(String(pet.lifeMemory.lastArcadeMode || "")) ? pet.lifeMemory.lastArcadeMode : "";
     pet.lifeMemory.lastGreetingDate = /^\d{4}-\d{2}-\d{2}$/.test(String(pet.lifeMemory.lastGreetingDate || "")) ? String(pet.lifeMemory.lastGreetingDate) : "";
+    pet.storyMarks = normalizeStoryMarks(pet.storyMarks);
+    pet.denPosition = Home.position(pet.denPosition);
     pet.form = EVOLUTION_FORMS[pet.form] ? pet.form : determineEvolutionForm(pet, merged);
     pet.formHistory = Array.isArray(pet.formHistory) ? pet.formHistory.slice(-10) : [];
     pet.generation = Math.max(1, Math.floor(Number(pet.generation) || 1));
@@ -1165,13 +1111,99 @@
     return merged;
   }
 
+  // ===== MODE RECEIPTS AND STORY MARKS (state version 22) =====
+  // A receipt records what a mode milestone granted, so a repeat is recognized
+  // and a conflicting repeat is refused. Story marks are small, positive facts
+  // a mode may leave on one pet (e.g. the Dungeon's shared hearth).
+  const MODE_RECEIPT_LIMIT = 200;
+  const STORY_MARK_LIMIT = 16;
+  const MODE_TOKEN = /^[a-z][a-z0-9-]{1,31}$/;
+  const RECEIPT_TOKEN = /^[a-z0-9][a-z0-9:._-]{0,119}$/;
+  function normalizeModeReceipts(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [modeId, receipts] of Object.entries(raw)) {
+      if (!MODE_TOKEN.test(modeId) || !receipts || typeof receipts !== "object" || Array.isArray(receipts)) continue;
+      const kept = {};
+      for (const [receiptId, receipt] of Object.entries(receipts).slice(0, MODE_RECEIPT_LIMIT)) {
+        if (!RECEIPT_TOKEN.test(receiptId) || !receipt || typeof receipt !== "object") continue;
+        const entitlements = Array.isArray(receipt.entitlements) ? [...new Set(receipt.entitlements.filter(id => typeof id === "string" && MODE_TOKEN.test(id)))].sort().slice(0, 4) : [];
+        kept[receiptId] = { petId: String(receipt.petId || "").slice(0, 80), entitlements, at: Math.max(0, Number(receipt.at) || 0) };
+      }
+      if (Object.keys(kept).length) out[modeId] = kept;
+    }
+    return out;
+  }
+  function normalizeStoryMarks(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set(), out = [];
+    for (const mark of raw) {
+      if (!mark || typeof mark !== "object" || !MODE_TOKEN.test(String(mark.id || "")) || !MODE_TOKEN.test(String(mark.mode || ""))) continue;
+      const key = `${mark.mode}:${mark.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ id: mark.id, mode: mark.mode, at: Math.max(0, Number(mark.at) || 0) });
+      if (out.length >= STORY_MARK_LIMIT) break;
+    }
+    return out;
+  }
+
+  // ===== TRAINING MEMORY =====
+  // Each training game may keep a small memory (run.memory / run.remember),
+  // e.g. Ember Beat's song bag. State version 21 moved that bag here from
+  // state.musicHistory; the game validates its own entries when it reads them.
+  function normalizeTrainingMemory(raw) {
+    const source = raw?.trainingMemory && typeof raw.trainingMemory === "object" && !Array.isArray(raw.trainingMemory) ? raw.trainingMemory : {};
+    const out = {};
+    for (const [id, value] of Object.entries(source)) {
+      if (!/^[a-z][a-z0-9-]{1,31}$/.test(id) || !value || typeof value !== "object" || Array.isArray(value)) continue;
+      const plain = SaveCore.plainJSON(value);
+      if (JSON.stringify(plain).length <= 4096) out[id] = plain;
+    }
+    const legacy = raw?.musicHistory;
+    if (!out.rhythm && legacy && typeof legacy === "object") {
+      const bag = Array.isArray(legacy.emberBag) ? [...new Set(legacy.emberBag.filter(id => typeof id === "string").map(id => id.slice(0, 40)))].slice(0, 12) : [];
+      out.rhythm = { emberBag: bag, emberLast: typeof legacy.emberLast === "string" ? legacy.emberLast.slice(0, 40) : null };
+    }
+    return out;
+  }
+
+  // ===== LEGACY MODE FIELDS =====
+  // Before v88 the hub kept Rizo Defense's data in its own state. Those fields
+  // are lifted out, untouched, into state.modeInbox and handed to the mode's
+  // first slice migration (the mode validates them). Migration-only knowledge:
+  // this list never grows; new modes start with a slice.
+  const LEGACY_MODE_FIELDS = Object.freeze({
+    defense: Object.freeze({
+      scores: ["defense", "defenseMilestones", "defenseMaps", "defensePerfectMaps", "defenseHistory", "defenseMastery", "defenseContracts"],
+      settings: ["defenseFx", "defenseUiScale", "defenseSignatures", "defenseAutoStart", "defenseWaveIntel", "defenseRosterIds", "defenseRosterConfigured"],
+      player: ["defenseSchool"],
+      unlockScene: "defense-origin-v37"
+    })
+  });
+  function collectLegacyModeFields(raw, merged) {
+    const inbox = raw.modeInbox && typeof raw.modeInbox === "object" && !Array.isArray(raw.modeInbox) ? SaveCore.plainJSON(raw.modeInbox) : {};
+    for (const [modeId, fields] of Object.entries(LEGACY_MODE_FIELDS)) {
+      const found = { scores: {}, settings: {}, player: {} };
+      let any = false;
+      for (const section of ["scores", "settings", "player"]) {
+        const source = raw[section] && typeof raw[section] === "object" ? raw[section] : {};
+        for (const key of fields[section]) {
+          if (Object.prototype.hasOwnProperty.call(source, key)) { found[section][key] = SaveCore.plainJSON(source[key]); any = true; }
+          delete merged[section]?.[key];
+        }
+      }
+      if (any && !inbox[modeId]) inbox[modeId] = { ...found, introSeen: Array.isArray(raw.meta?.unlockScenes) && raw.meta.unlockScenes.includes(fields.unlockScene) };
+    }
+    return inbox;
+  }
+
   // Validation and preview paths never commit normalized data implicitly. Keeping
   // this detached wrapper makes that contract explicit even if migrations grow.
   function normalizeStateDetached(raw){const current=state;try{return normalizeState(raw);}finally{state=current;}}
   function recordSaveValidationWarning(kind,details={}){try{localStorage.setItem(SAVE_VALIDATION_WARNING_KEY,JSON.stringify({at:now(),kind:String(kind||"sanitized").slice(0,60),details}));}catch(error){}}
-  function buildStateEnvelope(source=state,savedAt=now()){
-    const envelope={app:"RIZO LIFE",saveVersion:SAVE_ENVELOPE_VERSION,stateVersion:VERSION,savedAt,state:source};
-    envelope.signature=DefenseCore.createStateSignature(source,savedAt,SAVE_ENVELOPE_VERSION);return envelope;
+  function buildStateEnvelope(source=state,savedAt=now(),writeId=""){
+    return SaveCore.createEnvelope({state:source,modes:source===state?modeSlices:{},savedAt,writeId,stateVersion:VERSION});
   }
   function hardenUnverifiedState(source){
     const normalized=normalizeStateDetached(source),fresh=defaultState();
@@ -1181,7 +1213,9 @@
     // reset reward-bearing state to canonical defaults. A verified mirror backup
     // is attempted before this fallback is ever used.
     normalized.wallet={...fresh.wallet};
-    normalized.scores={...fresh.scores,defenseMilestones:[],defenseMaps:{},defensePerfectMaps:[],defenseHistory:[],defenseMastery:{},defenseContracts:[]};
+    normalized.scores={...fresh.scores};
+    normalized.modeReceipts={};
+    normalized.modeInbox=Object.fromEntries(Object.entries(normalized.modeInbox||{}).map(([modeId,fields])=>[modeId,{scores:{},settings:fields?.settings||{},player:fields?.player||{},introSeen:Boolean(fields?.introSeen)}]));
     normalized.achievements=[];
     normalized.daily=createDaily();
     normalized.season={...fresh.season};
@@ -1194,38 +1228,130 @@
     for(const pet of actualPets){const id=VARIANTS.some(variant=>variant.id===(pet.variant||pet.hiddenVariant))?(pet.variant||pet.hiddenVariant):"classic";collection[id]=(collection[id]||0)+1;}
     normalized.collection=collection;
     normalized.meta.totalHatched=Math.max(0,actualPets.length-1);
-    normalized.meta.nextPetNumber=Math.max(2,...actualPets.map(pet=>DefenseCore.clampInteger(pet.number,1,DEFENSE_LIMITS.MAX_META_COUNTER,1)+1));
+    normalized.meta.nextPetNumber=Math.max(2,...actualPets.map(pet=>SaveCore.clampInteger(pet.number,1,CORE_LIMITS.MAX_META_COUNTER,1)+1));
     return normalized;
   }
   function decodeStatePayload(parsed,{allowLegacy=true}={}){
-    const payload=parsed&&typeof parsed==="object"?parsed:null;if(!payload)return{state:defaultState(),status:"invalid"};
+    const payload=parsed&&typeof parsed==="object"?parsed:null;if(!payload)return{state:defaultState(),modes:{},status:"invalid"};
     if(payload.saveVersion&&payload.state&&typeof payload.state==="object"){
-      const valid=DefenseCore.verifyStateSignature(payload);return{state:valid?normalizeStateDetached(payload.state):hardenUnverifiedState(payload.state),status:valid?"verified":"sanitized",signatureValid:valid};
+      const envelopeVersion=SaveCore.envelopeVersion(payload);
+      // A save written by a newer build is never loaded or rewritten by this one.
+      if(envelopeVersion>SaveCore.LATEST_SAVE_VERSION)return{state:null,modes:{},status:"future",saveVersion:envelopeVersion};
+      const valid=SaveCore.verifyEnvelope(payload);
+      // A verified save from a newer hub (same envelope, higher state version)
+      // is protected the same way: normalizing it here would drop what this
+      // build does not know (a newer wearable, a newer field) on the next write.
+      if(valid&&Math.max(Number(payload.stateVersion)||0,Number(payload.state.version)||0)>VERSION)return{state:null,modes:{},status:"future",saveVersion:envelopeVersion};
+      return{state:valid?normalizeStateDetached(payload.state):hardenUnverifiedState(payload.state),modes:valid&&envelopeVersion>=2?SaveCore.normalizeModes(payload.modes):{},status:valid?"verified":"sanitized",signatureValid:valid,saveVersion:envelopeVersion,writeId:typeof payload.writeId==="string"?payload.writeId:""};
     }
     const source=payload.state&&typeof payload.state==="object"?payload.state:payload,sourceVersion=Number(source.version)||0;
-    if(allowLegacy&&sourceVersion<VERSION)return{state:normalizeStateDetached(source),status:"migrated",signatureValid:false};
-    return{state:hardenUnverifiedState(source),status:"sanitized",signatureValid:false};
+    if(allowLegacy&&sourceVersion<RAW_SAVE_TRUST_BELOW)return{state:normalizeStateDetached(source),modes:{},status:"migrated",signatureValid:false};
+    return{state:hardenUnverifiedState(source),modes:{},status:"sanitized",signatureValid:false};
   }
-  function decodeStateText(rawText,options={}){try{return decodeStatePayload(JSON.parse(rawText),options);}catch(error){return{state:defaultState(),status:"invalid",error};}}
+  function decodeStateText(rawText,options={}){try{return decodeStatePayload(JSON.parse(rawText),options);}catch(error){return{state:defaultState(),modes:{},status:"invalid",error};}}
+
+  // ===== SAVE SAFETY =====
+  // Three promises: a save this build cannot load is set aside before anything
+  // overwrites it; a missing or broken primary falls back to every other copy
+  // before a fresh egg is ever created; and a tab holding stale progress stops
+  // saving instead of overwriting newer progress from another tab.
+  function readSaveText(key){try{return localStorage.getItem(key);}catch(error){return null;}}
+  // Every v2 envelope starts with app/saveVersion/stateVersion/savedAt/writeId,
+  // so the write id is read from the head instead of parsing a large save.
+  function saveTextWriteId(text){if(typeof text!=="string")return null;const match=/"writeId":"([^"\\]{0,80})"/.exec(text.slice(0,400));return match?match[1]:null;}
+  function saveQuarantineKeys(){const keys=[];try{for(let index=0;index<localStorage.length;index+=1){const key=localStorage.key(index);if(key&&key.startsWith(SAVE_QUARANTINE_PREFIX))keys.push(key);}}catch(error){}return keys.sort();}
+  function quarantineSaveTexts(reason,entries){
+    try{
+      const at=now();
+      localStorage.setItem(`${SAVE_QUARANTINE_PREFIX}${at}`,JSON.stringify({at,reason,build:RIZO_RUNTIME_BUILD,entries:entries.map(entry=>({key:entry.key,status:entry.status||"unknown",text:String(entry.text)}))}));
+      const keys=saveQuarantineKeys();
+      while(keys.length>SAVE_QUARANTINE_LIMIT)localStorage.removeItem(keys.shift());
+      return true;
+    }catch(error){console.warn("Rizo could not set aside an unreadable save",error);recordSaveValidationWarning("quarantine-failed",{message:String(error?.message||error).slice(0,200)});return false;}
+  }
+  function readSaveQuarantine(){return saveQuarantineKeys().map(key=>{try{const record=JSON.parse(localStorage.getItem(key));return{key,at:Number(record?.at)||0,reason:String(record?.reason||""),entries:Array.isArray(record?.entries)?record.entries.length:0};}catch(error){return{key,at:0,reason:"unreadable",entries:0};}}).reverse();}
+  function downloadSaveQuarantine(key){
+    const text=readSaveText(key);if(!text){toast("NOTHING SET ASIDE");return;}
+    const blob=new Blob([text],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");
+    link.href=url;link.download=`rizo-set-aside-save-${key.slice(SAVE_QUARANTINE_PREFIX.length)}.json`;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+    toast("SET-ASIDE SAVE DOWNLOADED");
+  }
+
+  function showSaveBlockedNotice(reason){
+    if(reason==="reset")return;
+    let node=document.getElementById("rizoSaveBlocked");
+    if(!node){
+      node=document.createElement("div");node.id="rizoSaveBlocked";node.className="rizo-save-blocked";
+      node.setAttribute("role","alertdialog");node.setAttribute("aria-modal","true");node.setAttribute("aria-labelledby","rizoSaveBlockedTitle");
+      node.addEventListener("click",event=>{if(!event.target.closest("[data-save-blocked-reload]"))return;if(saveBlocked?.reason==="future")forceReleaseRefresh().then(done=>{if(!done)location.reload();});else location.reload();});
+      document.body.appendChild(node);
+    }
+    const copy=reason==="future"
+      ?{kicker:"NEWER SAVE FOUND",title:"THIS SAVE BELONGS TO A NEWER RIZO.GAME",body:"Your progress was saved by a newer version of the game. This copy is older, so it will not touch that save.",action:"UPDATE AND RELOAD"}
+      :{kicker:"SAVE PROTECTED",title:"RIZO IS OPEN SOMEWHERE ELSE",body:"Another tab or the installed app saved newer progress. This tab stopped saving so it can't overwrite it.",action:"LOAD NEWEST SAVE"};
+    node.innerHTML=`<div class="rizo-save-blocked-card"><small>${copy.kicker}</small><h2 id="rizoSaveBlockedTitle">${copy.title}</h2><p>${copy.body}</p><button type="button" data-save-blocked-reload>${copy.action}</button></div>`;
+    node.hidden=false;
+    node.querySelector("[data-save-blocked-reload]")?.focus({preventScroll:true});
+  }
+  function blockSaving(reason){
+    if(saveBlocked)return false;
+    saveBlocked={reason,at:now()};
+    clearTimeout(saveTimer);saveTimer=null;
+    if(reason!=="reset"){
+      try{if(mini?.active)arcadeFreeze("save-blocked");globalThis.RizoModes?.suspendActive?.("save-blocked");}catch(error){}
+      try{stopMusic();}catch(error){}
+      recordSaveValidationWarning(`save-blocked-${reason}`,{});
+    }
+    showSaveBlockedNotice(reason);
+    return true;
+  }
+  function notifySaveFailure(error){
+    if(saveFailureNotified)return;saveFailureNotified=true;
+    recordSaveValidationWarning("save-write-failed",{message:String(error?.message||error).slice(0,200)});
+    try{toast("SAVE FAILED • THIS BROWSER'S STORAGE IS FULL OR BLOCKED");}catch(toastError){}
+  }
 
   function loadState() {
-    try {
-      const saved = localStorage.getItem(SAVE_KEY);
-      if (!saved) state = defaultState();
-      else {
-        const primary=decodeStateText(saved);
-        if(primary.status==="verified"||primary.status==="migrated")state=primary.state;
-        else{
-          const backupText=localStorage.getItem(SAVE_BACKUP_KEY),backup=backupText?decodeStateText(backupText,{allowLegacy:false}):null;
-          if(backup?.status==="verified"){state=backup.state;recordSaveValidationWarning("primary-signature-recovered",{primaryStatus:primary.status});}
-          else{state=primary.state;recordSaveValidationWarning("primary-save-sanitized",{primaryStatus:primary.status,backupStatus:backup?.status||"missing"});}
-        }
+    saveBlocked=null;
+    // Newest first. "current" keys are the ones saveState() overwrites.
+    const sources=[
+      {key:SAVE_V2_KEY,allowLegacy:false,current:true},
+      {key:SAVE_V2_BACKUP_KEY,allowLegacy:false,current:true},
+      {key:SAVE_KEY,allowLegacy:true},
+      {key:SAVE_BACKUP_KEY,allowLegacy:false},
+      {key:LEGACY_KEY,allowLegacy:true}
+    ].map(source=>({...source,text:readSaveText(source.key)})).filter(source=>typeof source.text==="string"&&source.text.length>0);
+    let chosen=null;const failed=[];
+    for(const source of sources){
+      let decoded;
+      try{decoded=decodeStateText(source.text,{allowLegacy:source.allowLegacy});}
+      catch(error){decoded={state:null,modes:{},status:"invalid",error};}
+      source.status=decoded.status;
+      if(decoded.status==="future"){
+        state=defaultState();modeSlices={};
+        blockSaving("future");
+        activeHouseRoom=0;
+        return;
       }
-    } catch (error) {
-      console.warn("Rizo save could not load", error);
-      recordSaveValidationWarning("save-load-failed",{message:String(error?.message||error)});
-      state = defaultState();
+      if(decoded.status==="verified"||decoded.status==="migrated"){chosen={source,decoded};break;}
+      failed.push({source,decoded});
     }
+    if(chosen){
+      state=chosen.decoded.state;modeSlices=chosen.decoded.modes||{};
+      const primaryMissing=!sources.some(source=>source.key===SAVE_V2_KEY);
+      if(chosen.source.key===SAVE_V2_BACKUP_KEY)recordSaveValidationWarning(primaryMissing?"primary-missing-recovered":"primary-signature-recovered",{primaryStatus:failed[0]?.source.status||"missing"});
+      else if(failed.length)recordSaveValidationWarning("save-recovered-from-older-copy",{source:chosen.source.key,failed:failed.map(item=>`${item.source.key}:${item.source.status}`)});
+    }else if(failed.length){
+      const best=failed.find(item=>item.decoded.status==="sanitized"&&item.decoded.state);
+      state=best?best.decoded.state:defaultState();modeSlices={};
+      recordSaveValidationWarning("primary-save-sanitized",{sources:failed.map(item=>`${item.source.key}:${item.source.status}`)});
+    }else{state=defaultState();modeSlices={};}
+    // A copy this build could not load, sitting in a key it is about to
+    // overwrite, is set aside first. The v1 keys are never written, so they
+    // keep their original bytes on their own.
+    const atRisk=failed.filter(item=>item.source.current);
+    if(atRisk.length)quarantineSaveTexts(chosen?"recovered-from-other-copy":"unreadable",atRisk.map(item=>({key:item.source.key,status:item.source.status,text:item.source.text})));
+    saveWriteId=saveTextWriteId(readSaveText(SAVE_V2_KEY))||"";
     activeHouseRoom = state.farm?.activeRoom || 0;
     updateSessionAndStreak();
     resetDailyIfNeeded();
@@ -1235,18 +1361,43 @@
   }
 
   function saveState(immediate = false) {
+    if (saveBlocked) return false;
     state.player.lastActive = now();
     const write = () => {
-      try {const serialized=JSON.stringify(buildStateEnvelope(state));localStorage.setItem(SAVE_KEY,serialized);localStorage.setItem(SAVE_BACKUP_KEY,serialized);}
-      catch (error) { console.warn("Rizo save could not write", error); }
       saveTimer = null;
+      const result = persistStateNow();
+      return result.status === "committed" && result.backupSynced;
     };
     if (immediate) {
       clearTimeout(saveTimer);
-      write();
+      return write();
     } else if (!saveTimer) {
       saveTimer = setTimeout(write, 250);
     }
+    return true;
+  }
+
+  // The one place the whole envelope is written. "committed" means the primary
+  // copy holds this exact state; a failed mirror only clears backupSynced.
+  function stateConflictsWithStorage() {
+    const storedWriteId = saveTextWriteId(readSaveText(SAVE_V2_KEY));
+    return storedWriteId !== null && storedWriteId !== saveWriteId;
+  }
+  function persistStateNow() {
+    if (saveBlocked) return { status: "blocked", backupSynced: false };
+    // Another tab wrote since this one last loaded or saved: stop, never overwrite.
+    if (stateConflictsWithStorage()) { blockSaving("conflict"); return { status: "blocked", backupSynced: false }; }
+    let serialized, writeId;
+    try {
+      writeId = uid("W");
+      serialized = JSON.stringify(buildStateEnvelope(state, now(), writeId));
+      localStorage.setItem(SAVE_V2_KEY, serialized);
+    } catch (error) { console.warn("Rizo save could not write", error); notifySaveFailure(error); return { status: "failed", backupSynced: false }; }
+    saveWriteId = writeId;
+    try { localStorage.setItem(SAVE_V2_BACKUP_KEY, serialized); }
+    catch (error) { console.warn("Rizo backup save could not write", error); notifySaveFailure(error); return { status: "committed", backupSynced: false }; }
+    saveFailureNotified = false;
+    return { status: "committed", backupSynced: true };
   }
 
   function updateSessionAndStreak() {
@@ -1274,6 +1425,10 @@
   function processElapsedTime(boot = false) {
     const pet = state.pet;
     const current = now();
+    // A visible foreground-hold mode (the Dungeon) is time spent with the pet:
+    // it neither decays needs nor grows skills. Hidden time is settled as
+    // ordinary time away (see suspendRuntime/resumeRuntime).
+    if (modeCareHold && !modeCareHold.away) { pet.lastTick = current; return null; }
     const elapsedMs = Math.max(0, current - (pet.lastTick || current));
     const minutes = Math.min(elapsedMs / 60000, 72 * 60);
     pet.lastTick = current;
@@ -1423,15 +1578,19 @@
     pet.lastCareReason = reason;
   }
 
-  function gainSkill(skillId, amount, { silent = false } = {}) {
-    const pet = state.pet;
-    if (!pet.skills || !pet.genes || !SKILLS.some(skill => skill.id === skillId)) return 0;
+  // Skill growth for any owned pet, capped by its genes. Returns what it actually gained.
+  function petGainSkill(pet, skillId, amount) {
+    if (!pet?.skills || !pet.genes || !SKILLS.some(skill => skill.id === skillId)) return 0;
     const before = pet.skills[skillId] || 0;
     const cap = pet.genes[skillId] || 100;
     pet.skills[skillId] = clamp(before + amount, 0, cap);
     if (skillId === "power") pet.strength = clamp(Math.max(pet.strength || 0, pet.skills.power));
     pet.lastTrainedSkill = skillId;
-    const gained = pet.skills[skillId] - before;
+    return pet.skills[skillId] - before;
+  }
+
+  function gainSkill(skillId, amount, { silent = false } = {}) {
+    const gained = petGainSkill(state.pet, skillId, amount);
     if (!silent && gained > .2) toast(`+${gained.toFixed(gained >= 1 ? 1 : 2)} ${skillId.toUpperCase()}`);
     return gained;
   }
@@ -1609,7 +1768,7 @@
       low: overrides.low ?? (!isEgg && Math.min(source.hunger, source.mood, source.energy, source.hygiene) < 18),
       grime: overrides.grime ?? careVisual.grime,
       washing: overrides.washing ?? careVisual.washing,
-      behavior: overrides.behavior ?? (source === state.pet ? activePetBehavior || (arcadeAfterglow ? "afterglow" : "") : ""),
+      behavior: overrides.behavior ?? (source === state.pet && context === "den" ? activePetBehavior || (arcadeAfterglow ? "afterglow" : "") : ""),
       name: overrides.name || source.name
     };
   }
@@ -1642,7 +1801,7 @@
   function accessoryClassName(visual) {
     const rarity = accessoryRarity(visual.accessory);
     const anchor = accessoryAnchorGroup(visual.accessory);
-    const clothIds = new Set(["bandana","scarf","bow","cape","beanie","cap"]);
+    const clothIds = new Set(["bandana","scarf","bow","cape","beanie","cap","first-knot"]);
     const metalIds = new Set(["chain","crown","halo","horns","belt"]);
     const glassIds = new Set(["shades","goggles","visor"]);
     const leatherIds = new Set(["backpack","belt","eyepatch"]);
@@ -1778,7 +1937,8 @@
     if (accessory) renderWearableToNode(accessory, visual);
     if (actor) {
       ensurePetGrimeLayer(actor);
-      actor.className = petActorClassNames(visual, actor.dataset.baseClass || "pet-actor");
+      const reactions = actor === el.petActor ? [...denReactions.keys()].join(" ") : "";
+      actor.className = `${petActorClassNames(visual, actor.dataset.baseClass || "pet-actor")} ${reactions}`.trim();
       applyVisualVariables(actor, visual);
     }
   }
@@ -1890,13 +2050,14 @@
   function keeperPathSteps() {
     const discovered = Object.values(state.collection || {}).filter(value => Number(value) > 0).length;
     const basicsDone = state.player.tutorialStep >= 5 || state.player.tutorialDismissed;
-    const clearedArcade = (state.meta.totalGames || 0) > 0 || ["power","spark","forage","rush","walk","rhythm","memory","glide","breaker","maze","defense"].some(key => Number(state.scores?.[key]) > 0);
-    const defenseBest = Math.max(Number(state.scores?.defense || 0), ...(Array.isArray(state.scores?.defenseMilestones) ? state.scores.defenseMilestones : [0]));
+    const defenseSummary = globalThis.RizoModes?.summary?.("defense");
+    const clearedArcade = (state.meta.totalGames || 0) > 0 || ["power","spark","forage","rush","walk","rhythm","memory","glide","breaker","maze"].some(key => Number(state.scores?.[key]) > 0) || Number(defenseSummary?.best) > 0;
+    const defenseBest = Math.max(Number(defenseSummary?.best) || 0, ...(defenseSummary?.milestones || [0]));
     const currentLevel = levelForXP(state.pet?.xp || 0);
     return [
       { id:"hatch", title:"HATCH YOUR FIRST RIZO", done:(state.meta.totalHatched || 0) > 0 || state.pet.stage !== "egg", status:(state.meta.totalHatched || 0) > 0 || state.pet.stage !== "egg" ? "DONE" : `${Math.floor(state.pet.hatch || 0)}%`, hint:"Tap the egg until the little weirdo comes out." },
       { id:"basics", title:"FINISH KEEPER BASICS", done:basicsDone, status:basicsDone ? "DONE" : `${Math.min(5, (state.player.tutorialStep || 0) + 1)}/5`, hint:"Feed, play, clean, sleep, and open the Journal once." },
-      { id:"arcade", title:"CLEAR AN ARCADE RUN", done:clearedArcade, status:clearedArcade ? "DONE" : `${state.meta.totalGames || 0}/1`, hint:"Any finished game counts toward your Keeper path." },
+      { id:"arcade", title:"TRAIN TOGETHER", done:clearedArcade, status:clearedArcade ? "DONE" : `${state.meta.totalGames || 0}/1`, hint:"Any finished game counts toward your Keeper path." },
       { id:"house", title:`UNLOCK RIZO HOUSE`, done:houseIsUnlocked(), status:houseIsUnlocked() ? "DONE" : `LV ${currentLevel}/${HOUSE_UNLOCK_LEVEL}`, hint:"Raise your main Rizo and finish the basics to open the spare room." },
       { id:"adopt", title:"ADOPT A SECOND RIZO", done:(state.farm?.roster?.length || 0) > 0, status:(state.farm?.roster?.length || 0) > 0 ? "DONE" : `${state.farm?.roster?.length || 0}/1`, hint:"Once the House opens, buy or discover another resident." },
       { id:"defense", title:"SURVIVE TO DEFENSE WAVE 10", done:defenseBest >= 10, status:defenseBest >= 10 ? "DONE" : `WAVE ${defenseBest}/10`, hint:"Your first milestone proves the roster system is really alive." },
@@ -1917,9 +2078,11 @@
     const trophies = [];
     if ((state.meta.totalHatched || 0) > 0) trophies.push({ id:"spark", icon:"✦", color:"#16c8ff", name:"FIRST SPARK", copy:"Your first hatch is part of the room now." });
     if (houseIsUnlocked()) trophies.push({ id:"house", icon:"⌂", color:"#9eff75", name:"HOUSE KEY", copy:"The spare room finally opened." });
-    if ((state.scores.defenseMilestones || []).includes(10)) trophies.push({ id:"gate", icon:"◉", color:"#ff5c6c", name:"GATE BADGE", copy:"Wave 10 survived in Rizo Defense." });
+    if ((globalThis.RizoModes?.summary?.("defense")?.milestones || []).includes(10)) trophies.push({ id:"gate", icon:"◉", color:"#ff5c6c", name:"GATE BADGE", copy:"Wave 10 survived in Rizo Defense." });
     if (state.pet.stage === "legend" || hasSeenUnlockScene("legacy-ready") || (state.meta.rebirths || 0) > 0) trophies.push({ id:"mature", icon:"♛", color:"#ffd45a", name:"MATURE MARK", copy:"You raised a Rizo all the way to Mature." });
     if ((state.meta.rebirths || 0) > 0) trophies.push({ id:"legacy", icon:"↻", color:"#ff68bd", name:"LEGACY RELIC", copy:"This timeline already created a Legacy Egg." });
+    if (state.home.trained.length) trophies.push({ id:"training", icon:"★", color:"#ffd45a", name:"TRAINING PATCH", copy:"Small games, real growth." });
+    if (state.inventory.accessories.includes("first-knot")) trophies.push({ id:"knot", icon:"⌁", color:"#ffb77f", name:"FIRST KNOT", copy:"Latch's knot came back with you." });
     return trophies;
   }
 
@@ -1940,47 +2103,6 @@
   function keeperTrophyJournalMarkup() {
     const trophies = keeperTrophies();
     return `<section class="stat-board trophy-room-board"><div class="trophy-room-head"><div><small>VISIBLE SAVE HISTORY</small><h3>TROPHY ROOM</h3><p>Every trophy also appears on the Den shelf so progress changes the world around Rizo.</p></div><span>${trophies.length}/5</span></div><div class="trophy-chip-row">${trophies.length ? trophies.map((trophy,index) => `<span class="trophy-chip trophy-${trophy.id}" style="--trophy-color:${trophy.color};--trophy-delay:${index * .11}s" title="${escapeHTML(trophy.copy)}"><i>${trophy.icon}</i><b>${escapeHTML(trophy.name)}</b><small>${escapeHTML(trophy.copy)}</small></span>`).join("") : `<small>NO TROPHIES YET. RAISE RIZO A LITTLE LONGER.</small>`}</div></section>`;
-  }
-
-  const DEFENSE_INTRO_SCENE_ID = "defense-origin-v37";
-  let pendingDefenseMapChoice = "auto";
-
-  function defenseResolvedMapId(choice = "auto") {
-    const unlocked = defenseUnlockedMaps();
-    const fallback = (unlocked[unlocked.length - 1] || DEFENSE_MAPS.grove).id;
-    return choice !== "auto" && unlocked.some(map => map.id === choice) ? choice : fallback;
-  }
-
-  const DEFENSE_LOBBY_ICONS=Object.freeze({grove:"🌲",ember:"🔥",moon:"🌙",storm:"⚡",blizzard:"❄️",eclipse:"🌑"});
-  function defenseWorldLobbyMarkup(choice = pendingDefenseMapChoice) {
-    const best=Math.max(0,Math.floor(Number(state.scores?.defense)||0),0),unlocked=defenseUnlockedMaps(),resolvedId=defenseResolvedMapId(choice),resolved=DEFENSE_MAPS[resolvedId]||DEFENSE_MAPS.grove,perMap=state.scores?.defenseMaps||{},checkpoint=readDefenseCheckpoint(),resolvedBest=Math.max(0,Math.floor(Number(perMap[resolvedId])||0));
-    const worlds=DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],locked=best<map.unlockWave,selected=resolvedId===id,mapBest=Math.max(0,Math.floor(Number(perMap[id])||0)),status=locked?`${map.unlockWave}`:mapBest?`${mapBest}`:"NEW";return`<button type="button" class="defense-world-pick ${selected?"selected":""} ${locked?"locked":""}" ${locked?"disabled":`data-defense-lobby-map="${id}"`} style="--map-accent:${defenseMapAccent(id)}" aria-label="${locked?`World ${map.level} locked until Wave ${map.unlockWave}`:`Choose World ${map.level}, ${escapeHTML(map.name)}`}" aria-pressed="${selected&&!locked?"true":"false"}"><small>${map.level}</small><b>${DEFENSE_LOBBY_ICONS[id]||map.icon}</b><span>${locked?"🔒 ":""}${status}</span></button>`;}).join("");
-    const resume=checkpoint?`<button class="defense-lobby-resume-simple" type="button" data-resume-defense-run><span>▶</span><div><small>CONTINUE RUN</small><b>${escapeHTML((DEFENSE_MAPS[checkpoint.mapId]||DEFENSE_MAPS.grove).name)} • WAVE ${checkpoint.currentWave||checkpoint.clearedWave+1}</b></div><i>›</i></button>`:"";
-    return`<div class="modal-card defense-world-lobby defense-world-lobby-simple rizo-defense-lobby v79-simple"><div class="defense-lobby-brand v79"><img src="./assets/rizo-full-mark.png" alt=""/><div><small>RIZO DEFENSE</small><b>CHOOSE A TRAIL</b></div><em>${unlocked.length}/${DEFENSE_MAP_ORDER.length} OPEN</em></div>${resume}<section class="defense-world-hero" style="--map-accent:${defenseMapAccent(resolvedId)}"><div class="defense-world-hero-map"><strong>${DEFENSE_LOBBY_ICONS[resolvedId]||resolved.icon}</strong>${defenseMiniRouteMarkup(resolved)}<i>WORLD ${resolved.level}</i></div><div class="defense-world-hero-copy"><small>${escapeHTML(resolved.routeType)} TRAIL</small><h2>${escapeHTML(resolved.name)}</h2><p>${escapeHTML(resolved.strategy)}</p><div><span>♥ ${resolved.lives}</span><span>🪙 ${BASE_DEFENSE_STARTING_CASH}</span><span>${resolvedBest?`BEST ${resolvedBest}`:"NEW TRAIL"}</span></div></div></section><div class="defense-world-picks" aria-label="Choose Defense world">${worlds}</div><p class="defense-lobby-one-line">Tap a Rizo, then grass — or drag one onto the field. Protect the Gate.</p><div class="modal-buttons defense-lobby-actions v79"><button type="button" data-close-modal>BACK</button><button type="button" data-defense-lobby-more>MORE</button><button class="primary" type="button" data-enter-defense-world="${escapeHTML(resolvedId)}">PLAY ${escapeHTML(resolved.name).toUpperCase()}</button></div></div>`;
-  }
-
-  function showDefenseWorldExtras(){
-    const contract=ensureDailyDefenseContract(),school=defenseSchoolState(),done=school.completed.length;
-    showModal(`<div class="modal-card defense-world-extras"><small>RIZO DEFENSE</small><h2>MORE</h2><p>The stuff you do not need in your face to start playing.</p><div class="defense-extra-grid"><button type="button" data-defense-records><b>🏆 RECORDS</b><small>Best waves and medals.</small></button><button type="button" data-defense-field-guide="rizos"><b>❓ GUIDE</b><small>Rizos and balloon types.</small></button><button type="button" data-defense-school-open><b>🎓 TRAIL SCHOOL</b><small>${done}/6 lessons.</small></button><button type="button" data-enter-defense-contract="${escapeHTML(contract.id)}"><b>✦ DAILY CHALLENGE</b><small>${escapeHTML(contract.title)}</small></button></div><div class="modal-buttons"><button class="primary" type="button" data-defense-records-back>BACK TO WORLDS</button></div></div>`);
-  }
-  function showDefenseWorldLobby(choice = pendingDefenseMapChoice) {
-    pendingDefenseMapChoice = choice;
-    showModal(defenseWorldLobbyMarkup(choice));
-    activeMusicOverride = "mini-defense";
-    startMusicForScene("mini-defense", true);
-  }
-
-  function showDefenseOriginIntro(force = false) {
-    if (!force && hasSeenUnlockScene(DEFENSE_INTRO_SCENE_ID)) {
-      showDefenseWorldLobby("auto");
-      return;
-    }
-    activeMusicOverride = "shadow";
-    playPetCutscene({scene:"shadow",kicker:"THE FOREST SENT A WARNING",title:"THE EMBER GATE IS UNDER ATTACK.",symbol:"◉",duration:1750,className:"feature-unlock-cutscene defense-origin-cutscene defense-origin-v37",after:()=>{
-      showModal(`<div class="modal-card defense-origin-reveal unlock-reveal defense-origin-v37-reveal"><small>RIZO DEFENSE • ORIGIN MOVIE</small><div class="defense-origin-stage"><div class="defense-origin-siren"></div><div class="defense-origin-path"></div><div class="defense-origin-gate"><i></i><b>EMBER<br>GATE</b></div><div class="defense-origin-balloon balloon-one"><i></i></div><div class="defense-origin-balloon balloon-two"><i></i></div><div class="defense-origin-balloon balloon-three"><i></i></div>${petMarkup({extraClass:"defense-origin-rizo",context:"cutscene"})}<div class="defense-origin-caption"><b>THE GATE CALLED YOUR HOUSE.</b><span>Every Rizo you raise can stand beside the trail.</span></div></div><h2>THE BALLOONS FOUND RIZO.</h2><p class="big-line">YOUR PETS ARE THE DEFENSE.</p><p>Choose a world, tap a Rizo, tap open grass, and survive long enough to unlock stranger maps, weather, bosses, and abilities.</p><div class="modal-buttons"><button data-close-modal>BACK OUT</button><button class="primary" data-defense-intro-continue>OPEN WORLD ROUTE</button></div></div>`);
-      sfx("legendary");
-      haptic([18,26,18,42]);
-    }});
   }
 
   function maybeAnnounceHouseUnlock() {
@@ -2060,12 +2182,11 @@
   }
 
   // ===== UI RENDER PIPELINE =====
+  function reducedMotionActive(){
+    try{return Boolean(state?.settings?.reducedMotion||matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);}catch(error){return Boolean(state?.settings?.reducedMotion);}
+  }
   function renderSharedUI() {
-    document.body.classList.toggle("reduce-motion", Boolean(state.settings.reducedMotion));
-    document.body.classList.toggle("defense-signatures-off", !state.settings.defenseSignatures);
-    document.body.classList.toggle("defense-ui-compact", state.settings.defenseUiScale === "compact");
-    document.body.classList.toggle("defense-ui-large", state.settings.defenseUiScale === "large");
-    document.body.dataset.defenseFx = state.settings.defenseFx;
+    document.body.classList.toggle("reduce-motion", reducedMotionActive());
     el.keeperShort.textContent = state.player.keeperId.slice(-4);
     el.streakCount.textContent = state.player.streak;
     el.coinCount.textContent = formatNumber(state.wallet.embers);
@@ -2084,7 +2205,8 @@
       renderSeason();
     } else if (currentView === "arcade") {
       renderArcade();
-      renderExpedition();
+    } else if (currentView === "go") {
+      renderGo();
     } else if (currentView === "closet") {
       renderCloset();
     } else if (currentView === "journal") {
@@ -2101,10 +2223,293 @@
     renderCurrentView();
     renderTutorial();
     refreshAdSlots();
-    if (mini?.active && mini.mode === "defense") scheduleDefenseTowerGeometrySync();
+    globalThis.RizoModes?.resizeActive?.("render");
     setTimeout(maybeAnnounceHouseUnlock, 0);
     setTimeout(maybeAnnounceLegacyReady, 80);
     setTimeout(maybePromptBackup, 160);
+  }
+
+  // ===== HOME / TRAIN / GO =====
+  // Placement is owned by the pet and painted on a separate DOM parent.
+  // Reactions, stage scale, clothing and care animation cannot write it.
+  function syncDenPosition() {
+    const placement = $("#denPlacement");
+    if (!placement) return;
+    const p = state.pet.denPosition;
+    const actor = state.pet.stage === "egg" ? el.eggActor : el.petActor;
+    const roomWidth = el.habitatScene.clientWidth;
+    if (roomWidth) placement.style.setProperty("--den-edge", `${Math.min(roomWidth / 2, actor.getBoundingClientRect().width / 2 + 6)}px`);
+    placement.style.setProperty("--den-x", `${p.x}%`);
+    placement.style.setProperty("--den-y", `${p.y}%`);
+    // Switching residents / loading a save changes location without a stale walk.
+    if (placement.dataset.pet !== state.pet.id) {
+      placement.classList.add("den-arriving");
+      placement.dataset.pet = state.pet.id;
+      requestAnimationFrame(() => placement.classList.remove("den-arriving"));
+    }
+  }
+
+  function moveDenTo(x, y = 0, { lead = 0 } = {}) {
+    const from = state.pet.denPosition?.x ?? 50;
+    state.pet.denPosition = Home.position({ x, y });
+    const placement = $("#denPlacement"), to = state.pet.denPosition.x;
+    if (placement && Math.abs(to - from) > 3 && !reducedMotionActive()) {
+      // Position is saved now; the body may take a breath before it goes.
+      placement.style.transitionDelay = lead ? `${lead}ms` : "";
+      clearTimeout(moveDenTo.timer);
+      placement.classList.remove("walking-left", "walking-right");
+      const step = () => { placement.classList.add(to < from ? "walking-left" : "walking-right"); moveDenTo.timer = setTimeout(() => { placement.classList.remove("walking-left", "walking-right"); placement.style.transitionDelay = ""; }, 860); };
+      if (lead) moveDenTo.timer = setTimeout(step, lead); else step();
+    }
+    syncDenPosition();
+    saveState();
+  }
+
+  function startDenBehavior(behavior, duration = 1800, line = "", destination = null) {
+    const sequence = ++denBehaviorSequence, petId = state.pet.id;
+    clearTimeout(denBehaviorTimer);
+    activePetBehavior = behavior;
+    if (destination) moveDenTo(destination.x, destination.y);
+    renderHome();
+    if (line) say(line, Math.min(duration + 500, 3200));
+    denBehaviorTimer = setTimeout(() => {
+      if (sequence !== denBehaviorSequence || state.pet.id !== petId) return;
+      activePetBehavior = null;
+      if (currentView === "home") renderHome();
+    }, duration);
+  }
+
+  function resetDenPresentation() {
+    ++denBehaviorSequence;
+    clearTimeout(denBehaviorTimer);
+    activePetBehavior = null;
+    for (const timer of denReactions.values()) clearTimeout(timer);
+    denReactions.clear();
+    endDenPlay();
+  }
+
+  let denToyDrag = null;
+  let denToyClickBlockedUntil = 0;
+  function beginDenToyDrag(event) {
+    const object = event.target.closest("[data-garden-toy='ball']");
+    if (!object || currentView !== "home" || isUILocked() || state.pet.stage === "egg" || state.pet.sleeping || state.pet.resting || event.button > 0) return;
+    denToyDrag = { node: object, petId: state.pet.id, pointer: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    try { object.setPointerCapture(event.pointerId); } catch (error) {}
+  }
+  function moveDenToyDrag(event) {
+    const drag = denToyDrag;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    const dx = clamp(event.clientX - drag.x, -100, 160), dy = clamp(event.clientY - drag.y, -55, 30);
+    drag.moved ||= Math.hypot(dx, dy) > 8;
+    drag.node.classList.toggle("toy-dragging", drag.moved);
+    drag.node.style.setProperty("--toy-drag-x", `${dx}px`);
+    drag.node.style.setProperty("--toy-drag-y", `${dy}px`);
+  }
+  function endDenToyDrag(event, cancelled = false) {
+    const drag = denToyDrag;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    denToyDrag = null;
+    drag.node.classList.remove("toy-dragging");
+    drag.node.style.removeProperty("--toy-drag-x"); drag.node.style.removeProperty("--toy-drag-y");
+    try { drag.node.releasePointerCapture(event.pointerId); } catch (error) {}
+    if (cancelled || !drag.moved || currentView !== "home" || isUILocked() || state.pet.id !== drag.petId) return;
+    denToyClickBlockedUntil = now() + 400;
+    const rect = el.habitatScene.getBoundingClientRect();
+    useGardenToy("ball", { x: (event.clientX - rect.left) / rect.width * 100, y: 1 });
+  }
+
+  function endDenPlay() {
+    denPlayActive = false;
+    if (denToyDrag) endDenToyDrag({pointerId:denToyDrag.pointer}, true);
+    el.habitatScene?.classList.remove("den-playing");
+    const tray = $("#denPlayTray");
+    if (tray) tray.hidden = true;
+    $("[data-action='play']")?.setAttribute("aria-expanded", "false");
+  }
+
+  function everydayHomeReward(kind, id) {
+    const embers = Home.everyday(state.home, kind, id, dateKey());
+    state.wallet.embers = SaveCore.clampInteger(state.wallet.embers + embers, 0, CORE_LIMITS.MAX_WALLET_EMBERS, state.wallet.embers);
+    return embers;
+  }
+
+  function rememberHomeReturn(source, name, embers = 0) {
+    state.home.lastReturn = { source, name, embers, at: now() };
+    pendingArrival = { source, at: now() };
+    saveState();
+  }
+
+  function homeTargetCopy() {
+    const next = Home.next(state.home);
+    return next ? `${formatNumber(Math.min(state.wallet.embers, next.cost))} / ${formatNumber(next.cost)} Embers toward ${next.name}` : `${formatNumber(state.wallet.embers)} / ${formatNumber(Home.HORIZON.cost)} Embers. Orbit is a distant plan.`;
+  }
+
+  // One stitched patch per drill we've actually done together.
+  const DRILL_PATCH = Object.freeze({ power: "#d9534f", spark: "#f2c14e", forage: "#7cc36b", rush: "#3fb6c9", walk: "#5b8fd6", rhythm: "#a36bdc", memory: "#8fae5a", glide: "#7fd6c2", breaker: "#e8803a", maze: "#6c5ca8" });
+  const ARRIVAL_LINES = Object.freeze({
+    training: ["BACK. I'M BASICALLY AN ATHLETE NOW.", "WE DID A DRILL. TELL EVERYONE.", "HOME. THAT COUNTS AS CARDIO."],
+    defense: ["THE FIELD HELD. MOSTLY.", "HOME. NO BALLOONS IN HERE.", "WE HELD THE LINE. I NEED A SNACK."],
+    dungeon: ["…HOME.", "IT'S DRY HERE.", "YOU LEFT THE LIGHT ON."],
+    expedition: ["I BROUGHT BACK DIRT. AND LORE.", "THE WOODS SAY HI."]
+  });
+  function renderHomeGrowth() {
+    const h = state.home, next = Home.next(h), tier = Home.TIERS[h.tier];
+    el.habitatScene.dataset.homeTier = String(h.tier);
+    $("#habitatCard")?.setAttribute("data-tier-name", tier.name);
+    const bed = $("#denBed");
+    if (bed) {
+      bed.disabled = state.pet.stage === "egg" || state.pet.resting;
+      bed.setAttribute("aria-label", state.pet.sleeping ? "Wake Rizo in his bed" : "Let Rizo rest in his bed");
+      bed.classList.toggle("occupied", state.pet.sleeping);
+    }
+    const goal = $("#homeGoal");
+    if (goal) {
+      goal.querySelector("small").textContent = `${tier.name} / ${h.tier + 1}`;
+      goal.querySelector("b").textContent = next ? `NEXT: ${next.name}` : "NEXT DREAM: ORBIT";
+      goal.querySelector("span").textContent = next ? `R ${formatNumber(state.wallet.embers)} / ${formatNumber(next.cost)}` : `R ${formatNumber(state.wallet.embers)} / 1M · FUTURE`;
+      goal.querySelector("i").style.width = `${clamp(state.wallet.embers / (next?.cost || Home.HORIZON.cost) * 100)}%`;
+      goal.classList.toggle("ready", Boolean(next && state.wallet.embers >= next.cost));
+      let need = goal.querySelector(".home-goal-need");
+      if (!need) { need = document.createElement("strong"); need.className = "home-goal-need"; goal.querySelector("u")?.after(need); }
+      need.textContent = !next ? "A distant plan. Keep living here." : state.wallet.embers >= next.cost ? "READY TO BUILD — TAP TO SEE IT" : `${formatNumber(next.cost - state.wallet.embers)} more Embers · ${next.detail}`;
+      goal.setAttribute("aria-label", `${tier.name}. ${homeTargetCopy()}. Open home plans.`);
+    }
+    const ret = $("#homeReturn");
+    if (ret) {
+      const last = h.lastReturn;
+      ret.hidden = !last;
+      if (last) {
+        const what = { training: "a patch on the board", defense: "the pennant", dungeon: "something kept", expedition: "dirt and lore" }[last.source] || "";
+        ret.innerHTML = `<span aria-hidden="true">↩</span><span><b>${escapeHTML(last.name)}</b> → HOME${last.embers ? ` · +R ${formatNumber(last.embers)}` : ""}${what ? ` · ${what}` : ""}</span>`;
+      }
+    }
+    // The hub reads mode summaries/earned entitlements, never rewrites a slice.
+    const hearth = Object.values(state.modeReceipts?.dungeon || {}).some(receipt => receipt.entitlements.includes("shared-hearth")) || [...(state.pet.storyMarks || []), ...(state.farm?.roster || []).flatMap(p => p.storyMarks || [])].some(mark => mark.id === "shared-hearth" && mark.mode === "dungeon");
+    $("#denHearthMemory")?.toggleAttribute("hidden", !hearth);
+    $("#denKnotMemory")?.toggleAttribute("hidden", !state.inventory.accessories.includes("first-knot"));
+    const trainingPatch = $("#denTrainingMemory");
+    if (trainingPatch) {
+      trainingPatch.hidden = !h.trained.length;
+      const patches = Home.DRILLS.map(id => h.trained.includes(id) ? `<b style="--c:${DRILL_PATCH[id]}"></b>` : `<b class="empty"></b>`).join("");
+      if (trainingPatch.dataset.patches !== h.trained.join()) { trainingPatch.innerHTML = patches; trainingPatch.dataset.patches = h.trained.join(); }
+      trainingPatch.setAttribute("aria-label", `Training patch: ${h.trained.length} different drills played`);
+    }
+    const defensePatch = $("#denDefenseMemory"), defense = globalThis.RizoModes?.summary?.("defense");
+    if (defensePatch) {
+      defensePatch.hidden = !defense?.best;
+      defensePatch.textContent = `W${defense?.best || 0}`;
+      defensePatch.setAttribute("aria-label", `Defense pennant: best wave ${defense?.best || 0}`);
+    }
+  }
+
+  function openHomePlans() {
+    const h = state.home, next = Home.next(h);
+    const room = tier => `<div class="plan-room" data-tier="${tier}" aria-hidden="true"><i class="pr-a"></i><i class="pr-b"></i><i class="pr-c"></i><i class="pr-light"></i></div>`;
+    const changes = { warm: ["a real bed", "a woven rug", "the lamp left on", "curtains"], room: ["an archway to a second room", "books + a plant", "daylight", "a shelf for what we bring back"], roof: ["open night sky", "string lights", "a telescope", "the door left open"] };
+    const preview = next
+      ? `<div class="plan-preview"><figure>${room(h.tier)}<figcaption>NOW · ${escapeHTML(Home.TIERS[h.tier].name)}</figcaption></figure><figure class="next">${room(h.tier + 1)}<figcaption>NEXT · ${escapeHTML(next.name)}</figcaption></figure></div>
+        <ul class="plan-changes">${(changes[next.id] || []).map(item => `<li>+ ${escapeHTML(item)}</li>`).join("")}</ul>
+        <div class="plan-meter"><span>${formatNumber(Math.min(state.wallet.embers, next.cost))} / ${formatNumber(next.cost)} Embers</span><b>${state.wallet.embers >= next.cost ? "READY" : `${formatNumber(next.cost - state.wallet.embers)} TO GO`}</b><u><i style="width:${clamp(state.wallet.embers / next.cost * 100)}%"></i></u></div>`
+      : `<div class="plan-preview"><figure class="next">${room(h.tier)}<figcaption>OURS · ${escapeHTML(Home.TIERS[h.tier].name)}</figcaption></figure></div>`;
+    openSheet("OUR HOME", "MAKE ROOM FOR MORE", `
+      ${preview}
+      ${next ? `<button class="home-build-button" type="button" data-home-upgrade="${next.id}" ${state.wallet.embers < next.cost ? "disabled" : ""}>${state.wallet.embers < next.cost ? `${formatNumber(next.cost - state.wallet.embers)} MORE EMBERS` : `BUILD ${next.name} · R ${formatNumber(next.cost)}`}</button>` : `<p class="home-plan-copy">The rooftop is yours. Keep growing Rizo, filling the shelf, and dreaming bigger.</p>`}
+      <p class="home-plan-copy">Embers from care, play, training, and journeys build the place we come back to.</p>
+      <ol class="home-plan-tiers">${Home.TIERS.map((tier, i) => `<li class="${i <= h.tier ? "built" : i === h.tier + 1 ? "next" : "later"}"><span>${i <= h.tier ? "✓" : `0${i + 1}`}</span><div><b>${tier.name}</b><p>${tier.detail}</p></div><small>${i <= h.tier ? "HOME" : `R ${formatNumber(tier.cost)}`}</small></li>`).join("")}</ol>
+      <div class="home-horizon"><span>✧</span><div><b>${Home.HORIZON.name}</b><p>R ${formatNumber(Home.HORIZON.cost)} · A distant plan. No purchase yet.</p></div></div>`);
+  }
+
+  function buildHome(id) {
+    if (saveBlocked || stateConflictsWithStorage()) { if (!saveBlocked) blockSaving("conflict"); return false; }
+    const result = Home.purchase(state.home, state.wallet.embers, id, now());
+    if (!result.ok) { toast(result.reason === "embers" ? "SAVE A FEW MORE EMBERS" : "THAT HOME ISN'T THE NEXT STEP"); return false; }
+    const previous = { home: state.home, embers: state.wallet.embers, lastActive: state.player.lastActive };
+    clearTimeout(saveTimer); saveTimer = null;
+    state.home = result.home; state.wallet.embers = result.embers; state.player.lastActive = now();
+    const outcome = persistStateNow();
+    if (outcome.status !== "committed") {
+      state.home = previous.home; state.wallet.embers = previous.embers; state.player.lastActive = previous.lastActive;
+      renderAll(); return false;
+    }
+    closeSheet(); changeView("home"); renderAll();
+    addMemory("A BIGGER HOME", `${state.pet.name} has a ${Home.TIERS[state.home.tier].name}. We built this together.`, "⌂");
+    saveState(); sfx("reward"); haptic([20, 40, 70]);
+    playBuildCeremony();
+    const tierNow = state.home.tier, petId = state.pet.id;
+    setTimeout(() => { if (state.pet.id === petId && state.home.tier === tierNow) setLifeBehavior("proud", 1800, ["", "LEAVE THE LIGHT ON.", "ROOM FOR MY BAD IDEAS.", "THIS SKY IS MINE NOW."][tierNow]); }, reducedMotionActive() ? 0 : 1050);
+    return true;
+  }
+
+  // Lights down, the new room arrives, lights up. Presentation only: the
+  // purchase is already committed before this runs.
+  function playBuildCeremony() {
+    const scene = el.habitatScene, tier = Home.TIERS[state.home.tier];
+    if (!scene || !tier) return;
+    homeBuiltUntil = now() + 1700;
+    scene.querySelectorAll(".den-build-veil,.den-build-banner").forEach(node => node.remove());
+    scene.classList.add("home-built");
+    const veil = document.createElement("div"); veil.className = "den-build-veil"; veil.setAttribute("aria-hidden", "true");
+    const banner = document.createElement("div"); banner.className = "den-build-banner"; banner.setAttribute("aria-hidden", "true");
+    banner.innerHTML = `<small>WE BUILT</small><b>${escapeHTML(tier.name)}</b>`;
+    scene.append(veil, banner);
+    setTimeout(() => { veil.remove(); banner.remove(); if (now() >= homeBuiltUntil) scene.classList.remove("home-built"); }, reducedMotionActive() ? 1600 : 2700);
+  }
+
+  // Rizo went somewhere, and came back. A quick beat, never a cutscene.
+  function playHomeArrival() {
+    const arrival = pendingArrival;
+    pendingArrival = null;
+    if (!arrival || now() - arrival.at > 10 * 60 * 1000 || currentView !== "home") return;
+    const pet = state.pet;
+    if (!pet?.alive || pet.stage === "egg" || pet.sleeping || pet.resting || isUILocked()) return;
+    const keep = { training: "#denTrainingMemory", defense: "#denDefenseMemory", dungeon: "#denHearthMemory:not([hidden]),#denKnotMemory:not([hidden])" }[arrival.source];
+    const node = keep ? $(keep) : null;
+    if (node && !node.hidden) { node.classList.remove("is-new"); void node.offsetWidth; node.classList.add("is-new"); setTimeout(() => node.classList.remove("is-new"), 3400); }
+    const ret = $("#homeReturn");
+    if (ret && !ret.hidden) { ret.classList.remove("fresh"); void ret.offsetWidth; ret.classList.add("fresh"); }
+    animatePet("den-arrive", 900);
+    const lines = ARRIVAL_LINES[arrival.source] || ARRIVAL_LINES.training;
+    setTimeout(() => { if (currentView === "home" && state.pet.id === pet.id) say(lines[Math.floor(Math.random() * lines.length)], 2600); }, 420);
+  }
+
+  function renderTrainingFocus() {
+    const games = Training.list().filter(def => Home.DRILLS.includes(def.id));
+    const matching = games.filter(def => trainingFocus === "all" || (def.trains[trainingFocus] || 0) > 0);
+    const affordable = matching.filter(def => state.pet.energy >= def.energy);
+    const pool = affordable.length ? affordable : matching;
+    const game = pool.find(def => !state.home.trained.includes(def.id)) || pool.find(def => def.id !== state.pet.lifeMemory?.lastArcadeMode) || pool[0];
+    for (const card of $$("#trainingLibrary .game-card")) {
+      const def = Training.get(card.querySelector("[data-minigame]")?.dataset.minigame);
+      card.hidden = !matching.includes(def);
+    }
+    $$("[data-training-focus]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.trainingFocus === trainingFocus)));
+    const host = $("#trainingFeatured");
+    if (host && game) {
+      host.style.setProperty("--patch", DRILL_PATCH[game.id] || "#cfc4a2");
+      // Presentation follows the drill; the training contract still owns every rule.
+      host.dataset.station = trainingFocus !== "all" ? trainingFocus : ["power", "speed", "instinct"].sort((a, b) => (game.trains[b] || 0) - (game.trains[a] || 0))[0];
+      host.innerHTML = `<div class="training-yard" aria-hidden="true"><i class="yard-fence"></i><i class="yard-bag"></i><i class="yard-cones"></i><i class="yard-lamp"></i><i class="yard-lines"></i><i class="yard-target"></i><i class="yard-bench"></i><b class="yard-sign">THE YARD</b><span class="yard-patches">${Home.DRILLS.map(id => `<i class="${state.home.trained.includes(id) ? "earned" : ""}" style="--c:${DRILL_PATCH[id]}"></i>`).join("")}</span></div><div class="training-companion">${petMarkup({ extraClass: "training-rizo", context: "card" })}</div><div class="training-pick"><small>${state.home.trained.includes(game.id) ? "ANOTHER ROUND?" : "TODAY: SOMETHING NEW"}</small><h2>${game.name}</h2><p>${SKILLS.filter(skill => game.trains[skill.id] > 0).map(skill => skill.name).join(" + ")} · ${game.duration}s · ${game.energy} energy</p><button data-minigame="${game.id}" type="button">TRAIN TOGETHER</button></div>`;
+    }
+    host?.setAttribute("aria-label", `Suggested training drill. ${state.home.trained.length} of ${Home.DRILLS.length} practice patches earned.`);
+    const line = $("#trainingHomeGoal");
+    if (line) line.textContent = homeTargetCopy();
+  }
+
+  function renderGo() {
+    renderModeShelf(); renderExpedition();
+    const pet = state.pet, key = `${pet.id}:${pet.stage}:${pet.variant}:${pet.accessory}`;
+    for (const spot of $$("#viewGo .destination-companion")) {
+      if (spot.dataset.key === key) continue;
+      spot.dataset.key = key;
+      spot.innerHTML = pet.stage === "egg" ? "" : petMarkup({ extraClass: "go-rizo", context: "card" });
+    }
+    const dungeon = globalThis.RizoModes?.summary?.("dungeon"), savedDefense = modeRunStore("defense").read();
+    const dungeonButton = $("#viewGo [data-mode='dungeon']"), defenseButton = $("#viewGo [data-mode='defense']");
+    if (dungeonButton && !dungeonButton.classList.contains("game-blocked")) dungeonButton.textContent = dungeon?.journey && !dungeon.journey.complete ? "CONTINUE JOURNEY" : dungeon?.journey?.complete ? "VISIT AGAIN" : "GO WITH RIZO";
+    if (defenseButton && !defenseButton.classList.contains("game-blocked")) defenseButton.textContent = savedDefense ? "RETURN TO THE FIELD" : "GO DEFEND";
+    const dungeonNote = $("#dungeonDeparture"), defenseNote = $("#defenseDeparture");
+    if (dungeonNote) dungeonNote.textContent = dungeon?.journey ? `${dungeon.journey.petName}'s journey · ${dungeon.bestLabel} · Progress saved` : "The opening + Mending Rows. Your journey saves as you go.";
+    if (defenseNote) defenseNote.textContent = savedDefense ? "A run is waiting. Resume it in the field." : "Take your raised Rizo and roster. Bring Embers and training home.";
   }
 
   function renderHome() {
@@ -2114,6 +2519,10 @@
     const mood = moodInfo();
 
     el.habitatScene.className = `habitat-scene ${ROOMS.find(room => room.id === pet.room)?.className || "theme-rain"}`;
+    el.habitatScene.classList.toggle("den-playing", denPlayActive);
+    // Redraws must not cancel what the room is in the middle of showing.
+    el.habitatScene.classList.toggle("den-sleeping", Boolean(pet.sleeping && !isEgg));
+    if (now() < homeBuiltUntil) el.habitatScene.classList.add("home-built");
     el.moodChip.querySelector("i").style.background = mood.color;
     el.moodChip.querySelector("span").textContent = mood.label;
     applyLivingMood();
@@ -2156,7 +2565,7 @@
     $$("[data-need]").forEach(button => {
       const need = button.dataset.need;
       button.disabled = isEgg || !pet.alive || (pet.sleeping && need !== "energy");
-      const labels = { hunger: "Open food menu", mood: "Open play menu", energy: pet.sleeping ? "Wake Rizo" : "Rest and recharge", hygiene: "Clean Rizo" };
+      const labels = { hunger: "Open food menu", mood: "Play with Rizo in the Den", energy: pet.sleeping ? "Wake Rizo" : "Rest and recharge", hygiene: "Clean Rizo" };
       button.setAttribute("aria-label", `${labels[need]}. Current ${need}: ${Math.floor(pet[need])}`);
       button.title = labels[need];
     });
@@ -2189,6 +2598,8 @@
     renderGardenVisitor();
     renderGardenGrowth();
     renderHabitatShelf();
+    renderHomeGrowth();
+    syncDenPosition();
     const latest = state.memories[0];
     el.memoryTitle.textContent = latest?.title || "THE EGG IN THE RAIN";
     el.memoryText.textContent = latest?.text || "You found something impossible under a tree and decided that was somehow your problem now.";
@@ -2262,36 +2673,42 @@
   }
 
   function renderArcade() {
-    el.bestPower.textContent = formatNumber(state.scores.power);
-    el.bestSpark.textContent = formatNumber(state.scores.spark);
-    el.bestForage.textContent = formatNumber(state.scores.forage);
-    if (el.bestRush) el.bestRush.textContent = formatNumber(state.scores.rush);
-    if (el.bestWalk) el.bestWalk.textContent = formatNumber(state.scores.walk);
-    if (el.bestRhythm) el.bestRhythm.textContent = formatNumber(state.scores.rhythm);
-    if (el.bestMemory) el.bestMemory.textContent = formatNumber(state.scores.memory);
-    if (el.bestGlide) el.bestGlide.textContent = formatNumber(state.scores.glide);
-    if (el.bestBreaker) el.bestBreaker.textContent = formatNumber(state.scores.breaker);
-    if (el.bestMaze) el.bestMaze.textContent = formatNumber(state.scores.maze);
-    if (el.bestDefense) el.bestDefense.textContent = formatNumber(state.scores.defense);
-    const defenseCard = $(".defense-card");
-    if (defenseCard) {
-      let badge = defenseCard.querySelector(".defense-milestone-badge");
-      const milestones = Array.isArray(state.scores.defenseMilestones) ? state.scores.defenseMilestones : [];
-      const bestMilestone = milestones[milestones.length - 1] || 0;
-      if (bestMilestone) {
-        if (!badge) { badge = document.createElement("i"); badge.className = "defense-milestone-badge"; defenseCard.appendChild(badge); }
-        badge.textContent = `W${bestMilestone}`;
-        badge.title = `Defense milestone: wave ${bestMilestone}`;
-      } else badge?.remove();
+    // Personal bests and their labels both come from the training definitions,
+    // so the board can never show an engineering id where a product name
+    // belongs. Game modes fill their own cells from their summary.
+    for(const mode of ARCADE_MODES){
+      const cell=$(`[data-arcade-best="${mode}"]`);
+      if(!cell)continue;
+      const value=cell.querySelector("b"),label=cell.querySelector("span");
+      if(value)value.textContent=arcadeBestValue(mode);
+      if(label)label.textContent=arcadeName(mode);
     }
+    // The decision is made on the shelf, so put the decision information there:
+    // what you have already done, what it costs, and how long it takes.
+    for(const mode of ARCADE_MODES){
+      const meta=$(`[data-arcade-meta="${mode}"]`);
+      if(!meta)continue;
+      const game=trainingGame(mode),affordable=(state.pet?.energy??0)>=game.energy;
+      meta.innerHTML=`<span class="meta-best"><small>${arcadeBestLabel(mode)}</small><b>${arcadeBestValue(mode)}</b></span>`
+        +`<span class="meta-energy${affordable?"":" short"}"><small>ENERGY</small><b>${game.energy}</b></span>`
+        +`<span class="meta-length"><small>RUN</small><b>${arcadeRunLength(mode)}</b></span>`;
+    }
+    for(const mode of ARCADE_MODES){
+      const card=$(`#trainingLibrary [data-minigame="${mode}"]`)?.closest(".game-card");
+      if(!card) continue;
+      card.style.setProperty("--patch", DRILL_PATCH[mode]||"#cfc4a2");
+      card.classList.toggle("drill-done", state.home.trained.includes(mode));
+    }
+    renderTrainingFocus();
     $$('[data-minigame]').forEach(button => {
-      const mode = button.dataset.minigame;
-      const need = miniEnergyNeeded(mode);
+      const mode = button.dataset.minigame, game = trainingGame(mode);
+      if (!game) { button.classList.add("game-blocked"); button.textContent = "UNAVAILABLE"; return; }
+      const need = game.energy;
       const blocked = state.pet.stage === "egg" || state.pet.resting || state.pet.sleeping || state.pet.energy < need;
-      const base = ({power:"PUNCH",spark:"CHASE",forage:"FORAGE",rush:"RUN",walk:"WALK",rhythm:"PLAY",memory:"REMEMBER",glide:"FLY",breaker:"BREAK",maze:"RUN",defense:"DEFEND"})[mode] || "PLAY";
+      const base = button.closest("#trainingFeatured") ? "TRAIN TOGETHER" : game.button || "PLAY";
       button.classList.toggle("game-blocked", blocked);
       button.textContent = state.pet.stage === "egg" ? "HATCH FIRST" : state.pet.resting ? "RECOVERING" : state.pet.sleeping ? "WAKE RIZO" : state.pet.energy < need ? `NEED ${need} ENERGY` : base;
-      button.title = blocked ? "Tap for the exact reason this run cannot start yet." : `Start ${mode}.`;
+      button.title = blocked ? "Tap for the exact reason this run cannot start yet." : `Start ${game.name}.`;
     });
   }
 
@@ -2319,7 +2736,7 @@
   function renderShopList() {
     if (!el.shopList) return;
     if (shopTab === "wear") {
-      el.shopList.innerHTML = ACCESSORIES.map(item => {
+      el.shopList.innerHTML = ACCESSORIES.filter(item => !item.earned || state.inventory.accessories.includes(item.id)).map(item => {
         const owned = state.inventory.accessories.includes(item.id);
         const equipped = state.pet.accessory === item.id;
         const shortOnEmbers = !owned && state.wallet.embers < item.cost;
@@ -2335,10 +2752,7 @@
         return `<article class="shop-item room-shop-card"><div class="room-swatch ${item.className}"><span>${item.icon}</span><i></i></div><div><h3>${item.name}</h3><p>${item.description}</p></div><button class="${owned ? "owned" : ""} ${shortOnEmbers ? "short-on-embers" : ""}" data-buy-room="${item.id}" ${equipped ? "disabled" : ""} title="${shortOnEmbers ? "Not enough Embers yet" : equipped ? "Current room" : owned ? "Use " + item.name : "Buy " + item.name}">${equipped ? "ACTIVE" : owned ? "USE" : `R ${item.cost}`}</button></article>`;
       }).join("");
     } else {
-      el.shopList.innerHTML = BOOSTS.filter(item => !item.futureAd || CONFIG.ads.enabled).map(item => {
-        if (item.futureAd) {
-          return `<article class="shop-item"><div class="shop-item-icon">${item.icon}</div><div><h3>${item.name}</h3><p>${item.description}</p></div><button data-ad-reward="care">WATCH</button></article>`;
-        }
+      el.shopList.innerHTML = BOOSTS.filter(item => !item.futureAd).map(item => {
         const quantity = state.inventory[item.id] || 0;
         const shortOnEmbers = state.wallet.embers < item.cost;
         return `<article class="shop-item"><div class="shop-item-icon">${item.icon}</div><div><h3>${item.name}</h3><p>${item.description} • OWNED ${quantity}</p></div><button class="${shortOnEmbers ? "short-on-embers" : ""}" data-buy-boost="${item.id}" title="${shortOnEmbers ? "Not enough Embers yet" : "Buy " + item.name}">R ${item.cost}</button></article>`;
@@ -2438,6 +2852,11 @@
     el.journalContent.innerHTML = `<div class="journal-panel"><div class="memory-list">${memories.map(item => `<article class="memory-card"><div class="memory-icon">${item.icon || "✦"}</div><div><h3>${escapeHTML(item.title)}</h3><p>${escapeHTML(item.text)}</p><time>${new Date(item.at).toLocaleString()}</time></div></article>`).join("")}</div><div class="sheet-section-title">FOREST ARCHIVE • ${state.loreUnlocked.length}/${LORE_FRAGMENTS.length}</div><div class="lore-archive">${LORE_FRAGMENTS.map((item,index)=>{const open=state.loreUnlocked.includes(item.id);return `<article class="lore-fragment ${open?"":"locked"}"><small>FRAGMENT ${String(index+1).padStart(2,"0")}</small><h3>${open?item.title:"LOCKED SIGNAL"}</h3><p>${open?item.text:"Find this fragment through capsules, growth, and expeditions."}</p></article>`}).join("")}</div></div>`;
   }
 
+  // Only appears when a save could not be loaded and was kept aside (see SAVE SAFETY).
+  function setAsideSavesMarkup(){
+    const parked=readSaveQuarantine();if(!parked.length)return "";
+    return `<section class="settings-board"><h3>SET-ASIDE SAVES</h3><div class="sheet-note">This device found a save it could not load and kept it untouched instead of overwriting it. If progress is missing, download it and send it to support.</div><div class="settings-actions">${parked.map(item=>`<button data-download-set-aside="${escapeHTML(item.key)}">${escapeHTML(item.at?new Date(item.at).toLocaleDateString():"UNKNOWN DATE")}</button>`).join("")}</div></section>`;
+  }
   function renderJournalSettings() {
     el.journalContent.innerHTML = `<div class="journal-panel">
       <section class="settings-board"><h3>GAME SETTINGS</h3>
@@ -2447,17 +2866,14 @@
         ${volumeRow("MUSIC VOLUME", "Adjust Den, House, Arcade, and Ember Beat music.", "musicVolume", state.settings.musicVolume)}
         ${toggleRow("HAPTICS", "Phone vibrations where supported.", "haptics", state.settings.haptics)}
         ${toggleRow("REDUCED MOTION", "Cuts most animation.", "reducedMotion", state.settings.reducedMotion)}
-        ${toggleRow("FIELD SIGNATURES", "Shows mastery-earned tower marks, trails, impact sigils, and restrained attack tones. Cosmetic only.", "defenseSignatures", state.settings.defenseSignatures)}
-        ${toggleRow("AUTO WAVES", "Off by default. When enabled, a cleared field waits about 2.8 seconds before the next wave; opening a planning interaction resets the countdown.", "defenseAutoStart", state.settings.defenseAutoStart)}
-        ${choiceRow("DEFENSE EFFECTS", "AUTO protects frame pacing. FULL preserves decoration until emergency load. LOW always minimizes particles.", "defenseFx", state.settings.defenseFx, [["auto","AUTO"],["full","FULL"],["low","LOW"]])}
-        ${choiceRow("BATTLEFIELD UI", "Changes Defense HUD and control size without changing the playfield or hit logic.", "defenseUiScale", state.settings.defenseUiScale, [["compact","COMPACT"],["standard","STANDARD"],["large","LARGE"]])}
-        ${choiceRow("WAVE INTEL", "SIMPLE gives only a useful warning. FULL shows counts. OFF keeps the battlefield clean.", "defenseWaveIntel", state.settings.defenseWaveIntel, [["off","OFF"],["simple","SIMPLE"],["full","FULL"]])}
       </section>
+      ${modeSettingsMarkup()}
       <section class="settings-board"><h3>HOW TO KEEP RIZO ALIVE</h3><div class="sheet-note">Replay the care guide whenever the need meters or growth systems stop making sense.</div><button class="wide-button" data-open-care-guide>OPEN KEEPER GUIDE</button></section>
       <section class="settings-board"><h3>THIS DEVICE IS YOUR LOGIN</h3><p class="keeper-code">${state.player.keeperId}</p><div class="sheet-note">Progress lives in this browser. Copy a complete Keeper Code before switching phones or clearing website data.</div><div class="settings-actions"><button data-copy-keeper>COPY ID</button><button data-copy-recovery>COPY KEEPER CODE</button><button data-open-recovery>PASTE KEEPER CODE</button>${CONFIG.cloud.enabled ? '<button data-cloud-sync>SYNC NOW</button>' : '<button data-export-save>DOWNLOAD JSON</button>'}</div></section>
       <section class="settings-board"><h3>RIZO APPAREL</h3><div class="sheet-note">Rizo Life is made by Rizo Apparel. The game is free; the clothes are extremely real.</div><a class="wide-button" style="display:block;text-align:center;text-decoration:none" href="${escapeHTML(storeUrl())}" target="_blank" rel="noopener">SHOP RIZO.STORE ↗</a></section>
-      <section class="settings-board"><h3>INSTALL + UPDATES</h3><div class="sheet-note">${window.RizoInstall?.isStandalone?.() ? "Installed app mode is active." : "Install Rizo.game for fullscreen play and faster return visits."}<br><br><b>BUILD ${escapeHTML(RIZO_RUNTIME_BUILD)}</b> • ${releaseUpdateReady?"A newer build is waiting.":"Refresh Latest checks the network and replaces stale app caches."}${mini?.active&&mini.mode==="defense"?" Your active Defense run will checkpoint first.":""}</div><div class="settings-actions"><button data-show-install>INSTALL HELP</button><button class="update-refresh-button" data-refresh-latest>${releaseUpdateReady?"UPDATE NOW":"REFRESH LATEST"}</button><button data-ad-reward="care" ${CONFIG.ads.enabled ? "" : "disabled"}>${CONFIG.ads.enabled ? "REWARDED CARE" : "ADS NOT READY"}</button></div><div class="rizo-legal-links"><a href="./about.html">ABOUT</a><a href="./privacy.html">PRIVACY</a><a href="./terms.html">TERMS</a><a href="./support.html">SUPPORT</a></div></section>
+      <section class="settings-board"><h3>INSTALL + UPDATES</h3><div class="sheet-note">${window.RizoInstall?.isStandalone?.() ? "Installed app mode is active." : "Install Rizo.game for fullscreen play and faster return visits."}<br><br><b>BUILD ${escapeHTML(RIZO_RUNTIME_BUILD)}</b> • ${releaseUpdateReady?"A newer build is waiting.":"Refresh Latest checks the network and replaces stale app caches."}${mini?.active&&mini.mode==="defense"?" Your active Defense run will checkpoint first.":""}</div><div class="settings-actions"><button data-show-install>INSTALL HELP</button><button class="update-refresh-button" data-refresh-latest>${releaseUpdateReady?"UPDATE NOW":"REFRESH LATEST"}</button></div><div class="rizo-legal-links"><a href="/">WORLD</a><a href="/journal">JOURNAL</a><a href="/about">ABOUT</a><a href="/privacy">PRIVACY</a><a href="/terms">TERMS</a><a href="/support">SUPPORT</a></div></section>
       <section class="settings-board"><h3>SAVE TOOLS</h3><div class="settings-actions"><button data-export-save>EXPORT SAVE</button><button data-import-save>IMPORT SAVE</button><button data-replay-origin>REPLAY ORIGIN</button><button data-copy-summary>COPY STATS</button></div><button class="wide-button danger" data-reset-save>DELETE THE ENTIRE TIMELINE</button></section>
+      ${setAsideSavesMarkup()}
     </div>`;
   }
 
@@ -2485,7 +2901,7 @@
       "Tap the egg until it hatches. The four need meters stay protected during its first twelve hours.",
       "Name your Rizo. After that, the Keeper Guide explains what happens when needs are ignored.",
       "Tap FEED, then drag a snack onto Rizo. Full, energy, clean, and happy keep falling while you are away.",
-      "Finish one Arcade game. Games build XP and bond, but exhausted or sick Rizos cannot play.",
+      "Train together: choose a short game, earn Embers, then bring them home. Go is for bigger journeys.",
       "Open the Journal to see health, growth, memories, and save tools. Rizo House unlocks at Level 4."
     ];
     const targets = [el.petTapTarget, null, document.querySelector('[data-action="feed"]'), document.querySelector('[data-nav="arcade"]'), document.querySelector('[data-nav="journal"]')];
@@ -2496,11 +2912,9 @@
   }
 
   function refreshAdSlots() {
-    $$("[data-ad-slot]").forEach(slot => {
-      const placement = slot.dataset.adSlot;
-      slot.hidden = !CONFIG.ads.enabled;
-      if (CONFIG.ads.enabled) AdBridge.mountBanner(placement, slot);
-    });
+    // Inherited markup is retained for compatibility, never exposed or mounted.
+    // Touch-driven care, cabinet navigation and the Closet are not display inventory.
+    $$("[data-ad-slot]").forEach(slot => { slot.hidden = true; });
   }
 
   function clearToasts() {
@@ -2509,15 +2923,17 @@
 
   function changeView(view) {
     clearToasts();
+    closeSheet();
+    if (view !== "home") endDenPlay();
     currentView = view;
     $$(".view").forEach(section => section.classList.toggle("active", section.dataset.view === view));
-    $$("[data-nav]").forEach(button => { const active = button.dataset.nav === view; button.classList.toggle("active", active); button.setAttribute("aria-current", active ? "page" : "false"); });
-    window.scrollTo({ top: 0, behavior: state.settings.reducedMotion ? "auto" : "smooth" });
+    $$("[data-nav]").forEach(button => { const active = button.dataset.nav === view || (button.closest(".bottom-nav") && button.dataset.nav === "home" && ["farm", "closet", "journal"].includes(view)); button.classList.toggle("active", active); button.setAttribute("aria-current", active ? "page" : "false"); });
+    window.scrollTo({ top: 0, behavior: reducedMotionActive() ? "auto" : "smooth" });
     renderSharedUI();
     renderCurrentView();
     refreshAdSlots();
     syncMusic();
-    if (view === "home") schedulePetBehavior(3500);
+    if (view === "home") { schedulePetBehavior(3500); if (pendingArrival) setTimeout(playHomeArrival, 140); }
     if (view === "journal" && state.player.tutorialStep === 4) {
       state.player.tutorialStep = 5;
       addMemory("TUTORIAL COMPLETE", "You learned the basics. Rizo is now legally your problem.", "✓");
@@ -2653,18 +3069,19 @@
   }
 
   function openPlaySheet() {
-    openSheet("QUICK QUEUE", "PICK A CABINET", `
-      <article class="sheet-card"><div class="sheet-card-icon">♥</div><div><h3>HEAD PAT</h3><p>Quick affection. +7 happy and +2 bond.</p></div><button data-head-pat>PAT</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">×</div><div><h3>POWER TAPE</h3><p>Coach calls the strike. Match JAB, BODY, or HOOK to the timing window, hold through feints, and earn Overdrive.</p></div><button data-sheet-game="power">TRAIN</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">★</div><div><h3>SPARK STASH</h3><p>Build an unbanked spark stash, choose when to cash it, and lose the risky pile if a Shadow catches your greed.</p></div><button data-sheet-game="spark">CHASE</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">⌁</div><div><h3>FOREST LUNCH</h3><p>Pack Rizo's exact lunch ticket lane by lane. Every second plate triggers a frantic Picnic Panic decision burst.</p></div><button data-sheet-game="forage">FORAGE</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">↗</div><div><h3>RIZO COURIER</h3><p>Run the rooftops, grab a parcel, then survive two clean clears to actually deliver it before you crash.</p></div><button data-sheet-game="rush">RUN</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">☂</div><div><h3>RIZO WALK</h3><p>Explore branching forest routes, weather, strange finds, and permanent treasures.</p></div><button data-sheet-game="walk">WALK</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">♫</div><div><h3>EMBER BEAT</h3><p>Match four lanes, chase Perfect timing, and unlock harder songs while Rizo builds Speed.</p></div><button data-sheet-game="rhythm">PLAY</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">▦</div><div><h3>LOST SIGNAL</h3><p>Memorize a pirate transmission while the signal mutates: reverse, opposite, rotate, then stacked corruption rules.</p></div><button data-sheet-game="memory">REMEMBER</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">⌁</div><div><h3>SKYBOUND</h3><p>Ride shifting wind and deliberately thread gate centers to charge Thermal Bursts that change the flight physics.</p></div><button data-sheet-game="glide">FLY</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">✦</div><div><h3>EMBER FORGE</h3><p>Break authored Rizo-mark walls, protect your angle, and hunt CORE blocks that collapse nearby forge pieces.</p></div><button data-sheet-game="breaker">BREAK</button></article>
-      <article class="sheet-card"><div class="sheet-card-icon">⌗</div><div><h3>RIZO RUNAWAY</h3><p>Route through the maze, bait three Shadow behaviors, then reverse the hunt with Prism Seeds.</p></div><button data-sheet-game="maze">RUN</button></article>`);
+    if (!canCare()) return;
+    closeSheet();
+    if (currentView !== "home") changeView("home");
+    denPlayActive = !denPlayActive;
+    el.habitatScene.classList.toggle("den-playing", denPlayActive);
+    const tray = $("#denPlayTray");
+    if (tray) tray.hidden = !denPlayActive;
+    $("[data-action='play']")?.setAttribute("aria-expanded", String(denPlayActive));
+    if (denPlayActive) {
+      el.habitatScene.scrollIntoView({ block: "start", behavior: reducedMotionActive() ? "auto" : "smooth" });
+      startDenBehavior("stretch", 850, "WHAT ARE WE PLAYING?");
+      $("[data-garden-toy='ball']")?.focus({ preventScroll: true });
+    }
   }
 
   function openMoreCareSheet() {
@@ -2692,7 +3109,12 @@
       <article class="sheet-card"><div class="sheet-card-icon">▤</div><div><h3>KEEPER JOURNAL</h3><p>Open your full record and save tools.</p></div><button data-open-journal>OPEN</button></article><article class="sheet-card"><div class="sheet-card-icon brand-sheet-icon"><img src="./assets/rizo-full-mark.png" alt=""></div><div><h3>RIZO APPAREL</h3><p>Shop real clothes from the brand behind the game.</p></div><a class="sheet-action-link" href="${escapeHTML(storeUrl())}" target="_blank" rel="noopener">SHOP ↗</a></article>`);
   }
 
-  function showModal(html) {
+  // A game mode may pass onClose: it runs only when the player closes the modal
+  // (close button, Escape), never when another modal replaces it or the mode
+  // closes it itself with { silent: true }.
+  let modalCloseHandler = null;
+  function showModal(html, { onClose = null } = {}) {
+    modalCloseHandler = typeof onClose === "function" ? onClose : null;
     clearToasts();
     lastOverlayFocus = document.activeElement;
     el.modalOverlay.innerHTML = html;
@@ -2702,13 +3124,15 @@
     requestAnimationFrame(() => el.modalOverlay.querySelector("button,input")?.focus({ preventScroll: true }));
   }
 
-  function closeModal() {
+  function closeModal({ silent = false } = {}) {
+    const onClose = modalCloseHandler;
+    modalCloseHandler = null;
     if (worldEventOpen) {
       worldEventOpen = false;
       state.worldEvents.lastAt = now();
       saveState();
     }
-    if (activeMusicOverride && !mini.active) {
+    if (activeMusicOverride && !mini.active && !globalThis.RizoModes?.active?.()) {
       activeMusicOverride = null;
       syncMusic(true);
     }
@@ -2722,6 +3146,7 @@
         flushPendingEvolution();
       }
     }, 220);
+    if (!silent && onClose) { try { onClose(); } catch (error) { console.warn("Rizo modal close handler failed", error); } }
   }
 
   function showNameModal(force = false) {
@@ -2819,6 +3244,7 @@
       whole.meta.totalCareActions += 1;
       earnHeat(5,false);
       progressQuest("feed");
+      everydayHomeReward("care", "feed");
     });
     closeSheet();
     const favoriteRepeat = previousServings >= 2 && state.pet.careProfile.foods[food.id] >= previousServings + 1;
@@ -2842,7 +3268,7 @@
     if (100 - state.pet.hygiene < CLEAN_ACTION_MIN_RESTORE) { toast("RIZO IS ALREADY CLEAN"); return; }
     const hygieneBefore = state.pet.hygiene;
     const wasFilthy = hygieneBefore < 18;
-    const washUntil = now() + 900;
+    const washUntil = now() + 900, washingPetId = state.pet.id;
     const cooldownReady = now() - (Number(state.pet.lastCleanRewardAt) || 0) >= CLEAN_REWARD_COOLDOWN;
     mutate((pet, whole) => {
       const restored = Math.min(40, 100 - pet.hygiene);
@@ -2857,6 +3283,7 @@
         whole.meta.totalCareActions += 1;
         earnHeat(5, false);
         pet.lastCleanRewardAt = now();
+        everydayHomeReward("care", "clean");
       } else {
         pet.mood = clamp(pet.mood + 1);
       }
@@ -2876,7 +3303,7 @@
     setLifeBehavior("scrub", 900, "YOU MISSED A SPOT. GOOD.");
     setTimeout(() => {
       const memory = lifeMemory();
-      if (memory.washUntil !== washUntil || now() < washUntil) return;
+      if (state.pet.id !== washingPetId || memory.washUntil !== washUntil || now() < washUntil) return;
       memory.washUntil = 0;
       memory.washFromHygiene = state.pet.hygiene;
       saveState();
@@ -2884,7 +3311,7 @@
       if (currentView === "home") renderHome();
       setTimeout(() => {
         const latest = lifeMemory();
-        if (currentView === "home" && now() - (Number(latest.lastBathAt) || 0) >= 7000) renderHome();
+        if (state.pet.id === washingPetId && currentView === "home" && now() - (Number(latest.lastBathAt) || 0) >= 7000) renderHome();
       }, 6200);
     }, 920);
     sfx("clean");
@@ -2902,9 +3329,11 @@
       gainSkill("luck", .2, { silent: true });
       whole.meta.totalCareActions += 1;
       earnHeat(3,false);
+      everydayHomeReward("care", "pat");
     });
     closeSheet();
     effect("hearts");
+    animatePet("happy-jump", 600);
     say("OKAY. ONE MORE.");
   }
 
@@ -2915,8 +3344,10 @@
       p.sleeping = !p.sleeping;
       if (p.sleeping) { p.mood = clamp(p.mood + 2); shiftAlignment(1, "rest"); gainSkill("stamina", .25, { silent: true }); }
     });
-    if (state.pet.sleeping) say("DO NOT LET THE APP DIE WHILE I'M OUT.");
-    else setLifeBehavior("wake-grump", 1200, "I WAS DREAMING ABOUT INVENTORY.");
+    if (state.pet.sleeping) moveDenTo(72, 0);
+    const pick = list => list[Math.floor(Math.random() * list.length)];
+    if (state.pet.sleeping) say(state.home.tier === 0 && Math.random() < .5 ? "THE TIN WILL CATCH IT. NIGHT." : pick(["DO NOT LET THE APP DIE WHILE I'M OUT.", "NIGHT. LEAVE THE LIGHT ON.", "WAKE ME IF SOMETHING IS ON FIRE. OTHER THAN ME."]));
+    else setLifeBehavior("wake-grump", 1200, pick(["I WAS DREAMING ABOUT INVENTORY.", "FIVE MORE MINUTES WAS THE PLAN.", "I'M UP. MOSTLY."]));
     sfx(state.pet.sleeping ? "sleep" : "wake");
   }
 
@@ -2930,7 +3361,7 @@
     else if (pet.hygiene < 20) line = "THE SMELL IS PART OF THE BRAND NOW.";
     else if (pet.mood < 20) line = "I'M NOT MAD. I'M DEVELOPING LORE.";
     else line = TALK_LINES[Math.floor(Math.random() * TALK_LINES.length)];
-    mutate(p => { p.mood = clamp(p.mood + 3); p.bond = clamp(p.bond + .8); p.xp += 1; shiftAlignment(1, "talk"); gainSkill("instinct", .15, { silent: true }); });
+    mutate(p => { p.mood = clamp(p.mood + 3); p.bond = clamp(p.bond + .8); p.xp += 1; shiftAlignment(1, "talk"); gainSkill("instinct", .15, { silent: true }); everydayHomeReward("care", "talk"); });
     closeSheet();
     say(line, 3400);
     sfx("talk");
@@ -2946,6 +3377,7 @@
   }
 
   function tapPet(event) {
+    if (isUILocked() || currentView !== "home") return;
     const pet = state.pet;
     if (!pet.alive) return;
     if (pet.stage === "egg") {
@@ -3010,7 +3442,8 @@
       return;
     }
 
-    combo = time - lastTapAt < 620 ? Math.min(99, combo + 1) : 1;
+    const gap = time - lastTapAt;
+    combo = gap < 620 ? Math.min(99, combo + 1) : 1;
     lastTapAt = time;
     clearTimeout(comboTimer);
     comboTimer = setTimeout(() => { combo = 0; el.tapCombo.classList.remove("show"); }, 900);
@@ -3029,7 +3462,17 @@
       progressQuest("tap");
       earnHeat(jackpot ? 5 : 1, false);
     });
-    animatePet(jackpot ? "happy-jump" : "boing", jackpot ? 520 : 240);
+    // Notice → react. A first touch after a while gets noticed; a quick
+    // run of taps stays snappy; otherwise where you touch him matters.
+    let reaction = jackpot ? "happy-jump" : "boing";
+    if (!jackpot && combo < 4) {
+      if (gap > 15000) reaction = "tap-notice";
+      else if (pet.energy < 22) reaction = "tap-sleepy";
+      else reaction = tapZone(event) || "boing";
+    }
+    animatePet(reaction, { "happy-jump": 520, boing: 240, "tap-notice": 520, "tap-sleepy": 720 }[reaction] || 440);
+    if (reaction === "tap-notice" && !el.thoughtBubble.classList.contains("show") && Math.random() < .45) say(["OH. HI.", "YOU RANG?", "I WAS BUSY. SORT OF."][Math.floor(Math.random() * 3)], 1500);
+    else if (reaction === "tap-head" && combo === 1 && !el.thoughtBubble.classList.contains("show") && Math.random() < .18) say(["THAT'S THE SPOT.", "OKAY. KEEP GOING."][Math.floor(Math.random() * 2)], 1500);
     el.tapCombo.textContent = jackpot ? `JACKPOT x${combo}` : `x${combo} HYPE`;
     el.tapCombo.classList.toggle("show", combo > 1 || jackpot);
     floatText(event, jackpot ? `JACKPOT +R ${gain}` : `+R ${gain}`);
@@ -3039,6 +3482,18 @@
     if (combo === 20) say("OKAY OKAY I GET IT.");
     else if (combo === 40) say("THIS IS BECOMING A LABOR ISSUE.");
     else if (state.meta.totalTaps % 75 === 0) say(TALK_LINES[Math.floor(Math.random() * TALK_LINES.length)]);
+  }
+
+  // Head, belly, or a side: the sprite's own box, not the 292px hit area.
+  function tapZone(event) {
+    if (!event || !Number.isFinite(event.clientX) || (!event.clientX && !event.clientY)) return null;
+    const box = el.petSprite?.getBoundingClientRect();
+    if (!box?.width || !box.height) return null;
+    const x = (event.clientX - box.left) / box.width, y = (event.clientY - box.top) / box.height;
+    if (y < .4) return "tap-head";
+    if (x < .24) return "tap-side-left";
+    if (x > .76) return "tap-side-right";
+    return "tap-belly";
   }
 
   function hatchPet() {
@@ -3092,6 +3547,7 @@
     if (!item) return;
     const owned = state.inventory.accessories.includes(id);
     const isNewUnlock = !owned;
+    if (!owned && item.earned) { toast("THAT ONE IS EARNED, NOT SOLD"); return; }
     if (!owned) {
       if (state.wallet.embers < item.cost) { toast("YOUR WALLET SAID NO"); return; }
       state.wallet.embers -= item.cost;
@@ -3170,24 +3626,6 @@
     say(id === "care" ? "I FEEL EXPENSIVELY CARED FOR." : "I CAN FEEL MY LORE EXPANDING.");
   }
 
-  async function useAdReward(kind) {
-    const completed = await AdBridge.showRewarded(kind === "revive" ? "death-revive" : "care-boost");
-    if (!completed) {
-      toast(CONFIG.ads.enabled ? "AD DID NOT COMPLETE" : "ADS ARE NOT CONNECTED YET");
-      return;
-    }
-    if (kind === "care") {
-      mutate(pet => {
-        pet.health = clamp(pet.health + 15);
-        pet.hunger = clamp(pet.hunger + 25);
-        pet.mood = clamp(pet.mood + 25);
-        pet.energy = clamp(pet.energy + 25);
-        pet.hygiene = clamp(pet.hygiene + 25);
-      });
-      toast("SPONSOR CARE PACKAGE DELIVERED");
-    }
-    if (kind === "revive") revivePet("ad");
-  }
 
 
   function gardenCodePayload() {
@@ -3321,7 +3759,7 @@
     const topGame = Object.entries(pet.careProfile?.games || {}).sort((a,b)=>b[1]-a[1])[0];
     return {
       foodName:FOODS.find(item=>item.id===topFood?.[0])?.name || "NO FAVORITE FOOD YET",
-      gameName:({power:"POWER TAPE",spark:"SPARK STASH",forage:"FOREST LUNCH",rush:"RIZO COURIER",walk:"RAIN WALK",rhythm:"EMBER BEAT",memory:"LOST SIGNAL",glide:"SKYBOUND",breaker:"EMBER FORGE",maze:"RIZO RUNAWAY",defense:"RIZO DEFENSE"})[topGame?.[0]] || "NO FAVORITE GAME YET",
+      gameName:({power:"POWER TAPE",spark:"SPARK STASH",forage:"FOREST LUNCH",rush:"RIZO COURIER",walk:"RAIN WALK",rhythm:"EMBER BEAT",memory:"LOST SIGNAL",glide:"SKYBOUND",breaker:"EMBER FORGE",maze:"RIZO RUNAWAY"})[topGame?.[0]] || globalThis.RizoModes?.get?.(topGame?.[0])?.name || "NO FAVORITE GAME YET",
       favoriteToy:(state.garden.favoriteToy || "NONE").toUpperCase()
     };
   }
@@ -3336,10 +3774,11 @@
     openSheet("RAISING PATH", "AGE + AFFINITY", `<section class="growth-sheet"><div class="growth-sheet-hero"><span style="--align:${align.color}">${align.icon}</span><div><small>${align.name} ALIGNMENT • GENERATION ${pet.generation || 1}</small><h3>${form.name}</h3><p>${form.copy}</p></div></div><div class="aptitude-list">${SKILLS.map(skill=>aptitudeHTML(skill,pet)).join("")}</div><div class="raising-influences"><span><b>FAVORITE FOOD</b>${escapeHTML(influence.foodName)}</span><span><b>FAVORITE GAME</b>${escapeHTML(influence.gameName)}</span><span><b>FAVORITE TOY</b>${escapeHTML(influence.favoriteToy)}</span><span><b>PERSONALITY</b>${escapeHTML(pet.personality)}</span></div><div class="sheet-note">CARE SHAPES THE RESULT. Power Tap raises Power. Rizo Rush raises Speed. Spark Catch and Forage raise Instinct. Walks and rest raise Stamina. Treasure raises Luck.</div>${seed?`<div class="bond-seed-mini"><b>♡ BOND EGG STORED</b><span>${escapeHTML(seed.name)} • ${escapeHTML(seed.variantName || seed.variant)}</span><small>The next Legacy Egg blends both families' bounded genetic caps.</small></div>`:""}<button class="wide-button" data-rebirth-info>${canRebirth()?"CREATE LEGACY EGG":"VIEW REBIRTH PATH"}</button></section>`);
   }
 
-  function useGardenToy(id) {
+  function useGardenToy(id, destination = null) {
     if (!canCare()) return;
     const cooldown = 12000;
-    if (now() - (state.garden.lastToyAt || 0) < cooldown) { toast("RIZO IS STILL PLAYING"); return; }
+    if (activePetBehavior && now() - (state.garden.lastToyAt || 0) < 1600) { say("ONE THING AT A TIME."); return; }
+    const credited = now() - (state.garden.lastToyAt || 0) >= cooldown;
     const toys = {
       ball: { skill:"speed", gain:1.1, mood:7, energy:-4, align:0, behavior:"ball", line:"I CALL NEXT GOAL." },
       stump: { skill:"power", gain:1.0, mood:3, energy:-6, align:-1, behavior:"stretch", line:"THIS STUMP KNOWS WHAT IT DID." },
@@ -3347,13 +3786,73 @@
       bush: { skill:"instinct", gain:.9, mood:5, hunger:5, align:2, behavior:"window", line:"THE BUSH HAD LORE." }
     };
     const toy = toys[id]; if (!toy) return;
+    if (state.pet.energy < Math.abs(toy.energy)) { say("A LITTLE REST FIRST."); return; }
     mutate((pet, whole)=>{
-      gainSkill(toy.skill,toy.gain,{silent:true});
-      pet.mood=clamp(pet.mood+(toy.mood||0)); pet.energy=clamp(pet.energy+(toy.energy||0)); pet.hygiene=clamp(pet.hygiene+(toy.hygiene||0)); pet.hunger=clamp(pet.hunger+(toy.hunger||0)); pet.xp+=4; pet.bond=clamp(pet.bond+1.2); shiftAlignment(toy.align||0,`toy:${id}`);
-      whole.garden.lastToyAt=now(); whole.garden.toyUses[id]=(whole.garden.toyUses[id]||0)+1; whole.garden.favoriteToy=Object.entries(whole.garden.toyUses).sort((a,b)=>b[1]-a[1])[0]?.[0]||id;
+      if (credited) {
+        gainSkill(toy.skill,toy.gain,{silent:true});
+        pet.mood=clamp(pet.mood+(toy.mood||0)); pet.energy=clamp(pet.energy+(toy.energy||0)); pet.hygiene=clamp(pet.hygiene+(toy.hygiene||0)); pet.hunger=clamp(pet.hunger+(toy.hunger||0)); pet.xp+=4; pet.bond=clamp(pet.bond+1.2); shiftAlignment(toy.align||0,`toy:${id}`);
+        everydayHomeReward("play", id);
+        whole.garden.lastToyAt=now();
+      }
+      whole.garden.toyUses[id]=(whole.garden.toyUses[id]||0)+1;
+      whole.garden.favoriteToy=Object.entries(whole.garden.toyUses).sort((a,b)=>b[1]-a[1])[0]?.[0]||id;
     });
-    activePetBehavior=toy.behavior; renderHome(); setTimeout(()=>{activePetBehavior=null;if(currentView==="home")renderHome();},1800);
-    say(toy.line,2200); sfx(id==="puddle"?"sick":"spark"); sensoryBurst(id==="puddle"?"💧":"✦",currentVariant().color,8);
+    const places = { ball: {x:32,y:1}, stump: {x:75,y:-4}, puddle: {x:30,y:-1}, bush: {x:27,y:7} };
+    const uses = state.garden.toyUses[id], lines = { ball:["I CALL NEXT GOAL.","AGAIN. SAME BALL.","YOU SAW THAT, RIGHT?"], stump:["THIS STUMP KNOWS WHAT IT DID.","STILL GOT IT."], puddle:["I REGRET NOTHING.","THE FLOOR NEEDED WATER."], bush:["THE BUSH HAD LORE.","CHECKED. STILL A BUSH."] };
+    const object = $(`[data-garden-toy="${id}"]`);
+    // He looks first, crouches, then goes. Saved position changes now.
+    lookAtNode(object);
+    animatePet("toy-ready", 220);
+    const target = destination || places[id];
+    const pool = lines[id];
+    let line = pool[(uses - 1) % pool.length];
+    if (id === state.garden.favoriteToy && uses > 5 && Math.random() < .3) line = "MY FAVORITE. DON'T TELL THE OTHERS.";
+    else if (id === "bush" && state.pet.hunger < 35) line = "ANYTHING EDIBLE IN HERE?";
+    clearTimeout(denBehaviorTimer);
+    const sequence = ++denBehaviorSequence, petId = state.pet.id;
+    activePetBehavior = toy.behavior;
+    moveDenTo(target.x, target.y, { lead: 180 });
+    renderHome();
+    if (line) say(line, 2300);
+    denBehaviorTimer = setTimeout(() => {
+      if (sequence !== denBehaviorSequence || state.pet.id !== petId) return;
+      activePetBehavior = null;
+      if (currentView === "home") renderHome();
+    }, 1900);
+    object?.classList.remove("toy-in-play"); void object?.offsetWidth; object?.classList.add("toy-in-play");
+    setTimeout(() => object?.classList.remove("toy-in-play"), 2000);
+    sfx(id==="puddle"?"sick":"spark");
+    setTimeout(() => { if (currentView === "home" && state.pet.id === petId) toyAnswer(id, object); }, reducedMotionActive() ? 0 : 680);
+  }
+
+  function lookAtNode(node) {
+    if (!node || !el.petActor || reducedMotionActive()) return;
+    const box = node.getBoundingClientRect(), rect = el.petActor.getBoundingClientRect();
+    const x = clamp(((box.left + box.width / 2) - (rect.left + rect.width / 2)) / rect.width * 7, -3, 3);
+    const y = clamp(((box.top + box.height / 2) - (rect.top + rect.height / 2)) / rect.height * 5, -2, 2);
+    el.petActor.style.setProperty("--gaze-x", `${x.toFixed(2)}px`);
+    el.petActor.style.setProperty("--gaze-y", `${y.toFixed(2)}px`);
+  }
+
+  // A few authored particles at the toy itself (drops, leaves, a thwack).
+  function toyAnswer(id, object) {
+    const scene = el.habitatScene;
+    if (!scene || !object || reducedMotionActive()) return;
+    const box = object.getBoundingClientRect(), room = scene.getBoundingClientRect();
+    const kind = { puddle: "drop", bush: "leaf", stump: "star", ball: "star" }[id];
+    const count = { puddle: 7, bush: 5, stump: 2, ball: 1 }[id];
+    for (let index = 0; index < count; index += 1) {
+      const fx = document.createElement("i");
+      fx.className = `den-fx ${kind}`;
+      if (kind === "star") fx.textContent = id === "stump" ? (index ? "✶" : "!") : "✦";
+      fx.style.left = `${box.left - room.left + box.width * (.2 + Math.random() * .6)}px`;
+      fx.style.top = `${box.top - room.top + box.height * .2}px`;
+      fx.style.setProperty("--fx-x", `${Math.round(-26 + Math.random() * 52)}px`);
+      fx.style.setProperty("--fx-y", `${Math.round(-18 - Math.random() * 30)}px`);
+      fx.style.setProperty("--fx-r", `${Math.round(-90 + Math.random() * 180)}deg`);
+      scene.appendChild(fx);
+      setTimeout(() => fx.remove(), 900);
+    }
   }
 
   // ===== AUTONOMOUS PET LIFE + RANDOM STORY EVENTS =====
@@ -3370,8 +3869,7 @@
     };
     const behaviors = personalityPools[state.pet.personality] || ["wander-left","wander-right","hide","window","ball","dance","zoomies","stretch"];
     const behavior = behaviors[Math.floor(Math.random() * behaviors.length)];
-    activePetBehavior = behavior;
-    renderHome();
+    const destinations = { "wander-left": {x:30,y:0}, "wander-right": {x:70,y:0}, hide: {x:73,y:3}, window: {x:31,y:7}, ball: {x:32,y:1}, zoomies: {x:state.pet.denPosition.x < 50 ? 70 : 30,y:1} };
     const lines = {
       hide: ["YOU CANNOT SEE ME.","I HAVE LEFT THE ESTABLISHMENT."],
       window: ["THE RAIN IS SAYING SOMETHING.","OUTSIDE LOOKS EXPENSIVE."],
@@ -3386,13 +3884,8 @@
     if (behavior === "dance") sfx("dance");
     if (behavior === "zoomies") sfx("rush", 6);
     const duration = behavior === "hide" ? 4300 : behavior === "zoomies" ? 2600 : 3400;
-    setTimeout(() => {
-      if (activePetBehavior === behavior) {
-        activePetBehavior = null;
-        if (currentView === "home") renderHome();
-      }
-      schedulePetBehavior();
-    }, duration);
+    startDenBehavior(behavior, duration, "", destinations[behavior]);
+    schedulePetBehavior(duration + 8000 + Math.random() * 12000);
   }
 
 
@@ -3438,14 +3931,8 @@
 
   function setLifeBehavior(behavior, duration = 1800, line = "") {
     if (!state?.pet?.alive || state.pet.stage === "egg" || state.pet.sleeping || currentView !== "home" || isUILocked()) return;
-    const memory = lifeMemory();
-    memory.lifeBehaviorUntil = now() + duration;
-    activePetBehavior = behavior;
-    renderHome();
-    if (line) say(line, Math.min(duration + 500, 3200));
-    setTimeout(() => {
-      if (activePetBehavior === behavior && memory.lifeBehaviorUntil <= now()) { activePetBehavior = null; if (currentView === "home") renderHome(); }
-    }, duration);
+    lifeMemory().lifeBehaviorUntil = now() + duration;
+    startDenBehavior(behavior, duration, line);
   }
 
   function spawnLifeMoment(forceBrand = false) {
@@ -3478,6 +3965,8 @@
       if (now()-lastLifeInputAt > 26000 && currentView === "home" && !document.hidden) {
         const mood = livingMood();
         const choices = state.pet.hunger < 30 ? ["food-stare", mood.behavior, "look-left", "yawn"] : [mood.behavior,"yawn","look-left","look-right","sneeze"];
+        // A pet that shared a hearth below sometimes just settles, remembering it (rare, never sad).
+        if ((state.pet.storyMarks || []).some(mark => mark.id === "shared-hearth") && Math.random() < .12) { setLifeBehavior("recover", 1800); scheduleIdleLife(); return; }
         const behavior = choices[Math.floor(Math.random()*choices.length)];
         const lines = {yawn:"I WASN'T FALLING ASLEEP. I WAS THINKING SLOWLY.",sneeze:"THE AIR ATTACKED ME.",wave:"OH. YOU'RE STILL HERE.",annoyed:"PERSONAL SPACE IS A REAL INVENTION.","food-stare":"I CAN SEE THE FOOD AREA FROM HERE."};
         setLifeBehavior(behavior, behavior === "yawn" ? 2100 : 1500, Math.random()<.38 ? lines[behavior]||"" : "");
@@ -3500,7 +3989,7 @@
 
   function trackRizoAttention(event) {
     lastLifeInputAt = now();
-    if (!el.petActor || currentView !== "home" || state.settings.reducedMotion) return;
+    if (!el.petActor || currentView !== "home" || reducedMotionActive()) return;
     cancelAnimationFrame(gazeFrame);
     gazeFrame = requestAnimationFrame(() => {
       const rect = el.petActor.getBoundingClientRect();
@@ -3633,2690 +4122,503 @@
     return petMarkup({ extraClass, id: "miniPet", context: extraClass === "walk-rizo" ? "walk" : "arcade" });
   }
 
-  const WALK_BIOMES = {
-    rain:{ id:"rain", name:"RAIN TRAIL", className:"biome-rain", sky:"#526c78", rareBias:0, objects:["leaf","ember","flower","puddle","friend","strange"] },
-    moss:{ id:"moss", name:"MOSS HOLLOW", className:"biome-moss", sky:"#426f59", rareBias:.08, objects:["leaf","flower","friend","mushroom","strange","seed"] },
-    moon:{ id:"moon", name:"MOON GROVE", className:"biome-moon", sky:"#30375f", rareBias:.12, objects:["moonleaf","ember","friend","strange","puddle","star"] },
-    storm:{ id:"storm", name:"STORM RIDGE", className:"biome-storm", sky:"#354258", rareBias:.18, objects:["ember","storm","puddle","strange","friend","thread"] }
-  };
+  // ===== TRAINING RUNNER =====
+  // Every training game (training/<id>.js) plays through this one runner, under
+  // the contract in core/rizo-training.js:
+  //   hub:  energy check → frozen pet snapshot → stage → game.start(pet, run)
+  //   game: plays on run.state with run.now() and run.after() until the clock
+  //         runs out or it calls run.end()
+  //   hub:  game.stop() → RizoTraining.convert(def, result) → growth → results
+  // A game never touches the save, the wallet or the pet. The run clock stops
+  // while the run is paused or the app is in the background, so every deadline
+  // a game stores against run.now() is frozen with it, with nothing to credit.
+  const Training = globalThis.RizoTraining;
+  const ARCADE_MODES = Object.freeze((Training?.list?.() || []).map(def => def.id));
+  function trainingGame(mode){ return Training?.get?.(mode) || null; }
+  function arcadeName(mode){ return trainingGame(mode)?.name || String(mode||"ARCADE").toUpperCase(); }
+  function arcadeArt(mode){ return trainingGame(mode)?.art || "★"; }
+  function arcadeRunLength(mode){
+    const seconds=trainingGame(mode)?.duration||0;
+    return seconds>0?`${seconds}s`:"ENDLESS";
+  }
+  function arcadeBestLabel(){ return "BEST"; }
+  function arcadeBestValue(mode){ return formatNumber(Math.max(0,Math.floor(Number(state?.scores?.[mode])||0))); }
+  function miniDuration(mode) { return (trainingGame(mode)?.duration ?? 15) * 1000; }
+  function miniEnergyNeeded(mode) { return trainingGame(mode)?.energy ?? 12; }
 
-  const WALK_WEATHER = {
-    drizzle:{ id:"drizzle", label:"DRIZZLE", className:"weather-drizzle", findBias:"puddle" },
-    clear:{ id:"clear", label:"CLEAR AIR", className:"weather-clear", findBias:"flower" },
-    mist:{ id:"mist", label:"LOW MIST", className:"weather-mist", findBias:"strange" },
-    storm:{ id:"storm", label:"STORM", className:"weather-storm", findBias:"storm" }
-  };
+  // `mini` is the live run's board. The runner keeps the score, hits, inputs,
+  // hearts, end reason, deadline and spawned entities on it; the game adds its
+  // own fields. The header, pause panel, results and QA read it. Never saved.
+  function idleRunBoard(){
+    return { active:false, mode:null, score:0, hits:0, playerInputs:0, lives:0, maxLives:0, endReason:"", endAt:0, entities:[] };
+  }
+  // Runner-private bookkeeping for the live run (clock, jobs, pause state).
+  let trainingRun = null;
 
-  function chooseWalkBiome() {
-    const hour = new Date().getHours();
-    const room = state.pet.room;
-    if (room === "forest" || state.pet.variant === "moss") return WALK_BIOMES.moss;
-    if (room === "void" || hour < 6 || hour > 20) return WALK_BIOMES.moon;
-    if (state.pet.mutation === "stormmarked" || Math.random() < .16) return WALK_BIOMES.storm;
-    return WALK_BIOMES.rain;
+  // ===== RUN CLOCK =====
+  // Epoch-like milliseconds that stand still while any pause source holds the
+  // run (the pause menu, an ad, the app in the background, a blocked save).
+  // Sources stack: a notification during an ad must not thaw the run early.
+  function runClockNow(){
+    const run=trainingRun;
+    if(!run) return now();
+    const t=performance.now(), held=run.freezeAt?t-run.freezeAt:0;
+    return run.epoch+(t-run.startedAt)-run.frozenTotal-held;
+  }
+  function arcadeFrozen(){ return Boolean(trainingRun && Object.keys(trainingRun.pauseSources).length); }
+  function callGame(hook, ...args){
+    const fn=trainingRun?.def?.[hook];
+    if(typeof fn!=="function") return undefined;
+    try{ return fn(...args); }
+    catch(error){ console.warn(`Rizo training ${trainingRun?.def?.id}.${hook} failed`, error); return undefined; }
+  }
+  function arcadeFreeze(source="menu"){
+    const run=trainingRun;
+    if(!run || !mini.active || run.pauseSources[source]) return false;
+    const first=!arcadeFrozen();
+    run.pauseSources[source]=true;
+    if(first){ run.freezeAt=performance.now(); callGame("pause", source); }
+    return true;
+  }
+  function arcadeThaw(source="menu"){
+    const run=trainingRun;
+    if(!run || !mini.active || !run.pauseSources[source]) return false;
+    delete run.pauseSources[source];
+    if(arcadeFrozen()) return false;
+    run.frozenTotal+=Math.max(0, performance.now()-run.freezeAt);
+    run.freezeAt=0;
+    run.lastFrame=performance.now();
+    callGame("resume", source);
+    return true;
   }
 
-  function chooseWalkWeather(biome) {
-    if (biome.id === "storm") return WALK_WEATHER.storm;
-    if (biome.id === "moon") return Math.random() < .55 ? WALK_WEATHER.mist : WALK_WEATHER.clear;
-    const roll = Math.random();
-    return roll < .48 ? WALK_WEATHER.drizzle : roll < .73 ? WALK_WEATHER.clear : WALK_WEATHER.mist;
+  // ===== RUN JOBS =====
+  // run.after(ms, fn) / run.every(ms, fn): deadlines on the run clock, polled
+  // once per frame. A frozen run cannot fire them, and nothing rides setTimeout.
+  function trainingSchedule(ms, fn, period=0){
+    const run=trainingRun;
+    if(!run || !mini.active || typeof fn!=="function") return 0;
+    const id=++run.jobSeq;
+    run.jobs.set(id, { id, fn, period, due: runClockNow()+Math.max(0, Number(ms)||0) });
+    return id;
+  }
+  function pollTrainingJobs(){
+    const run=trainingRun;
+    if(!run || arcadeFrozen()) return;
+    const t=runClockNow();
+    for(const job of [...run.jobs.values()]){
+      if(trainingRun!==run || !mini.active) return;
+      if(!run.jobs.has(job.id) || job.due>t) continue;
+      if(job.period){ job.due+=job.period; if(job.due<=t) job.due=t+job.period; }
+      else run.jobs.delete(job.id);
+      try{ job.fn(); }catch(error){ console.warn(`Rizo training ${run.def.id} job failed`, error); }
+    }
   }
 
-  const EMBER_BEAT_TRACKS = [
-    {id:"moss-after-dark",title:"MOSS AFTER DARK",bpm:96,difficulty:"CHILL",stars:1,travel:1.85,steps:16,wave:"sine",swing:.04,lead:[62,null,null,65,69,null,67,null,60,null,64,null,67,null,65,null],bass:[38,null,38,null,43,null,null,43,36,null,36,null,41,null,null,41],drums:[1,0,0,.35,1,0,.2,0,1,0,0,.4,1,0,.2,.55],laneShift:1,chart:[[0,0],[3,1],[4,2],[6,1],[8,3],[11,2],[12,1],[15,0]]},
-    {id:"puddle-bounce",title:"PUDDLE BOUNCE",bpm:118,difficulty:"EASY",stars:2,travel:1.72,steps:16,wave:"triangle",swing:.08,lead:[69,null,73,null,76,73,null,71,69,null,66,null,71,73,null,76],bass:[45,null,null,45,50,null,null,50,43,null,null,43,47,null,null,47],drums:[1,0,.25,.6,1,0,.25,.6,1,0,.25,.6,1,0,.4,.75],laneShift:2,chart:[[0,0],[3,1],[4,2],[7,3],[8,2],[11,1],[12,0],[14,2],[15,3]]},
-    {id:"frostline",title:"FROSTLINE",bpm:122,difficulty:"NORMAL",stars:2,travel:1.62,steps:16,wave:"sine",swing:.02,lead:[72,null,76,null,79,76,74,null,71,null,74,null,78,76,72,null],bass:[36,null,43,null,40,null,47,null,36,null,43,null,41,null,48,null],drums:[1,0,.35,0,1,.2,.55,0,1,0,.35,.2,1,0,.65,.2],laneShift:1,chart:[[0,0],[2,1],[4,2],[6,3],[7,2],[8,1],[10,0],[12,1],[14,2],[15,3]]},
-    {id:"spark-circuit",title:"SPARK CIRCUIT",bpm:152,difficulty:"NORMAL",stars:3,travel:1.5,steps:16,wave:"square",swing:0,lead:[76,null,79,83,81,null,79,86,83,null,81,79,76,79,83,null],bass:[40,null,40,null,45,null,47,null,40,null,43,null,47,null,45,null],drums:[1,0,.45,0,1,0,.65,0,1,0,.45,0,1,0,.7,0],laneShift:1,chart:[[0,0],[2,1],[4,2],[6,3],[7,2],[8,1],[10,0],[12,1],[14,2],[15,3]]},
-    {id:"iron-heart",title:"IRON HEART",bpm:126,difficulty:"NORMAL",stars:3,travel:1.54,steps:16,wave:"sawtooth",swing:0,lead:[64,null,64,67,71,null,69,67,62,null,62,66,69,null,67,66],bass:[28,null,35,null,28,null,38,null,31,null,38,null,31,null,40,null],drums:[1,0,.5,0,1,0,.8,0,1,0,.5,0,1,.25,.85,0],laneShift:3,chart:[[0,0],[2,0],[4,1],[6,2],[8,3],[10,3],[12,2],[13,1],[14,0]]},
-    {id:"bubblegum-alarm",title:"BUBBLEGUM ALARM",bpm:134,difficulty:"HARD",stars:4,travel:1.42,steps:16,wave:"triangle",swing:.02,lead:[81,83,86,null,83,81,79,null,88,86,83,null,81,83,79,null],bass:[45,null,52,null,47,null,54,null,45,null,52,null,50,null,57,null],drums:[1,.2,.35,.2,1,.2,.6,.2,1,.2,.35,.2,1,.2,.7,.35],laneShift:1,chart:[[0,0],[1,1],[3,2],[4,3],[5,2],[6,1],[8,0],[9,2],[10,3],[12,1],[13,0],[14,2],[15,3]]},
-    {id:"aurora-afterparty",title:"AURORA AFTERPARTY",bpm:138,difficulty:"HARD",stars:4,travel:1.38,steps:16,wave:"sine",swing:.06,lead:[79,83,null,86,88,null,86,83,81,84,null,88,91,null,88,84],bass:[43,null,50,null,47,null,54,null,45,null,52,null,48,null,55,null],drums:[1,.15,.45,.15,1,0,.65,.25,1,.15,.45,.2,1,.2,.75,.3],laneShift:2,chart:[[0,0],[1,1],[2,2],[4,3],[6,1],[7,0],[8,2],[9,3],[11,1],[12,0],[13,2],[14,3],[15,1]]},
-    {id:"golden-hour",title:"GOLDEN HOUR",bpm:144,difficulty:"HARD",stars:4,travel:1.36,steps:16,wave:"triangle",swing:0,lead:[76,79,83,null,86,83,79,null,88,86,83,79,81,null,84,88],bass:[40,null,47,null,45,null,52,null,43,null,50,null,47,null,54,null],drums:[1,.2,.5,.15,1,.15,.65,.2,1,.2,.55,.15,1,.25,.8,.3],laneShift:3,chart:[[0,0],[1,2],[2,1],[4,3],[5,2],[6,0],[8,1],[9,3],[10,2],[11,0],[12,3],[14,1],[15,2]]},
-    {id:"glitch-garden",title:"GLITCH GARDEN",bpm:142,difficulty:"EXPERT",stars:5,travel:1.26,steps:16,wave:"square",swing:.11,lead:[72,null,79,75,null,82,77,null,84,80,null,75,79,null,86,74],bass:[36,null,43,36,null,47,40,null,38,null,45,38,null,48,41,null],drums:[1,.15,0,.65,1,0,.35,.2,1,.15,0,.75,1,.2,.5,.25],laneShift:1,chart:[[0,0],[1,2],[2,1],[3,3],[4,0],[5,1],[7,2],[8,3],[9,1],[10,0],[11,2],[12,3],[13,0],[14,2],[15,1]]},
-    {id:"shadow-signal",title:"SHADOW SIGNAL",bpm:158,difficulty:"EXPERT",stars:5,travel:1.2,steps:16,wave:"sawtooth",swing:.04,lead:[67,70,74,77,74,70,79,75,68,72,75,80,77,73,82,79],bass:[31,null,38,null,34,null,41,null,29,null,36,null,33,null,40,null],drums:[1,.2,.55,.2,1,.25,.75,.2,1,.2,.55,.25,1,.3,.85,.35],laneShift:3,chart:[[0,0],[1,1],[2,3],[3,2],[4,0],[5,2],[6,1],[7,3],[8,2],[9,0],[10,3],[11,1],[12,0],[13,3],[14,2],[15,1]]}
-  ];
-  const EMBER_TRACK_BY_ID = Object.fromEntries(EMBER_BEAT_TRACKS.map(track=>[track.id,track]));
+  // ===== HEARTS =====
+  function renderLives(id="miniLives"){
+    const host=typeof id==="string"?$(`#${id}`):id;
+    if(!host)return "";
+    const max=Math.max(1,Math.floor(mini.maxLives||3)),lives=clamp(Math.floor(mini.lives||0),0,max);
+    const markup=Array(max).fill(0).map((_,i)=>i<lives?"♥":"♡").join(" ");
+    host.textContent=markup;
+    host.classList.toggle("lives-critical",lives===1);
+    host.classList.toggle("lives-empty",lives<=0);
+    return markup;
+  }
+  function loseArcadeLife(amount=1){
+    mini.lives=Math.max(0,(mini.lives||0)-Math.max(1,amount));
+    if(mini.lives<=0)mini.endReason="death";
+    return mini.lives;
+  }
 
-  function shuffleIds(ids) {
-    const copy=[...ids];
-    for(let i=copy.length-1;i>0;i-=1){const j=Math.floor(Math.random()*(i+1));[copy[i],copy[j]]=[copy[j],copy[i]];}
+  // ===== RUN SERVICES =====
+  // Everything a game may use. Anything not here is out of a game's reach.
+  const TRAINING_MEMORY_BYTES = 4096;
+  function deepFreezeCopy(value){
+    const copy=SaveCore.plainJSON(value);
+    (function freeze(node){ if(node&&typeof node==="object"&&!Object.isFrozen(node)){ Object.freeze(node); for(const key of Object.keys(node)) freeze(node[key]); } })(copy);
     return copy;
   }
-
-  function chooseEmberBeatTrack() {
-    const history=state.musicHistory ||= {emberBag:[],emberLast:null};
-    const best=Math.max(0,Number(state.scores?.rhythm)||0);
-    // Difficulty opens naturally instead of randomly throwing a brand-new
-    // keeper into an Expert chart. A clean early run unlocks Hard; sustained
-    // mastery unlocks the two Expert songs.
-    const maxStars=best>=90?5:best>=35?4:3;
-    const eligible=EMBER_BEAT_TRACKS.filter(track=>(track.stars||1)<=maxStars);
-    let bag=Array.isArray(history.emberBag)?history.emberBag.filter(id=>eligible.some(track=>track.id===id)):[];
-    if(!bag.length){
-      bag=shuffleIds(eligible.map(track=>track.id));
-      if(bag.length>1 && bag[0]===history.emberLast){[bag[0],bag[1]]=[bag[1],bag[0]];}
-    }
-    let id=bag.shift();
-    if(id===history.emberLast && bag.length){bag.push(id);id=bag.shift();}
-    history.emberBag=bag;
-    history.emberLast=id;
-    saveState(true);
-    return EMBER_TRACK_BY_ID[id] || eligible[0] || EMBER_BEAT_TRACKS[0];
-  }
-
-  function rhythmStepSeconds(track){return 60/track.bpm/2;}
-  function rhythmStepTime(track,step){
-    const base=rhythmStepSeconds(track);
-    return step*base + ((step%2===1)?base*(track.swing||0):0);
-  }
-  function buildRhythmChart(track,durationSeconds=27){
-    const events=[]; const phrase=track.steps||16; let phraseIndex=0;
-    const notes=Array.isArray(track.chart)?track.chart:[];
-    while(true){
-      let added=false;
-      for(const raw of notes){
-        const step=Array.isArray(raw)?Number(raw[0]):Number(raw?.step ?? raw);
-        const baseLane=Array.isArray(raw)?Number(raw[1]??step%4):Number(raw?.lane ?? step%4);
-        if(!Number.isFinite(step))continue;
-        const absoluteStep=phraseIndex*phrase+step;
-        const time=rhythmStepTime(track,absoluteStep);
-        if(time>durationSeconds-1.05)return events;
-        const lane=((baseLane+phraseIndex*(track.laneShift||0))%4+4)%4;
-        events.push({id:`${track.id}-${absoluteStep}-${lane}`,step:absoluteStep,hitTime:time,lane,icon:["▲","■","●","◆"][lane]});added=true;
+  function createRunServices(def, pet){
+    const runRef=trainingRun;
+    const live=()=>trainingRun===runRef && mini.active;
+    return Object.freeze({
+      id: def.id,
+      arena: el.miniArena,
+      state: mini,
+      pet,
+      best: Math.max(0, Number(state.scores?.[def.id])||0),
+      petMarkup: (extraClass="") => miniPetMarkup(extraClass),
+      now: () => runClockNow(),
+      after: (ms, fn) => (live() ? trainingSchedule(ms, fn, 0) : 0),
+      every: (ms, fn) => { const period=Math.max(16, Number(ms)||16); return live() ? trainingSchedule(period, fn, period) : 0; },
+      cancel: id => { runRef.jobs.delete(id); },
+      clearJobs: () => { runRef.jobs.clear(); },
+      // Ends the run now ("death" or "cleared"), or just pulls the deadline in.
+      end: reason => { if(!live()) return false; if(["death","cleared"].includes(reason)) mini.endReason=reason; mini.endAt=Math.min(mini.endAt, runClockNow()); return true; },
+      loseLife: amount => loseArcadeLife(amount),
+      renderLives: id => renderLives(id),
+      sfx: (name, ...args) => sfx(name, ...args),
+      // The game's own win/fail sound family (def.sounds).
+      cue: (kind="fail", intensity=0) => sfx(def.sounds?.[kind] || (kind==="win"?"reward":"no"), intensity),
+      haptic: pattern => haptic(pattern),
+      burst: (...args) => sensoryBurst(...args),
+      toast: message => toast(message),
+      settings: () => Object.freeze({ music: Boolean(state.settings.music), sound: Boolean(state.settings.sound), haptics: Boolean(state.settings.haptics), reducedMotion: reducedMotionActive() }),
+      audio: Object.freeze({ context: () => ensureAudio(), midi: note => midiFrequency(note), musicGain: () => currentRhythmGain() }),
+      // A small persistent memory per game (≤ 4 KB), e.g. Ember Beat's song bag.
+      memory: () => SaveCore.plainJSON(state.trainingMemory?.[def.id] || {}),
+      remember: data => {
+        const plain=SaveCore.plainJSON(data && typeof data==="object" && !Array.isArray(data) ? data : {});
+        if(JSON.stringify(plain).length>TRAINING_MEMORY_BYTES) return false;
+        state.trainingMemory ||= {};
+        state.trainingMemory[def.id]=plain;
+        saveState();
+        return true;
       }
-      if(!added)return events; phraseIndex+=1;
-    }
+    });
   }
 
-  const ARCADE_MODE_RULES = Object.freeze({
-    power:{duration:24,energy:15}, spark:{duration:24,energy:10}, forage:{duration:28,energy:11}, rush:{duration:30,energy:15},
-    walk:{duration:40,energy:8}, rhythm:{duration:27,energy:12}, memory:{duration:44,energy:7}, glide:{duration:36,energy:10},
-    breaker:{duration:46,energy:11}, maze:{duration:54,energy:10}, defense:{duration:0,energy:8}
-  });
-  function miniDuration(mode) { return (ARCADE_MODE_RULES[mode]?.duration ?? 15) * 1000; }
-  function miniEnergyNeeded(mode) { return ARCADE_MODE_RULES[mode]?.energy ?? 12; }
-
+  // ===== START =====
   function startMiniGame(mode, options = {}) {
-    if (!canCare()) return;
-    if (!["power", "spark", "forage", "rush", "walk", "rhythm", "memory", "glide", "breaker", "maze", "defense"].includes(mode)) return;
-    const energyNeeded = miniEnergyNeeded(mode);
-    if (state.pet.energy < energyNeeded) { toast(`NEED ${energyNeeded} ENERGY • RIZO HAS ${Math.floor(state.pet.energy)}`); sfx("no"); return; }
+    const def=trainingGame(mode);
+    if (!def || !canCare()) return false;
+    if (globalThis.RizoModes?.active?.()) return false;
+    if (trainingRun) finishMiniGame(true, null, { discard: true });
+    const energyNeeded = def.energy;
+    if (state.pet.energy < energyNeeded) { toast(`NEED ${energyNeeded} ENERGY • RIZO HAS ${Math.floor(state.pet.energy)}`); sfx("no"); return false; }
     clearToasts();
+    endDenPlay();
     closeSheet();
-    mini = {
-      active: true, mode, score: 0, hits: 0, playerInputs: 0, endAt: mode === "defense" ? Infinity : now() + miniDuration(mode), timer: null,
-      mover: null, currentGood: true, frame: null, intervals: [], entities: [], pausedByAd: false,
-      pauseAt: 0, lastFrame: performance.now(), lane: 1, needle: .06, needleDir: 1,
-      needleSpeed: .72, jumpY: 0, jumpV: 0, hearts: 3, invulnerableUntil: 0,
-      distanceCarry: 0, treasureRolls: 0, combo: 1, timeouts: [],
-      pausedByFork: false, walkForkShown: false, walkPath: null, walkDecisionIndex: 0,
-      walkDistance: 0, walkRisk: 0, walkLuck: 0, walkChoices: [],
-      rhythmStreak: 0, rhythmMaxStreak: 0, rhythmMisses: 0, rhythmBlankTaps: 0,
-      rhythmJudgements: { perfect:0, great:0, good:0, miss:0 }, rhythmTrack: null, rhythmChart: [], rhythmChartIndex: 0,
-      rhythmStartClock: 0, rhythmLeadIn: 3.7, rhythmReady: false, rhythmTravel: 1.6, rhythmVoices: [], rhythmGain: null,
-      memoryRound: 0, memorySequence: [], memoryInput: 0, memoryShowing: false, memoryLives: 3, memoryMode: "forward", memoryBestRound: 0,
-      memoryShift: 0, memoryRuleDepth: 1,
-      powerStreak: 0, powerBestStreak: 0, powerZone: .5, powerZoneTarget: .5, powerHeat: 0, powerGuardAt: 0, powerGuardUntil: 0, powerGuardReads: 0, powerTapLockUntil: 0, powerEngaged: false,
-      powerCall: "jab", powerCallAt: 0, powerCallsRead: 0, powerWrongCalls: 0,
-      sparkStreak: 0, sparkBestStreak: 0, sparkType: "normal", sparkExpiresAt: 0, sparkAvoided: 0, sparkFeverUntil: 0, sparkFrenzies: 0,
-      sparkStash: 0, sparkBanked: 0, sparkBanks: 0, sparkLost: 0, sparkAutoBanked: false,
-      forageOrder: [], forageOrderIndex: 0, forageStreak: 0, forageBestStreak: 0,
-      forageContract: "picky", forageOrdersDone: 0, forageRestraint: 0, forageRushUntil: 0,
-      rushAirJumps: 0, rushStreak: 0, rushBestStreak: 0, rushClears: 0,
-      rushParcel: false, rushParcelClears: 0, rushDeliveries: 0, rushPackagesLost: 0,
-      glideY: .5, glideV: 0, glideSpawnAt: 0, glideStreak: 0, glideBestStreak: 0, glideClears: 0, glideHearts: 3, glideInvulnerableUntil: 0, glideWind: 0, glideWindAt: 0, glideGateCount: 0,
-      glideDraft: 0, glideThermals: 0, glideThermalUntil: 0,
-      breakerX: .5, breakerBall: null, breakerLevel: 1, breakerStreak: 0, breakerBestStreak: 0, breakerHearts: 3, breakerBoostUntil: 0, breakerPierceUntil: 0, breakerResetAt: 0, breakerBoardPending: false, breakerMoves: 0,
-      breakerCores: 0, breakerCoresBroken: 0, breakerPatternName: "",
-      mazeLevel: 1, mazeLives: 3, mazeCombo: 0, mazeBestCombo: 0, mazePellets: 0, mazeHunts: 0, mazeHunterTags: 0, mazeGrid: [], mazePlayer: null, mazeHunters: [], mazeMoveCarry: 0, mazeHunterCarry: 0, mazeHuntUntil: 0, mazeInvulnerableUntil: 0, mazeHunterWakeAt: 0, mazeInputs: 0, mazePointerStart: null,
-      mazeTurnHistory: [], mazeFavoriteDir: "",
-      defense: null, defenseDrag: null, defenseMapChoice: options?.mapId || "auto",
-      defenseResume: options?.resumeCheckpoint || null,
-      defenseContract: options?.defenseContract || null
-    };
-    if (mode === "rhythm") {
-      mini.rhythmTrack = chooseEmberBeatTrack();
-      mini.rhythmTravel = mini.rhythmTrack.travel || 1.6;
-      mini.rhythmChart = buildRhythmChart(mini.rhythmTrack, miniDuration("rhythm") / 1000);
-      // The preparation countdown is free time, not part of the scored song.
-      mini.endAt += mini.rhythmLeadIn * 1000;
-    }
-    if (mode === "walk") {
-      mini.walkBiome = chooseWalkBiome();
-      mini.walkWeather = chooseWalkWeather(mini.walkBiome);
-    }
-    const details = {
-      power: { kicker: "COACH TAPE 03", title: "POWER TAPE", hint: "The coach calls JAB, BODY, or HOOK. Hit the right strike on the moving window—and do nothing when the bag feints." },
-      spark: { kicker: "DON'T GET GREEDY", title: "SPARK STASH", hint: "Catch clean signals to build an unbanked stash. BANK it before a miss or Shadow signal wipes the risky part." },
-      forage: { kicker: "PICKY LITTLE MENACE", title: "FOREST LUNCH", hint: "Move lanes and complete Rizo's exact lunch ticket. Wrong food ruins the chain; mushrooms ruin the mood." },
-      rush: { kicker: "ROOFTOP DELIVERY", title: "RIZO COURIER", hint: "Double-jump the skyline. Grab a package, then clear two obstacles clean to deliver it before you eat pavement." },
-      walk: { kicker: "LIVING FOREST", title: "RAIN WALK", hint: "Walk beside your actual Rizo, inspect discoveries, and choose what kind of story the trail becomes." },
-      rhythm: { kicker: "FOUR-LANE RHYTHM", title: "EMBER BEAT", hint: "Tap the matching lane when its note reaches the bright hit line. Timing and lane both matter." },
-      memory: { kicker: "CORRUPTED BROADCAST", title: "LOST SIGNAL", hint: "Memorize the transmission, then obey the corruption rule. Later rounds stack reverse, opposite, and rotation logic." },
-      glide: { kicker: "CENTER-LINE FLIGHT", title: "SKYBOUND", hint: "Tap to flap through shifting wind. Thread gate centers to charge a Thermal Burst that bends the physics in your favor." },
-      breaker: { kicker: "FORGE THE MARK", title: "EMBER FORGE", hint: "Move Rizo under the ember orb. Read authored wall patterns and crack CORE blocks to collapse nearby bricks." },
-      maze: { kicker: "MAZE-CHASE INSTINCT", title: "RIZO RUNAWAY", hint: "Swipe or use the arrows. Eat the Ember trail. Prism Seeds flip the hunt so Rizo can tag the Shadows." },
-      defense: { kicker: "ENDLESS ROSTER STRATEGY", title: "RIZO DEFENSE", hint: "Your strongest unlocked world is chosen automatically. Drag a Rizo—or tap one, then tap grass—to defend the illustrated trail." }
-    }[mode];
-    el.miniKicker.textContent = details.kicker;
-    el.miniTitle.textContent = details.title;
-    el.miniHint.textContent = details.hint;
-    el.miniTimer.textContent = mode === "defense" ? "ENDLESS" : (miniDuration(mode) / 1000).toFixed(1);
-    el.miniScore.textContent = mode === "defense" ? "0 POPS" : "0 PTS";
+    mini = { ...idleRunBoard(), active: true, mode, lives: def.lives, maxLives: def.lives };
+    trainingRun = { def, epoch: now(), startedAt: performance.now(), frozenTotal: 0, freezeAt: 0, pauseSources: {}, jobs: new Map(), jobSeq: 0,
+      frameId: 0, lastFrame: performance.now(), headerAt: 0, paused: false, quitConfirmed: false, restartConfirmed: false, options };
+    mini.endAt = runClockNow() + def.duration * 1000;
+    el.miniKicker.textContent = def.kicker || "";
+    el.miniTitle.textContent = def.name;
+    el.miniHint.textContent = def.hint || "";
+    el.miniTimer.textContent = def.duration.toFixed(1);
+    el.miniScore.textContent = "0 PTS";
+    closeArcadePause(true);
+    if (el.miniPause) el.miniPause.hidden = false;
     lastOverlayFocus = document.activeElement;
+    el.miniArena.innerHTML = "";
+    el.miniGameOverlay.dataset.training = mode;
     el.miniGameOverlay.hidden = false;
-    el.miniGameOverlay.classList.toggle("defense-active", mode === "defense");
-    document.documentElement.classList.toggle("defense-performance-session", mode === "defense");
-    if (mode === "defense") lockDefenseViewport();
-    else unlockDefenseViewport();
     syncUILock();
-    renderMiniScene(mode);
-    mini.lastFrame = performance.now();
-    mini.frame = requestAnimationFrame(updateMiniFrame);
-    mini.timer = setInterval(updateMiniClock, 50);
+    const pet = deepFreezeCopy(modePetSnapshot(state.pet));
+    try { def.start(pet, createRunServices(def, pet)); }
+    catch (error) {
+      console.warn(`Rizo training ${mode} failed to start`, error);
+      finishMiniGame(true, null, { discard: true });
+      toast("THAT GAME COULD NOT START • NOTHING WAS SPENT");
+      return false;
+    }
+    trainingRun.frameId = requestAnimationFrame(trainingFrame);
+    if (def.music) modeMusicTracks.set(`mini-${mode}`, def.music);
     startMusicForScene(`mini-${mode}`, true);
     haptic(25);
     requestAnimationFrame(() => el.miniArena.focus({ preventScroll: true }));
+    return true;
   }
 
-  function renderMiniScene(mode) {
-    el.miniArena.classList.toggle("defense-host", mode === "defense");
-    if (mode === "power") {
-      el.miniArena.innerHTML = `<div class="mini-world power-world power-dx">
-        <div class="training-floor"></div>${miniPetMarkup("power-rizo")}
-        <div id="trainingBag" class="training-bag"><i></i><b class="face-mark-stage"><img src="./assets/rizo-full-mark.png" alt=""></b><span id="bagCracks" class="bag-cracks"></span></div>
-        <div class="power-hud"><span>STREAK <b id="powerStreak">0</b></span><span>OVERDRIVE <b id="powerHeat">0%</b></span></div>
-        <div class="power-coach"><small>COACH CALL</small><b id="powerCall">JAB</b></div>
-        <div class="power-techniques" aria-label="Strike type"><button type="button" data-power-tech="jab">JAB</button><button type="button" data-power-tech="body">BODY</button><button type="button" data-power-tech="hook">HOOK</button></div>
-        <div class="timing-console"><div class="timing-track"><i id="timingPerfectZone" class="timing-perfect"></i><b id="timingNeedle"></b></div><strong id="timingCallout">READ THE CALL</strong></div>
-      </div>`;
-      updatePowerZoneVisual();
-    }
-    if (mode === "spark") {
-      el.miniArena.innerHTML = `<div class="mini-world spark-world spark-dx"><div class="spark-sky"></div>${miniPetMarkup("spark-rizo")}<button id="miniTarget" class="spark-orb" type="button" aria-label="Catch spark">★</button><div class="spark-trail" id="sparkTrail"></div><div class="spark-hud"><span>STASH <b id="sparkStash">0</b></span><span>BANKED <b id="sparkBanked">0</b></span></div><button class="spark-bank" id="sparkBank" type="button" data-spark-bank>BANK STASH</button><div id="sparkRule" class="spark-rule">CATCH • THEN DECIDE WHEN TO BANK</div></div>`;
-      el.miniTarget = $("#miniTarget");
-      moveSparkTarget();
-    }
-    if (mode === "forage") {
-      mini.forageOrder = buildForageOrder();
-      el.miniArena.innerHTML = `<div class="mini-world forage-world forage-dx"><div class="forage-lanes"><i></i><i></i></div><div id="forageDrops" class="forage-drops"></div>${miniPetMarkup("forage-rizo")}<div id="forageOrder" class="forage-order"></div><div id="forageTicketState" class="forage-ticket-state">PACK THE TICKET</div><div class="forage-chain">LUNCH CHAIN <b id="forageStreak">0</b></div><div class="lane-labels"><span>LEFT</span><span>MIDDLE</span><span>RIGHT</span></div></div>`;
-      setForageLane(1); updateForageOrderHUD();
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd) spawnForageItem(); }, 690);
-      mini.intervals.push(interval);
-      spawnForageItem();
-    }
-    if (mode === "rush") {
-      el.miniArena.innerHTML = `<div class="mini-world rush-world rush-dx"><div class="rush-clouds"></div><div class="rush-hills"></div><div class="rush-ground"></div><div id="rushEntities"></div>${miniPetMarkup("rush-rizo")}<div id="rushHearts" class="rush-hearts">♥ ♥ ♥</div><div class="rush-streak">CLEAN <b id="rushStreak">0</b></div><div class="rush-delivery" id="rushDelivery">NO PACKAGE • FIND ◆</div><div class="rush-callout">TAP • AIR TAP • DELIVER THE PACKAGE</div></div>`;
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd) spawnRushEntity(); }, 1160);
-      mini.intervals.push(interval);
-      spawnRushEntity(true);
-    }
-    if (mode === "walk") {
-      const biome = mini.walkBiome || WALK_BIOMES.rain;
-      const weather = mini.walkWeather || WALK_WEATHER.drizzle;
-      el.miniArena.innerHTML = `<div class="mini-world walk-world ${biome.className} ${weather.className}" data-walk-biome="${biome.id}">
-        <div class="walk-sky"></div><div class="walk-weather"></div>
-        <div class="walk-layer walk-far" data-walk-speed=".18"></div>
-        <div class="walk-layer walk-mid" data-walk-speed=".43"></div>
-        <div class="walk-layer walk-near" data-walk-speed=".82"></div>
-        <div class="walk-path"></div><div id="walkFinds"></div>${miniPetMarkup("walk-rizo")}
-        <div class="walk-distance"><i id="walkDistanceBar"></i></div>
-        <div id="walkCaption" class="walk-caption"><b>${escapeHTML(biome.name)} • ${escapeHTML(weather.label)}</b><span>${escapeHTML(walkIntroLine())}</span></div>
-      </div>`;
-      const interval = setInterval(() => { if (mini.active && !mini.pausedByAd && !mini.pausedByFork) spawnWalkFind(); }, 1450);
-      mini.intervals.push(interval);
-      spawnWalkFind();
-    }
-    if (mode === "rhythm") {
-      const track=mini.rhythmTrack || EMBER_BEAT_TRACKS[0];
-      const stars="★".repeat(track.stars||1)+"☆".repeat(Math.max(0,5-(track.stars||1)));
-      el.miniArena.innerHTML = `<div class="mini-world rhythm-world" data-track="${escapeHTML(track.id)}"><div class="rhythm-lights"></div><div class="rhythm-stage"><img class="rhythm-face-mark" src="./assets/rizo-full-mark.png" alt=""></div>${miniPetMarkup("rhythm-rizo")}<div class="rhythm-board" id="rhythmBoard"><div class="rhythm-lane-columns" aria-hidden="true">${[0,1,2,3].map(lane=>`<i class="rhythm-column lane-${lane}"></i>`).join("")}</div><div class="rhythm-hit-line" aria-hidden="true"></div><div id="rhythmNotes"></div></div><div class="rhythm-status"><span id="rhythmCombo">COMBO <b>0</b></span><span id="rhythmAccuracy">ACCURACY <b>100%</b></span></div><div class="rhythm-pads" aria-label="Ember Beat lanes">${[0,1,2,3].map(lane=>`<button type="button" class="rhythm-pad lane-${lane}" data-rhythm-lane="${lane}" aria-label="Lane ${lane+1}">${["▲","■","●","◆"][lane]}</button>`).join("")}</div><div class="rhythm-track-intro"><small>NOW PLAYING • ${escapeHTML(track.difficulty||"NORMAL")}</small><b>${escapeHTML(track.title)}</b><span>${track.bpm} BPM • ${stars}</span></div><div id="rhythmCallout" class="rhythm-callout">GET READY</div><div id="rhythmCountdown" class="rhythm-countdown"><b>3</b><span>FIND YOUR LANES</span></div></div>`;
-      startRhythmPerformance();
-    }
-    if (mode === "maze") {
-      el.miniArena.innerHTML = `<div class="mini-world maze-world"><div class="maze-hud"><span id="mazeLives">♥ ♥ ♥</span><span>MAZE <b id="mazeLevel">1</b></span><span>CHAIN <b id="mazeCombo">0</b></span></div><div id="mazeBoard" class="maze-board"></div><div id="mazeCallout" class="maze-callout">EAT THE EMBER TRAIL</div><div class="maze-controls" aria-label="Runaway directions"><button type="button" data-maze-dir="up" aria-label="Move up">▲</button><button type="button" data-maze-dir="left" aria-label="Move left">◀</button><button type="button" data-maze-dir="down" aria-label="Move down">▼</button><button type="button" data-maze-dir="right" aria-label="Move right">▶</button></div></div>`;
-      buildMazeLevel(true);
-    }
-    if (mode === "defense") {
-      if (!mini.defenseResume || !restoreDefenseCheckpoint(mini.defenseResume)) {
-        initializeDefenseRun(mini.defenseMapChoice, mini.defenseContract);
-        renderDefenseWorld();
+  // ===== FRAME =====
+  // The game is stepped in slices of at most 40 ms, so a slow device plays at
+  // the right speed instead of in slow motion; a stall over 250 ms (a tab
+  // switch, a debugger) is skipped instead of being played back in one jump.
+  const TRAINING_STEP_MS = 40, TRAINING_STALL_MS = 250, TRAINING_HEADER_MS = 50;
+  function trainingFrame(timestamp){
+    const run=trainingRun;
+    if(!run || !mini.active) return;
+    const raw=timestamp-run.lastFrame;
+    run.lastFrame=timestamp;
+    if(!arcadeFrozen()){
+      let left=(!Number.isFinite(raw) || raw>TRAINING_STALL_MS) ? 0 : Math.max(0, raw);
+      if(left===0) callGame("frame", 0);
+      while(left>0 && trainingRun===run && mini.active){
+        const step=Math.min(TRAINING_STEP_MS, left);
+        left-=step;
+        callGame("frame", step/1000);
       }
+      if(trainingRun===run && mini.active) pollTrainingJobs();
+      if(trainingRun===run && mini.active) updateTrainingClock(timestamp);
     }
-    if (mode === "memory") {
-      el.miniArena.innerHTML = `<div class="mini-world memory-world memory-dx lost-signal"><div class="memory-stars"></div>${miniPetMarkup("memory-rizo")}<div class="memory-top"><span id="memoryRule">CLEAN SIGNAL</span><span id="memoryHearts">♥ ♥ ♥</span></div><div class="memory-frequency">96.3 <i>RIZO PIRATE RADIO</i></div><div class="memory-board" id="memoryBoard">${[0,1,2,3].map(index=>`<button type="button" class="memory-rune rune-${index}" data-memory-rune="${index}" aria-label="Signal rune ${index+1}">${["☾","✦","◆","∞"][index]}</button>`).join("")}</div><div id="memoryCallout" class="memory-callout">LISTEN FOR THE CORRUPTION</div></div>`;
-      queueMiniTimeout(startMemoryRound, 500);
-    }
-    if (mode === "glide") {
-      mini.glideY = Math.max(90, el.miniArena.clientHeight * .48);
-      mini.glideSpawnAt = now() + 900;
-      mini.glideWindAt = now() + 5200;
-      el.miniArena.innerHTML = `<div class="mini-world glide-world"><div class="glide-clouds"></div><div id="glideGates"></div>${miniPetMarkup("glide-rizo")}<div class="glide-hud"><span id="glideHearts">♥ ♥ ♥</span><span>THREAD <b id="glideStreak">0</b></span><span>DRAFT <b id="glideDraft">0/3</b></span></div><div id="glideWind" class="glide-wind">CALM AIR</div><div id="glideThermal" class="glide-thermal">CENTER 3 GATES → THERMAL</div><div class="glide-floor"></div></div>`;
-      updateGlidePet();
-    }
-    if (mode === "breaker") {
-      el.miniArena.innerHTML = `<div class="mini-world breaker-world"><div id="breakerBlocks" class="breaker-blocks"></div><div id="breakerBall" class="breaker-ball">✦</div>${miniPetMarkup("breaker-rizo")}<div class="breaker-hud"><span id="breakerHearts">♥ ♥ ♥</span><span>FORGE <b id="breakerLevel">1</b></span><span>CORE <b id="breakerCoreCount">0</b></span></div><div id="breakerPattern" class="breaker-pattern">LOADING MARK…</div><div id="breakerCallout" class="breaker-callout">BREAK THE CORE • COLLAPSE THE WALL</div></div>`;
-      setBreakerPaddle(.5); buildBreakerBoard(); resetBreakerBall(true);
-    }
+    if(trainingRun===run && mini.active) run.frameId=requestAnimationFrame(trainingFrame);
+  }
+  function updateTrainingClock(timestamp=performance.now()){
+    const run=trainingRun;
+    if(!run || !mini.active || arcadeFrozen()) return;
+    const remaining=Math.max(0, mini.endAt-runClockNow());
+    if(remaining>0 && timestamp-run.headerAt<TRAINING_HEADER_MS) return;
+    run.headerAt=timestamp;
+    // A game may override what the header shows (Ember Beat: READY).
+    const header=callGame("header") || {};
+    el.miniTimer.textContent=header.timer ?? (remaining/1000).toFixed(1);
+    el.miniScore.textContent=header.score ?? `${Math.max(0, Math.floor(mini.score))} PTS`;
+    if(remaining<=0) finishMiniGame();
   }
 
-  // Flavors the walk's opening line by the pet's rolled personality so the
-  // same activity reads differently across pets instead of one generic line.
-  const WALK_INTRO_LINES = {
-    "CHAOTIC GOOD": "IS ALREADY RUNNING AHEAD.",
-    "TINY CEO": "IS SUPERVISING THE TRAIL.",
-    "SOFT MENACE": "IS WALKING SUSPICIOUSLY CALMLY.",
-    "FOREST GREMLIN": "IS SNIFFING EVERYTHING.",
-    "DRAMA FLAME": "IS NARRATING THIS WALK OUT LOUD.",
-    "QUIET GENIUS": "IS QUIETLY MAPPING THE TRAIL.",
-    "SNACK SCHOLAR": "IS ALREADY LOOKING FOR SNACKS.",
-    "CERTIFIED HATER": "IS WALKING. RELUCTANTLY.",
-    "LOYAL WEIRDO": "KEEPS CHECKING YOU'RE STILL THERE.",
-    "MAIN CHARACTER": "IS WALKING LIKE THIS IS A MONTAGE."
-  };
-  function walkIntroLine() {
-    return `${state.pet.name} ${WALK_INTRO_LINES[state.pet.personality] || "IS SNIFFING EVERYTHING."}`;
-  }
-
-  // Mid-walk fork: pauses spawning + the clock (mirrors the ad-pause pattern
-  // below) and lets the player choose a safer or riskier back half of the
-  // walk. This is the "branching interaction" the walk was missing.
-  function setWalkCaption(title, text = "") {
-    const caption = $("#walkCaption");
-    if (!caption) return;
-    caption.innerHTML = `<b>${escapeHTML(title)}</b>${text ? `<span>${escapeHTML(text)}</span>` : ""}`;
-  }
-
-  function walkDecisionConfig(index) {
-    if (index === 0) return {
-      title:"THE TRAIL SPLITS",
-      choices:[
-        {id:"safe", title:"STAY NEAR THE LANTERNS", copy:"Steady finds • calmer weather", risk:0, luck:1, biome:null},
-        {id:"deep", title:"FOLLOW THE RUSTLING", copy:"Harder trail • rare encounters", risk:2, luck:0, biome:"moss"}
-      ]
-    };
-    if (mini.walkPath === "deep" || mini.walkRisk >= 2) return {
-      title:"SOMETHING MOVED AHEAD",
-      choices:[
-        {id:"stream", title:"CROSS THE BLACK STREAM", copy:"Stamina test • storm treasures", risk:2, luck:1, biome:"storm"},
-        {id:"ruins", title:"ENTER THE ROOT RUINS", copy:"Instinct test • Shadow chance", risk:3, luck:2, biome:"moon"}
-      ]
-    };
-    return {
-      title:"RIZO STOPS TO LISTEN",
-      choices:[
-        {id:"meadow", title:"TAKE THE FLOWER FIELD", copy:"Bond and common treasures", risk:0, luck:2, biome:"moss"},
-        {id:"lantern", title:"FOLLOW THE OLD LANTERN", copy:"Luck and strange signals", risk:1, luck:3, biome:"moon"}
-      ]
-    };
-  }
-
-  // Walk decisions pause the clock so reading never costs the player time.
-  // Two forks occur per walk and can change the biome, weather and discovery pool.
-  function maybeShowWalkFork() {
-    if (mini.mode !== "walk" || !mini.active || mini.pausedByFork || mini.walkDecisionIndex >= 2) return;
-    const elapsed = 1 - Math.max(0, mini.endAt - now()) / miniDuration("walk");
-    const threshold = mini.walkDecisionIndex === 0 ? .29 : .66;
-    if (elapsed < threshold) return;
-    const decision = walkDecisionConfig(mini.walkDecisionIndex);
-    mini.pausedByFork = true;
-    mini.pauseAt = now();
-    setWalkCaption(decision.title, "Choose the kind of story this walk becomes.");
-    const host = $("#walkFinds");
-    if (!host) return;
-    const fork = document.createElement("div");
-    fork.className = "walk-fork";
-    fork.innerHTML = decision.choices.map(choice => `<button type="button" class="walk-fork-btn" data-walk-fork="${choice.id}"><b>${escapeHTML(choice.title)}</b><span>${escapeHTML(choice.copy)}</span></button>`).join("");
-    host.appendChild(fork);
-    haptic(12);
-  }
-
-  function chooseWalkFork(path) {
-    if (!mini.active || mini.mode !== "walk" || !mini.pausedByFork) return;
-    const decision = walkDecisionConfig(mini.walkDecisionIndex);
-    const choice = decision.choices.find(item => item.id === path);
-    if (!choice) return;
-    mini.walkChoices.push(choice.id);
-    mini.walkPath = mini.walkDecisionIndex === 0 ? choice.id : `${mini.walkPath || "trail"}-${choice.id}`;
-    mini.walkRisk += choice.risk || 0;
-    mini.walkLuck += choice.luck || 0;
-    mini.pausedByFork = false;
-    mini.endAt += Math.max(0, now() - (mini.pauseAt || now()));
-    mini.walkDecisionIndex += 1;
-    $(".walk-fork")?.remove();
-    if (choice.biome && WALK_BIOMES[choice.biome]) {
-      mini.walkBiome = WALK_BIOMES[choice.biome];
-      if (choice.biome === "storm") mini.walkWeather = WALK_WEATHER.storm;
-      else if (choice.biome === "moon") mini.walkWeather = WALK_WEATHER.mist;
-      applyWalkWorldTheme();
-    }
-    const response = {
-      safe:`${state.pet.name} KEEPS ONE EYE ON THE LANTERNS.`,
-      deep:`${state.pet.name} PUSHES INTO THE DEEP BRUSH.`,
-      stream:`${state.pet.name} SPLASHES ACROSS WITHOUT ASKING.`,
-      ruins:`${state.pet.name} HEARS SOMETHING INSIDE THE ROOTS.`,
-      meadow:`${state.pet.name} STOPS TO SMELL EVERY FLOWER.`,
-      lantern:`THE LANTERN FLICKERS WHEN ${state.pet.name} GETS CLOSE.`
-    }[choice.id] || `${state.pet.name} CHOOSES THE STRANGE WAY.`;
-    setWalkCaption(mini.walkBiome.name, response);
-    mini.score += choice.risk ? 2 : 1;
-    mini.treasureRolls += choice.luck || 0;
-    sfx(choice.risk >= 2 ? "event" : "spark");
-    haptic(choice.risk >= 2 ? [10,16,10] : 8);
-  }
-
-  function applyWalkWorldTheme() {
-    const world = $(".walk-world");
-    if (!world) return;
-    world.className = `mini-world walk-world ${mini.walkBiome.className} ${mini.walkWeather.className}`;
-    world.dataset.walkBiome = mini.walkBiome.id;
-  }
-
-  function updateMiniClock() {
-    if (!mini.active || mini.pausedByAd) return;
-    // Defense owns a throttled HUD pipeline inside updateDefenseGame(). Calling the
-    // full renderer from this 50ms timer used to rebuild panels/ability cards twenty
-    // times per second and became one of the largest sources of dense-wave jank.
-    if (mini.mode === "defense") return;
-    if (mini.mode === "rhythm" && !mini.rhythmReady) { el.miniTimer.textContent = "READY"; el.miniScore.textContent = "0 PTS"; return; }
-    if (mini.mode === "walk" && !mini.pausedByFork) maybeShowWalkFork();
-    if (mini.pausedByFork) return;
-    const remaining = Math.max(0, mini.endAt - now());
-    el.miniTimer.textContent = (remaining / 1000).toFixed(1);
-    el.miniScore.textContent = `${Math.max(0, Math.floor(mini.score))} PTS`;
-    if (remaining <= 0) finishMiniGame();
-  }
-
-  function updateMiniFrame(timestamp) {
-    if (!mini.active) return;
-    const rawFrame=Math.max(0,timestamp-mini.lastFrame),frameDiscontinuity=!Number.isFinite(rawFrame)||rawFrame>250,dt=frameDiscontinuity?0:Math.min(.04,rawFrame/1000),defenseFrameDt=frameDiscontinuity?0:Math.min(.12,rawFrame/1000);
-    if(frameDiscontinuity&&mini.mode==="defense"&&mini.defense){mini.defense.frameDiscontinuities=(mini.defense.frameDiscontinuities||0)+1;mini.defense.lastDiscontinuityMs=Number.isFinite(rawFrame)?rawFrame:0;}
-    if(mini.mode==="defense"&&mini.defense&&!frameDiscontinuity)defenseRecordFramePerformance(rawFrame);
-    if(frameDiscontinuity&&mini.mode==="defense"&&mini.defense){mini.defense.simAccumulator=0;mini.defense.presentationAccumulator=0;}
-    mini.lastFrame = timestamp;
-    if (!mini.pausedByAd) {
-      if (mini.mode === "power") updatePowerGame(dt);
-      if (mini.mode === "spark") updateSparkGame(dt);
-      if (mini.mode === "forage") updateForageGame(dt);
-      if (mini.mode === "rush") updateRushGame(dt);
-      if (mini.mode === "walk" && !mini.pausedByFork) updateWalkGame(dt);
-      if (mini.mode === "rhythm") updateRhythmGame(dt);
-      if (mini.mode === "glide") updateGlideGame(dt);
-      if (mini.mode === "breaker") updateBreakerGame(dt);
-      if (mini.mode === "maze") updateMazeGame(dt);
-      if (mini.mode === "defense") updateDefenseGame(defenseFrameDt * (mini.defense?.speed || 1), defenseFrameDt);
-    }
-    mini.frame = requestAnimationFrame(updateMiniFrame);
-  }
-
-  function updatePowerZoneVisual() {
-    const zone = $("#timingPerfectZone");
-    if (zone) zone.style.left = `${mini.powerZone * 100}%`;
-  }
-
-  const POWER_CALLS=["jab","body","hook"];
-  function nextPowerCall(force=false){
-    const previous=mini.powerCall;let next=previous;
-    while(next===previous&&POWER_CALLS.length>1)next=POWER_CALLS[Math.floor(Math.random()*POWER_CALLS.length)];
-    mini.powerCall=next;mini.powerCallAt=now()+1900+Math.random()*900;
-    const call=$("#powerCall");if(call)call.textContent=next.toUpperCase();
-    $$("[data-power-tech]").forEach(btn=>btn.classList.toggle("called",btn.dataset.powerTech===next));
-    if(force){const label=$("#timingCallout");if(label)label.textContent=`COACH: ${next.toUpperCase()}`;}
-  }
-
-  function updatePowerGame(dt) {
-    const t=now(), bag=$("#trainingBag"), callout=$("#timingCallout");
-    if(!mini.powerCallAt)nextPowerCall(true);
-    if(t>=mini.powerCallAt&&!mini.powerGuardUntil)nextPowerCall();
-    if(!mini.powerGuardAt)mini.powerGuardAt=t+3400+Math.random()*1800;
-    if(!mini.powerGuardUntil && t>=mini.powerGuardAt){mini.powerGuardUntil=t+620;mini.powerGuardAt=t+3500+Math.random()*2200;bag?.classList.add("guard");if(callout){callout.textContent="BAG FEINT • HOLD";callout.dataset.grade="guard";}sfx("no");}
-    if(mini.powerGuardUntil && t>=mini.powerGuardUntil){mini.powerGuardUntil=0;bag?.classList.remove("guard");if(mini.powerEngaged){mini.powerGuardReads+=1;mini.powerHeat=clamp(mini.powerHeat+8,0,100);mini.score+=2;if(callout){callout.textContent="GOOD READ +2";callout.dataset.grade="read";}const heat=$("#powerHeat");if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;}else if(callout){callout.textContent="MAKE A READ • THEN FEINTS COUNT";callout.dataset.grade="idle";}}
-    mini.powerZone += (mini.powerZoneTarget - mini.powerZone) * Math.min(1, dt * 5.5);
-    mini.needle += mini.needleDir * mini.needleSpeed * dt;
-    if (mini.needle >= 1) { mini.needle = 1; mini.needleDir = -1; }
-    if (mini.needle <= 0) { mini.needle = 0; mini.needleDir = 1; }
-    const needle = $("#timingNeedle");
-    if (needle) needle.style.left = `${mini.needle * 100}%`;
-    updatePowerZoneVisual();
-  }
-
-  function powerTap(technique=mini.powerCall) {
-    const t=now();
-    if(t<(mini.powerTapLockUntil||0))return;
-    mini.powerTapLockUntil=t+175;
-    mini.powerEngaged=true;
-    if(mini.powerGuardUntil>t){
-      mini.powerGuardUntil=0;mini.powerStreak=0;mini.powerHeat=clamp(mini.powerHeat-22,0,100);mini.score=Math.max(0,mini.score-3);$("#trainingBag")?.classList.remove("guard");const callout=$("#timingCallout");if(callout){callout.textContent="COUNTERED -3";callout.dataset.grade="0";}const streak=$("#powerStreak"),heat=$("#powerHeat");if(streak)streak.textContent="0";if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;$("#miniPet")?.classList.add("forage-hit");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("forage-hit"),280);sfx("hit");haptic([18,24,18]);return;
-    }
-    if(technique!==mini.powerCall){
-      mini.powerWrongCalls+=1;mini.powerStreak=0;mini.powerHeat=clamp(mini.powerHeat-12,0,100);mini.score=Math.max(0,mini.score-2);
-      const callout=$("#timingCallout");if(callout){callout.textContent=`WRONG SHOT • COACH SAID ${mini.powerCall.toUpperCase()}`;callout.dataset.grade="wrong";}
-      const streak=$("#powerStreak"),heat=$("#powerHeat");if(streak)streak.textContent="0";if(heat)heat.textContent=`${Math.round(mini.powerHeat)}%`;
-      sfx("no");haptic([12,18,12]);nextPowerCall();return;
-    }
-    mini.powerCallsRead+=1;
-    const distance = Math.abs(mini.needle - mini.powerZone);
-    const base = distance <= .05 ? 5 : distance <= .12 ? 3 : distance <= .22 ? 1 : 0;
-    if (base >= 3) mini.powerStreak += 1; else if (!base) mini.powerStreak = 0; else mini.powerStreak = Math.max(0, mini.powerStreak - 1);
-    mini.powerBestStreak = Math.max(mini.powerBestStreak, mini.powerStreak);
-    const mult = Math.min(3, 1 + Math.floor(mini.powerStreak / 4));
-    const points = base * mult;
-    mini.score += points; if(base) mini.hits += 1;
-    mini.powerHeat = clamp(mini.powerHeat + (base === 5 ? 18 : base === 3 ? 9 : base ? 3 : -14), 0, 100);
-    mini.needleSpeed = Math.min(1.52, mini.needleSpeed + (base >= 3 ? .025 : .012));
-    if (base === 5 || (base && mini.hits % 4 === 0)) {
-      const edge = .18 + Math.random() * .64;
-      mini.powerZoneTarget = edge;
-    }
-    if(base>=3)nextPowerCall();
-    if (mini.powerHeat >= 100) {
-      mini.powerHeat = 35;
-      mini.score += 10;
-      mini.powerZoneTarget = .5;
-      sensoryBurst("OVERDRIVE +10", "#ffd54a", 18); sfx("reward"); haptic([14,18,26]);
-    }
-    const label = base === 5 ? `PERFECT x${mult} +${points}` : base === 3 ? `GREAT x${mult} +${points}` : base === 1 ? `GLANCE +${points}` : "WHIFF • STREAK LOST";
-    const pet = $("#miniPet"), bag = $("#trainingBag"), callout = $("#timingCallout");
-    pet?.classList.remove("mini-punch"); bag?.classList.remove("bag-hit"); void pet?.offsetWidth; pet?.classList.add("mini-punch");
-    if (base) bag?.classList.add("bag-hit");
-    if (callout) { callout.textContent = label; callout.dataset.grade = String(base); }
-    const streak = $("#powerStreak"), heat = $("#powerHeat"), cracks = $("#bagCracks");
-    if (streak) streak.textContent = String(mini.powerStreak);
-    if (heat) heat.textContent = `${Math.round(mini.powerHeat)}%`;
-    if (cracks) cracks.dataset.crack = String(Math.min(4, Math.floor(mini.hits / 6)));
-    if (base === 5) { sfx("perfect"); sensoryBurst(mini.powerStreak >= 4 ? `x${mult}` : "PERFECT", "#16c8ff", 10); haptic([12,20,22]); }
-    else if (base) sfx("hit", base * 3); else { sfx("no"); haptic(18); }
-  }
-
-  function moveSparkTarget(forceType = null) {
-    const target = $("#miniTarget");
-    if (!target) return;
-    const rect = el.miniArena.getBoundingClientRect(), size = 64, t=now(), frenzy=t<mini.sparkFeverUntil;
-    const x = 14 + Math.random() * Math.max(1, rect.width - size - 28);
-    const y = 36 + Math.random() * Math.max(1, rect.height - size - 170);
-    const roll = Math.random();
-    mini.sparkType = forceType || (frenzy ? (roll>.68?"gold":"normal") : (mini.hits > 3 && roll < .16 ? "shadow" : roll > .88 ? "gold" : "normal"));
-    target.className = `spark-orb ${mini.sparkType}`;
-    target.textContent = mini.sparkType === "shadow" ? "✕" : mini.sparkType === "gold" ? "◆" : "★";
-    target.setAttribute("aria-label", mini.sparkType === "shadow" ? "Decoy spark - do not tap" : mini.sparkType === "gold" ? "Golden spark" : "Catch spark");
-    target.style.left = `${x}px`; target.style.top = `${y}px`;
-    mini.sparkX = x; mini.sparkY = y;
-    mini.sparkExpiresAt = t + (frenzy ? (mini.sparkType === "gold" ? 560 : 470) : mini.sparkType === "shadow" ? 720 : mini.sparkType === "gold" ? 900 : Math.max(620, 1040 - mini.hits * 9));
-    const rule=$("#sparkRule"); if(rule) rule.textContent=frenzy ? "SPARK RUSH • DON'T MISS" : mini.sparkType === "shadow" ? "DECOY • DON'T TAP" : mini.sparkType === "gold" ? "GOLD SIGNAL • GO" : "CATCH THE LIGHT";
-  }
-
-  function updateSparkBankHUD(){const stash=$("#sparkStash"),banked=$("#sparkBanked"),bank=$("#sparkBank");if(stash)stash.textContent=String(Math.max(0,Math.floor(mini.sparkStash||0)));if(banked)banked.textContent=String(Math.max(0,Math.floor(mini.sparkBanked||0)));if(bank)bank.disabled=(mini.sparkStash||0)<=0;}
-  function bankSparkStash(auto=false){const held=Math.max(0,Math.floor(mini.sparkStash||0));if(!held)return false;const chain=Math.max(0,mini.sparkStreak||0),mult=auto?1:Math.min(3,1+Math.floor(chain/4));const gain=held*mult;mini.score+=gain;mini.sparkBanked+=gain;mini.sparkStash=0;mini.sparkBanks+=1;if(auto)mini.sparkAutoBanked=true;const trail=$("#sparkTrail");if(trail){trail.textContent=`${auto?"AUTO ":""}BANK x${mult} • +${gain}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}updateSparkBankHUD();sfx("reward");haptic([8,12,8]);return true;}
-  function spillSparkStash(reason="SIGNAL LOST"){const lost=Math.max(0,Math.floor(mini.sparkStash||0));if(lost){mini.sparkLost+=lost;mini.sparkStash=0;}mini.sparkStreak=0;updateSparkBankHUD();const trail=$("#sparkTrail");if(trail){trail.textContent=`${reason}${lost?` • -${lost} STASH`:""}`;trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}}
-
-  function startSparkFrenzy(){
-    mini.sparkFeverUntil=now()+2700;mini.sparkFrenzies+=1;$(".spark-world")?.classList.add("frenzy");
-    const trail=$("#sparkTrail");if(trail){trail.textContent="SPARK RUSH • x2";trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}
-    sensoryBurst("SPARK RUSH","#ffd54a",12);sfx("reward");haptic([8,8,12]);
-  }
-
-  function updateSparkGame() {
-    const t=now();
-    if(mini.sparkFeverUntil && t>=mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");const rule=$("#sparkRule");if(rule)rule.textContent="CATCH THE LIGHT";}
-    if (!mini.sparkExpiresAt || t < mini.sparkExpiresAt) return;
-    if (mini.sparkType === "shadow") {
-      mini.sparkAvoided += 1; mini.sparkStreak += 1; mini.sparkBestStreak = Math.max(mini.sparkBestStreak, mini.sparkStreak); mini.sparkStash += 1;updateSparkBankHUD();
-      const trail=$("#sparkTrail"); if(trail){trail.textContent="GOOD READ +1";trail.classList.remove("pop");void trail.offsetWidth;trail.classList.add("pop");}
-      sfx("perfect");
-    } else {
-      spillSparkStash("TOO SLOW");if(mini.sparkFeverUntil){mini.sparkFeverUntil=0;$(".spark-world")?.classList.remove("frenzy");}
-    }
-    const streak=$("#sparkStreak"); if(streak) streak.textContent=String(mini.sparkStreak);
-    moveSparkTarget();
-  }
-
-  function catchSpark() {
-    const pet = $("#miniPet"), target = $("#miniTarget"), trail = $("#sparkTrail");
-    if (!target || !pet) return;
-    if (mini.sparkType === "shadow") {
-      mini.score = Math.max(0, mini.score - 2); spillSparkStash("SHADOW STOLE IT");
-      if (trail) { trail.textContent = mini.sparkLost ? "SHADOW STOLE THE STASH" : "DECOY -2"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-      pet.classList.add("forage-hit"); queueMiniTimeout(()=>pet.classList.remove("forage-hit"),300); sfx("no"); haptic([16,20,16]);
-      const streak=$("#sparkStreak"); if(streak) streak.textContent="0"; moveSparkTarget(); return;
-    }
-    const wasFrenzy=now()<mini.sparkFeverUntil;mini.hits += 1; mini.sparkStreak += 1; mini.sparkBestStreak = Math.max(mini.sparkBestStreak, mini.sparkStreak);
-    const mult = Math.min(4, 1 + Math.floor(mini.sparkStreak / 5));
-    const gain = (mini.sparkType === "gold" ? 5 : 1) * (wasFrenzy?2:1); mini.sparkStash += gain;updateSparkBankHUD();
-    pet.style.left = `${mini.sparkX + 6}px`; pet.style.top = `${mini.sparkY + 28}px`; pet.classList.add("spark-dash"); queueMiniTimeout(()=>pet.classList.remove("spark-dash"),180);
-    if (trail) { trail.textContent = mini.sparkType === "gold" ? `GOLD${wasFrenzy?" RUSH":""} • STASH +${gain}` : wasFrenzy?`RUSH ${mini.sparkStreak} • STASH +${gain}`:mini.sparkStreak > 1 ? `CHAIN ${mini.sparkStreak} • RISK x${mult}` : "STASH +1"; trail.classList.remove("pop"); void trail.offsetWidth; trail.classList.add("pop"); }
-    const streak=$("#sparkStreak"); if(streak) streak.textContent=String(mini.sparkStreak);
-    if(!wasFrenzy && mini.sparkStreak>0 && mini.sparkStreak%6===0)startSparkFrenzy();
-    sfx(mini.sparkType === "gold" ? "reward" : "spark", mini.hits); haptic(mini.sparkType === "gold" ? [8,10,14] : 8); moveSparkTarget();
-  }
-
-  const FORAGE_FOODS = [
-    {id:"berry",icon:"🍓",name:"BERRY"},{id:"meat",icon:"🍗",name:"SNACK"},{id:"fruit",icon:"🍎",name:"FRUIT"}
-  ];
-  function buildForageOrder(){
-    const length=clamp(3+Math.floor((mini?.forageOrdersDone||0)/2),3,5),order=[];
-    while(order.length<length){const choices=FORAGE_FOODS.filter(food=>food.id!==order.at(-1));order.push((choices[Math.floor(Math.random()*choices.length)]||FORAGE_FOODS[0]).id);}
-    return order;
-  }
-  function updateForageOrderHUD(){
-    const host=$("#forageOrder"); if(!host)return;
-    host.innerHTML=`<small>RIZO WANTS</small>${mini.forageOrder.map((id,index)=>{const food=FORAGE_FOODS.find(item=>item.id===id);return `<span class="${index===mini.forageOrderIndex?"active":index<mini.forageOrderIndex?"done":""}">${food?.icon||"?"}</span>`;}).join("")}`;
-  }
-  function advanceForageOrder(){
-    mini.forageOrderIndex+=1;
-    if(mini.forageOrderIndex>=mini.forageOrder.length){
-      mini.forageOrdersDone+=1;mini.score+=10+Math.min(8,mini.forageOrdersDone*2);mini.treasureRolls+=1;
-      if(mini.forageOrdersDone%2===0){mini.forageRushUntil=now()+3600;sensoryBurst("PICNIC PANIC • PICK FAST","#ffd76a",16);sfx("reward");}
-      else sensoryBurst(`LUNCH ${mini.forageOrdersDone} PACKED`,`#9eff75`,12);
-      mini.forageOrder=buildForageOrder();mini.forageOrderIndex=0;
-    }
-    updateForageOrderHUD();
-  }
-
-  function setForageLane(lane) {
-    mini.lane = clamp(Math.round(lane), 0, 2);
-    const pet = $("#miniPet");
-    if (pet) pet.style.left = `${[16.7,50,83.3][mini.lane]}%`;
-  }
-
-  function createForageDrop(lane,{kind="random",wanted=null}={}) {
-    const host=$("#forageDrops"); if(!host)return;
-    const wantedId=wanted||mini.forageOrder[mini.forageOrderIndex]; let bad=false,rare=false,food=null;
-    if(kind==="wanted") food=FORAGE_FOODS.find(item=>item.id===wantedId)||FORAGE_FOODS[0];
-    else if(kind==="bad") bad=true;
-    else if(kind==="rare") rare=true;
-    else if(kind==="wrong") {const wrong=FORAGE_FOODS.filter(item=>item.id!==wantedId);food=wrong[Math.floor(Math.random()*wrong.length)]||FORAGE_FOODS[0];}
-    else {const roll=Math.random();bad=roll<.2;rare=!bad&&roll>.93;food=bad||rare?null:FORAGE_FOODS[Math.floor(Math.random()*FORAGE_FOODS.length)];}
-    const node=document.createElement("div");node.className=`forage-drop ${bad?"bad":"good"} ${rare?"rare":""}`;node.textContent=bad?"🍄":rare?"💎":food.icon;node.style.left=`${[16.7,50,83.3][lane]}%`;host.appendChild(node);
-    mini.entities.push({kind:"forage",node,lane,good:!bad,rare,foodId:food?.id||null,y:-48,speed:145+Math.random()*42+Math.min(82,(mini.hits||0)*2.4),caught:false});
-  }
-
-  function spawnForageItem() {
-    const wanted=mini.forageOrder[mini.forageOrderIndex],lanes=[0,1,2].sort(()=>Math.random()-.5),panic=now()<(mini.forageRushUntil||0);
-    const decisionRun=panic||mini.hits>=2&&Math.random()<.42;
-    if(decisionRun){
-      createForageDrop(lanes[0],{kind:"wanted",wanted});
-      createForageDrop(lanes[1],{kind:Math.random()<(panic?.62:.48)?"bad":"wrong",wanted});
-      if(panic)createForageDrop(lanes[2],{kind:Math.random()<.22?"rare":"wrong",wanted});
-      return;
-    }
-    const roll=Math.random();createForageDrop(lanes[0],{kind:roll<.46?"wanted":roll<.63?"wrong":roll<.83?"bad":roll>.96?"rare":"random",wanted});
-  }
-
-  function updateForageGame(dt) {
-    const height = el.miniArena.clientHeight,panic=now()<(mini.forageRushUntil||0),world=$(".forage-world");
-    world?.classList.toggle("picnic-panic",panic);
-    const ticket=$("#forageTicketState");if(ticket)ticket.textContent=panic?"PICNIC PANIC":"PACK THE TICKET";
-    for (const entity of [...mini.entities]) {
-      if (entity.kind !== "forage") continue;
-      entity.y += entity.speed * dt; entity.node.style.transform = `translate(-50%,${entity.y}px) rotate(${entity.y*.15}deg)`;
-      const inCatch = entity.y > height - 152 && entity.y < height - 52;
-      if (!entity.caught && inCatch && entity.lane === mini.lane) {
-        entity.caught = true;
-        if (!entity.good) {
-          mini.score=Math.max(0,mini.score-4);mini.forageStreak=0;sfx("sick");haptic([20,20,20]);$("#miniPet")?.classList.add("forage-hit");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("forage-hit"),320);
-        } else if (entity.rare) {
-          mini.score+=6;mini.hits+=1;mini.treasureRolls+=1;mini.forageStreak+=1;sfx("reward");sensoryBurst("PRISM +6","#bdf7ff",10);
-        } else {
-          const wanted=mini.forageOrder[mini.forageOrderIndex]; mini.hits+=1;
-          if(entity.foodId===wanted){mini.forageStreak+=1;mini.forageBestStreak=Math.max(mini.forageBestStreak,mini.forageStreak);const mult=Math.min(3,1+Math.floor(mini.forageStreak/4));mini.score+=3*mult;advanceForageOrder();sfx("eat");}
-          else {mini.score=Math.max(0,mini.score-1);mini.forageStreak=0;sfx("no");const order=$("#forageOrder");order?.classList.add("wrong");queueMiniTimeout(()=>order?.classList.remove("wrong"),220);}
-          $("#miniPet")?.classList.add("forage-catch");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("forage-catch"),180);
-        }
-        const streak=$("#forageStreak");if(streak)streak.textContent=String(mini.forageStreak);
-        entity.node.classList.add("caught");queueMiniTimeout(()=>entity.node.remove(),160);
-      }
-      if (entity.y > height + 30 || entity.caught) mini.entities = mini.entities.filter(item => item !== entity);
-    }
-  }
-
-  function spawnRushEntity(first = false) {
-    const host = $("#rushEntities"); if (!host) return;
-    const width=el.miniArena.clientWidth,speed=174+Math.min(92,mini.hits*2.6),rightmost=[...mini.entities].filter(item=>item.kind==="rush"&&!item.handled&&["stump","tall"].includes(item.type)).sort((a,b)=>b.x-a.x)[0];
-    const safeGap=Math.max(300,speed*1.2),obstacleTooClose=Boolean(rightmost&&rightmost.x>width-safeGap); let type="flame";
-    if(first) type="stump"; else if(!obstacleTooClose){const roll=Math.random();type=roll<.38?"stump":roll<.53&&mini.hits>=4?"tall":roll>.91?"prism":"flame";}
-    const node=document.createElement("div");node.className=`rush-entity ${type}`;node.textContent=type==="flame"?"✦":type==="prism"?"◆":"";host.appendChild(node);
-    const requiredJump=type==="prism"?108:type==="flame"?(Math.random()<.5?28:82):0;if(type==="flame"||type==="prism")node.style.bottom=`${58+requiredJump*.55}px`;mini.entities.push({kind:"rush",node,type,x:width+(first?70:15),speed,handled:false,requiredJump,nearMissScored:false});
-  }
-
-  function rushJump() {
-    if (mini.jumpY <= 3) { mini.jumpV=515;mini.rushAirJumps=0;sfx("jump");haptic(9);return; }
-    if(mini.rushAirJumps<1){mini.jumpV=Math.max(395,mini.jumpV+245);mini.rushAirJumps+=1;$("#miniPet")?.classList.add("rush-double");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("rush-double"),220);sfx("spark");haptic([6,8]);}
-  }
-
-  function updateRushGame(dt) {
-    const width=el.miniArena.clientWidth; mini.jumpV-=1125*dt; mini.jumpY=Math.max(0,mini.jumpY+mini.jumpV*dt);
-    if(mini.jumpY<=0){mini.jumpY=0;mini.jumpV=0;mini.rushAirJumps=0;}
-    const pet=$("#miniPet");if(pet)pet.style.setProperty("--jump-y",`${mini.jumpY}px`);
-    mini.distanceCarry+=dt*3.5;if(mini.distanceCarry>=1){const earned=Math.floor(mini.distanceCarry);mini.score+=earned;mini.distanceCarry-=earned;}
-    const petX=width*.22;
-    for(const entity of [...mini.entities]){
-      if(entity.kind!=="rush")continue;entity.x-=entity.speed*dt;entity.node.style.transform=`translateX(${entity.x}px)`;
-      if(!entity.handled&&entity.x<petX+48&&entity.x>petX-45){
-        if(entity.type==="flame"||entity.type==="prism"){
-          const tolerance=entity.type==="prism"?34:26;
-          if(Math.abs(mini.jumpY-(entity.requiredJump||0))<=tolerance){entity.handled=true;mini.hits+=1;const mult=Math.min(4,1+Math.floor(mini.hits/6));const gain=(entity.type==="prism"?4:3)*mult;mini.score+=gain;entity.node.classList.add("collected");sfx(entity.type==="prism"?"reward":"rush",mini.hits);haptic(7);if(entity.type==="prism"){mini.rushParcel=true;mini.rushParcelClears=0;const delivery=$("#rushDelivery");if(delivery)delivery.textContent="PACKAGE LIVE • CLEAR 2";sensoryBurst("PACKAGE PICKED UP","#bdf7ff",10);}}
-        } else {
-          const needed=entity.type==="tall"?92:54;
-          if(mini.jumpY<needed&&now()>mini.invulnerableUntil){entity.handled=true;mini.hearts-=1;mini.rushStreak=0;if(mini.rushParcel){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushPackagesLost+=1;const delivery=$("#rushDelivery");if(delivery)delivery.textContent="PACKAGE LOST • FIND ◆";}mini.invulnerableUntil=now()+950;const hearts=$("#rushHearts");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.hearts?"♥":"♡").join(" ");const streak=$("#rushStreak");if(streak)streak.textContent="0";pet?.classList.add("rush-hurt");queueMiniTimeout(()=>pet?.classList.remove("rush-hurt"),500);sfx("hit");haptic([18,25,18]);if(mini.hearts<=0){mini.endAt=Math.min(mini.endAt,now()+250);}}
-        }
-      }
-      if(!entity.handled&&["stump","tall"].includes(entity.type)&&entity.x<petX-55){entity.handled=true;mini.rushClears+=1;mini.rushStreak+=1;mini.rushBestStreak=Math.max(mini.rushBestStreak,mini.rushStreak);const needed=entity.type==="tall"?92:54,close=mini.jumpY>=needed&&mini.jumpY<=needed+28;const gain=2+Math.min(4,Math.floor(mini.rushStreak/3))+(close?2:0);mini.score+=gain;const streak=$("#rushStreak");if(streak)streak.textContent=String(mini.rushStreak);if(mini.rushParcel){mini.rushParcelClears+=1;const delivery=$("#rushDelivery");if(mini.rushParcelClears>=2){mini.rushParcel=false;mini.rushParcelClears=0;mini.rushDeliveries+=1;const deliveryGain=10+mini.rushDeliveries*2;mini.score+=deliveryGain;if(delivery)delivery.textContent=`DELIVERED #${mini.rushDeliveries} • +${deliveryGain}`;sensoryBurst(`DELIVERY +${deliveryGain}`,"#16c8ff",11);sfx("reward");}else if(delivery)delivery.textContent="PACKAGE LIVE • CLEAR 1";}if(close)sensoryBurst("CLOSE CALL +2","#ffd45a",7);else if(mini.rushStreak%4===0)sensoryBurst(`CLEAN x${mini.rushStreak}`,"#9eff75",8);sfx("perfect");}
-      if(entity.x<-100){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}
-    }
-  }
-
-  const WALK_OBJECTS = {
-    leaf:{icon:"🍂",label:"CRUNCHY LEAF",points:1,type:"good",reaction:"inspect"},
-    ember:{icon:"✦",label:"LOST EMBER",points:3,type:"good",reaction:"celebrate"},
-    flower:{icon:"🌼",label:"MOON FLOWER",points:2,type:"good",reaction:"inspect"},
-    strange:{icon:"?",label:"STRANGE SIGNAL",points:6,type:"rare",reaction:"awe"},
-    puddle:{icon:"💧",label:"DEEP PUDDLE",points:-2,type:"hazard",reaction:"splash"},
-    friend:{icon:"🐛",label:"TINY FRIEND",points:3,type:"good",reaction:"inspect"},
-    mushroom:{icon:"🍄",label:"MOSS MUSHROOM",points:2,type:"good",reaction:"sniff"},
-    seed:{icon:"◇",label:"FOREST SEED",points:5,type:"rare",reaction:"awe"},
-    moonleaf:{icon:"☾",label:"MOON LEAF",points:4,type:"good",reaction:"awe"},
-    star:{icon:"★",label:"FALLEN STAR",points:7,type:"rare",reaction:"celebrate"},
-    storm:{icon:"ϟ",label:"STORM SHARD",points:7,type:"rare",reaction:"shock"},
-    thread:{icon:"⌁",label:"GOLD THREAD",points:8,type:"rare",reaction:"awe"},
-    log:{icon:"▰",label:"FALLEN LOG",points:2,type:"obstacle",reaction:"jump"}
-  };
-
-  function walkObjectPool() {
-    const biome = mini.walkBiome || WALK_BIOMES.rain;
-    const ids = [...biome.objects, "log"];
-    const rareChance = .08 + (biome.rareBias || 0) + mini.walkRisk * .035 + mini.walkLuck * .025;
-    let pool = ids.map(id => WALK_OBJECTS[id]).filter(Boolean);
-    if (Math.random() < rareChance) {
-      const rare = pool.filter(item => item.type === "rare");
-      if (rare.length) return rare;
-    }
-    pool = pool.filter(item => item.type !== "rare" || Math.random() < .12);
-    if (mini.walkWeather?.findBias && Math.random() < .22 && WALK_OBJECTS[mini.walkWeather.findBias]) return [WALK_OBJECTS[mini.walkWeather.findBias]];
-    return pool;
-  }
-
-  function spawnWalkFind() {
-    const host=$("#walkFinds"); if(!host)return;
-    const pool=walkObjectPool();
-    const data=pool[Math.floor(Math.random()*pool.length)] || WALK_OBJECTS.leaf;
-    const node=document.createElement("button");
-    node.type="button"; node.className=`walk-find ${data.type} reaction-${data.reaction}`; node.dataset.walkFind=data.label; node.textContent=data.icon; node.setAttribute("aria-label",`Interact with ${data.label}`);
-    host.appendChild(node);
-    const lane = Math.random() < .25 ? "high" : "ground";
-    node.dataset.lane = lane;
-    mini.entities.push({kind:"walk",node,data,x:Math.max(0,el.miniArena.clientWidth+20),speed:82+Math.random()*26+mini.walkRisk*4,handled:false,lane});
-  }
-
-  function walkReaction(reaction, negative = false) {
-    const pet=$("#miniPet");
-    if (!pet) return;
-    const classes=["walk-inspect","walk-splash","walk-jump","walk-awe","walk-shock","walk-sniff","walk-celebrate"];
-    pet.classList.remove(...classes);
-    const map={inspect:"walk-inspect",splash:"walk-splash",jump:"walk-jump",awe:"walk-awe",shock:"walk-shock",sniff:"walk-sniff",celebrate:"walk-celebrate"};
-    void pet.offsetWidth;
-    pet.classList.add(map[reaction] || (negative ? "walk-splash" : "walk-inspect"));
-    queueMiniTimeout(()=>pet?.classList.remove(...classes),560);
-  }
-
-  function collectWalkObject(node) {
-    const entity=mini.entities.find(item=>item.kind==="walk"&&item.node===node);
-    if(!entity||entity.handled)return;
-    entity.handled=true;
-    const points = entity.data.type === "obstacle" ? 3 : entity.data.points;
-    mini.score=Math.max(0,mini.score+points);
-    mini.hits += points > 0 ? 1 : 0;
-    if(entity.data.type==="rare") mini.treasureRolls+=2;
-    if(entity.data.type==="obstacle") mini.treasureRolls += .25;
-    const copy=entity.data.type==="hazard"?`${state.pet.name} STEPPED DIRECTLY IN IT.`:entity.data.type==="obstacle"?`${state.pet.name} CLEARED THE LOG. +3`:`${entity.data.label} • ${points>0?"+":""}${points}`;
-    setWalkCaption(mini.walkBiome.name,copy);
-    walkReaction(entity.data.reaction,points<0);
-    sfx(points<0?"sick":entity.data.type==="rare"?"reward":entity.data.type==="obstacle"?"jump":"spark");
-    haptic(points<0?[18,18,18]:entity.data.type==="rare"?[8,10,14]:8);
-    entity.node.classList.add("collected");
-    queueMiniTimeout(()=>entity.node.remove(),220);
-  }
-
-  function updateWalkGame(dt) {
-    mini.walkDistance += dt * (56 + mini.walkRisk * 3);
-    const world=$(".walk-world");
-    if(world) world.style.setProperty("--walk-distance",String(mini.walkDistance));
-    $$(".walk-layer",world || el.miniArena).forEach(layer=>{
-      const speed=Number(layer.dataset.walkSpeed)||.3;
-      layer.style.backgroundPositionX=`${-mini.walkDistance*speed}px`;
-    });
-    const progress=clamp(1-Math.max(0,mini.endAt-now())/miniDuration("walk"),0,1);
-    const bar=$("#walkDistanceBar"); if(bar)bar.style.width=`${progress*100}%`;
-    const petX=el.miniArena.clientWidth*.19;
-    for(const entity of [...mini.entities]){
-      if(entity.kind!=="walk")continue;
-      entity.x-=entity.speed*dt;
-      const y=entity.lane==="high"?"132px":"74px";
-      entity.node.style.left=`${entity.x}px`;
-      entity.node.style.bottom=y;
-      if(!entity.handled && entity.x < petX+20 && entity.x > petX-34 && ["hazard","obstacle"].includes(entity.data.type)){
-        entity.handled=true;
-        if(entity.data.type==="hazard"){
-          mini.score=Math.max(0,mini.score-2); walkReaction("splash",true); sfx("sick"); setWalkCaption(mini.walkBiome.name,`${state.pet.name} FOUND THE DEEPEST PART OF THE PUDDLE.`);
-        } else {
-          mini.score=Math.max(0,mini.score-1); walkReaction("shock",true); sfx("no"); setWalkCaption(mini.walkBiome.name,`${state.pet.name} BUMPED THE LOG. THE LOG WON.`);
-        }
-        entity.node.classList.add("collected"); queueMiniTimeout(()=>entity.node.remove(),220);
-      }
-      if(entity.x < -90 || entity.handled){
-        if(entity.x < -90) entity.node.remove();
-        mini.entities=mini.entities.filter(item=>item!==entity);
-      }
-    }
-  }
-
-  function queueMiniTimeout(callback, delay) {
-    const id=setTimeout(()=>{
-      mini.timeouts=(mini.timeouts||[]).filter(value=>value!==id);
-      if(mini.active) callback();
-    },delay);
-    mini.timeouts ||= [];
-    mini.timeouts.push(id);
-    return id;
-  }
-
-  function rhythmClockNow() {
-    // Gameplay must never depend on AudioContext.currentTime. Mobile Safari can
-    // leave an AudioContext suspended or resume it late, which previously froze
-    // or delayed notes even when Low Power Mode was off. performance.now() stays
-    // monotonic and drives visual timing; Web Audio is now sound-only.
-    return performance.now()/1000;
-  }
-
-  function stopRhythmVoices() {
-    for(const voice of mini.rhythmVoices||[]){try{voice.stop?.();}catch(error){} try{voice.disconnect?.();}catch(error){}}
-    mini.rhythmVoices=[];
-    try{mini.rhythmGain?.disconnect?.();}catch(error){}
-    mini.rhythmGain=null;
-  }
-
-  function scheduleRhythmTone(ctx,gainNode,note,when,duration,type,volume=.035){
-    if(!state.settings.music||note==null||when<ctx.currentTime-.03)return;
-    const osc=ctx.createOscillator(),gain=ctx.createGain();
-    osc.type=type;osc.frequency.setValueAtTime(midiFrequency(note),Math.max(ctx.currentTime,when));
-    gain.gain.setValueAtTime(.001,Math.max(ctx.currentTime,when));
-    gain.gain.linearRampToValueAtTime(volume,Math.max(ctx.currentTime,when)+.008);
-    gain.gain.exponentialRampToValueAtTime(.001,Math.max(ctx.currentTime,when)+duration);
-    osc.connect(gain).connect(gainNode);osc.start(Math.max(ctx.currentTime,when));osc.stop(Math.max(ctx.currentTime,when)+duration+.03);
-    mini.rhythmVoices.push(osc);
-  }
-
-  function scheduleRhythmNoise(ctx,gainNode,when,volume=.012){
-    if(!state.settings.music||when<ctx.currentTime-.03)return;
-    const size=Math.max(1,Math.floor(ctx.sampleRate*.045)),buffer=ctx.createBuffer(1,size,ctx.sampleRate),data=buffer.getChannelData(0);
-    for(let i=0;i<size;i+=1)data[i]=(Math.random()*2-1)*(1-i/size);
-    const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=buffer;
-    gain.gain.setValueAtTime(volume,Math.max(ctx.currentTime,when));gain.gain.exponentialRampToValueAtTime(.001,Math.max(ctx.currentTime,when)+.05);
-    source.connect(gain).connect(gainNode);source.start(Math.max(ctx.currentTime,when));mini.rhythmVoices.push(source);
-  }
-
-  function scheduleRhythmAudio(fromElapsed=0){
-    stopRhythmVoices();
-    if(!state.settings.music||!mini.active||mini.mode!=="rhythm")return;
-    const ctx=ensureAudio();if(!ctx)return;
-    const track=mini.rhythmTrack; const gain=ctx.createGain();gain.gain.value=currentRhythmGain();gain.connect(ctx.destination);mini.rhythmGain=gain;
-    const stepSeconds=rhythmStepSeconds(track), total=miniDuration("rhythm")/1000;
-    // Re-anchor sound to the audio clock whenever audio starts/resumes. The
-    // visual chart remains on performance.now(), so a suspended audio context
-    // can no longer freeze gameplay.
-    const startAt=ctx.currentTime-fromElapsed+.045;
-    mini.rhythmAudioStartAt=startAt;
-    const maxStep=Math.ceil(total/stepSeconds)+2;
-    for(let step=0;step<maxStep;step+=1){
-      const t=rhythmStepTime(track,step); if(t<fromElapsed-.08)continue;if(t>total)break;
-      const when=startAt+t, index=step%(track.steps||16);
-      scheduleRhythmTone(ctx,gain,track.lead[index%track.lead.length],when,Math.min(.2,stepSeconds*.72),track.wave,.028);
-      scheduleRhythmTone(ctx,gain,track.bass[index%track.bass.length],when,Math.min(.32,stepSeconds*1.2),"triangle",.022);
-      const drum=track.drums[index%track.drums.length]||0;
-      if(drum)scheduleRhythmNoise(ctx,gain,when,.008+.012*drum);
-    }
-  }
-
-  function startRhythmPerformance() {
-    ensureAudio();
-    mini.rhythmReady=false;
-    mini.rhythmStartClock=rhythmClockNow()+mini.rhythmLeadIn;
-    mini.rhythmAudioStartAt=(ensureAudio()?.currentTime ?? 0)+mini.rhythmLeadIn;
-    mini.rhythmChartIndex=0;mini.entities=[];
-    scheduleRhythmAudio(-mini.rhythmLeadIn);
-    const countdown=$("#rhythmCountdown"),number=countdown?.querySelector("b"),caption=countdown?.querySelector("span");
-    [[0,"3","FIND YOUR LANES"],[1000,"2","LEFT • MIDDLE • MIDDLE • RIGHT"],[2000,"1","WAIT FOR THE HIT LINE"],[3000,"GO","FIRST NOTE INCOMING"]].forEach(([delay,value,copy])=>queueMiniTimeout(()=>{if(number){number.textContent=value;number.classList.remove("pulse");void number.offsetWidth;number.classList.add("pulse");}if(caption)caption.textContent=copy;sfx(value==="GO"?"reward":"spark");},delay));
-    queueMiniTimeout(()=>{mini.rhythmReady=true;countdown?.classList.add("leave");const callout=$("#rhythmCallout");if(callout)callout.textContent="FIRST NOTE INCOMING";},3000);
-    queueMiniTimeout(()=>countdown?.remove(),3300);
-    queueMiniTimeout(()=>{$(".rhythm-track-intro")?.classList.add("leave");},2300);
-  }
-
-  function rhythmAccuracyPercent(){
-    const j=mini.rhythmJudgements||{perfect:0,great:0,good:0,miss:0};
-    const total=j.perfect+j.great+j.good+j.miss;
-    if(!total)return 100;
-    return Math.round(((j.perfect+j.great*.85+j.good*.65)/total)*100);
-  }
-
-  function updateRhythmHUD(){
-    const combo=$("#rhythmCombo b");if(combo)combo.textContent=String(mini.rhythmStreak||0);
-    const accuracy=$("#rhythmAccuracy b");if(accuracy)accuracy.textContent=`${rhythmAccuracyPercent()}%`;
-  }
-
-  function pulseRhythmPad(lane,className="pressed"){
-    const pad=$(`[data-rhythm-lane="${lane}"]`);if(!pad)return;
-    pad.classList.remove("pressed","perfect","wrong");void pad.offsetWidth;pad.classList.add(className);
-    queueMiniTimeout(()=>pad?.classList.remove(className),140);
-  }
-
-  function spawnRhythmEvent(event) {
-    const host=$("#rhythmNotes");if(!host||event.spawned)return;
-    const node=document.createElement("i");node.className=`rhythm-note lane-${event.lane}`;node.textContent=event.icon;node.setAttribute("aria-hidden","true");host.appendChild(node);
-    event.spawned=true;event.kind="rhythm";event.node=node;event.handled=false;mini.entities.push(event);
-  }
-
-  function updateRhythmGame() {
-    const elapsed=rhythmClockNow()-mini.rhythmStartClock;
-    // Notes may enter behind the countdown during the final travel window so
-    // the first beat reaches the line naturally after GO instead of spawning
-    // directly on the target with no reaction time.
-    while(mini.rhythmChartIndex<mini.rhythmChart.length && mini.rhythmChart[mini.rhythmChartIndex].hitTime-elapsed<=mini.rhythmTravel){
-      spawnRhythmEvent(mini.rhythmChart[mini.rhythmChartIndex]);mini.rhythmChartIndex+=1;
-    }
-    const board=$("#rhythmBoard");
-    const boardHeight=Math.max(160,board?.clientHeight||260),spawnY=-48,gateY=boardHeight-54;
-    for(const entity of [...mini.entities]){
-      if(entity.kind!=="rhythm"||entity.handled)continue;
-      const remaining=entity.hitTime-elapsed;
-      const progress=1-remaining/mini.rhythmTravel;
-      entity.y=spawnY+(gateY-spawnY)*progress;
-      entity.node.style.top=`${entity.y}px`;
-      if(elapsed-entity.hitTime>.205){
-        entity.handled=true;mini.rhythmStreak=0;mini.rhythmMisses+=1;mini.rhythmJudgements.miss+=1;
-        const callout=$("#rhythmCallout");if(callout)callout.textContent=`MISS • LANE ${entity.lane+1}`;
-        pulseRhythmPad(entity.lane,"wrong");updateRhythmHUD();sfx("no");entity.node.classList.add("missed");queueMiniTimeout(()=>entity.node?.remove(),180);
-      }
-    }
-    mini.entities=mini.entities.filter(entity=>!entity.handled||entity.node?.isConnected);
-  }
-
-  function rhythmTap(lane) {
-    lane=clamp(Number(lane)||0,0,3);
-    if(!mini.rhythmReady){const callout=$("#rhythmCallout");if(callout)callout.textContent="WAIT FOR GO";pulseRhythmPad(lane,"wrong");return;}
-    pulseRhythmPad(lane,"pressed");
-    const elapsed=rhythmClockNow()-mini.rhythmStartClock;
-    const open=mini.entities.filter(item=>item.kind==="rhythm"&&!item.handled);
-    const notes=open.filter(item=>item.lane===lane);
-    const target=notes.sort((a,b)=>Math.abs(a.hitTime-elapsed)-Math.abs(b.hitTime-elapsed))[0];
-    const nearestAny=[...open].sort((a,b)=>Math.abs(a.hitTime-elapsed)-Math.abs(b.hitTime-elapsed))[0];
-    if(!target||Math.abs(target.hitTime-elapsed)>.205){
-      mini.rhythmBlankTaps+=1;
-      if(mini.rhythmStreak>0)mini.rhythmStreak=0;
-      const callout=$("#rhythmCallout");
-      if(nearestAny&&Math.abs(nearestAny.hitTime-elapsed)<=.23){
-        if(callout)callout.textContent=`WRONG LANE • TRY ${nearestAny.lane+1}`;
-      }else if(callout){
-        const relation=nearestAny?(nearestAny.hitTime>elapsed?"TOO EARLY":"TOO LATE"):"NO NOTE THERE";
-        callout.textContent=relation;
-      }
-      pulseRhythmPad(lane,"wrong");updateRhythmHUD();sfx("no");return;
-    }
-    const signed=target.hitTime-elapsed,delta=Math.abs(signed);
-    const result=delta<=.055?{grade:"PERFECT",points:5,key:"perfect"}:delta<=.105?{grade:"GREAT",points:3,key:"great"}:{grade:"GOOD",points:1,key:"good"};
-    target.handled=true;target.node?.classList.add("hit",result.key);queueMiniTimeout(()=>target.node?.remove(),150);
-    mini.rhythmStreak+=1;mini.rhythmMaxStreak=Math.max(mini.rhythmMaxStreak,mini.rhythmStreak);mini.hits+=1;mini.rhythmJudgements[result.key]+=1;
-    mini.score+=result.points+Math.floor(mini.rhythmStreak/8);
-    const timing=delta<=.055?"":signed>0?" • EARLY":" • LATE";
-    const callout=$("#rhythmCallout");if(callout)callout.textContent=`${result.grade}${timing} • ${mini.rhythmStreak} COMBO`;
-    pulseRhythmPad(lane,result.key==="perfect"?"perfect":"pressed");updateRhythmHUD();
-    $("#miniPet")?.classList.add("rhythm-hit");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("rhythm-hit"),220);
-    sfx(result.key==="perfect"?"perfect":"dance",mini.rhythmStreak);haptic(result.key==="perfect"?[8,12,8]:6);
-  }
-
-  function lightMemoryRune(index,on=true) { const rune=$(`[data-memory-rune="${index}"]`); if(rune)rune.classList.toggle("lit",on); }
-  function memoryExpectedSequence(){let base=[...mini.memorySequence];if(mini.memoryMode.includes("reverse"))base.reverse();if(mini.memoryMode.includes("opposite"))base=base.map(value=>3-value);if(mini.memoryMode.includes("rotate")){const shift=mini.memoryShift||1;base=base.map(value=>(value+shift)%4);}return base;}
-  function memoryRuleLabel(){return {forward:"CLEAN SIGNAL",reverse:"PLAY BACKWARD",opposite:"PLAY OPPOSITES","reverse-opposite":"BACKWARD + OPPOSITE",rotate:`ROTATE +${mini.memoryShift||1}`,"reverse-rotate":`BACKWARD + ROTATE`}[mini.memoryMode]||String(mini.memoryMode||"SIGNAL").toUpperCase();}
-  function updateMemoryHUD(){const rule=$("#memoryRule"),hearts=$("#memoryHearts");if(rule)rule.textContent=memoryRuleLabel();if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.memoryLives?"♥":"♡").join(" ");}
-
-  function startMemoryRound() {
-    if(!mini.active||mini.mode!=="memory")return;
-    mini.memoryRound+=1;mini.memoryBestRound=Math.max(mini.memoryBestRound,mini.memoryRound);mini.memoryInput=0;mini.memoryShowing=true;mini.memoryShift=1+(mini.memoryRound%3);mini.memoryRuleDepth=mini.memoryRound>=7?2:1;
-    if(mini.memoryRound>=9&&mini.memoryRound%3===0)mini.memoryMode="reverse-rotate";else if(mini.memoryRound>=7&&mini.memoryRound%2===1)mini.memoryMode="reverse-opposite";else if(mini.memoryRound>=5&&mini.memoryRound%5===0)mini.memoryMode="rotate";else if(mini.memoryRound>=4&&mini.memoryRound%4===0)mini.memoryMode="opposite";else if(mini.memoryRound>=3&&mini.memoryRound%3===0)mini.memoryMode="reverse";else mini.memoryMode="forward";
-    mini.memorySequence.push(Math.floor(Math.random()*4));updateMemoryHUD();
-    const callout=$("#memoryCallout"),speed=Math.max(250,520-mini.memoryRound*24);if(callout)callout.textContent=`ROUND ${mini.memoryRound} • LISTEN • ${memoryRuleLabel()}`;
-    mini.memorySequence.forEach((value,index)=>{queueMiniTimeout(()=>{lightMemoryRune(value,true);sfx("spark",index);},index*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),index*speed+Math.min(270,speed*.58));});
-    queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`YOUR TURN • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+140);
-  }
-
-  function memoryTap(index) {
-    if(!mini.active||mini.mode!=="memory"||mini.memoryShowing)return;
-    lightMemoryRune(index,true);queueMiniTimeout(()=>lightMemoryRune(index,false),180);const expectedSequence=memoryExpectedSequence(),expected=expectedSequence[mini.memoryInput];
-    if(index===expected){mini.memoryInput+=1;mini.score+=2+mini.memoryRound;sfx("spark",mini.memoryInput);haptic(6);$("#miniPet")?.classList.add("memory-nod");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-nod"),180);if(mini.memoryInput>=expectedSequence.length){mini.hits+=1;mini.score+=mini.memoryRound*(mini.memoryRuleDepth>1?6:mini.memoryMode==="forward"?2:4);mini.memoryShowing=true;const callout=$("#memoryCallout");if(callout)callout.textContent=`${memoryRuleLabel()} CLEAN • +${mini.memoryRound*(mini.memoryRuleDepth>1?6:4)}`;sfx("reward");queueMiniTimeout(startMemoryRound,720);}}
-    else {mini.score=Math.max(0,mini.score-3);mini.memoryLives-=1;mini.memoryShowing=true;updateMemoryHUD();const callout=$("#memoryCallout");if(callout)callout.textContent=mini.memoryLives>0?"WRONG RUNE • STUDY IT AGAIN":"MEMORY OVERLOADED";$("#miniPet")?.classList.add("memory-confused");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("memory-confused"),420);sfx("no");haptic([15,20,15]);if(mini.memoryLives<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}queueMiniTimeout(()=>{mini.memoryInput=0;mini.memoryShowing=true;const speed=Math.max(250,430-mini.memoryRound*16);mini.memorySequence.forEach((value,i)=>{queueMiniTimeout(()=>lightMemoryRune(value,true),i*speed);queueMiniTimeout(()=>lightMemoryRune(value,false),i*speed+220);});queueMiniTimeout(()=>{mini.memoryShowing=false;if(callout)callout.textContent=`TRY • ${memoryRuleLabel()}`;},mini.memorySequence.length*speed+100);},520);}
-  }
-
-  function updateGlidePet(){const pet=$("#miniPet");if(!pet)return;pet.style.top=`${mini.glideY}px`;pet.style.setProperty("--glide-tilt",`${clamp(mini.glideV/18,-18,22)}deg`);}
-  function glideFlap(){if(!mini.active||mini.mode!=="glide")return;mini.glideV=now()<mini.glideThermalUntil?-270:-315;sfx("jump");haptic(6);$("#miniPet")?.classList.add("glide-flap");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-flap"),140);}
-  function spawnGlideGate(){const host=$("#glideGates");if(!host)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,progress=1-Math.max(0,mini.endAt-now())/miniDuration("glide"),rare=Math.random()<.12,gapH=Math.max(104,148-progress*36-(rare?12:0)),margin=84,gapY=margin+gapH/2+Math.random()*Math.max(1,height-margin*2-gapH);const node=document.createElement("div");node.className=`glide-gate ${rare?"prism":""}`;node.innerHTML=`<i class="top"></i><i class="bottom"></i><b>${rare?"◆":""}</b>`;host.appendChild(node);const entity={kind:"glide",node,x:width+38,width:58,gapY,gapH,speed:128+progress*46+(rare?9:0),scored:false,rare};mini.entities.push(entity);mini.glideGateCount+=1;}
-  function updateGlideGateNode(entity){const h=el.miniArena.clientHeight,topH=Math.max(0,entity.gapY-entity.gapH/2),bottomY=Math.min(h,entity.gapY+entity.gapH/2);entity.node.style.transform=`translateX(${entity.x}px)`;entity.node.style.setProperty("--gate-top",`${topH}px`);entity.node.style.setProperty("--gate-bottom",`${Math.max(0,h-bottomY)}px`);}
-  function glideCrash(){if(now()<mini.glideInvulnerableUntil)return;mini.glideHearts-=1;mini.glideStreak=0;mini.glideDraft=0;const draft=$("#glideDraft");if(draft)draft.textContent="0/3";mini.glideInvulnerableUntil=now()+1250;const hearts=$("#glideHearts"),streak=$("#glideStreak");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.glideHearts?"♥":"♡").join(" ");if(streak)streak.textContent="0";$("#miniPet")?.classList.add("glide-hurt");queueMiniTimeout(()=>$("#miniPet")?.classList.remove("glide-hurt"),520);sfx("hit");haptic([18,26,18]);mini.glideY=el.miniArena.clientHeight*.46;mini.glideV=-80;for(const entity of mini.entities.filter(e=>e.kind==="glide")){entity.node.remove();}mini.entities=mini.entities.filter(e=>e.kind!=="glide");mini.glideSpawnAt=now()+1050;if(mini.glideHearts<=0)mini.endAt=Math.min(mini.endAt,now()+450);}
-  function updateGlideGame(dt){const t=now(),height=el.miniArena.clientHeight,width=el.miniArena.clientWidth,thermal=t<mini.glideThermalUntil;if(mini.glideThermalUntil&&t>=mini.glideThermalUntil){mini.glideThermalUntil=0;$(".glide-world")?.classList.remove("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="CENTER 3 GATES → THERMAL";}if(t>=mini.glideWindAt){mini.glideWind=[-72,-38,0,42,76][Math.floor(Math.random()*5)];mini.glideWindAt=t+5200+Math.random()*2200;const wind=$("#glideWind");if(wind)wind.textContent=mini.glideWind<-20?"UPDRAFT ↑":mini.glideWind>20?"DOWNDRAFT ↓":"CALM AIR";}mini.glideV+=((thermal?525:760)+(thermal?mini.glideWind*.35:mini.glideWind))*dt;mini.glideY+=mini.glideV*dt;updateGlidePet();if(t>=mini.glideSpawnAt){spawnGlideGate();mini.glideSpawnAt=t+1450;}const petX=width*.24,petR=22;for(const entity of [...mini.entities]){if(entity.kind!=="glide")continue;entity.x-=entity.speed*dt;updateGlideGateNode(entity);const overlapX=entity.x<petX+petR&&entity.x+entity.width>petX-petR,top=entity.gapY-entity.gapH/2,bottom=entity.gapY+entity.gapH/2;if(overlapX&&(mini.glideY-petR<top||mini.glideY+petR>bottom))glideCrash();if(!entity.scored&&entity.x+entity.width<petX){entity.scored=true;mini.glideClears+=1;mini.glideStreak+=1;mini.glideBestStreak=Math.max(mini.glideBestStreak,mini.glideStreak);const centered=Math.abs(mini.glideY-entity.gapY)<20,gain=((entity.rare?6:3)+(centered?2:0))*(thermal?2:1);mini.score+=gain;const streak=$("#glideStreak");if(streak)streak.textContent=String(mini.glideStreak);if(centered){mini.glideDraft+=entity.rare?2:1;if(mini.glideDraft>=3){mini.glideDraft=0;mini.glideThermalUntil=t+4200;mini.glideThermals+=1;$(".glide-world")?.classList.add("thermal");const banner=$("#glideThermal");if(banner)banner.textContent="THERMAL BURST • PHYSICS SOFTENED • x2";sensoryBurst("THERMAL BURST","#ffd45a",12);sfx("reward");}else{sensoryBurst("CENTER THREAD","#9eff75",8);sfx("perfect");}const draft=$("#glideDraft");if(draft)draft.textContent=`${mini.glideDraft}/3`;}else sfx(entity.rare?"reward":"spark");}if(entity.x<-90){entity.node.remove();mini.entities=mini.entities.filter(item=>item!==entity);}}if((mini.glideY<28||mini.glideY>height-48)&&t>=mini.glideInvulnerableUntil)glideCrash();}
-
-  function setBreakerPaddle(ratio){mini.breakerX=clamp(Number(ratio)||.5,.08,.92);mini.breakerMoves=(mini.breakerMoves||0)+1;const pet=$("#miniPet");if(pet)pet.style.left=`${mini.breakerX*100}%`;}
-  const BREAKER_PATTERNS=[
-    {name:"BROKEN X",rows:["1.1.1.1",".11111.","..1C1..",".11111."]},
-    {name:"FIRE TEETH",rows:["E1.1.1E",".21112.","11C.C11",".11111."]},
-    {name:"BRIDGE MARK",rows:["..111..",".1P1P1.","11.C.11","1111111"]},
-    {name:"KEEPER EYE",rows:[".11111.","11...11","1..C..1","11...11",".11111."]}
-  ];
-  function buildBreakerBoard(){const host=$("#breakerBlocks");if(!host)return;host.innerHTML="";mini.entities=mini.entities.filter(e=>e.kind!=="breaker-block");const pattern=BREAKER_PATTERNS[(mini.breakerLevel-1)%BREAKER_PATTERNS.length],cols=7,rows=pattern.rows.length,pad=7,arenaW=Math.max(280,el.miniArena.clientWidth),blockW=(arenaW-28-pad*(cols-1))/cols,blockH=28;mini.breakerPatternName=pattern.name;mini.breakerCores=0;for(let row=0;row<rows;row+=1){for(let col=0;col<cols;col+=1){const token=pattern.rows[row]?.[col]||".";if(token===".")continue;const special=token==="P"?"prism":token==="E"?"ember":token==="C"?"core":null,hp=token==="2"?2:(mini.breakerLevel>=4&&token==="1"&&((row+col+mini.breakerLevel)%5===0)?2:1),node=document.createElement("i");node.className=`breaker-block ${hp>1?"armored":""} ${special||""}`;node.style.left=`${14+col*(blockW+pad)}px`;node.style.top=`${54+row*(blockH+7)}px`;node.style.width=`${blockW}px`;node.style.height=`${blockH}px`;node.textContent=special==="prism"?"◆":special==="ember"?"✦":special==="core"?"×":"";host.appendChild(node);if(special==="core")mini.breakerCores+=1;mini.entities.push({kind:"breaker-block",node,row,col,x:14+col*(blockW+pad),y:54+row*(blockH+7),w:blockW,h:blockH,hp,special});}}const level=$("#breakerLevel"),cores=$("#breakerCoreCount"),name=$("#breakerPattern");if(level)level.textContent=String(mini.breakerLevel);if(cores)cores.textContent=String(mini.breakerCores);if(name)name.textContent=pattern.name;}
-  function breakerCollapseCore(core){const neighbors=mini.entities.filter(item=>item.kind==="breaker-block"&&item.node?.isConnected&&item!==core&&item.special!=="core"&&Math.abs((item.row??0)-(core.row??0))+Math.abs((item.col??0)-(core.col??0))<=2).slice(0,5);for(const item of neighbors){item.node.classList.add("break","core-collapse");mini.score+=2;queueMiniTimeout(()=>item.node.remove(),150);mini.entities=mini.entities.filter(entry=>entry!==item);}mini.breakerCoresBroken+=1;mini.breakerCores=Math.max(0,mini.breakerCores-1);const cores=$("#breakerCoreCount");if(cores)cores.textContent=String(mini.breakerCores);sensoryBurst("CORE COLLAPSE","#ff5c6c",14);sfx("reward");haptic([10,14,20]);}
-  function resetBreakerBall(first=false){const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,angle=(Math.random()*.7-.35);mini.breakerBall={x:width*mini.breakerX,y:height-128,vx:190*Math.sin(angle),vy:-245*Math.cos(angle),r:9,live:false};mini.breakerResetAt=now()+(first?900:720);const ball=$("#breakerBall");if(ball){ball.style.left=`${mini.breakerBall.x}px`;ball.style.top=`${mini.breakerBall.y}px`;}}
-  function breakerLoseBall(){if(now()<mini.breakerResetAt)return;mini.breakerHearts-=1;mini.breakerStreak=0;const hearts=$("#breakerHearts"),streak=$("#breakerStreak");if(hearts)hearts.textContent=Array(3).fill(0).map((_,i)=>i<mini.breakerHearts?"♥":"♡").join(" ");if(streak)streak.textContent="0";sfx("no");haptic([14,18,14]);if(mini.breakerHearts<=0){mini.endAt=Math.min(mini.endAt,now()+450);return;}resetBreakerBall();}
-  function updateBreakerGame(dt){const b=mini.breakerBall;if(!b)return;const width=el.miniArena.clientWidth,height=el.miniArena.clientHeight,t=now();if(!b.live){b.x=width*mini.breakerX;b.y=height-128;if(t>=mini.breakerResetAt)b.live=true;}else{const speedBoost=1+Math.min(.22,(mini.breakerLevel-1)*.035);b.x+=b.vx*dt*speedBoost;b.y+=b.vy*dt*speedBoost;if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x+b.r>width){b.x=width-b.r;b.vx=-Math.abs(b.vx);}if(b.y-b.r<38){b.y=38+b.r;b.vy=Math.abs(b.vy);}const paddleX=width*mini.breakerX,paddleY=height-108,paddleHalf=t<mini.breakerBoostUntil?66:48;if(b.vy>0&&b.y+b.r>=paddleY&&b.y-b.r<=paddleY+28&&Math.abs(b.x-paddleX)<=paddleHalf){const offset=clamp((b.x-paddleX)/paddleHalf,-1,1);b.y=paddleY-b.r;b.vy=-Math.max(235,Math.abs(b.vy));b.vx=clamp(b.vx+offset*125,-300,300);mini.breakerStreak+=1;mini.breakerBestStreak=Math.max(mini.breakerBestStreak,mini.breakerStreak);const streak=$("#breakerStreak");if(streak)streak.textContent=String(mini.breakerStreak);sfx("hit");haptic(5);}for(const block of [...mini.entities]){if(block.kind!=="breaker-block"||!block.node.isConnected)continue;if(b.x+b.r<block.x||b.x-b.r>block.x+block.w||b.y+b.r<block.y||b.y-b.r>block.y+block.h)continue;if(t-(block.lastHitAt||0)<70)continue;block.lastHitAt=t;block.hp-=1;if(t>=mini.breakerPierceUntil)b.vy*=-1;mini.score+=block.hp<=0?(block.special?8:2):1;if(block.hp<=0){block.node.classList.add("break");queueMiniTimeout(()=>block.node.remove(),130);mini.entities=mini.entities.filter(item=>item!==block);if(block.special==="prism"){mini.breakerBoostUntil=t+5200;$(".breaker-world")?.classList.add("boost");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("boost"),5200);sensoryBurst("PRISM PADDLE","#bdf7ff",10);sfx("reward");}else if(block.special==="ember"){mini.breakerPierceUntil=t+4200;$(".breaker-world")?.classList.add("fireball");queueMiniTimeout(()=>$(".breaker-world")?.classList.remove("fireball"),4200);sensoryBurst("EMBER BALL • PIERCE","#ff9b4e",10);sfx("reward");}else if(block.special==="core"){breakerCollapseCore(block);}else sfx("spark");}else{block.node.classList.remove("armored");block.node.classList.add("cracked");sfx("hit");}break;}if(b.y-b.r>height+20)breakerLoseBall();}const ball=$("#breakerBall");if(ball){ball.style.left=`${b.x}px`;ball.style.top=`${b.y}px`;}const blocks=mini.entities.filter(e=>e.kind==="breaker-block"&&e.node.isConnected);if(!blocks.length&&!mini.breakerBoardPending){mini.breakerBoardPending=true;mini.breakerLevel+=1;mini.score+=12+mini.breakerLevel*2;sensoryBurst(`WALL ${mini.breakerLevel}`,"#ffd54a",12);sfx("reward");queueMiniTimeout(()=>{if(!mini.active||mini.mode!=="breaker")return;mini.breakerBoardPending=false;buildBreakerBoard();resetBreakerBall();},650);}}
-
-
-  const RUNAWAY_MAZE = [
-    "###############","#o.....#.....o#","#.###.#.#.###.#","#.....#.#.....#","###.#.....#.###","#...#.###.#...#","#.#...#.#...#.#","#.#.###.###.#.#","#.............#","#.#.###.###.#.#","#.#...#.#...#.#","#...#.###.#...#","###.#.....#.###","#.....#.#.....#","#.###.#.#.###.#","#o.....#.....o#","###############"
-  ];
-  const MAZE_DIRS={up:{dr:-1,dc:0},down:{dr:1,dc:0},left:{dr:0,dc:-1},right:{dr:0,dc:1}};
-  const MAZE_REVERSE={up:"down",down:"up",left:"right",right:"left"};
-  function mazeOpen(r,c){return Boolean(mini.mazeGrid?.[r]?.[c]&&mini.mazeGrid[r][c]!=="#");}
-  function mazeCellKey(r,c){return `${r}-${c}`;}
-  function mazeSetDirection(dir){if(!MAZE_DIRS[dir]||!mini.mazePlayer)return;mini.mazePlayer.nextDir=dir;mini.mazeInputs=(mini.mazeInputs||0)+1;mini.mazeTurnHistory.push(dir);if(mini.mazeTurnHistory.length>12)mini.mazeTurnHistory.shift();const counts={};for(const item of mini.mazeTurnHistory)counts[item]=(counts[item]||0)+1;mini.mazeFavoriteDir=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0]||"";}
-  function mazeStepPoint(actor,dir){const d=MAZE_DIRS[dir];return d?{r:actor.r+d.dr,c:actor.c+d.dc}:null;}
-  function mazeCanMove(actor,dir){const p=mazeStepPoint(actor,dir);return Boolean(p&&mazeOpen(p.r,p.c));}
-  function mazeActorStyle(node,r,c){if(!node)return;const rows=mini.mazeGrid.length,cols=mini.mazeGrid[0]?.length||15;node.style.left=`${((c+.5)/cols)*100}%`;node.style.top=`${((r+.5)/rows)*100}%`;}
-  function buildMazeLevel(first=false){
-    mini.mazeGrid=RUNAWAY_MAZE.map(row=>row.split(""));mini.mazeMoveCarry=0;mini.mazeHunterCarry=0;mini.mazeHuntUntil=0;mini.mazeCombo=0;
-    const board=$("#mazeBoard");if(!board)return;board.innerHTML="";board.style.setProperty("--maze-cols",String(mini.mazeGrid[0].length));board.style.setProperty("--maze-rows",String(mini.mazeGrid.length));
-    mini.mazePellets=0;
-    mini.mazeGrid.forEach((row,r)=>row.forEach((cell,c)=>{const tile=document.createElement("i");tile.className=cell==="#"?"maze-wall":"maze-floor";tile.dataset.mazeCell=mazeCellKey(r,c);if(cell!=="#"){if(cell==="o"){tile.classList.add("power");tile.innerHTML="<b>◆</b>";}else{tile.classList.add("pellet");tile.innerHTML="<b>•</b>";}mini.mazePellets+=1;}board.appendChild(tile);}));
-    const player=document.createElement("div");player.id="mazeRizo";player.className="maze-rizo";player.innerHTML=miniPetMarkup("maze-rizo-inner");board.appendChild(player);
-    mini.mazePlayer={r:8,c:7,dir:"down",nextDir:"down",node:player};mazeActorStyle(player,8,7);mini.mazeHunterWakeAt=now()+(first?1150:700);
-    const starts=[{r:8,c:1,kind:"chase"},{r:8,c:13,kind:"ambush"},{r:3,c:7,kind:"wander"}];
-    mini.mazeHunters=starts.map((spot,index)=>{const node=document.createElement("div");node.className=`maze-hunter hunter-${index}`;node.innerHTML="<i></i><b>×</b>";board.appendChild(node);const hunter={...spot,spawnR:spot.r,spawnC:spot.c,dir:index===0?"right":index===1?"left":"down",node,index};mazeActorStyle(node,spot.r,spot.c);return hunter;});
-    // Do not award the starting tile for free.
-    const startTile=board.querySelector(`[data-maze-cell="${mazeCellKey(8,7)}"]`);if(startTile?.classList.contains("pellet")){startTile.classList.remove("pellet");startTile.innerHTML="";mini.mazeGrid[8][7]=" ";mini.mazePellets-=1;}
-    const level=$("#mazeLevel"),combo=$("#mazeCombo"),lives=$("#mazeLives"),callout=$("#mazeCallout");if(level)level.textContent=String(mini.mazeLevel);if(combo)combo.textContent="0";if(lives)lives.textContent=Array(3).fill(0).map((_,i)=>i<mini.mazeLives?"♥":"♡").join(" ");if(callout)callout.textContent=first?"MOVE FIRST • SHADOWS ARE WAKING":"NEW MAZE • SHADOWS WAKE FASTER";
-  }
-  function mazeCollect(){
-    const p=mini.mazePlayer,cell=mini.mazeGrid[p.r][p.c];if(cell!=="."&&cell!=="o")return;
-    const tile=$("#mazeBoard")?.querySelector(`[data-maze-cell="${mazeCellKey(p.r,p.c)}"]`);mini.mazeGrid[p.r][p.c]=" ";mini.mazePellets=Math.max(0,mini.mazePellets-1);tile?.classList.remove("pellet","power");if(tile)tile.innerHTML="";
-    if(cell==="o"){mini.score+=6;mini.mazeHunts+=1;mini.mazeCombo=0;mini.mazeHuntUntil=now()+5400;$(".maze-world")?.classList.add("hunt");const callout=$("#mazeCallout");if(callout)callout.textContent="PRISM HUNT • CHASE THEM";sensoryBurst("HUNT MODE","#bdf7ff",12);sfx("reward");haptic([7,10,7]);}
-    else{mini.score+=1;sfx("spark",mini.mazePellets%8);}
-    if(mini.mazePellets<=0){mini.score+=25*mini.mazeLevel;mini.mazeLives=Math.min(3,mini.mazeLives+1);mini.mazeLevel+=1;sensoryBurst(`MAZE ${mini.mazeLevel}`,"#ffd45a",14);sfx("reward");queueMiniTimeout(()=>{if(mini.active&&mini.mode==="maze")buildMazeLevel(false);},520);}
-  }
-  function mazeHunterTarget(hunter){
-    const p=mini.mazePlayer;if(hunter.kind==="ambush"){const predicted=mini.mazeLevel>=2&&mini.mazeFavoriteDir?mini.mazeFavoriteDir:p.dir;const d=MAZE_DIRS[predicted]||MAZE_DIRS.left;return{r:p.r+d.dr*3,c:p.c+d.dc*3};}
-    if(hunter.kind==="wander"&&Math.random()<.48)return{r:1+Math.floor(Math.random()*15),c:1+Math.floor(Math.random()*13)};
-    return{r:p.r,c:p.c};
-  }
-  function mazeChooseHunterDir(hunter){
-    let dirs=Object.keys(MAZE_DIRS).filter(dir=>mazeCanMove(hunter,dir));if(dirs.length>1)dirs=dirs.filter(dir=>dir!==MAZE_REVERSE[hunter.dir]);if(!dirs.length)dirs=Object.keys(MAZE_DIRS).filter(dir=>mazeCanMove(hunter,dir));if(!dirs.length)return hunter.dir;
-    const target=mazeHunterTarget(hunter),hunting=now()<mini.mazeHuntUntil;
-    dirs.sort((a,b)=>{const pa=mazeStepPoint(hunter,a),pb=mazeStepPoint(hunter,b),da=Math.abs(pa.r-target.r)+Math.abs(pa.c-target.c),db=Math.abs(pb.r-target.r)+Math.abs(pb.c-target.c);return hunting?db-da:da-db;});
-    if(Math.random()<(.24-(mini.mazeLevel-1)*.02))return dirs[Math.floor(Math.random()*dirs.length)];return dirs[0];
-  }
-  function mazeResetAfterHit(){const p=mini.mazePlayer;p.r=8;p.c=7;p.dir="down";p.nextDir="down";mazeActorStyle(p.node,p.r,p.c);mini.mazeHunters.forEach(h=>{h.r=h.spawnR;h.c=h.spawnC;h.dir=h.index===0?"right":h.index===1?"left":"down";mazeActorStyle(h.node,h.r,h.c);});}
-  function mazeCollision(){
-    const p=mini.mazePlayer,t=now();for(const h of mini.mazeHunters){if(h.r!==p.r||h.c!==p.c)continue;if(t<mini.mazeHuntUntil){mini.mazeCombo+=1;mini.mazeBestCombo=Math.max(mini.mazeBestCombo,mini.mazeCombo);mini.mazeHunterTags+=1;const gain=10*Math.min(5,mini.mazeCombo);mini.score+=gain;h.r=h.spawnR;h.c=h.spawnC;mazeActorStyle(h.node,h.r,h.c);const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent=String(mini.mazeCombo);if(callout)callout.textContent=`SHADOW TAG x${mini.mazeCombo} • +${gain}`;sfx("perfect");haptic([8,10,12]);continue;}if(t<mini.mazeInvulnerableUntil)continue;mini.mazeLives-=1;mini.mazeCombo=0;mini.mazeInvulnerableUntil=t+1500;const lives=$("#mazeLives"),combo=$("#mazeCombo"),callout=$("#mazeCallout");if(lives)lives.textContent=Array(3).fill(0).map((_,i)=>i<mini.mazeLives?"♥":"♡").join(" ");if(combo)combo.textContent="0";if(callout)callout.textContent=mini.mazeLives>0?"CAUGHT • ROUTE RESET":"THE SHADOWS GOT RIZO";$("#mazeRizo")?.classList.add("hurt");queueMiniTimeout(()=>$("#mazeRizo")?.classList.remove("hurt"),520);sfx("hit");haptic([20,24,20]);if(mini.mazeLives<=0){mini.endAt=Math.min(mini.endAt,t+450);return;}mazeResetAfterHit();}
-  }
-  function mazeMovePlayer(){const p=mini.mazePlayer;if(!p)return;if(mazeCanMove(p,p.nextDir))p.dir=p.nextDir;if(!mazeCanMove(p,p.dir))return;const next=mazeStepPoint(p,p.dir);p.r=next.r;p.c=next.c;mazeActorStyle(p.node,p.r,p.c);p.node.dataset.dir=p.dir;mazeCollect();mazeCollision();}
-  function mazeMoveHunters(){for(const h of mini.mazeHunters){h.dir=mazeChooseHunterDir(h);if(mazeCanMove(h,h.dir)){const next=mazeStepPoint(h,h.dir);h.r=next.r;h.c=next.c;mazeActorStyle(h.node,h.r,h.c);}mazeCollision();}}
-  function updateMazeGame(dt){if(!mini.mazePlayer)return;const t=now();if(mini.mazeHuntUntil&&t>=mini.mazeHuntUntil){mini.mazeHuntUntil=0;mini.mazeCombo=0;$(".maze-world")?.classList.remove("hunt");const combo=$("#mazeCombo"),callout=$("#mazeCallout");if(combo)combo.textContent="0";if(callout)callout.textContent="SHADOWS ARE HUNTING AGAIN";}
-    mini.mazeMoveCarry+=dt;const playerStep=Math.max(.092,.132-(mini.mazeLevel-1)*.004),hunterStep=Math.max(.105,.168-(mini.mazeLevel-1)*.008);
-    while(mini.mazeMoveCarry>=playerStep){mini.mazeMoveCarry-=playerStep;mazeMovePlayer();}
-    if(t>=mini.mazeHunterWakeAt){mini.mazeHunterCarry+=dt;while(mini.mazeHunterCarry>=hunterStep){mini.mazeHunterCarry-=hunterStep;mazeMoveHunters();}}
-  }
-
+  // ===== INPUT =====
+  // The arena routes pointer and keyboard input to the live game. Hearts and
+  // readouts are information, never the play surface.
   function handleMiniInput(event) {
-    if (!mini.active || mini.pausedByAd) return;
-    if (mini.mode === "walk") {
-      const forkBtn = event.target.closest(".walk-fork-btn");
-      if (forkBtn) { chooseWalkFork(forkBtn.dataset.walkFork); return; }
-    }
-    if (mini.pausedByFork) return;
-    if (mini.mode === "defense") { handleDefensePointerDown(event); return; }
+    if (!mini.active || arcadeFrozen()) return;
+    if (event.target.closest?.("[data-mini-readout]")) return;
     mini.playerInputs=(mini.playerInputs||0)+1;
-    if (mini.mode === "power") { const tech=event.target.closest("[data-power-tech]")?.dataset.powerTech;if(tech)powerTap(tech);return; }
-    if (mini.mode === "spark") {
-      if(event.target.closest("[data-spark-bank]")){bankSparkStash(false);return;}
-      if (event.target.closest(".spark-orb")) catchSpark();
-      return;
-    }
-    if (mini.mode === "forage") {
-      const rect=el.miniArena.getBoundingClientRect();
-      const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-      setForageLane(Math.min(2,Math.floor(ratio*3)));
-      return;
-    }
-    if (mini.mode === "rush") { rushJump(); return; }
-    if (mini.mode === "rhythm") {
-      const laneButton=event.target.closest("[data-rhythm-lane]");
-      if(laneButton){rhythmTap(Number(laneButton.dataset.rhythmLane));return;}
-      const board=$("#rhythmBoard");const rect=(board||el.miniArena).getBoundingClientRect();
-      const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,.9999);
-      rhythmTap(Math.floor(ratio*4));return;
-    }
-    if (mini.mode === "memory") {
-      const rune = event.target.closest("[data-memory-rune]");
-      if (rune) memoryTap(Number(rune.dataset.memoryRune));
-      return;
-    }
-    if (mini.mode === "maze") { const dir=event.target.closest("[data-maze-dir]")?.dataset.mazeDir;if(dir){mazeSetDirection(dir);return;}mini.mazePointerStart={x:event.clientX,y:event.clientY};return; }
-    if (mini.mode === "glide") { glideFlap(); return; }
-    if (mini.mode === "breaker") {
-      const rect=el.miniArena.getBoundingClientRect();setBreakerPaddle((event.clientX-rect.left)/Math.max(1,rect.width));return;
-    }
-    if (mini.mode === "walk") {
-      const find=event.target.closest(".walk-find");
-      if(find) collectWalkObject(find);
-    }
+    callGame("input", event);
   }
-
   function handleMiniMove(event) {
-    if (!mini.active || mini.pausedByAd) return;
-    if (mini.mode === "defense") { moveDefenseDrag(event); return; }
-    if(mini.mode==="maze"){if(!mini.mazePointerStart)return;const dx=event.clientX-mini.mazePointerStart.x,dy=event.clientY-mini.mazePointerStart.y;if(Math.hypot(dx,dy)>=22){mazeSetDirection(Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up"));mini.mazePointerStart={x:event.clientX,y:event.clientY};}return;}
-    if (!["forage","breaker"].includes(mini.mode)) return;
-    if (event.buttons === 0 && event.pointerType === "mouse") return;
-    const rect=el.miniArena.getBoundingClientRect();
-    const ratio=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-    if(mini.mode==="breaker"){setBreakerPaddle(ratio);return;}
-    setForageLane(Math.min(2,Math.floor(ratio*3)));
+    if (!mini.active || arcadeFrozen()) return;
+    callGame("move", event);
+  }
+  function handleMiniRelease(event, cancelled=false) {
+    if (!mini.active) return;
+    callGame("release", event, cancelled);
+  }
+  function handleMiniKey(event) {
+    if (!mini.active || arcadeFrozen()) return false;
+    return Boolean(callGame("key", event));
   }
 
-  // ===== RIZO DEFENSE: automatic worlds, bosses and drag/tap placement =====
-  // Defense remains one Arcade mode and one pet renderer. Every deployed unit,
-  // roster card and drag ghost is still generated by petMarkup().
-  function defenseCurvePoint(p0,p1,p2,p3,t){
-    const t2=t*t,t3=t2*t;
-    return{
-      x:.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
-      y:.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
-    };
+  // ===== SHARED ARCADE PAUSE / QUIT =====
+  function arcadeCanPause(){ return Boolean(mini?.active && trainingRun && callGame("canPause") !== false); }
+  function openArcadePause(){
+    if(!arcadeCanPause() || trainingRun.paused) return false;
+    trainingRun.paused=true;
+    arcadeFreeze("menu");
+    renderArcadePausePanel();
+    if(el.miniPausePanel) el.miniPausePanel.hidden=false;
+    el.miniGameOverlay.classList.add("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","true"); el.miniPause.textContent="RESUME"; }
+    duckMusic(600,.05);
+    sfx("ui");
+    el.miniPausePanel?.querySelector("[data-arcade-resume]")?.focus({preventScroll:true});
+    return true;
   }
-  function defenseBuildCurvedPath(anchors,detail=10){
-    const source=(anchors||[]).map(point=>({x:Number(point.x)||0,y:Number(point.y)||0}));
-    if(source.length<2)return source;
-    const path=[];
-    for(let i=0;i<source.length-1;i+=1){
-      const p1=source[i],p2=source[i+1],p0=i>0?source[i-1]:{x:p1.x-(p2.x-p1.x),y:p1.y-(p2.y-p1.y)},p3=i+2<source.length?source[i+2]:{x:p2.x+(p2.x-p1.x),y:p2.y+(p2.y-p1.y)};
-      for(let step=0;step<detail;step+=1){
-        const point=defenseCurvePoint(p0,p1,p2,p3,step/detail);
-        path.push({x:clamp(point.x,-.08,1.08),y:clamp(point.y,.055,.945)});
-      }
-    }
-    path.push({...source[source.length-1]});
-    return path;
+  function closeArcadePause(silent=false){
+    const wasPaused=Boolean(trainingRun?.paused);
+    if(trainingRun){ trainingRun.paused=false; trainingRun.quitConfirmed=false; trainingRun.restartConfirmed=false; }
+    if(el.miniPausePanel) el.miniPausePanel.hidden=true;
+    el.miniGameOverlay?.classList.remove("arcade-paused");
+    if(el.miniPause){ el.miniPause.setAttribute("aria-expanded","false"); el.miniPause.textContent="PAUSE"; }
+    if(!wasPaused) return false;
+    if(mini?.active) arcadeThaw("menu");
+    if(!silent) sfx("ui");
+    return true;
   }
-  function defensePrepareMap(map){
-    map.route=(map.route||map.path||[]).map(point=>({...point}));
-    map.path=defenseBuildCurvedPath(map.route,Math.max(16,map.curveDetail||16));
-    map.pathMetrics=defensePathMetrics(map.path);
-    return map;
+  function toggleArcadePause(){ return trainingRun?.paused ? closeArcadePause() : openArcadePause(); }
+  function renderArcadePausePanel(){
+    const host=el.miniPausePanel;
+    if(!host || !mini?.active) return;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    const remaining=Math.max(0,(mini.endAt-runClockNow())/1000);
+    host.innerHTML=`<div class="arcade-pause-card">
+      <small>${escapeHTML(arcadeName(mini.mode))}</small>
+      <h3>RUN PAUSED</h3>
+      <div class="arcade-pause-stats"><span><small>THIS RUN</small><b>${formatNumber(score)}</b></span><span><small>TIME LEFT</small><b>${remaining.toFixed(1)}s</b></span></div>
+      <p>The clock is frozen. Nothing spawns, nothing drains.</p>
+      <div class="arcade-pause-actions">
+        <button type="button" class="primary" data-arcade-resume>RESUME</button>
+        <button type="button" data-arcade-restart>RESTART</button>
+        <button type="button" class="danger" data-arcade-quit>END RUN</button>
+      </div>
+    </div>`;
   }
-  const DEFENSE_MAPS = Object.fromEntries(Object.entries({
-    grove:{id:"grove",level:1,name:"PINE BEND",icon:"♣",entrance:"WESTERN PINE LINE",lore:"The first trail the Ember Gate ever learned to defend winds around the old keeper grove.",lesson:"Own the long center bend, then cover the late return toward the gate.",strategy:"LONG BEND • DOUBLE COVERAGE",routeType:"BEND",unlockWave:0,className:"map-grove",lives:20,hp:1,speed:1,specialBias:0,weather:"clear",weatherCopy:"Calm air. Learn the trail.",curveDetail:11,blockedZones:[{x:.48,y:.49,r:.056,kind:"pine"}],landmarks:[{x:.48,y:.49,kind:"pine-grove",label:"OLD GROVE"},{x:.76,y:.43,kind:"keeper-stone",label:"KEEPER STONE"}],buildPockets:[{x:.38,y:.57},{x:.78,y:.51}],route:[{x:-.06,y:.21},{x:.12,y:.19},{x:.27,y:.31},{x:.29,y:.50},{x:.18,y:.67},{x:.36,y:.79},{x:.58,y:.74},{x:.68,y:.57},{x:.61,y:.39},{x:.70,y:.22},{x:.87,y:.28},{x:.90,y:.51},{x:.80,y:.70},{x:1.06,y:.74}]},
-    ember:{id:"ember",level:2,name:"EMBER SWITCHBACK",icon:"◆",entrance:"LOW ASH CUT",lore:"Old fire roads fold through crater country in three deliberate hairpins.",lesson:"Build beside the hairpins where one Rizo can touch the trail more than once.",strategy:"HAIRPINS • REPEATED HITS",routeType:"SWITCHBACK",unlockWave:25,className:"map-ember",lives:20,hp:1.06,speed:1.05,specialBias:3,weather:"ash",weatherCopy:"Ash hides the edges of the road.",curveDetail:12,blockedZones:[{x:.42,y:.46,r:.07,kind:"crater"},{x:.74,y:.30,r:.043,kind:"vent"}],landmarks:[{x:.42,y:.46,kind:"lava-crater",label:"ASH HEART"},{x:.74,y:.30,kind:"ember-vent",label:"FIRE VENT"}],buildPockets:[{x:.29,y:.27},{x:.64,y:.64}],route:[{x:-.06,y:.72},{x:.15,y:.72},{x:.29,y:.61},{x:.24,y:.44},{x:.12,y:.29},{x:.25,y:.15},{x:.49,y:.17},{x:.62,y:.30},{x:.60,y:.51},{x:.47,y:.67},{x:.66,y:.78},{x:.86,y:.65},{x:.87,y:.42},{x:1.06,y:.26}]},
-    moon:{id:"moon",level:3,name:"MOON LOOP",icon:"☾",entrance:"NORTH MOON ARC",lore:"A silver route curls almost completely around a moonstone basin before escaping east.",lesson:"Use the crescent loop for repeated coverage and Moonlight reveals.",strategy:"NEAR LOOP • LONG EXPOSURE",routeType:"LOOP",unlockWave:50,className:"map-moon",lives:18,hp:1.13,speed:1.01,specialBias:6,weather:"moon",weatherCopy:"Long shadows make camo balloons harder to read.",curveDetail:12,blockedZones:[{x:.59,y:.47,r:.068,kind:"moonstone"}],landmarks:[{x:.59,y:.47,kind:"moon-basin",label:"SILVER BASIN"},{x:.25,y:.47,kind:"moon-arch",label:"MOON ARCH"}],buildPockets:[{x:.39,y:.35},{x:.73,y:.48}],route:[{x:-.06,y:.25},{x:.15,y:.13},{x:.38,y:.18},{x:.50,y:.34},{x:.43,y:.51},{x:.30,y:.64},{x:.43,y:.79},{x:.67,y:.75},{x:.82,y:.61},{x:.87,y:.43},{x:.77,y:.28},{x:.82,y:.13},{x:1.06,y:.20}]},
-    storm:{id:"storm",level:4,name:"STORM CIRCUIT",icon:"ϟ",entrance:"CHARGED WEST RUN",lore:"A broken weather circuit creates long straights between charged turns and control pockets.",lesson:"Spread CONTROL coverage across both straights so surge balloons cannot escape one cluster.",strategy:"LONG STRAIGHTS • SPLIT COVERAGE",routeType:"CIRCUIT",unlockWave:75,className:"map-storm",lives:17,hp:1.21,speed:1.08,specialBias:10,weather:"storm",weatherCopy:"Lightning surges briefly accelerate every balloon.",curveDetail:11,blockedZones:[{x:.49,y:.32,r:.052,kind:"pylon"},{x:.87,y:.31,r:.05,kind:"pylon"}],landmarks:[{x:.49,y:.32,kind:"storm-pylon",label:"WEST PYLON"},{x:.87,y:.31,kind:"storm-pylon",label:"EAST PYLON"},{x:.60,y:.68,kind:"storm-coil",label:"SURGE COIL"}],buildPockets:[{x:.25,y:.48},{x:.81,y:.55}],route:[{x:-.06,y:.56},{x:.12,y:.72},{x:.33,y:.69},{x:.42,y:.52},{x:.37,y:.34},{x:.26,y:.22},{x:.42,y:.12},{x:.67,y:.17},{x:.76,y:.36},{x:.69,y:.54},{x:.59,y:.67},{x:.77,y:.78},{x:.95,y:.63},{x:1.06,y:.44}]},
-    blizzard:{id:"blizzard",level:5,name:"WHITEOUT PASS",icon:"❄",entrance:"SOUTH ICE SHELF",lore:"A wide mountain pass sweeps around frozen shelves before climbing toward the gate.",lesson:"Stagger wide-range Rizos across the upper and lower shelves instead of stacking one bend.",strategy:"WIDE PASS • STAGGERED RANGE",routeType:"PASS",unlockWave:100,className:"map-blizzard",lives:16,hp:1.30,speed:1.04,specialBias:14,weather:"blizzard",weatherCopy:"Whiteouts shrink most Rizo attack ranges for a few seconds.",curveDetail:11,blockedZones:[{x:.11,y:.48,r:.06,kind:"ice"},{x:.68,y:.54,r:.064,kind:"ice"}],landmarks:[{x:.11,y:.48,kind:"ice-shelf",label:"LOW SHELF"},{x:.68,y:.54,kind:"ice-shelf",label:"HIGH SHELF"},{x:.48,y:.12,kind:"snow-peak",label:"NORTH PEAK"}],buildPockets:[{x:.35,y:.61},{x:.73,y:.33}],route:[{x:-.06,y:.75},{x:.14,y:.67},{x:.23,y:.49},{x:.16,y:.29},{x:.28,y:.13},{x:.49,y:.20},{x:.56,y:.38},{x:.47,y:.55},{x:.56,y:.72},{x:.78,y:.76},{x:.91,y:.61},{x:.84,y:.42},{x:.89,y:.21},{x:1.06,y:.18}]},
-    eclipse:{id:"eclipse",level:6,name:"ECLIPSE RIDGE",icon:"◉",entrance:"DARK RIDGE MOUTH",lore:"The oldest route coils through three shadow monuments before breaking toward the final gate.",lesson:"Cover the inner coil and the late ridge separately while preserving veil sight and armor break.",strategy:"INNER COIL • LATE RIDGE",routeType:"RIDGE",unlockWave:150,className:"map-eclipse",lives:15,hp:1.42,speed:1.10,specialBias:19,weather:"eclipse",weatherCopy:"The eclipse periodically turns every balloon camouflaged.",curveDetail:12,blockedZones:[{x:.42,y:.29,r:.06,kind:"obelisk"},{x:.72,y:.72,r:.06,kind:"obelisk"},{x:.82,y:.42,r:.05,kind:"obelisk"}],landmarks:[{x:.42,y:.29,kind:"eclipse-obelisk",label:"FIRST SHADOW"},{x:.72,y:.72,kind:"eclipse-obelisk",label:"SECOND SHADOW"},{x:.82,y:.42,kind:"eclipse-rift",label:"RIFT MOUTH"}],buildPockets:[{x:.45,y:.48},{x:.76,y:.55}],route:[{x:-.06,y:.20},{x:.16,y:.20},{x:.31,y:.33},{x:.29,y:.55},{x:.18,y:.71},{x:.39,y:.81},{x:.59,y:.71},{x:.65,y:.51},{x:.58,y:.33},{x:.68,y:.16},{x:.88,y:.22},{x:.94,y:.44},{x:.85,y:.65},{x:1.06,y:.72}]}
-  }).map(([id,map])=>[id,defensePrepareMap(map)]));
-  const DEFENSE_MAP_ORDER=["grove","ember","moon","storm","blizzard","eclipse"];
-  const DEFENSE_SCHOOL_LESSONS=[
-    {id:"route",step:1,title:"READ THE TRAIL",copy:"Trace the real entrance-to-gate route before building."},
-    {id:"placement",step:2,title:"PLACE A RIZO",copy:"Drag a roster card—or tap it, then tap open grass."},
-    {id:"targeting",step:3,title:"CHANGE TARGETING",copy:"After Wave 1, inspect a Rizo and change FIRST to another priority."},
-    {id:"intel",step:4,title:"READ THREAT INTEL",copy:"Open THREATS when a special enemy enters the plan."},
-    {id:"doctrine",step:5,title:"CHOOSE A PATH",copy:"At Level 3, commit one Rizo to POWER or CONTROL."},
-    {id:"abilities",step:6,title:"CAST AN EFFECT",copy:"During a live wave, cast one ready activated effect."}
-  ];
-  let defenseFieldGuideTab="rizos";
-  function normalizeDefenseSchool(raw,{experienced=false}={}){const ids=DEFENSE_SCHOOL_LESSONS.map(item=>item.id),input=raw&&typeof raw==="object"?raw:{},completed=[...new Set((Array.isArray(input.completed)?input.completed:[]).filter(id=>ids.includes(id)))];if(experienced&&!completed.length)return{dismissed:true,completed:[...ids],replay:false};return{dismissed:Boolean(input.dismissed),completed,replay:Boolean(input.replay)};}
-  function defenseSchoolState(){state.player.defenseSchool=normalizeDefenseSchool(state.player.defenseSchool);return state.player.defenseSchool;}
-  function defenseSchoolComplete(){return DEFENSE_SCHOOL_LESSONS.every(item=>defenseSchoolState().completed.includes(item.id));}
-  function defenseSchoolNext(){const school=defenseSchoolState();return DEFENSE_SCHOOL_LESSONS.find(item=>!school.completed.includes(item.id))||null;}
-  function completeDefenseSchoolLesson(id,{silent=false}={}){const school=defenseSchoolState(),lesson=DEFENSE_SCHOOL_LESSONS.find(item=>item.id===id);if(!lesson||school.completed.includes(id))return false;const required=DEFENSE_SCHOOL_LESSONS.slice(0,lesson.step-1);if(required.some(item=>!school.completed.includes(item.id)))return false;school.completed.push(id);school.dismissed=false;saveState(true);if(!silent){setDefenseMessage?.(`TRAIL SCHOOL • ${lesson.title}`,lesson.step===6?"COURSE COMPLETE. THE FIELD IS YOURS.":`LESSON ${lesson.step}/6 RECORDED.`);sfx?.("reward");haptic?.([8,14,8]);}updateDefenseSchoolCoach();return true;}
-  function restartDefenseSchool(){state.player.defenseSchool={dismissed:false,completed:[],replay:true};if(mini.defense)mini.defense.schoolHiddenRun=false;saveState(true);updateDefenseSchoolCoach();}
-  function defenseSchoolRelevant(lesson){const d=mini.defense;if(!d||!lesson)return false;if(lesson.id==="route")return d.towers.length===0;if(lesson.id==="placement")return true;if(lesson.id==="targeting")return d.towers.length>0&&d.wave>=1;if(lesson.id==="intel"){const counts=defenseIntelCounts();return [...counts.keys()].some(key=>!["puff","fleet"].includes(key));}if(lesson.id==="doctrine")return d.towers.some(tower=>tower.upgrade>=2&&!tower.doctrine);if(lesson.id==="abilities")return defenseIsActiveWave(d)&&d.towers.some(tower=>tower.upgrade>=2&&tower.doctrine&&defenseAbilityRemaining(tower)<=0);return false;}
-  function defenseSchoolCoachMarkup(){const school=defenseSchoolState(),lesson=defenseSchoolNext();if(school.dismissed||defenseSchoolComplete()||mini.defense?.schoolHiddenRun||!defenseSchoolRelevant(lesson))return"";const action=lesson.id==="route"?'<button type="button" data-defense-trace-route>TRACE ROUTE</button>':lesson.id==="intel"?'<button type="button" data-defense-toggle-intel>OPEN THREATS</button>':"";return`<section class="defense-school-coach-card lesson-${lesson.id}"><span>${lesson.step}</span><div><small>TRAIL SCHOOL • ${lesson.step}/6</small><b>${escapeHTML(lesson.title)}</b><em>${escapeHTML(lesson.copy)}</em></div>${action}<button type="button" class="school-hide" data-defense-school-hide-run aria-label="Hide coaching for this run">×</button></section>`;}
-  function updateDefenseSchoolCoach(){const host=$("#defenseSchoolCoach"),d=mini.defense;if(!host||!d)return;const markup=defenseSchoolCoachMarkup(),signature=markup;if(signature!==d.schoolCoachSignature){host.innerHTML=markup;d.schoolCoachSignature=signature;}host.hidden=!markup;}
-  function defenseSchoolLobbyMarkup(){const school=defenseSchoolState(),done=school.completed.length,complete=defenseSchoolComplete();return`<section class="defense-school-lobby ${complete?"complete":""}"><span>${complete?"✓":"▤"}</span><div><small>OPTIONAL • REAL CONTROLS</small><b>TRAIL SCHOOL • ${done}/6</b><em>${complete?"Course complete. Replay it whenever you want.":school.dismissed?"Coaching is hidden. Your progress is preserved.":"Six short lessons appear only when their mechanic matters."}</em></div><button type="button" data-defense-school-open>${complete?"REPLAY":"OPEN"}</button></section>`;}
-  function showDefenseTrailSchool(){const school=defenseSchoolState(),rows=DEFENSE_SCHOOL_LESSONS.map(item=>`<article class="trail-school-row ${school.completed.includes(item.id)?"done":""}"><i>${school.completed.includes(item.id)?"✓":item.step}</i><div><b>${escapeHTML(item.title)}</b><small>${escapeHTML(item.copy)}</small></div></article>`).join("");showModal(`<div class="modal-card trail-school-modal"><small>RIZO DEFENSE • OPTIONAL COURSE</small><h2>TRAIL SCHOOL</h2><p>Learn on the real battlefield. Nothing here changes prices, enemies, rewards, or your Rizo.</p><div class="trail-school-list">${rows}</div><div class="modal-buttons"><button type="button" data-defense-school-dismiss>${school.dismissed?"ENABLE COACHING":"HIDE COACHING"}</button><button type="button" data-defense-school-restart>RESTART COURSE</button><button class="primary" type="button" data-defense-records-back>BACK TO WORLD ROUTE</button></div></div>`);}
-  function defenseTargetingGuide(variant){return["obsidian","diamond","shadow"].includes(variant)?"STRONG for durable threats; FIRST when the Gate is under pressure.":["frost","moss","bubblegum","retro"].includes(variant)?"FIRST to control runners before they escape.":variant==="golden"?"FIRST for steady pop income; CLOSE if protecting a dense bend.":"FIRST is reliable. Change to STRONG, LAST, or CLOSE when the map asks for it.";}
-  function defenseFieldGuideMarkup(tab=defenseFieldGuideTab){defenseFieldGuideTab=["rizos","threats","worlds"].includes(tab)?tab:"rizos";const tabs=`<nav class="field-guide-tabs"><button type="button" data-field-guide-tab="rizos" class="${defenseFieldGuideTab==="rizos"?"active":""}">YOUR RIZOS</button><button type="button" data-field-guide-tab="threats" class="${defenseFieldGuideTab==="threats"?"active":""}">THREATS</button><button type="button" data-field-guide-tab="worlds" class="${defenseFieldGuideTab==="worlds"?"active":""}">WORLDS</button></nav>`;let body="";if(defenseFieldGuideTab==="rizos")body=defenseRoster().map(row=>{const pet=row.pet,variantId=pet.variant||pet.hiddenVariant||"classic",variant=VARIANTS.find(item=>item.id===variantId)||VARIANTS[0],ability=DEFENSE_ABILITIES[variantId]||DEFENSE_ABILITIES.classic,mastery=defenseMasteryForPet(pet.id)||{},unlock=defenseMasteryUnlockCopy(mastery);return`<article class="field-guide-rizo" style="--guide-color:${variant.color}"><span>${petMarkup({pet,extraClass:"field-guide-pet",context:"thumbnail",label:pet.name})}</span><div><small>${escapeHTML(variant.name)} • ${escapeHTML(defenseMasteryTitle(mastery))}</small><b>${escapeHTML(pet.name)}</b><p><strong>PASSIVE</strong>${escapeHTML(ability.passive)}</p><p><strong>ACTIVE</strong>${escapeHTML(ability.active)} — ${escapeHTML(ability.copy)}</p><p><strong>TARGETING</strong>${escapeHTML(defenseTargetingGuide(variantId))}</p><p><strong>POWER</strong>${escapeHTML(DEFENSE_DOCTRINES.power.copy)}</p><p><strong>CONTROL</strong>${escapeHTML(DEFENSE_DOCTRINES.control.copy)}</p><em>${escapeHTML(unlock.current)} • ${escapeHTML(unlock.next)}</em></div></article>`;}).join("")||"<p>Raise a Rizo beyond the egg stage to add it to the field guide.</p>";else if(defenseFieldGuideTab==="threats"){const normals=Object.entries(DEFENSE_ENEMIES).map(([key,data])=>`<article class="field-guide-threat" style="--guide-color:${data.color}"><span class="defense-guide-balloon balloon-${escapeHTML(key)}" aria-hidden="true"><i></i></span><div><small>${escapeHTML(data.trait||"THREAT")}</small><b>${escapeHTML(data.name)}</b><p>${escapeHTML(data.intel||"")}</p><em>COUNTER • ${escapeHTML(data.counter||"ANY RIZO")}</em></div></article>`).join("");const bosses=DEFENSE_BOSSES.map(data=>`<article class="field-guide-threat boss" style="--guide-color:${data.color}"><span class="defense-guide-balloon boss ${escapeHTML(data.className||"")}" aria-hidden="true"><i></i></span><div><small>BOSS • ${escapeHTML(data.trait||"")}</small><b>${escapeHTML(data.name)}</b><p>${escapeHTML(data.hint||"")}</p><em>COUNTER • ${escapeHTML(data.counter||"FOCUS FIRE")}</em></div></article>`).join("");body=normals+bosses;}else body=DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],open=defenseUnlockedMaps().some(item=>item.id===id),best=Math.max(0,Number(state.scores?.defenseMaps?.[id])||0);return`<article class="field-guide-world ${open?"":"locked"}" style="--guide-color:${defenseMapAccent(id)}"><span>${map.icon}</span><div><small>WORLD ${map.level} • ${open?`BEST CLEARED ${best}`:`UNLOCK • CLEAR ${map.unlockWave}`}</small><b>${escapeHTML(map.name)}</b><p><strong>${escapeHTML(map.routeType)}</strong>${escapeHTML(map.strategy)}</p><p>${escapeHTML(map.lore)}</p><em>TRAIL LESSON • ${escapeHTML(map.lesson)}</em></div></article>`;}).join("");return`<div class="modal-card defense-field-guide"><small>KEEPER FIELD GUIDE • LIVE DEFINITIONS</small><div class="field-guide-head"><div><h2>KNOW YOUR FIELD.</h2><p>Roster, counters, and worlds are read directly from the same definitions used by Defense.</p></div><b>NO HIDDEN STATS</b></div>${tabs}<div class="field-guide-scroll">${body}</div><div class="modal-buttons"><button type="button" data-defense-records-back>WORLD ROUTE</button><button class="primary" type="button" data-close-modal>CLOSE GUIDE</button></div></div>`;}
-  function showDefenseFieldGuide(tab=defenseFieldGuideTab){defenseFieldGuideTab=tab;if(mini.active&&mini.mode==="defense"&&defenseIsActiveWave(mini.defense)&&!mini.defense.paused){mini.defense.paused=true;mini.defense.autoPaused=false;setDefenseMessage("FIELD GUIDE • TRAIL PAUSED","Closing the guide will not silently resume the wave.");markDefenseUi();flushDefenseUi(true);}showModal(defenseFieldGuideMarkup(defenseFieldGuideTab));}
-  function defenseControlLegendMarkup(){
-    const rows=[
-      {icon:"▶/Ⅱ",label:"MAIN BUTTON",copy:"Start the next wave, pause, or resume."},
-      {icon:"1×",label:"SPEED",copy:"Cycles ½× • 1× • 2×. Base pace stays deliberate."},
-      {icon:"?",label:"THREATS",copy:"Shows what is coming and which Rizos counter it."},
-      {icon:"⚡",label:"POWERS",copy:"One button per power. The badge counts ready power groups."},
-      {icon:"⛶",label:"FULLSCREEN",copy:"Uses a full-height landscape field when your device allows it."},
-      {icon:"◌",label:"CYAN RING",copy:"A selected Rizo’s attack reach."},
-      {icon:"LV3",label:"LEVEL TAG",copy:"The placed Rizo’s upgrade level. No tag means Level 1."},
-      {icon:"#2",label:"COPY TAG",copy:"Which deployed copy of the same Rizo this is."},
-      {icon:"× ◉ !",label:"THREAT STATE",copy:"Armor broken, revealed, or a boss action charging. Blank state badges are hidden."},
-      {icon:"◎",label:"PLACEMENT FOOT",copy:"Green clears the trail and nearby Rizos. Cyan means the preview gently snapped to the closest legal edge."},
-      {icon:"190",label:"ROSTER BADGE",copy:"Deployment cost, FREE, selected, or blocked."}
-    ];
-    const body=rows.map(row=>`<article class="defense-legend-row"><span>${escapeHTML(row.icon)}</span><div><b>${escapeHTML(row.label)}</b><em>${escapeHTML(row.copy)}</em></div></article>`).join("");
-    return `<div class="modal-card defense-control-legend"><small>RIZO DEFENSE • FIELD LEGEND</small><h2>WHAT IS THAT?</h2><div class="defense-legend-list">${body}</div><div class="modal-buttons"><button class="primary" type="button" data-close-modal>GOT IT</button></div></div>`;
+  function arcadeRunQualified() {
+    if(!mini?.active && !trainingRun) return false;
+    return Boolean(callGame("qualified", mini));
   }
-
-  function showDefenseControlLegend(){showModal(defenseControlLegendMarkup());}
-  function defenseMapPointAt(map,progress){return defensePointFromMetrics(map.pathMetrics||(map.pathMetrics=defensePathMetrics(map.path)),progress);}
-  
-
-  function defenseRouteMarkersMarkup(map){
-    return[.12,.27,.42,.57,.72,.87].map((progress,index)=>{const point=defenseMapPointAt(map,progress),next=defenseMapPointAt(map,Math.min(.995,progress+.012)),angle=Math.atan2(next.y-point.y,next.x-point.x)*180/Math.PI;return`<i class="defense-route-marker" style="--route-x:${clamp(point.x,.03,.97)*100}%;--route-y:${clamp(point.y,.07,.93)*100}%;--route-angle:${angle}deg" data-route-marker="${index}" aria-hidden="true"><span></span></i>`;}).join("");
-  }
-
-  function traceDefenseRoute(){
-    const d=mini.defense,scout=$("#defenseRouteScout"),world=$("#defenseWorld");if(!d||!scout)return false;completeDefenseSchoolLesson("route");scout.getAnimations?.().forEach(animation=>animation.cancel());
-    world?.classList.add("route-tracing");
-    const frames=Array.from({length:32},(_,index)=>{const point=defenseMapPointAt(d.map,index/31);return{left:`${clamp(point.x,.025,.975)*100}%`,top:`${clamp(point.y,.06,.94)*100}%`};});
-    if(state.settings.reducedMotion){const end=frames.at(-1);Object.assign(scout.style,end);scout.classList.add("active");queueMiniTimeout(()=>scout.classList.remove("active"),900);}else scout.animate(frames,{duration:3600,easing:"linear",fill:"none"});
-    queueMiniTimeout(()=>world?.classList.remove("route-tracing"),3900);
-    setDefenseMessage(`${d.map.entrance} → EMBER GATE`,`${d.map.strategy} • ${d.map.lesson}`);return true;
-  }
-
-  // v78: the authored 1x experience is intentionally readable. Fast enemies still
-  // feel fast because their relative identity is preserved; ordinary traffic gets air.
-  const DEFENSE_GLOBAL_MOVEMENT_PACE = 0.94;
-  const DEFENSE_ENEMIES = {
-    puff:{name:"GLOOM BALLOON",className:"balloon-puff",hp:15,speed:.0472,reward:12,damage:1,color:"#ff5b68",icon:"○",trait:"BASIC DRIFTER",counter:"ANY RIZO",intel:"The baseline threat. Use it to judge whether your field has enough coverage."},
-    fleet:{name:"ZIP BALLOON",className:"balloon-fleet",hp:11,speed:.0764,reward:14,damage:1,color:"#55dfff",icon:"»",trait:"FAST",counter:"FIRST • SLOW",intel:"Low health, high speed. FIRST targeting and trail control keep it away from the gate."},
-    shell:{name:"IRON BALLOON",className:"balloon-shell",hp:42,speed:.035,reward:24,damage:2,color:"#9b7bd7",armor:.22,icon:"▰",trait:"ARMORED • CRACKS",counter:"POWER • DIAMOND",intel:"Its plate absorbs damage until half health, then visibly cracks and loses most armor."},
-    split:{name:"BUBBLE BALLOON",className:"balloon-split",hp:27,speed:.044,reward:20,damage:1,color:"#ff83ce",icon:"◎",trait:"SPLITS ON POP",counter:"CHAIN • SPLASH",intel:"Popping it creates two real children that count toward the wave."},
-    fire:{name:"FIRE BALLOON",className:"balloon-fire",hp:54,speed:.046,reward:32,damage:2,color:"#ff713f",fireproof:true,icon:"▲",trait:"FIREPROOF",counter:"FROST • TOXIC",intel:"Resists Ember attacks. Frost strikes hit it harder and control ignores its heat."},
-    frost:{name:"FROST BALLOON",className:"balloon-frost",hp:62,speed:.039,reward:36,damage:2,color:"#a8f3ff",armor:.08,slowResist:.78,icon:"✦",trait:"SLOW RESIST",counter:"POWER • PUSH",intel:"Most slows barely move it. Heavy damage and Bubblegum knockback remain reliable."},
-    storm:{name:"STORM BALLOON",className:"balloon-storm",hp:39,speed:.058,reward:38,damage:2,color:"#ffe66b",stormPulse:true,icon:"ϟ",trait:"SURGE BURSTS",counter:"CONTROL • FIRST",intel:"Its body telegraphs speed surges. Slow it before the charge reaches the gate."},
-    ghost:{name:"PHASE BALLOON",className:"balloon-ghost",hp:47,speed:.051,reward:44,damage:2,color:"#c59cff",phasing:true,icon:"◇",trait:"PHASES",counter:"CONTROL • GLITCH",intel:"Takes reduced damage while translucent. CONTROL doctrine locks it into the physical trail."},
-    shade:{name:"SHADE BALLOON",className:"balloon-shade",hp:34,speed:.05,reward:30,damage:2,color:"#3d3450",camo:true,icon:"",trait:"CAMOUFLAGED",counter:"AWAKEN • SHADOW",intel:"Base Rizos struggle to see it. Level 3 Rizos and Shadow, Aurora, or Glitch detect it."},
-    brick:{name:"CERAMIC BALLOON",className:"balloon-brick",hp:165,speed:.030,reward:56,damage:4,color:"#c87845",armor:.10,icon:"",trait:"DENSE SHELL",counter:"POWER • ARMOR BREAK",intel:"One Ceramic carries the durability of a crowd. Crack its shell instead of adding more towers blindly."},
-    lead:{name:"LEAD BALLOON",className:"balloon-lead",hp:132,speed:.027,reward:62,damage:4,color:"#77818d",armor:.46,slowResist:.28,icon:"",trait:"HEAVY ARMOR",counter:"POWER • SHRED",intel:"Lead plating shrugs off weak repeated hits. POWER doctrine and armor shred open it for the field."}
-  };
-  const DEFENSE_BOSSES=[
-    {id:"crown",name:"THE WARDEN",className:"boss-crown",hp:430,speed:.025,reward:180,damage:7,color:"#171421",armor:.26,icon:"",trait:"CALLS HEAVY GUARDS",counter:"CONTROL • SPLASH",hint:"THE WARDEN CALLS HEAVY ESCORTS. BREAK THE SIGNAL OR CRACK THE FORMATION."},
-    {id:"vortex",name:"THE MAW",className:"boss-vortex",hp:410,speed:.027,reward:180,damage:7,color:"#6f4ad7",armor:.12,icon:"",trait:"COLLAPSES RIZO RANGE",counter:"SPREAD • CONTROL",hint:"THE MAW COMPRESSES THE FIELD. INTERRUPT ITS PULSE OR FIGHT FROM MULTIPLE ANGLES."},
-    {id:"mirror",name:"THE MIRROR",className:"boss-mirror",hp:400,speed:.028,reward:180,damage:7,color:"#bdefff",armor:.10,icon:"",trait:"MULTIPLIES AT HALF",counter:"BALANCED COVERAGE",hint:"THE MIRROR MULTIPLIES ITS REMAINING MASS. KEEP BOTH HALVES COVERED."},
-    {id:"apex",name:"THE REDLINE",className:"boss-apex",hp:455,speed:.024,reward:190,damage:8,color:"#ff4c63",armor:.20,icon:"",trait:"BREAKS INTO SPEED SURGES",counter:"CONTROL • FIRST",hint:"THE REDLINE WINDS UP BEFORE A VIOLENT SURGE. CONTROL CAN CANCEL THE BURST."}
-  ];
-  const DEFENSE_MILESTONES=[10,25,50,100];
-  const DEFENSE_TARGET_MODES=["first","strong","last","close"];
-  const DEFENSE_TARGET_LABELS={first:"FRONT",strong:"TOUGHEST",last:"BACK",close:"NEAREST"};
-  const DEFENSE_DOCTRINES={power:{id:"power",name:"POWER PATH",copy:"Harder hits, stronger abilities, and charged doctrine strikes."},control:{id:"control",name:"CONTROL PATH",copy:"More range, faster attacks, and pulse strikes that restrain the trail."}};
-  const DEFENSE_THREAT_PRIORITY={"boss:crown":100,"boss:vortex":100,"boss:mirror":100,"boss:apex":100,lead:96,brick:94,ghost:90,shade:85,storm:80,frost:75,fire:70,shell:60,split:50,fleet:40,puff:30};
-  const DEFENSE_STAGE_MULTIPLIER={spark:.78,kid:.9,teen:1,beast:1.12,legend:1.24};
-  const DEFENSE_ABILITIES={
-    classic:{passive:"Steady shots with no bad matchup.",active:"RALLY",copy:"All defenders attack faster for 6 seconds.",cooldown:24},
-    ember:{passive:"Shots ignite balloons over time.",active:"FIRE RING",copy:"Burn every balloon near this Rizo.",cooldown:25},
-    toxic:{passive:"Poison keeps hurting after impact.",active:"SPORE CLOUD",copy:"Poison every balloon currently on the trail.",cooldown:28},
-    violet:{passive:"Shots chain into a nearby balloon.",active:"CHAIN SURGE",copy:"Lightning jumps through the front six balloons.",cooldown:23},
-    moss:{passive:"Shots briefly root balloons in place.",active:"ROOT GARDEN",copy:"Hold nearby balloons still for several seconds.",cooldown:27},
-    bubblegum:{passive:"Hits push balloons backward.",active:"BIG BOUNCE",copy:"Knock every nearby balloon far down the path.",cooldown:24},
-    frost:{passive:"Shots slow balloon movement.",active:"DEEP FREEZE",copy:"Freeze and heavily slow every balloon.",cooldown:29},
-    glitch:{passive:"Random shots sometimes hit much harder.",active:"REWRITE",copy:"Fire eight unstable strikes at random targets.",cooldown:21},
-    obsidian:{passive:"Slow attacks deal massive damage.",active:"QUAKE",copy:"Crush every balloon around this Rizo.",cooldown:31},
-    aurora:{passive:"Nearby defenders deal more damage.",active:"PRISM FIELD",copy:"Boost every defender for 8 seconds.",cooldown:30},
-    golden:{passive:"Every pop creates extra match coins.",active:"PAYDAY",copy:"Create a large burst of match coins.",cooldown:34},
-    diamond:{passive:"Shots pierce multiple balloons.",active:"SHARD LINE",copy:"Cut through the eight closest balloons.",cooldown:26},
-    shadow:{passive:"Critical hits can deal huge damage.",active:"NIGHT CUT",copy:"Execute a wounded front balloon or heavily strike it.",cooldown:25},
-    retro:{passive:"Attacks extremely quickly.",active:"OVERCLOCK",copy:"This Rizo attacks at double speed for 9 seconds.",cooldown:22}
-  };
-
-
-  const DEFENSE_CONTROL_ABILITIES=Object.freeze({
-    classic:{active:"GUARD LINE",copy:"Lock the front of the trail and buy the whole field breathing room."},
-    ember:{active:"CINDER WALL",copy:"Lay down a hot control zone that burns and slows the front pack."},
-    toxic:{active:"SPORE SNARE",copy:"Poison and heavily slow the front formation."},
-    violet:{active:"ARC NET",copy:"Chain a restraint through the leading threats."},
-    moss:{active:"ROOT MAZE",copy:"Root a wide section of the trail for an extended hold."},
-    bubblegum:{active:"REBOUND FIELD",copy:"Throw the front formation backward with almost no burst damage."},
-    frost:{active:"ICE LOCK",copy:"Pin the front threats in place, including heavy balloons."},
-    glitch:{active:"SIGNAL JAM",copy:"Reveal, phase-lock, and stall the leading formation."},
-    obsidian:{active:"FAULT LOCK",copy:"Stun and shred armor instead of simply crushing everything."},
-    aurora:{active:"PRISM LENS",copy:"Reveal the trail and extend control coverage across the field."},
-    golden:{active:"TOLL GATE",copy:"Slow the front pack and skim gold while they remain trapped."},
-    diamond:{active:"PRISM CAGE",copy:"Pin the toughest armored threats so POWER towers can finish them."},
-    shadow:{active:"BLACKOUT",copy:"Blind the rush, reveal hidden threats, and drag the front backward."},
-    retro:{active:"FRAME SKIP",copy:"Rewind the front formation a few frames down the trail."}
-  });
-  function defenseAbilityPresentation(tower){const base=defenseAbilityData(tower);if(tower?.doctrine!=="control")return base;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",control=DEFENSE_CONTROL_ABILITIES[variant]||DEFENSE_CONTROL_ABILITIES.classic;return{...base,...control};}
-  function defenseFieldLeader(d=mini.defense){return d?.towers?.find(t=>!t.superConsumed)||null;}
-  function activateDefenseFieldLeader(){const d=mini.defense,leader=defenseFieldLeader(d);if(!leader){setDefenseMessage("NO FIELD LEADER","The first Rizo you place owns the field power.");sfx("no");return false;}if(leader.upgrade<2||!leader.doctrine){showDefenseTowerPanel(leader);setDefenseMessage("FIELD POWER LOCKED",`${leader.pet.name} is the leader. Reach Level 3 and choose POWER or CONTROL.`);sfx("no");return false;}return activateDefenseAbility(leader.id);}
-
-  const DEFENSE_CONTRACT_TARGET=10;
-  const DEFENSE_CONTRACT_RULES={
-    unique:{id:"unique",icon:"1",name:"NO COPIES",copy:"Each Rizo identity may enter the field once."},
-    lean:{id:"lean",icon:"4",name:"LEAN FIELD",copy:"The contract closes the field after four defenders."},
-    "no-sell":{id:"no-sell",icon:"×",name:"NO REFUNDS",copy:"Every placement is permanent for this run."},
-    silent:{id:"silent",icon:"◇",name:"SEALED ACTIVES",copy:"Activated effects are disabled. Passive identity still matters."},
-    "power-only":{id:"power-only",icon:"▲",name:"POWER OATH",copy:"Every Level 3 Rizo must choose POWER."},
-    "control-only":{id:"control-only",icon:"⌁",name:"CONTROL OATH",copy:"Every Level 3 Rizo must choose CONTROL."}
-  };
-  const DEFENSE_CONTRACT_SETS=[
-    {title:"THE FOUR-FLAME OATH",rules:["unique","lean","power-only"]},
-    {title:"THE PATIENT GATE",rules:["unique","no-sell","control-only"]},
-    {title:"THE SILENT HAMMER",rules:["lean","silent","power-only"]},
-    {title:"THE QUIET NET",rules:["no-sell","silent","control-only"]},
-    {title:"THE LAST PLACEMENT",rules:["unique","lean","no-sell"]},
-    {title:"THE COLD COMMITMENT",rules:["lean","no-sell","control-only"]},
-    {title:"THE SINGLE SIGNAL",rules:["unique","silent","power-only"]},
-    {title:"THE CONTROL ROOM",rules:["lean","silent","control-only"]}
-  ];
-  const DEFENSE_BOSS_TELEGRAPHS={
-    guards:{kind:"guards",title:"CROWN CALLING GUARDS",copy:"CONTROL HITS CAN BREAK THE CALL BEFORE TWO IRON GUARDS ARRIVE.",duration:1.55,interruptible:true},
-    vortex:{kind:"vortex",title:"VORTEX CHARGING",copy:"SPREAD OUT OR LAND CONTROL HITS TO BREAK THE RANGE PULSE.",duration:1.25,interruptible:true},
-    mirror:{kind:"mirror",title:"MIRROR FRACTURE",copy:"THE SPLIT CANNOT BE STOPPED. PREPARE COVERAGE ON BOTH SIDES.",duration:1.35,interruptible:false},
-    apex:{kind:"apex",title:"APEX WINDING UP",copy:"CONTROL HITS CAN CANCEL THE COMING SPEED SURGE.",duration:1.1,interruptible:true}
-  };
-
-  const DEFENSE_PHASE_UI=Object.freeze({
-    [DEFENSE_PHASES.PLANNING]:{label:"PLAN",detail:"BUILD WINDOW",tone:"info"},
-    [DEFENSE_PHASES.COUNTDOWN]:{label:"INCOMING",detail:"PACKET APPROACH",tone:"money"},
-    [DEFENSE_PHASES.COMBAT]:{label:"DEFEND",detail:"TRAIL LIVE",tone:"danger"},
-    [DEFENSE_PHASES.PACKET_BREAK]:{label:"BREATHER",detail:"UPGRADE WINDOW",tone:"valid"},
-    [DEFENSE_PHASES.WAVE_COMPLETE]:{label:"CLEARED",detail:"PLAN NEXT WAVE",tone:"valid"},
-    [DEFENSE_PHASES.PAUSED]:{label:"PAUSED",detail:"SIMULATION FROZEN",tone:"paused"},
-    [DEFENSE_PHASES.RUN_COMPLETE]:{label:"COMPLETE",detail:"RUN CLOSED",tone:"neutral"}
-  });
-  const DEFENSE_CINEMATIC_MOMENTS=Object.freeze({
-    "wave-start":{icon:"≈",tone:"info",priority:2,duration:700},
-    packet:{icon:"››",tone:"valid",priority:1,duration:460},
-    boss:{icon:"!",tone:"boss",priority:7,duration:1500},
-    danger:{icon:"♥",tone:"danger",priority:6,duration:900},
-    upgrade:{icon:"↑",tone:"money",priority:3,duration:880},
-    ability:{icon:"✦",tone:"info",priority:4,duration:1050},
-    perfect:{icon:"★",tone:"perfect",priority:6,duration:1250},
-    clear:{icon:"✓",tone:"valid",priority:4,duration:960},
-    defeat:{icon:"×",tone:"danger",priority:10,duration:1650},
-    bank:{icon:"◇",tone:"money",priority:10,duration:1300}
-  });
-  function defenseIsActiveWave(d=mini.defense){return Boolean(d&&DefenseCore.isCombatPhase(d.phase));}
-  function defenseIsSimulating(d=mini.defense){return Boolean(d&&[DEFENSE_PHASES.COUNTDOWN,DEFENSE_PHASES.COMBAT,DEFENSE_PHASES.PACKET_BREAK].includes(d.phase));}
-  function defensePhaseUi(d=mini.defense){
-    const phase=DefenseCore.normalizePhase(d?.phase),base=DEFENSE_PHASE_UI[phase]||DEFENSE_PHASE_UI[DEFENSE_PHASES.PLANNING];
-    if(!d)return base;
-    if(phase===DEFENSE_PHASES.COUNTDOWN){const left=Math.max(0,(d.nextSpawnAt||d.clock)-(d.clock||0));return{...base,detail:`FIRST THREAT ${left.toFixed(1)}S`};}
-    if(phase===DEFENSE_PHASES.PACKET_BREAK){const left=Math.max(0,(d.packetBreakUntil||d.clock)-(d.clock||0)),remaining=Math.max(0,(d.wavePackets?.length||0)-(d.packetIndex||0));return{...base,detail:`${left.toFixed(1)}S • ${remaining} ${remaining===1?"PACKET":"PACKETS"} LEFT`};}
-    if(phase===DEFENSE_PHASES.COMBAT){const current=Math.min((d.packetIndex||0)+1,d.wavePackets?.length||1),total=Math.max(1,d.wavePackets?.length||1);return{...base,detail:`PACKET ${current}/${total}`};}
-    if(phase===DEFENSE_PHASES.WAVE_COMPLETE){return{...base,detail:state.settings.defenseAutoStart?"UPGRADE • OR START NOW":"UPGRADE • START WHEN READY"};}
-    return base;
-  }
-  function defenseSetPhase(d,phase,{resumePhase=null,force=false}={}){
-    if(!d)return DEFENSE_PHASES.RUN_COMPLETE;
-    const normalized=DefenseCore.normalizePhase(phase,DEFENSE_PHASES.PLANNING),current=DefenseCore.normalizePhase(d.phase,DEFENSE_PHASES.PLANNING);
-    if(!force&&d.phase&&current!==normalized&&!DefenseCore.canTransitionPhase(current,normalized)){
-      d.phaseTransitionRejects=(d.phaseTransitionRejects||0)+1;
-      defenseRecordValidationWarning("phase-transition-rejected",{from:current,to:normalized});
+  function restartArcadeRun(){
+    if(!mini?.active || !trainingRun) return false;
+    const mode=mini.mode;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    // Restarting throws the run away, so a run worth keeping asks first.
+    if(score>0 && arcadeRunQualified() && !trainingRun.restartConfirmed){
+      trainingRun.restartConfirmed=true;
+      renderArcadePausePanel();
+      const actions=el.miniPausePanel?.querySelector(".arcade-pause-actions");
+      if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-restart>DISCARD ${formatNumber(score)} • RESTART</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
       return false;
     }
-    if(normalized===DEFENSE_PHASES.PAUSED){d.resumePhase=resumePhase&&resumePhase!==DEFENSE_PHASES.PAUSED?DefenseCore.normalizePhase(resumePhase,DEFENSE_PHASES.COMBAT):(current!==DEFENSE_PHASES.PAUSED?current:d.resumePhase||DEFENSE_PHASES.COMBAT);}
-    d.phase=normalized;
-    return normalized;
+    closeArcadePause(true);
+    finishMiniGame(true,null,{discard:true});
+    startMiniGame(mode);
+    return true;
   }
-  function installDefenseStateContracts(d){
-    if(!d)return d;
-    Object.defineProperty(d,"wave",{configurable:true,enumerable:false,get(){return this.currentWave||0;},set(value){this.currentWave=DefenseCore.clampInteger(value,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0);}});
-    Object.defineProperty(d,"paused",{configurable:true,enumerable:false,get(){return this.phase===DEFENSE_PHASES.PAUSED;},set(value){if(value){if(this.phase!==DEFENSE_PHASES.PAUSED)this.resumePhase=this.phase;this.phase=DEFENSE_PHASES.PAUSED;}else if(this.phase===DEFENSE_PHASES.PAUSED){this.phase=DefenseCore.normalizePhase(this.resumePhase,DEFENSE_PHASES.COMBAT);}}});
-    return d;
-  }
-  function defensePerformanceBudget(d=mini.defense){return d?.performanceLow||d?.renderTier>=2?DEFENSE_BUDGETS.low:DEFENSE_BUDGETS.normal;}
-  function defenseVisualBudget(d=mini.defense){
-    const speed=d?.speed||1,hardLow=Boolean(d?.performanceLow||(d?.governorTier||0)>=2),tier=clamp(Math.floor(d?.renderTier||0),0,2);
-    if(hardLow)return DefenseCore.visualBudget({low:true,speed});
-    const full=DefenseCore.visualBudget({low:false,speed});
-    // Dense fields can shed decorative/projectile pressure preemptively while
-    // preserving 60 Hz motion whenever measured frame time says the device can
-    // afford it. Only the measured governor is allowed to drop presentation to 30.
-    if(tier>=2){const lean=DefenseCore.visualBudget({low:true,speed});return{...lean,presentationFps:DefenseCore.SIMULATION.presentationHz};}
-    if(tier===1)return{...full,maxVisibleProjectiles:Math.max(10,Math.floor(full.maxVisibleProjectiles*.78)),maxImpactEffects:Math.max(3,Math.floor(full.maxImpactEffects*.75)),weatherParticleScale:Math.min(full.weatherParticleScale,.68),projectileEmissionHz:Math.max(6,full.projectileEmissionHz-2),presentationFps:DefenseCore.SIMULATION.presentationHz};
-    return full;
-  }
-  function defenseRealNow(d=mini.defense){return Number(d?.realClock)||0;}
-  function defenseUpgradeAllowed(d=mini.defense){return Boolean(d&&DefenseCore.phaseAllows(d.phase,"upgrade"));}
-  function defensePlacementAllowed(d=mini.defense){return Boolean(d&&DefenseCore.phaseAllows(d.phase,"place"));}
-  function defenseSellAllowed(d=mini.defense){return Boolean(d&&DefenseCore.phaseAllows(d.phase,"sell"));}
-  function defenseRecordValidationWarning(kind,details={}){try{localStorage.setItem(DEFENSE_VALIDATION_WARNING_KEY,JSON.stringify({at:now(),kind:String(kind||"sanitized").slice(0,60),details}));}catch(error){} }
-
-  function defenseHashString(value){let hash=2166136261;for(const char of String(value||"")){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}return hash>>>0;}
-  function defenseMapAccent(id){return id==="grove"?"#9eff75":id==="ember"?"#ff735f":id==="moon"?"#c59cff":id==="storm"?"#55dfff":id==="blizzard"?"#d9fbff":"#ff68bd";}
-  function normalizeDefenseRunContract(raw){if(!raw||typeof raw!=="object")return null;const date=String(raw.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return null;const mapId=DEFENSE_MAPS[raw.mapId]?raw.mapId:null;if(!mapId)return null;const rules=Array.isArray(raw.rules)?[...new Set(raw.rules.filter(rule=>DEFENSE_CONTRACT_RULES[rule]))].slice(0,3):[];if(rules.length!==3||rules.includes("power-only")&&rules.includes("control-only"))return null;const bestWave=DefenseCore.clampInteger(raw.bestWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),completed=bestWave>=DEFENSE_CONTRACT_TARGET,perfect=completed&&Boolean(raw.perfect);return{id:typeof raw.id==="string"&&raw.id?raw.id.slice(0,120):`contract-${date}-${mapId}`,date,mapId,title:typeof raw.title==="string"&&raw.title?raw.title.slice(0,80):"DAILY TRAIL CONTRACT",rules,targetWave:DEFENSE_CONTRACT_TARGET,bestWave,completed,perfect,firstAt:Math.max(0,Number(raw.firstAt)||0),lastAt:Math.max(0,Number(raw.lastAt)||0)};}
-  function buildDailyDefenseContract(date=dateKey()){
-    const seed=defenseHashString(`RIZO-TRAIL-${date}`),unlocked=defenseUnlockedMaps(),map=(unlocked[seed%Math.max(1,unlocked.length)]||DEFENSE_MAPS.grove),rosterCount=defenseRoster().length,eligible=rosterCount>=4?DEFENSE_CONTRACT_SETS:DEFENSE_CONTRACT_SETS.filter(set=>!set.rules.includes("unique")),set=eligible[Math.floor(seed/Math.max(1,unlocked.length))%eligible.length]||DEFENSE_CONTRACT_SETS[2];
-    return normalizeDefenseRunContract({id:`daily-${date}-${map.id}-${set.rules.join("-")}`,date,mapId:map.id,title:set.title,rules:set.rules,targetWave:DEFENSE_CONTRACT_TARGET,bestWave:0,completed:false,perfect:false,firstAt:now(),lastAt:now()});
-  }
-  function ensureDailyDefenseContract(date=dateKey()){
-    state.scores.defenseContracts||=[];let contract=normalizeDefenseRunContract(state.scores.defenseContracts.find(item=>item?.date===date));
-    if(!contract){contract=buildDailyDefenseContract(date);state.scores.defenseContracts=[contract,...state.scores.defenseContracts.filter(item=>item?.date!==date)].slice(0,35);saveState(true);}return contract;
-  }
-  function defenseContractRule(id,d=mini.defense){return Boolean(d?.contract?.rules?.includes(id));}
-  function defenseContractForcedDoctrine(d=mini.defense){return defenseContractRule("power-only",d)?"power":defenseContractRule("control-only",d)?"control":null;}
-  function defenseContractStreak(records=state.scores?.defenseContracts||[]){const completed=new Set(records.filter(item=>item?.completed).map(item=>item.date)),today=new Date(),cursor=new Date(today.getFullYear(),today.getMonth(),today.getDate());if(!completed.has(dateKey(cursor)))cursor.setDate(cursor.getDate()-1);let streak=0;while(completed.has(dateKey(cursor))){streak+=1;cursor.setDate(cursor.getDate()-1);}return streak;}
-  function defenseContractRuleMarkup(contract){return contract.rules.map(id=>{const rule=DEFENSE_CONTRACT_RULES[id];return`<span title="${escapeHTML(rule.copy)}"><i>${escapeHTML(rule.icon)}</i><b>${escapeHTML(rule.name)}</b></span>`;}).join("");}
-  function defenseDailyContractLobbyMarkup(contract){const map=DEFENSE_MAPS[contract.mapId]||DEFENSE_MAPS.grove,streak=defenseContractStreak(),status=contract.completed?`SEALED • BEST CLEARED ${contract.bestWave}`:`CLEAR WAVE ${contract.targetWave}`,accent=defenseMapAccent(map.id);return`<section class="defense-contract-card ${contract.completed?"completed":""}" style="--contract-accent:${accent}"><div class="defense-contract-head"><span>${contract.completed?"✓":map.icon}</span><div><small>LOCAL DAILY CONTRACT • ${escapeHTML(contract.date)}</small><h3>${escapeHTML(contract.title)}</h3><p>${escapeHTML(map.name)} • ${escapeHTML(status)} • ${streak} DAY STREAK</p></div></div><div class="defense-contract-rules">${defenseContractRuleMarkup(contract)}</div><button type="button" data-enter-defense-contract="${escapeHTML(contract.id)}">${contract.completed?"RUN AGAIN":"ACCEPT CONTRACT"}</button></section>`;}
-  function recordDefenseContractProgress(d,final=false){
-    const contract=normalizeDefenseRunContract(d?.contract);if(!contract)return{record:null,justCompleted:false};
-    state.scores.defenseContracts||=[];
-    const priorIndex=state.scores.defenseContracts.findIndex(item=>item?.id===contract.id||item?.date===contract.date),prior=normalizeDefenseRunContract(priorIndex>=0?state.scores.defenseContracts[priorIndex]:contract)||contract;
-    const clearedWave=DefenseCore.clampInteger(d?.clearedWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),bestWave=Math.max(prior.bestWave||0,clearedWave),completed=bestWave>=contract.targetWave;
-    const perfect=Boolean(prior.perfect||(completed&&DefenseCore.clampInteger(d?.perfectWaveCount,0,clearedWave,0)>=contract.targetWave));
-    const record={...prior,...contract,bestWave,completed,perfect,lastAt:now(),firstAt:prior.firstAt||now()},justCompleted=!prior.completed&&completed;
-    const rest=state.scores.defenseContracts.filter((item,index)=>index!==priorIndex&&item?.date!==record.date);state.scores.defenseContracts=[record,...rest].slice(0,35);d.contract={...record};if(final||justCompleted||bestWave!==prior.bestWave)saveState(true);return{record,justCompleted};
-  }
-
-
-  function defenseMasteryTitle(record={}){
-    const waves=Math.max(0,Number(record.waves)||0);
-    if(waves>=400)return"TRAIL LEGEND";
-    if(waves>=150)return"WORLD GUARD";
-    if(waves>=50)return"GATEKEEPER";
-    if(waves>=10)return"FIELD TESTED";
-    return"UNTESTED";
-  }
-  function defenseMasteryTier(record={}){const waves=Math.max(0,Number(record.waves)||0);return waves>=400?4:waves>=150?3:waves>=50?2:waves>=10?1:0;}
-  function defenseMasteryForPet(petId){return petId&&state.scores?.defenseMastery?.[petId]||null;}
-  function defenseMasteryTierForPet(petId){return defenseMasteryTier(defenseMasteryForPet(petId)||{});}
-  function defenseMasterySignatureName(record={}){const variant=VARIANTS.find(item=>item.id===record.variant)||VARIANTS[0],tier=defenseMasteryTier(record);if(tier>=4)return`${variant.name} LEGEND SIGNAL`;if(tier>=3)return`${variant.name} IMPACT SIGIL`;if(tier>=2)return`${variant.name} TRAIL`;if(tier>=1)return`${variant.name} FIELD MARK`;return"NO FIELD SIGNATURE";}
-  function defenseMasteryUnlockCopy(record={}){const tier=defenseMasteryTier(record),next=["FIELD MARK AT 10 WAVES","TRAIL AT 50 WAVES","IMPACT SIGIL AT 150 WAVES","LEGEND AURA AT 400 WAVES","ALL FIELD SIGNATURES EARNED"][tier];return{tier,next,current:defenseMasterySignatureName(record)};}
-  function defenseSignatureTone(tower,tier=defenseMasteryTierForPet(tower?.petId)){
-    const d=mini.defense;
-    if(!tower||!state.settings.sound||!d)return;
-    const time=defenseNow(),globalWait=d.lowFx?.14:.06,towerWait=d.lowFx?.24:.10;
-    if(time-(d.lastSignatureToneAt||0)<globalWait||time-(tower.lastSignatureToneAt||0)<towerWait)return;
-    d.lastSignatureToneAt=time;tower.lastSignatureToneAt=time;
-    const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",accent=(tower.shots||0)%3===0;
-    const profiles={
-      classic:[[205,.026,"triangle",0,18],[307,.018,"sine",.012,-8]],
-      ember:[[142,.04,"sawtooth",0,-48],[92,.022,"square",.014,34]],
-      toxic:[[178,.026,"square",0,-26],[121,.034,"sine",.012,-38]],
-      violet:[[228,.042,"sine",0,58],[342,.025,"triangle",.016,22]],
-      moss:[[126,.038,"triangle",0,-20],[168,.025,"sine",.018,-8]],
-      bubblegum:[[252,.046,"sine",0,72],[378,.022,"sine",.014,-44]],
-      frost:[[238,.034,"triangle",0,94],[476,.018,"sine",.012,-96]],
-      glitch:[[166,.016,"square",0,118],[247,.014,"square",.018,-132]],
-      obsidian:[[104,.052,"sawtooth",0,-62],[78,.028,"triangle",.016,-22]],
-      aurora:[[264,.052,"sine",0,102],[396,.038,"sine",.018,48]],
-      golden:[[210,.034,"triangle",0,68],[420,.022,"sine",.014,-18]],
-      diamond:[[282,.025,"triangle",0,136],[564,.018,"sine",.012,-160]],
-      shadow:[[96,.052,"sine",0,-78],[144,.03,"triangle",.018,-42]],
-      retro:[[188,.014,"square",0,142],[94,.014,"square",.018,0]]
-    };
-    const notes=profiles[variant]||profiles.classic,gain=tier>=4?.0085:tier>=2?.0062:.0044;
-    const first=notes[0];tone(first[0],first[1],first[2],gain,first[3],first[4]);
-    if(accent&&!d.lowFx){const second=notes[1];tone(second[0],second[1],second[2],gain*.62,second[3],second[4]);}
-  }
-
-  function defenseRecordFramePerformance(rawFrame){
-    const d=mini.defense;if(!d||!Number.isFinite(rawFrame)||rawFrame<=0||rawFrame>250)return;const sample=clamp(rawFrame,8,90),seconds=sample/1000;
-    d.frameMs=d.frameMs*.94+sample*.06;d.frameSamples ||= [];d.frameSamples.push(sample);if(d.frameSamples.length>120)d.frameSamples.shift();d.frameSampleClock=(d.frameSampleClock||0)+seconds;
-    d.frameStress=clamp((d.frameStress||0)+(sample>38?2.4:sample>28?.9:sample>21?.18:-.28),0,120);d.slowFrameStreak=sample>34?Math.min(16,(d.slowFrameStreak||0)+2):sample>24?Math.min(16,(d.slowFrameStreak||0)+1):Math.max(0,(d.slowFrameStreak||0)-1);
-    if(d.frameSampleClock<.5)return;const windowSeconds=d.frameSampleClock;d.frameSampleClock=0;const sorted=[...d.frameSamples].sort((a,b)=>a-b),pick=q=>sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*q))];d.frameP95=pick(.95);d.frameP99=pick(.99);
-    const severe=d.frameP95>31||d.slowFrameStreak>=8||d.simBacklogEvents>(d.lastGovernorBacklogEvents||0),pressure=d.frameP95>19||d.slowFrameStreak>=4||d.frameStress>10;d.lastGovernorBacklogEvents=d.simBacklogEvents||0;
-    if(severe){d.governorPressureSeconds=(d.governorPressureSeconds||0)+windowSeconds*2;d.governorStableSeconds=0;}else if(pressure){d.governorPressureSeconds=(d.governorPressureSeconds||0)+windowSeconds;d.governorStableSeconds=0;}else{d.governorPressureSeconds=Math.max(0,(d.governorPressureSeconds||0)-windowSeconds*.5);const stableThreshold=(d.governorTier||0)>=2?26:15.5;if(d.frameP95<stableThreshold)d.governorStableSeconds=(d.governorStableSeconds||0)+windowSeconds;else d.governorStableSeconds=0;}
-    if((d.governorTier||0)===0&&d.governorPressureSeconds>=2){d.governorTier=1;d.governorPressureSeconds=0;d.governorStableSeconds=0;}
-    if((d.governorTier||0)===1&&(severe||d.governorPressureSeconds>=3.5)){d.governorTier=2;d.governorPressureSeconds=0;d.governorStableSeconds=0;}
-    if((d.governorTier||0)===2&&d.governorStableSeconds>=15){d.governorTier=1;d.governorStableSeconds=0;d.frameStress=Math.min(d.frameStress,4);}
-    else if((d.governorTier||0)===1&&d.governorStableSeconds>=12){d.governorTier=0;d.governorStableSeconds=0;d.frameStress=Math.min(d.frameStress,2);}
-    d.performanceLow=(d.governorTier||0)>=2;
-  }
-  function defenseRenderTier(d=mini.defense){
-    if(!d)return 0;const count=d.enemies?.length||0,speed=d.speed||1,mode=state.settings.defenseFx||"auto",governor=clamp(Math.floor(d.governorTier||0),0,2);
-    if(state.settings.reducedMotion||mode==="low")return 2;
-    if(mode==="full")return Math.max(governor,count>13||(speed===2&&count>11)?1:0);
-    const densityTier=count>=13||(speed===2&&count>=11)?2:count>=9||(speed===2&&count>=8)?1:0;
-    return Math.max(governor,densityTier);
-  }
-
-  function defenseApplyRenderTier(d,tier=defenseRenderTier(d)){
-    if(!d)return 0;
-    tier=clamp(Math.floor(tier),0,2);
-    const changed=d.renderTier!==tier;if(changed){d.renderTier=tier;d.renderTierChanges=(d.renderTierChanges||0)+1;markDefenseUi();}
-    d.lowFx=tier>0;d.potatoFx=tier>1;
-    if(changed||d.appliedRenderTier!==tier||d.appliedVisualSpeed!==d.speed){const world=$("#defenseWorld"),visual=defenseVisualBudget(d);if(world){world.classList.toggle("low-fx",tier>0);world.classList.toggle("fx-full",tier===0);world.classList.toggle("fx-lean",tier===1);world.classList.toggle("fx-potato",tier===2);world.classList.toggle("speed-visual-budget",d.speed===2);world.dataset.renderTier=String(tier);world.style.setProperty("--defense-weather-density",String(visual.weatherParticleScale));}d.appliedRenderTier=tier;d.appliedVisualSpeed=d.speed;}
-    return tier;
-  }
-  function defenseFxLowMode(d=mini.defense){return defenseRenderTier(d)>0;}
-
-  function defenseMasteryPips(record={}){const tier=defenseMasteryTier(record);return`<span class="defense-mastery-pips" aria-label="Mastery tier ${tier} of 4">${[1,2,3,4].map(level=>`<i class="${tier>=level?"earned":""}">${level}</i>`).join("")}</span>`;}
-  function defenseMedalTier(wave){wave=Math.max(0,Math.floor(Number(wave)||0));return wave>=50?3:wave>=25?2:wave>=10?1:0;}
-  function defenseMedalName(tier){return["NO MEDAL","BRONZE GATE","SILVER GATE","GOLD GATE"][clamp(Math.floor(Number(tier)||0),0,3)];}
-  function defenseMedalMarkup(mapId,wave=0){const tier=defenseMedalTier(wave),perfect=(state.scores?.defensePerfectMaps||[]).includes(mapId);return`<span class="defense-map-medals" aria-label="${escapeHTML(defenseMedalName(tier))}${perfect?" and Gate Perfect":""}"><i class="${tier>=1?"earned":""}">●</i><i class="${tier>=2?"earned":""}">●</i><i class="${tier>=3?"earned":""}">●</i><b class="${perfect?"earned":""}">✦</b></span>`;}
-  function defenseCheckpointAgeCopy(savedAt){const age=Math.max(0,now()-(Number(savedAt)||0)),minutes=Math.floor(age/60000);if(minutes<1)return"JUST NOW";if(minutes<60)return`${minutes}M AGO`;const hours=Math.floor(minutes/60);if(hours<24)return`${hours}H AGO`;return`${Math.floor(hours/24)}D AGO`;}
-  function defenseQueueEntry(entry){
-    if(typeof entry==="string"&&DEFENSE_ENEMIES[entry])return entry;
-    if(!entry||typeof entry!=="object")return null;
-    if(entry.type==="boss"&&DEFENSE_BOSSES.some(boss=>boss.id===entry.bossId))return{type:"boss",bossId:entry.bossId,intensity:DefenseCore.clampInteger(entry.intensity,0,99,0)};
-    if(DEFENSE_ENEMIES[entry.type])return entry.type;
-    return null;
-  }
-  function normalizeDefensePacket(raw){
-    if(!raw||typeof raw!=="object")return null;
-    const enemies=(Array.isArray(raw.enemies)?raw.enemies:[]).map(defenseQueueEntry).filter(Boolean).slice(0,12);
-    if(!enemies.length)return null;
-    return{enemies,spawnGap:DefenseCore.clampNumber(raw.spawnGap,.07,1.2,.34),breakAfter:DefenseCore.clampNumber(raw.breakAfter,0,2.4,1.2)};
-  }
-  function normalizeDefenseChildSpawn(raw){
-    if(!raw||typeof raw!=="object")return null;
-    const entry=defenseQueueEntry(raw.entry||raw.type);if(!entry)return null;
-    return{entry,progress:DefenseCore.clampNumber(raw.progress,0,.995,0),releaseAt:DefenseCore.clampNumber(raw.releaseAt,0,1e9,0),options:{bossChild:Boolean(raw.options?.bossChild),hpRatio:DefenseCore.clampNumber(raw.options?.hpRatio,.01,1,1),rewardScale:DefenseCore.clampNumber(raw.options?.rewardScale,.05,1,1)}};
-  }
-  function normalizeDefenseEnemyStats(raw){
-    const cleanCounts=value=>value&&typeof value==="object"&&!Array.isArray(value)?Object.fromEntries(Object.entries(value).filter(([key])=>DEFENSE_ENEMIES[key]||key.startsWith("boss:")).map(([key,count])=>[key,DefenseCore.clampInteger(count,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0)])):{};
-    const counters=raw?.counters&&typeof raw.counters==="object"?raw.counters:{};
-    return{spawned:cleanCounts(raw?.spawned),popped:cleanCounts(raw?.popped),leaked:cleanCounts(raw?.leaked),heartLoss:DefenseCore.clampInteger(raw?.heartLoss,0,9999,0),counters:{armorBreaks:DefenseCore.clampInteger(counters.armorBreaks,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),armorShreds:DefenseCore.clampInteger(counters.armorShreds,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),reveals:DefenseCore.clampInteger(counters.reveals,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),phaseLocks:DefenseCore.clampInteger(counters.phaseLocks,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0),bossInterrupts:DefenseCore.clampInteger(counters.bossInterrupts,0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES,0)}};
-  }
-  function defenseCheckpointRosterRegistry(){return new Map(defenseRoster().map(row=>[row.pet.id,{source:row.source,rosterIndex:row.rosterIndex,pet:row.pet}]));}
-  function defenseCanonicalTowerSnapshots(rows,mapId,{trusted=true,legacyOpeningPerkInference=false}={}){
-    const source=Array.isArray(rows)?rows:[],ids=new Set(),copies=new Map(),roster=defenseCheckpointRosterRegistry();let paid=0,openingPerkClaimed=false;
-    return source.slice(0,DEFENSE_LIMITS.MAX_DEFENSE_TOWERS).map((tower,index)=>{
-      if(!tower||typeof tower!=="object"||typeof tower.petId!=="string"||!tower.petId)return null;
-      const petId=tower.petId.slice(0,80),owner=roster.get(petId);if(!owner)return null;
-      let id=typeof tower.id==="string"&&tower.id?tower.id.slice(0,80):`tower-${index+1}`;if(ids.has(id))id=`tower-${index+1}`;ids.add(id);
-      const sourceType=owner.source,copyIndex=copies.get(petId)||0;
-      const cost=DefenseCore.deploymentCost({paidTowerCount:paid,copyCount:copyIndex,activeFirst:sourceType==="active"});if(cost>0)paid+=1;copies.set(petId,copyIndex+1);
-      const upgrade=trusted?DefenseCore.clampInteger(tower.upgrade,0,DEFENSE_LIMITS.MAX_TOWER_LEVEL,0):0,explicitPerk=Boolean(tower.openingPerkApplied),inferredLegacyPerk=legacyOpeningPerkInference&&!openingPerkClaimed&&upgrade>0,perkEligible=trusted&&!openingPerkClaimed&&upgrade>0&&(explicitPerk||inferredLegacyPerk)&&defenseWorldPerkMatchesTower(mapId,{pet:owner.pet}),openingPerkApplied=Boolean(perkEligible),spent=DefenseCore.calculateTowerInvestment(cost,upgrade,openingPerkApplied?[DefenseCore.ECONOMY.worldOpeningDiscount,1,1,1]:1);if(openingPerkApplied)openingPerkClaimed=true;
-      return{id,petId,source:sourceType,rosterIndex:owner.rosterIndex,copyNumber:copyIndex+1,x:DefenseCore.clampNumber(tower.x,0,1,.5),y:DefenseCore.clampNumber(tower.y,0,1,.5),upgrade,cost,spent,openingPerkApplied,placedAtReal:Number.NEGATIVE_INFINITY,cooldown:trusted?DefenseCore.clampNumber(tower.cooldown,0,60,0):0,kills:trusted?DefenseCore.clampInteger(tower.kills,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,damage:trusted?DefenseCore.clampNumber(tower.damage,0,DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE,0):0,abilityReadyAt:trusted?DefenseCore.clampNumber(tower.abilityReadyAt,0,1e9,0):0,overclockUntil:trusted?DefenseCore.clampNumber(tower.overclockUntil,0,1e9,0):0,rangeDebuffUntil:trusted?DefenseCore.clampNumber(tower.rangeDebuffUntil,0,1e9,0):0,targetMode:DEFENSE_TARGET_MODES.includes(tower.targetMode)?tower.targetMode:"first",doctrine:trusted&&DEFENSE_DOCTRINES[tower.doctrine]?tower.doctrine:null,shots:trusted?DefenseCore.clampInteger(tower.shots,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS*20,0):0,placedAt:trusted?DefenseCore.clampNumber(tower.placedAt,0,1e9,0):0,superForm:trusted&&["power","control"].includes(tower.superForm)?tower.superForm:null,targetId:null,retargetAt:0,retargetAtReal:0};
-    }).filter(Boolean);
-  }
-  function defenseDurabilityScale(wave,{boss=false}={}){const w=Math.max(1,Number(wave)||1),late=1+Math.max(0,w-30)*.012+Math.max(0,w-60)*.018+Math.max(0,w-90)*.020;return late*(boss?1.72:1);}
-  function defenseCanonicalEnemySnapshot(raw,currentWave,map,index=0){
-    if(!raw||typeof raw!=="object")return null;
-    const boss=DEFENSE_BOSSES.find(item=>item.id===raw.bossId)||null,type=boss?"boss":DEFENSE_ENEMIES[raw.type]?raw.type:null;if(!type)return null;
-    const base=boss||DEFENSE_ENEMIES[type],intensity=DefenseCore.clampInteger(raw.bossIntensity,0,99,0),bossChild=Boolean(raw.bossChild),scale=(1+(Math.max(1,currentWave)-1)*.115)*(map.hp||1)*(boss?1+intensity*.23:1)*defenseDurabilityScale(currentWave,{boss:Boolean(boss)}),canonicalMax=Math.max(.01,base.hp*scale*(bossChild?.5:1)),legacyRatio=Number(raw.maxHp)>0?Number(raw.hp)/Number(raw.maxHp):1,hpRatio=DefenseCore.clampNumber(raw.hpRatio,0.001,1,DefenseCore.clampNumber(legacyRatio,.001,1,1)),maxHp=canonicalMax,hp=Math.max(.01,maxHp*hpRatio),baseArmor=DefenseCore.clampNumber(base.armor||0,0,.95,0),armorBroken=Boolean(raw.armorBroken),armorShredded=Boolean(raw.armorShredded),armor=armorBroken?Math.min(baseArmor,.06):armorShredded?Math.max(0,baseArmor-.08):baseArmor;
-    return{id:typeof raw.id==="string"&&raw.id?raw.id.slice(0,80):`enemy-${index+1}`,type,bossId:boss?.id||null,bossIntensity:intensity,bossChild,progress:DefenseCore.clampNumber(raw.progress,0,.999,0),hp,maxHp,speed:base.speed*(1+Math.min(.22,currentWave*.006))*(map.speed||1),reward:DefenseCore.calculateEnemyReward(base.reward,currentWave,{rewardScale:bossChild?.5:1}),damage:base.damage,baseArmor,armor,armorBroken,armorShredded,fireproof:Boolean(base.fireproof),slowResist:base.slowResist||0,stormPulse:Boolean(base.stormPulse),phasing:Boolean(base.phasing),camo:Boolean(base.camo),phaseOffset:DefenseCore.clampNumber(raw.phaseOffset,-100,100,0),phaseActive:false,revealUntil:DefenseCore.clampNumber(raw.revealUntil,0,1e9,0),phaseSuppressedUntil:DefenseCore.clampNumber(raw.phaseSuppressedUntil,0,1e9,0),revealCredited:Boolean(raw.revealCredited),phaseLockCredited:Boolean(raw.phaseLockCredited),slow:DefenseCore.clampNumber(raw.slow,0,.95,0),slowUntil:DefenseCore.clampNumber(raw.slowUntil,0,1e9,0),burn:DefenseCore.clampNumber(raw.burn,0,1e6,0),burnUntil:DefenseCore.clampNumber(raw.burnUntil,0,1e9,0),burnSourceId:typeof raw.burnSourceId==="string"?raw.burnSourceId.slice(0,80):null,poison:DefenseCore.clampNumber(raw.poison,0,1e6,0),poisonUntil:DefenseCore.clampNumber(raw.poisonUntil,0,1e9,0),poisonSourceId:typeof raw.poisonSourceId==="string"?raw.poisonSourceId.slice(0,80):null,rootUntil:DefenseCore.clampNumber(raw.rootUntil,0,1e9,0),phaseTriggered:Boolean(raw.phaseTriggered),nextBossPulse:DefenseCore.clampNumber(raw.nextBossPulse,0,1e9,0),telegraphKind:DEFENSE_BOSS_TELEGRAPHS[raw.telegraphKind]?raw.telegraphKind:null,telegraphStartedAt:DefenseCore.clampNumber(raw.telegraphStartedAt,0,1e9,0),telegraphUntil:DefenseCore.clampNumber(raw.telegraphUntil,0,1e9,0),telegraphDisruption:DefenseCore.clampNumber(raw.telegraphDisruption,0,1,0),apexSurgeUntil:DefenseCore.clampNumber(raw.apexSurgeUntil,0,1e9,0),bossMechanicLocked:Boolean(raw.bossMechanicLocked)};
-  }
-  function normalizeDefenseCheckpoint(raw){
-    if(!raw||typeof raw!=="object")return null;
-    const version=Number(raw.checkpointVersion)||1;if(![1,2,3,4,5,6,DEFENSE_CHECKPOINT_VERSION].includes(version))return null;
-    const savedAt=DefenseCore.clampNumber(raw.savedAt,0,Number.MAX_SAFE_INTEGER,0);if(!savedAt||now()-savedAt>DEFENSE_CHECKPOINT_MAX_AGE)return null;
-    if(typeof raw.keeperId!=="string"||raw.keeperId!==state.player?.keeperId)return null;
-    const mapId=typeof raw.mapId==="string"&&DEFENSE_MAPS[raw.mapId]?raw.mapId:null;if(!mapId)return null;const map=DEFENSE_MAPS[mapId];
-    const signatureValid=version>=2&&DefenseCore.verifySaveSignature(raw),legacyUnsigned=version===1,trusted=signatureValid||legacyUnsigned;
-    const oldWave=DefenseCore.clampInteger(raw.wave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),rawPhase=DefenseCore.normalizePhase(raw.phase,DEFENSE_PHASES.PLANNING),legacyActive=legacyUnsigned&&raw.phase==="wave";
-    let currentWave=DefenseCore.clampInteger(raw.currentWave??oldWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),clearedWave=Math.min(currentWave,DefenseCore.clampInteger(raw.clearedWave??(legacyActive?Math.max(0,oldWave-1):oldWave),0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0));
-    if(!trusted){const verifiedMapBest=DefenseCore.clampInteger(state.scores?.defenseMaps?.[mapId],0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0);clearedWave=Math.min(clearedWave,verifiedMapBest);currentWave=clearedWave;defenseRecordValidationWarning("checkpoint-signature",{mapId,requestedCurrentWave:raw.currentWave??raw.wave,requestedClearedWave:raw.clearedWave,restoredClearedWave:clearedWave});}
-    const towers=defenseCanonicalTowerSnapshots(raw.towers,mapId,{trusted,legacyOpeningPerkInference:trusted&&version===4});if(!towers.length)return null;
-    const enemies=trusted?(Array.isArray(raw.enemies)?raw.enemies:[]).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_ENEMIES).map((enemy,index)=>defenseCanonicalEnemySnapshot(enemy,currentWave,map,index)).filter(Boolean):[];
-    const spawnQueue=trusted?(Array.isArray(raw.spawnQueue)?raw.spawnQueue:[]).map(defenseQueueEntry).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES):[],wavePackets=trusted?(Array.isArray(raw.wavePackets)?raw.wavePackets:[]).map(normalizeDefensePacket).filter(Boolean).slice(0,12):[],currentWavePlan=trusted?(Array.isArray(raw.currentWavePlan)?raw.currentWavePlan:spawnQueue).map(defenseQueueEntry).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES):[],childSpawnQueue=trusted?(Array.isArray(raw.childSpawnQueue)?raw.childSpawnQueue:[]).map(normalizeDefenseChildSpawn).filter(Boolean).slice(0,DEFENSE_LIMITS.MAX_CHILD_BUFFER):[],announcement=trusted&&raw.waveAnnouncement&&typeof raw.waveAnnouncement==="object"?{title:String(raw.waveAnnouncement.title||"").slice(0,100),copy:String(raw.waveAnnouncement.copy||"").slice(0,240)}:null;
-    const phase=trusted?(DefenseCore.isCombatPhase(rawPhase)?DEFENSE_PHASES.PAUSED:rawPhase===DEFENSE_PHASES.WAVE_COMPLETE?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING):(clearedWave>0?DEFENSE_PHASES.WAVE_COMPLETE:DEFENSE_PHASES.PLANNING);
-    const status=signatureValid?(version===DEFENSE_CHECKPOINT_VERSION?"verified":"migrated"):legacyUnsigned?"migrated":"sanitized";
-    return{checkpointVersion:DEFENSE_CHECKPOINT_VERSION,savedAt,keeperId:raw.keeperId,mapId,contract:trusted?normalizeDefenseRunContract(raw.contract):null,currentWave,clearedWave,lives:DefenseCore.clampInteger(raw.lives,1,map.lives,map.lives),cash:trusted?DefenseCore.clampNumber(raw.cash,0,DEFENSE_LIMITS.MAX_RUN_CASH,BASE_DEFENSE_STARTING_CASH):Math.min(BASE_DEFENSE_STARTING_CASH,DefenseCore.clampNumber(raw.cash,0,BASE_DEFENSE_STARTING_CASH,BASE_DEFENSE_STARTING_CASH)),phase,resumePhase:trusted&&DefenseCore.isCombatPhase(rawPhase)&&rawPhase!==DEFENSE_PHASES.PAUSED?rawPhase:DEFENSE_PHASES.COMBAT,speed:trusted&&[.5,1,2].includes(Number(raw.speed))?Number(raw.speed):1,clock:trusted?DefenseCore.clampNumber(raw.clock,0,1e9,0):0,towers,enemies,projectiles:[],spawnQueue,wavePackets:wavePackets.length?wavePackets:(spawnQueue.length?[{enemies:[...spawnQueue],spawnGap:.34,breakAfter:0}]:[]),packetIndex:trusted?DefenseCore.clampInteger(raw.packetIndex,0,20,0):0,packetEnemyIndex:trusted?DefenseCore.clampInteger(raw.packetEnemyIndex,0,20,0):0,nextSpawnAt:trusted?DefenseCore.clampNumber(raw.nextSpawnAt,0,1e9,0):0,packetBreakUntil:trusted?DefenseCore.clampNumber(raw.packetBreakUntil,0,1e9,0):0,childSpawnQueue,nextId:trusted?DefenseCore.clampInteger(raw.nextId,1,Number.MAX_SAFE_INTEGER,1):towers.length+1,kills:trusted?DefenseCore.clampInteger(raw.kills,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,totalDamage:trusted?DefenseCore.clampNumber(raw.totalDamage,0,DEFENSE_LIMITS.MAX_REASONABLE_DAMAGE,0):0,usedPetIds:[...new Set(towers.map(tower=>tower.petId))],lastWaveBonus:trusted?DefenseCore.clampInteger(raw.lastWaveBonus,0,DEFENSE_LIMITS.MAX_RUN_CASH,0):0,rallyUntil:trusted?DefenseCore.clampNumber(raw.rallyUntil,0,1e9,0):0,prismUntil:trusted?DefenseCore.clampNumber(raw.prismUntil,0,1e9,0):0,whiteoutUntil:trusted?DefenseCore.clampNumber(raw.whiteoutUntil,0,1e9,0):0,stormWeatherUntil:trusted?DefenseCore.clampNumber(raw.stormWeatherUntil,0,1e9,0):0,eclipseUntil:trusted?DefenseCore.clampNumber(raw.eclipseUntil,0,1e9,0):0,ashUntil:trusted?DefenseCore.clampNumber(raw.ashUntil,0,1e9,0):0,moonRevealUntil:trusted?DefenseCore.clampNumber(raw.moonRevealUntil,0,1e9,0):0,nextWeatherAt:trusted?DefenseCore.clampNumber(raw.nextWeatherAt,0,1e9,7):7,camoHintSeen:trusted&&Boolean(raw.camoHintSeen),waveAnnouncement:announcement,currentWavePlan,bossesBeaten:trusted&&Array.isArray(raw.bossesBeaten)?raw.bossesBeaten.filter(id=>DEFENSE_BOSSES.some(boss=>boss.id===id)).slice(0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES):[],bossesDefeated:trusted?DefenseCore.clampInteger(raw.bossesDefeated??raw.bossesBeaten?.length,0,DEFENSE_LIMITS.MAX_REASONABLE_BOSSES,0):0,perfectWaveCount:trusted?Math.min(clearedWave,DefenseCore.clampInteger(raw.perfectWaveCount,0,DEFENSE_LIMITS.MAX_REASONABLE_PERFECT_WAVES,0)):0,waveHeartLossStart:trusted?DefenseCore.clampInteger(raw.waveHeartLossStart,0,9999,0):0,waveTotal:trusted?DefenseCore.clampInteger(raw.waveTotal,0,DEFENSE_LIMITS.MAX_QUEUE_ENTRIES+DEFENSE_LIMITS.MAX_CHILD_BUFFER,0):0,waveResolved:trusted?DefenseCore.clampInteger(raw.waveResolved,0,DEFENSE_LIMITS.MAX_REASONABLE_KILLS,0):0,enemyStats:trusted?normalizeDefenseEnemyStats(raw.enemyStats):normalizeDefenseEnemyStats(null),worldPerkUsed:towers.some(tower=>tower.openingPerkApplied),gateFlameArmed:false,gateFlameReadyAt:trusted?DefenseCore.clampNumber(raw.gateFlameReadyAt,0,1e9,0):0,gateFlameUntil:trusted?DefenseCore.clampNumber(raw.gateFlameUntil,0,1e9,0):0,gateFlameProgress:trusted?DefenseCore.clampNumber(raw.gateFlameProgress,0,1,.86):.86,gateFlameNextTick:trusted?DefenseCore.clampNumber(raw.gateFlameNextTick,0,1e9,0):0,gateFlameTicks:trusted?DefenseCore.clampInteger(raw.gateFlameTicks,0,1000,0):0,reason:typeof raw.reason==="string"?raw.reason.slice(0,40):"auto",validationStatus:status};
-  }
-  function readDefenseCheckpoint(){
-    try{
-      let sourceKey=DEFENSE_CHECKPOINT_KEY,rawText=localStorage.getItem(sourceKey);
-      if(!rawText){for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS){rawText=localStorage.getItem(key);if(rawText){sourceKey=key;break;}}}
-      if(!rawText)return null;
-      const checkpoint=normalizeDefenseCheckpoint(JSON.parse(rawText));
-      if(!checkpoint){localStorage.removeItem(sourceKey);return null;}
-      checkpoint.sourceKey=sourceKey;return checkpoint;
-    }catch(error){defenseRecordValidationWarning("checkpoint-parse",{message:String(error?.message||error)});return null;}
-  }
-  function buildDefenseCheckpoint(d,reason="auto"){
-    flushDefenseIncome(d,"checkpoint");
-    const savedAt=now(),checkpoint={checkpointVersion:DEFENSE_CHECKPOINT_VERSION,savedAt,keeperId:state.player.keeperId,mapId:d.mapId,contract:d.contract?{...d.contract}:null,currentWave:d.currentWave,clearedWave:d.clearedWave,lives:d.lives,cash:d.cash,phase:d.phase,resumePhase:d.resumePhase||DEFENSE_PHASES.COMBAT,speed:d.speed,clock:d.clock,towers:d.towers.map(tower=>({id:tower.id,petId:tower.petId,source:tower.source,rosterIndex:tower.rosterIndex,copyNumber:tower.copyNumber,x:tower.x,y:tower.y,upgrade:tower.upgrade,cooldown:tower.cooldown,kills:tower.kills,damage:tower.damage,abilityReadyAt:tower.abilityReadyAt,overclockUntil:tower.overclockUntil,rangeDebuffUntil:tower.rangeDebuffUntil,targetMode:tower.targetMode,doctrine:tower.doctrine,shots:tower.shots,placedAt:tower.placedAt||0,openingPerkApplied:Boolean(tower.openingPerkApplied),superForm:tower.superForm||null})),enemies:d.enemies.filter(enemy=>!enemy.dead).slice(0,DEFENSE_LIMITS.MAX_CHECKPOINT_ENEMIES).map(enemy=>({id:enemy.id,type:enemy.type,bossId:enemy.bossId,bossIntensity:enemy.bossIntensity,bossChild:enemy.bossChild,progress:enemy.progress,hpRatio:enemy.hp/Math.max(.01,enemy.maxHp),armorBroken:enemy.armorBroken,armorShredded:enemy.armorShredded,phaseOffset:enemy.phaseOffset,revealUntil:enemy.revealUntil,phaseSuppressedUntil:enemy.phaseSuppressedUntil,revealCredited:enemy.revealCredited,phaseLockCredited:enemy.phaseLockCredited,slow:enemy.slow,slowUntil:enemy.slowUntil,burn:enemy.burn,burnUntil:enemy.burnUntil,burnSourceId:enemy.burnSource?.id||null,poison:enemy.poison,poisonUntil:enemy.poisonUntil,poisonSourceId:enemy.poisonSource?.id||null,rootUntil:enemy.rootUntil,phaseTriggered:enemy.phaseTriggered,nextBossPulse:enemy.nextBossPulse,telegraphKind:enemy.telegraphKind||null,telegraphStartedAt:enemy.telegraphStartedAt||0,telegraphUntil:enemy.telegraphUntil||0,telegraphDisruption:enemy.telegraphDisruption||0,apexSurgeUntil:enemy.apexSurgeUntil||0,bossMechanicLocked:Boolean(enemy.bossMechanicLocked)})),spawnQueue:d.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:(d.wavePackets||[]).map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter})),packetIndex:d.packetIndex||0,packetEnemyIndex:d.packetEnemyIndex||0,nextSpawnAt:d.nextSpawnAt||0,packetBreakUntil:d.packetBreakUntil||0,childSpawnQueue:(d.childSpawnQueue||[]).map(item=>({entry:typeof item.entry==="string"?item.entry:{...item.entry},progress:item.progress,releaseAt:item.releaseAt,options:{bossChild:Boolean(item.options?.bossChild),hpRatio:item.options?.hpRatio??1,rewardScale:item.options?.rewardScale??1}})),nextId:d.nextId,kills:d.kills,totalDamage:d.totalDamage,usedPetIds:[...(d.usedPetIds||[])],lastWaveBonus:d.lastWaveBonus,rallyUntil:d.rallyUntil,prismUntil:d.prismUntil,whiteoutUntil:d.whiteoutUntil,stormWeatherUntil:d.stormWeatherUntil,eclipseUntil:d.eclipseUntil,ashUntil:d.ashUntil,moonRevealUntil:d.moonRevealUntil,nextWeatherAt:d.nextWeatherAt,camoHintSeen:d.camoHintSeen,waveAnnouncement:d.waveAnnouncement?{...d.waveAnnouncement}:null,currentWavePlan:d.currentWavePlan.map(entry=>typeof entry==="string"?entry:{...entry}),bossesBeaten:[...(d.bossesBeaten||[])],bossesDefeated:d.bossesDefeated||0,perfectWaveCount:d.perfectWaveCount||0,waveHeartLossStart:d.waveHeartLossStart||0,waveTotal:d.waveTotal,waveResolved:d.waveResolved,enemyStats:JSON.parse(JSON.stringify(d.enemyStats||{})),worldPerkUsed:Boolean(d.worldPerkUsed),gateFlameReadyAt:d.gateFlameReadyAt||0,gateFlameUntil:d.gateFlameUntil||0,gateFlameProgress:d.gateFlameProgress||.86,gateFlameNextTick:d.gateFlameNextTick||0,gateFlameTicks:d.gateFlameTicks||0,reason};
-    checkpoint.signature=DefenseCore.createSaveSignature(checkpoint);return checkpoint;
-  }
-  function clearDefenseCheckpoint(){try{localStorage.removeItem(DEFENSE_CHECKPOINT_KEY);for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS)localStorage.removeItem(key);}catch(error){} }
-  function writeDefenseCheckpoint(force=false,reason="auto"){
-    const d=mini.active&&mini.mode==="defense"?mini.defense:null;if(!d||!d.towers.length){clearDefenseCheckpoint();return false;}
-    if(!force&&now()-(d.lastCheckpointAt||0)<1000){d.checkpointDirty=true;return false;}
-    try{const checkpoint=buildDefenseCheckpoint(d,reason);localStorage.setItem(DEFENSE_CHECKPOINT_KEY,JSON.stringify(checkpoint));for(const key of DEFENSE_LEGACY_CHECKPOINT_KEYS)localStorage.removeItem(key);d.lastCheckpointAt=checkpoint.savedAt;d.checkpointDirty=false;d.checkpointWrites=(d.checkpointWrites||0)+1;return true;}catch(error){defenseRecordValidationWarning("checkpoint-write",{message:String(error?.message||error)});return false;}
-  }
-  function maybeWriteDefenseCheckpoint(dt){const d=mini.defense;if(!d)return;d.checkpointClock=(d.checkpointClock||0)+Math.max(0,dt);if(d.checkpointClock>=1){d.checkpointClock=0;if(d.checkpointDirty)writeDefenseCheckpoint(false,"combat");}}
-  function renderRestoredDefenseProjectile(){return false;}
-  function restoreDefenseCheckpoint(raw){
-    const checkpoint=normalizeDefenseCheckpoint(raw);if(!checkpoint)return false;initializeDefenseRun(checkpoint.mapId,checkpoint.contract);const d=mini.defense,roster=new Map(defenseRoster().map(row=>[row.pet.id,row]));
-    Object.assign(d,{currentWave:checkpoint.currentWave,clearedWave:checkpoint.clearedWave,lives:checkpoint.lives,cash:checkpoint.cash,phase:checkpoint.phase,resumePhase:checkpoint.resumePhase,speed:checkpoint.speed,clock:checkpoint.clock,spawnQueue:checkpoint.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:checkpoint.wavePackets.map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter})),packetIndex:checkpoint.packetIndex,packetEnemyIndex:checkpoint.packetEnemyIndex,nextSpawnAt:checkpoint.nextSpawnAt,packetBreakUntil:checkpoint.packetBreakUntil,childSpawnQueue:checkpoint.childSpawnQueue.map(item=>({...item,options:{...item.options}})),nextId:checkpoint.nextId,kills:checkpoint.kills,totalDamage:checkpoint.totalDamage,usedPetIds:new Set(checkpoint.usedPetIds),lastWaveBonus:checkpoint.lastWaveBonus,rallyUntil:checkpoint.rallyUntil,prismUntil:checkpoint.prismUntil,whiteoutUntil:checkpoint.whiteoutUntil,stormWeatherUntil:checkpoint.stormWeatherUntil,eclipseUntil:checkpoint.eclipseUntil,ashUntil:checkpoint.ashUntil,moonRevealUntil:checkpoint.moonRevealUntil,nextWeatherAt:checkpoint.nextWeatherAt,camoHintSeen:checkpoint.camoHintSeen,waveAnnouncement:checkpoint.waveAnnouncement,currentWavePlan:checkpoint.currentWavePlan.map(entry=>typeof entry==="string"?entry:{...entry}),bossesBeaten:[...checkpoint.bossesBeaten],bossesDefeated:checkpoint.bossesDefeated,perfectWaveCount:checkpoint.perfectWaveCount,waveHeartLossStart:checkpoint.waveHeartLossStart,waveTotal:checkpoint.waveTotal,waveResolved:checkpoint.waveResolved,enemyStats:normalizeDefenseEnemyStats(checkpoint.enemyStats),worldPerkUsed:checkpoint.worldPerkUsed,gateFlameArmed:false,gateFlameReadyAt:checkpoint.gateFlameReadyAt,gateFlameUntil:checkpoint.gateFlameUntil,gateFlameProgress:checkpoint.gateFlameProgress,gateFlameNextTick:checkpoint.gateFlameNextTick,gateFlameTicks:checkpoint.gateFlameTicks,checkpointDirty:false,checkpointClock:0,pendingIncome:0,pendingIncomeEvents:0,pendingIncomeSources:{},realClock:0,nextIncomeFlushAtReal:0,nextChildReleaseAtReal:0,childSpawnSequence:0,targetSnapshot:[],targetSnapshotAtReal:0,targetSnapshotBuilds:0,childSpawnsReleased:0,lastIncomeBatch:null});
-    d.towers=checkpoint.towers.map(snapshot=>{const row=roster.get(snapshot.petId);if(!row)return null;return{...snapshot,pet:row.pet,source:row.source,rosterIndex:row.rosterIndex,node:null,targetId:null,retargetAt:0,retargetAtReal:0};}).filter(Boolean);if(!d.towers.length){clearDefenseCheckpoint();return false;}d.usedPetIds=new Set([...d.usedPetIds,...d.towers.map(tower=>tower.petId)]);d.enemies=[];d.projectiles=[];mini.entities=[];renderDefenseWorld();const towerMap=new Map();for(const tower of d.towers){renderDefenseTower(tower);towerMap.set(tower.id,tower);}const enemyMap=new Map();for(const snapshot of checkpoint.enemies){const descriptor=snapshot.bossId?{type:"boss",bossId:snapshot.bossId,intensity:snapshot.bossIntensity}:snapshot.type,enemy=spawnDefenseEnemy(descriptor,{progress:snapshot.progress,hpOverride:snapshot.hp,maxHpOverride:snapshot.maxHp,bossChild:snapshot.bossChild,skipAnalytics:true,rewardScale:snapshot.bossChild?.5:1});const node=enemy.node;Object.assign(enemy,snapshot,{node,burnSource:null,poisonSource:null});if(node){node.dataset.enemyId=enemy.id;const data=snapshot.bossId?DEFENSE_BOSSES.find(item=>item.id===snapshot.bossId):DEFENSE_ENEMIES[snapshot.type];node.className=`defense-enemy ${snapshot.bossId?`balloon-boss ${data?.className||"boss-crown"}`:data?.className||"balloon-puff"}`;node.style.setProperty("--balloon-color",data?.color||"#ff5b68");const trait=node.querySelector(".balloon-trait");if(trait)trait.textContent=data?.icon||"○";}enemyMap.set(enemy.id,enemy);}for(const snapshot of checkpoint.enemies){const enemy=enemyMap.get(snapshot.id);if(!enemy)continue;enemy.burnSource=towerMap.get(snapshot.burnSourceId)||null;enemy.poisonSource=towerMap.get(snapshot.poisonSourceId)||null;updateDefenseEnemyNode(enemy,true);}const newestEnemy=d.enemies.filter(enemy=>!enemy.dead).sort((a,b)=>a.progress-b.progress)[0]||null;d.lastSpawnedEnemyId=newestEnemy?.id||null;d.spawnWaitReason=newestEnemy?"restored-distance":"restored-timer";d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);d.waveTotal=Math.max(d.waveTotal,d.waveResolved+d.spawnQueue.length+d.childSpawnQueue.length+d.enemies.length);d.nextId=Math.max(d.nextId,checkpoint.nextId);mini.score=d.clearedWave;mini.hits=d.kills;updateDefenseRoster();markDefenseUi();flushDefenseUi(true);const unfinished=d.currentWave>d.clearedWave;setDefenseMessage(unfinished?`RUN RESTORED • WAVE ${d.currentWave} PAUSED`:`RUN RESTORED • ${d.clearedWave} CLEARED`,unfinished?`Permanent progress remains at Wave ${d.clearedWave}. Tap ▶ when ready.`:"Your field and match coins are waiting. Start the next wave when ready.");writeDefenseCheckpoint(true,checkpoint.validationStatus==="migrated"?"migrated":"restored");return true;
-  }
-  function defenseCheckpointLobbyMarkup(checkpoint){if(!checkpoint)return"";const map=DEFENSE_MAPS[checkpoint.mapId]||DEFENSE_MAPS.grove,threats=checkpoint.spawnQueue.length+checkpoint.childSpawnQueue.length+checkpoint.enemies.length,unfinished=checkpoint.currentWave>checkpoint.clearedWave,phase=unfinished?`${threats} THREATS PAUSED • CLEARED ${checkpoint.clearedWave}`:checkpoint.clearedWave?`PLANNING WAVE ${checkpoint.clearedWave+1}`:"SETUP",contract=normalizeDefenseRunContract(checkpoint.contract);return`<section class="defense-resume-card ${contract?"contract-run":""}"><div><small>${contract?"TRAIL CONTRACT CHECKPOINT":"RUN CHECKPOINT"} • ${escapeHTML(defenseCheckpointAgeCopy(checkpoint.savedAt))}</small><h3>${map.icon} ${escapeHTML(map.name)} • ${unfinished?`REACHED ${checkpoint.currentWave}`:`CLEARED ${checkpoint.clearedWave}`}</h3><p>${escapeHTML(phase)} • ♥ ${checkpoint.lives} • ${checkpoint.towers.length} RIZOS • ${Math.floor(checkpoint.cash)} COINS${contract?` • ${escapeHTML(contract.title)}`:""}</p></div><span><button type="button" data-discard-defense-run>DISCARD</button><button class="primary" type="button" data-resume-defense-run>RESUME RUN</button></span></section>`;}
-
-  function defenseRecordsMarkup(){
-    const history=state.scores?.defenseHistory||[],mastery=Object.values(state.scores?.defenseMastery||{}).sort((a,b)=>(b.waves||0)-(a.waves||0)||(b.damage||0)-(a.damage||0)).slice(0,8),contracts=(state.scores?.defenseContracts||[]).map(normalizeDefenseRunContract).filter(Boolean),today=ensureDailyDefenseContract(),streak=defenseContractStreak(contracts),perMap=state.scores?.defenseMaps||{},perfectMaps=state.scores?.defensePerfectMaps||[],totalBosses=history.reduce((sum,run)=>sum+(run.bosses||0),0);
-    const maps=DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],best=Math.max(0,Math.floor(Number(perMap[id])||0)),tier=defenseMedalTier(best),perfect=perfectMaps.includes(id);return`<article class="defense-record-map" style="--map-accent:${defenseMapAccent(id)}"><span>${map.icon}</span><div><small>WORLD ${map.level} • BEST CLEARED ${best}</small><b>${escapeHTML(map.name)}</b><em>${escapeHTML(defenseMedalName(tier))}${perfect?" • GATE PERFECT":""}</em></div>${defenseMedalMarkup(id,best)}</article>`;}).join("");
-    const contractRows=contracts.filter(item=>item.completed).slice(0,8).map(item=>{const map=DEFENSE_MAPS[item.mapId]||DEFENSE_MAPS.grove;return`<article class="defense-contract-record"><span>${item.perfect?"✦":"✓"}</span><div><small>${escapeHTML(item.date)} • ${escapeHTML(map.name)}</small><b>${escapeHTML(item.title)}</b><em>${item.rules.map(id=>escapeHTML(DEFENSE_CONTRACT_RULES[id].name)).join(" • ")}</em></div><button type="button" data-replay-defense-contract="${escapeHTML(item.id)}">REPLAY</button></article>`;}).join("")||`<p class="defense-record-empty">SEAL TODAY’S CONTRACT AT WAVE ${DEFENSE_CONTRACT_TARGET} TO BEGIN THE ARCHIVE.</p>`;
-    const masteryRows=mastery.length?mastery.map((record,index)=>{const variant=VARIANTS.find(item=>item.id===record.variant)||VARIANTS[0],unlock=defenseMasteryUnlockCopy(record);return`<article class="defense-mastery-row mastery-tier-${unlock.tier}" style="--mastery-color:${variant.color}"><i>${index+1}</i><span><small>${escapeHTML(defenseMasteryTitle(record))} • ${record.runs} RUNS</small><b>${escapeHTML(record.name||"RIZO")}</b><em>${record.waves} WAVES • ${record.pops} POPS • ${Math.round(record.damage)} DMG</em><strong>${escapeHTML(unlock.current)}</strong><u>${escapeHTML(unlock.next)}</u>${defenseMasteryPips(record)}</span></article>`;}).join(""):`<p class="defense-record-empty">DEPLOY A RIZO AND BANK A REAL RUN TO START FIELD MASTERY.</p>`;
-    const runRows=history.length?history.slice(0,8).map(run=>{const map=DEFENSE_MAPS[run.mapId]||DEFENSE_MAPS.grove;return`<article class="defense-history-row"><span>${run.contractComplete?"◇":run.perfect?"✦":run.ended==="gate"?"♥":"◉"}</span><div><small>${escapeHTML(map.name)} • ${new Date(run.at||0).toLocaleDateString()}${run.contractComplete?" • CONTRACT":""}</small><b>CLEARED ${run.clearedWave??run.wave}${(run.reachedWave??run.wave)>(run.clearedWave??run.wave)?` • REACHED ${run.reachedWave}`:""} • ${run.kills} POPS</b><em>${run.heartLoss} HEARTS LOST • MVP ${escapeHTML(run.mvpName||"RIZO")}</em></div></article>`;}).join(""):`<p class="defense-record-empty">NO BANKED DEFENSE RUNS YET.</p>`;
-    return`<div class="modal-card defense-records-modal"><small>RIZO DEFENSE • PERMANENT RECORDS</small><div class="defense-records-head"><div><h2>THE GATE REMEMBERS.</h2><p>Medals, contracts, run history, and field mastery record what happened. Mastery unlocks presentation only—never hidden permanent damage.</p></div><b>${history.length} RUNS<br>${totalBosses} BOSSES</b></div><section class="defense-records-section defense-signature-guide"><h3>FIELD SIGNATURES</h3><p>10 WAVES • FIELD MARK<br>50 WAVES • VARIANT TRAIL<br>150 WAVES • IMPACT SIGIL<br>400 WAVES • LEGEND AURA</p><em>${state.settings.defenseSignatures?"SIGNATURES ACTIVE":"SIGNATURES HIDDEN IN SETTINGS"} • COSMETIC ONLY</em></section><section class="defense-records-section defense-contract-archive"><h3>TRAIL CONTRACTS • ${streak} DAY STREAK</h3><p class="defense-contract-today">TODAY • ${escapeHTML(today.title)} • ${today.completed?"SEALED":`BEST ${today.bestWave}/${today.targetWave}`}</p><div class="defense-contract-records">${contractRows}</div></section><section class="defense-records-section"><h3>WORLD MEDALS</h3><div class="defense-record-map-list">${maps}</div></section><section class="defense-records-section"><h3>RIZO FIELD MASTERY</h3><div class="defense-mastery-list">${masteryRows}</div></section><section class="defense-records-section"><h3>RECENT RUNS</h3><div class="defense-history-list">${runRows}</div></section><div class="modal-buttons"><button type="button" data-defense-field-guide="rizos">FIELD GUIDE</button><button type="button" data-defense-records-back>BACK TO WORLD ROUTE</button><button class="primary" type="button" data-close-modal>BACK TO ARCADE</button></div></div>`;
-  }
-  function showDefenseRecords(){showModal(defenseRecordsMarkup());activeMusicOverride="mini-defense";startMusicForScene("mini-defense",true);}
-  function recordDefenseRun(snapshot){
-    const clearedWave=DefenseCore.clampInteger(snapshot?.clearedWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0),reachedWave=Math.max(clearedWave,DefenseCore.clampInteger(snapshot?.currentWave??snapshot?.wave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0));if(!clearedWave&&!reachedWave)return null;
-    const contractProgress=recordDefenseContractProgress(snapshot,true),contract=contractProgress.record,stats=snapshot.enemyStats||{},heartLoss=Math.max(0,Math.floor(Number(stats.heartLoss)||0)),leaks=Object.values(stats.leaked||{}).reduce((sum,value)=>sum+(Number(value)||0),0),bosses=[...new Set(snapshot.bossesBeaten||[])],perfectWaveCount=DefenseCore.clampInteger(snapshot?.perfectWaveCount,0,clearedWave,0),perfect=clearedWave>0&&perfectWaveCount===clearedWave,petTotals=new Map();
-    for(const tower of snapshot.towers||[]){const current=petTotals.get(tower.petId)||{petId:tower.petId,name:tower.pet?.name||"RIZO",variant:tower.pet?.variant||tower.pet?.hiddenVariant||"classic",kills:0,damage:0,powerPaths:0,controlPaths:0};current.kills+=Math.max(0,Number(tower.kills)||0);current.damage+=Math.max(0,Number(tower.damage)||0);if(tower.doctrine==="power")current.powerPaths+=1;if(tower.doctrine==="control")current.controlPaths+=1;petTotals.set(tower.petId,current);}
-    const leaders=[...petTotals.values()].sort((a,b)=>b.damage-a.damage||b.kills-a.kills),top=leaders[0]||{petId:"",name:state.pet.name,variant:state.pet.variant||"classic",damage:0};state.scores.defenseMastery||={};
-    if(clearedWave>0)for(const row of leaders){const prior=state.scores.defenseMastery[row.petId]||{petId:row.petId,name:row.name,variant:row.variant,runs:0,waves:0,bestWave:0,pops:0,damage:0,bosses:0,powerPaths:0,controlPaths:0,lastAt:0};state.scores.defenseMastery[row.petId]={...prior,name:row.name,variant:row.variant,runs:(prior.runs||0)+1,waves:(prior.waves||0)+clearedWave,bestWave:Math.max(prior.bestWave||0,clearedWave),pops:(prior.pops||0)+Math.floor(row.kills),damage:(prior.damage||0)+Math.round(row.damage),bosses:(prior.bosses||0)+(row.petId===top.petId?bosses.length:0),powerPaths:(prior.powerPaths||0)+row.powerPaths,controlPaths:(prior.controlPaths||0)+row.controlPaths,lastAt:now()};}
-    const record={id:uid("DEFENSE-RUN"),at:now(),mapId:snapshot.mapId,wave:clearedWave,clearedWave,reachedWave,kills:Math.max(0,Math.floor(Number(snapshot.kills)||0)),heartLoss,leaks:Math.max(0,Math.floor(leaks)),bosses:bosses.length,perfect,perfectWaveCount,ended:snapshot.ended==="gate"?"gate":"banked",mvpPetId:top.petId,mvpName:top.name,mvpVariant:top.variant,mvpDamage:Math.round(top.damage),powerPaths:leaders.reduce((sum,row)=>sum+row.powerPaths,0),controlPaths:leaders.reduce((sum,row)=>sum+row.controlPaths,0),contractId:contract?.id||"",contractDate:contract?.date||"",contractComplete:Boolean(contract?.completed)};
-    state.scores.defenseHistory=[record,...(state.scores.defenseHistory||[])].slice(0,12);if(perfect&&clearedWave>=10){state.scores.defensePerfectMaps||=[];if(!state.scores.defensePerfectMaps.includes(snapshot.mapId))state.scores.defensePerfectMaps.push(snapshot.mapId);}return record;
-  }
-
-  function defenseNow(){return Number(mini.defense?.clock)||0;}
-  function defenseRoster(){
-    const rows=[{pet:state.pet,source:"active",rosterIndex:-1}];
-    for(const [rosterIndex,pet] of (state.farm?.roster||[]).entries())rows.push({pet,source:"house",rosterIndex});
-    return rows.filter(row=>row.pet?.alive!==false&&row.pet?.stage!=="egg");
-  }
-  function defenseUnlockedMaps(){const best=Number(state.scores?.defense)||0;return DEFENSE_MAP_ORDER.map(id=>DEFENSE_MAPS[id]).filter(map=>best>=map.unlockWave);}
-  function chooseDefenseMapId(){const unlocked=defenseUnlockedMaps();return (unlocked[unlocked.length-1]||DEFENSE_MAPS.grove).id;}
-  function defensePathMetrics(path){const segments=[];let total=0;for(let i=1;i<path.length;i+=1){const a=path[i-1],b=path[i],length=Math.hypot(b.x-a.x,b.y-a.y);segments.push({a,b,length,start:total});total+=length;}return{segments,total};}
-  function defensePointFromMetrics(metrics,progress){const distance=clamp(progress,0,1)*metrics.total,segments=metrics.segments;let low=0,high=segments.length-1,index=high;while(low<=high){const middle=(low+high)>>1,segment=segments[middle];if(distance>segment.start+segment.length)low=middle+1;else{index=middle;high=middle-1;}}const segment=segments[index],t=clamp((distance-segment.start)/Math.max(.0001,segment.length),0,1);return{x:segment.a.x+(segment.b.x-segment.a.x)*t,y:segment.a.y+(segment.b.y-segment.a.y)*t};}
-  function defensePointAt(progress){return defensePointFromMetrics(mini.defense.pathMetrics,progress);}
-  function defenseMapPolyline(map){return map.path.map(point=>`${Math.round(point.x*1000)},${Math.round(point.y*1000)}`).join(" ");}
-  function defenseMapSvgPath(map){return map.path.map((point,index)=>`${index?"L":"M"}${Math.round(point.x*1000)} ${Math.round(point.y*1000)}`).join(" ");}
-  function defenseMiniRouteMarkup(map){const d=defenseMapSvgPath(map);return`<svg class="defense-mini-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`;}
-  function defenseLandmarkMarkup(map){return(map.landmarks||[]).map((item,index)=>`<i class="defense-landmark landmark-${escapeHTML(item.kind||"stone")}" style="--landmark-x:${item.x*100}%;--landmark-y:${item.y*100}%" data-landmark="${index}" aria-hidden="true"><span>${escapeHTML(item.label||"")}</span></i>`).join("");}
-  function defenseBuildPocketMarkup(map){return(map.buildPockets||[]).map((item,index)=>`<i class="defense-build-pocket build-pocket-${escapeHTML(map.id)}" style="--pocket-x:${item.x*100}%;--pocket-y:${item.y*100}%" data-build-pocket="${index}" aria-hidden="true"></i>`).join("");}
-  function defenseWorldFeatureMarkup(map){
-    const features={
-      grove:[["root","terrain-root terrain-root-a"],["root","terrain-root terrain-root-b"],["vine","terrain-vine"]],
-      ember:[["vent","terrain-vent terrain-vent-a"],["vent","terrain-vent terrain-vent-b"],["crack","terrain-lava-crack"]],
-      moon:[["orbit","terrain-orbit"],["crater","terrain-crater terrain-crater-a"],["crater","terrain-crater terrain-crater-b"]],
-      storm:[["puddle","terrain-charge-puddle terrain-charge-puddle-a"],["puddle","terrain-charge-puddle terrain-charge-puddle-b"],["wind","terrain-wind-lane"]],
-      blizzard:[["bank","terrain-snowbank terrain-snowbank-a"],["bank","terrain-snowbank terrain-snowbank-b"],["crack","terrain-ice-crack"]],
-      eclipse:[["lane","terrain-shadow-lane"],["reveal","terrain-reveal-zone terrain-reveal-zone-a"],["reveal","terrain-reveal-zone terrain-reveal-zone-b"]]
-    }[map.id]||[];
-    return features.map(([kind,className],index)=>`<i class="defense-world-feature ${className}" data-world-feature="${escapeHTML(kind)}" data-feature-index="${index}" aria-hidden="true"></i>`).join("");
-  }
-
-  function defenseGatePoint(map){
-    const end=map?.path?.[map.path.length-1]||{x:.88,y:.62};
-    return{x:clamp(end.x,.055,.955),y:clamp(end.y,.1,.88)};
-  }
-  function defenseObstacleMarkup(map){return(map.blockedZones||[]).map((zone,index)=>`<i class="defense-obstacle obstacle-${escapeHTML(zone.kind||"rock")}" style="--obstacle-x:${zone.x*100}%;--obstacle-y:${zone.y*100}%;--obstacle-size:${Math.max(26,zone.r*520)}px" data-obstacle="${index}"></i>`).join("");}
-
-  function queueDefenseIncome(amount,source="pop"){
-    const d=mini.defense;if(!d)return 0;const safe=DefenseCore.clampNumber(amount,0,DEFENSE_LIMITS.MAX_RUN_CASH,0),wasEmpty=!(d.pendingIncome>0);d.pendingIncome=DefenseCore.clampNumber((d.pendingIncome||0)+safe,0,DEFENSE_LIMITS.MAX_RUN_CASH,0);d.pendingIncomeEvents=(d.pendingIncomeEvents||0)+1;d.pendingIncomeSources||(d.pendingIncomeSources={});d.pendingIncomeSources[source]=(d.pendingIncomeSources[source]||0)+safe;if(wasEmpty)d.nextIncomeFlushAtReal=defenseRealNow(d)+defensePerformanceBudget(d).incomeFlushMs/1000;d.lastIncomeSource=source;return safe;
-  }
-  function flushDefenseIncome(d=mini.defense,reason="timer"){
-    if(!d)return 0;const pending=Math.max(0,Math.floor(Number(d.pendingIncome)||0));if(!pending)return 0;const events=Math.max(1,Math.floor(Number(d.pendingIncomeEvents)||1)),sources={...(d.pendingIncomeSources||{})};d.pendingIncome=0;d.pendingIncomeEvents=0;d.pendingIncomeSources={};d.cash=DefenseCore.clampNumber((d.cash||0)+pending,0,DEFENSE_LIMITS.MAX_RUN_CASH,0);d.nextIncomeFlushAtReal=defenseRealNow(d)+defensePerformanceBudget(d).incomeFlushMs/1000;d.cashWriteCount=(d.cashWriteCount||0)+1;d.lastIncomeFlushReason=reason;d.lastIncomeBatch={amount:pending,events,sources,atReal:defenseRealNow(d)};markDefenseUi({roster:true});return pending;
-  }
-  function defenseGoldenBonus(){const d=mini.defense;if(!d)return 1;return DefenseCore.goldenBonus(d.towers.filter(tower=>(tower.pet.variant||tower.pet.hiddenVariant)==="golden"&&tower.upgrade>=2).length);}
-  const DEFENSE_WORLD_OPENING_PERKS=Object.freeze({
-    grove:{label:"BALANCED OPENING",variants:[]},
-    ember:{label:"FIRST DAMAGE UPGRADE • 20% OFF",variants:["ember","obsidian","shadow","diamond"]},
-    moon:{label:"FIRST DETECTOR UPGRADE • 20% OFF",variants:["shadow","aurora","glitch"]},
-    storm:{label:"FIRST CONTROL UPGRADE • 20% OFF",variants:["moss","frost","bubblegum","violet"]},
-    blizzard:{label:"FIRST WIDE-RANGE UPGRADE • 20% OFF",variants:["aurora","diamond","violet","frost"]},
-    eclipse:{label:"FIRST SUPPORT / REVEAL UPGRADE • 20% OFF",variants:["aurora","golden","glitch","shadow"]}
-  });
-  function defenseWorldPerkMatchesTower(mapId,tower){const perk=DEFENSE_WORLD_OPENING_PERKS[mapId],variant=tower?.pet?.variant||tower?.pet?.hiddenVariant||"classic";return Boolean(perk?.variants?.includes(variant));}
-  function defenseWorldPerkLabel(d=mini.defense){return DEFENSE_WORLD_OPENING_PERKS[d?.mapId]?.label||"BALANCED OPENING";}
-  function defenseUpgradeModifier(tower,d=mini.defense){if(!d||d.worldPerkUsed||tower?.upgrade!==0||!defenseWorldPerkMatchesTower(d.mapId,tower))return 1;return DefenseCore.ECONOMY.worldOpeningDiscount;}
-  function defenseUpgradeCost(tower,d=mini.defense){return DefenseCore.upgradeCost(tower?.upgrade||0,defenseUpgradeModifier(tower,d));}
-  function defenseCanUndoPlacement(tower,d=mini.defense){return Boolean(d&&tower&&defenseSellAllowed(d)&&Number.isFinite(tower.placedAtReal)&&defenseRealNow(d)-tower.placedAtReal<=DefenseCore.ECONOMY.placementUndoSeconds);}
-  function defenseSellRefund(tower,d=mini.defense){if(!tower)return 0;return Math.floor((tower.spent||0)*(defenseCanUndoPlacement(tower,d)?1:DefenseCore.ECONOMY.planningRefundRate));}
-
-  function defenseDeployCost(row){const d=mini.defense,copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,paid=d.towers.filter(tower=>tower.cost>0).length;return DefenseCore.deploymentCost({paidTowerCount:paid,copyCount:copies,activeFirst:row.source==="active"});}
-  function defenseTowerStats(pet,upgrade=0){
-    const stage=DEFENSE_STAGE_MULTIPLIER[pet.stage]||1,power=Number(pet.skills?.power)||0,speed=Number(pet.skills?.speed)||0,instinct=Number(pet.skills?.instinct)||0,stamina=Number(pet.skills?.stamina)||0,variant=pet.variant||pet.hiddenVariant||"classic";
-    const profile={classic:{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"},ember:{damage:1.03,rate:.96,range:1,projectile:"ember",label:"BURN"},toxic:{damage:.88,rate:1,range:1.04,projectile:"toxic",label:"POISON"},violet:{damage:.94,rate:1.08,range:1.08,projectile:"void",label:"CHAIN"},moss:{damage:.78,rate:.91,range:1.08,projectile:"moss",label:"ROOT"},bubblegum:{damage:.85,rate:.9,range:.98,projectile:"bubble",label:"KNOCKBACK"},frost:{damage:.82,rate:.95,range:1.08,projectile:"frost",label:"SLOW"},glitch:{damage:1.02,rate:1.13,range:1,projectile:"glitch",label:"RANDOM"},obsidian:{damage:1.62,rate:.62,range:.94,projectile:"stone",label:"HEAVY"},aurora:{damage:.78,rate:.9,range:1.18,projectile:"aurora",label:"AURA"},golden:{damage:.9,rate:.92,range:1,projectile:"gold",label:"PROFIT"},diamond:{damage:1.2,rate:.76,range:1.15,projectile:"diamond",label:"PIERCE"},shadow:{damage:1.08,rate:.92,range:1.04,projectile:"shadow",label:"CRITICAL"},retro:{damage:.72,rate:1.48,range:.95,projectile:"retro",label:"RAPID"}}[variant]||{damage:1,rate:1,range:1,projectile:"spark",label:"BALANCED"};
-    const up=1+upgrade*.34;return{variant,profile,damage:(3.4+power*.052+stamina*.012)*stage*profile.damage*up,rate:(.88+speed*.009)*profile.rate*(1+upgrade*.12),range:(.198+instinct*.00078)*profile.range*(1+upgrade*.085),crit:.06+instinct*.0014,projectile:profile.projectile,label:profile.label};
-  }
-  function defenseCombatStats(tower){const stats=defenseTowerStats(tower.pet,tower.upgrade),time=defenseNow(),d=mini.defense;if(tower.doctrine==="power"){stats.damage*=1.24;stats.rate*=1.06;stats.range*=.97;}else if(tower.doctrine==="control"){stats.damage*=.86;stats.rate*=1.18;stats.range*=1.24;}if(tower.superForm==="power"){stats.damage*=2.75;stats.rate*=1.18;stats.range*=1.06;}else if(tower.superForm==="control"){stats.damage*=1.18;stats.rate*=1.72;stats.range*=1.48;}if(d.rallyUntil>time)stats.rate*=1.34;if(d.prismUntil>time){stats.damage*=1.28;stats.rate*=1.15;stats.range*=1.08;}if(tower.overclockUntil>time)stats.rate*=2;if(tower.rangeDebuffUntil>time)stats.range*=.75;if(d.whiteoutUntil>time&&!['frost','aurora'].includes(stats.variant))stats.range*=.82;return stats;}
-  function defenseAbilityData(tower){return DEFENSE_ABILITIES[tower.pet.variant||tower.pet.hiddenVariant||"classic"]||DEFENSE_ABILITIES.classic;}
-  function defenseAbilityCooldown(tower){const data=defenseAbilityData(tower),stamina=Number(tower.pet.skills?.stamina)||0;return Math.max(data.cooldown*.48,data.cooldown*(1-tower.upgrade*.085-stamina*.0015));}
-  function defenseAbilityRemaining(tower){return Math.max(0,(tower.abilityReadyAt||0)-defenseNow());}
-  function defenseTowerTier(tower){return tower.upgrade>=4?"apex":tower.upgrade>=2?"awakened":tower.upgrade>=1?"charged":"base";}
-  function defenseUpgradeName(tower){
-    const names={classic:["STEADY SPARK","BRIGHT GUARD","RALLY HEART","GATEKEEPER","FIRST FLAME"],ember:["CINDER","HOT BLOOD","FIRE RING","INFERNO","PHOENIX CORE"],toxic:["SPORE","VENOM","PLAGUE BLOOM","CORROSION","TOXIC CROWN"],violet:["PULSE","ARC LINK","CHAIN SURGE","VOID CURRENT","PURPLE STORM"],moss:["ROOT","THICKET","ROOT GARDEN","OLD GROWTH","FOREST HEART"],bubblegum:["BOUNCE","PRESSURE","BIG BOUNCE","WAVE BREAK","PINK IMPACT"],frost:["CHILL","ICE VEIN","DEEP FREEZE","WHITE CROWN","ABSOLUTE ZERO"],glitch:["STATIC","SIGNAL SPLIT","REWRITE","SYSTEM BREAK","GLITCH GOD"],obsidian:["STONE","FAULT LINE","QUAKE","BLACK MOUNTAIN","WORLD WEIGHT"],aurora:["HALO","PRISM","PRISM FIELD","SKY CHOIR","AURORA THRONE"],golden:["LUCK","DIVIDEND","PAYDAY","GOLD RUSH","KING'S RANSOM"],diamond:["SHARD","CUT LINE","SHARD LINE","REFRACTION","DIAMOND RAIN"],shadow:["DUSK","BLACK EDGE","NIGHT CUT","ECLIPSE BLADE","LAST SHADOW"],retro:["TICK","TURBO","OVERCLOCK","HYPER SIGNAL","ARCADE GOD"]};
-    const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic";return(names[variant]||names.classic)[clamp(tower.upgrade,0,4)];
-  }
-
-  function initializeDefenseRun(mapChoice = "auto", contract = null){
-    const normalizedContract=normalizeDefenseRunContract(contract),mapId=normalizedContract?.mapId||defenseResolvedMapId(mapChoice),map=DEFENSE_MAPS[mapId]||DEFENSE_MAPS.grove,budget=defensePerformanceBudget({performanceLow:false,renderTier:0});
-    mini.defense=installDefenseStateContracts({mapId,map,contract:normalizedContract,pathMetrics:map.pathMetrics||defensePathMetrics(map.path),currentWave:0,clearedWave:0,lives:map.lives,cash:BASE_DEFENSE_STARTING_CASH,phase:DEFENSE_PHASES.PLANNING,resumePhase:DEFENSE_PHASES.COMBAT,speed:1,clock:0,realClock:0,towers:[],enemies:[],projectiles:[],effects:[],spawnQueue:[],wavePackets:[],packetIndex:0,packetEnemyIndex:0,nextSpawnAt:0,packetBreakUntil:0,childSpawnQueue:[],nextChildReleaseAtReal:0,childSpawnSequence:0,nextId:1,kills:0,totalDamage:0,usedPetIds:new Set(),selectedTowerId:null,lastWaveBonus:0,nextWaveReadyAtReal:0,autoStartAtReal:0,maxTowers:normalizedContract?.rules.includes("lean")?4:DEFENSE_LIMITS.MAX_DEFENSE_TOWERS,rallyUntil:0,prismUntil:0,whiteoutUntil:0,stormWeatherUntil:0,eclipseUntil:0,ashUntil:0,moonRevealUntil:0,nextWeatherAt:7,goldenCoinCarry:0,camoHintSeen:false,pendingPlacement:null,waveAnnouncement:null,currentWavePlan:[],bossesBeaten:[],bossesDefeated:0,perfectWaveCount:0,waveHeartLossStart:0,topTowerId:null,abilityTrayOpen:false,abilityGroupOpen:null,intelOpen:false,intelPausedByOpen:false,benchOpen:true,fieldMenuOpen:false,contextSurface:null,contextReturnFocus:null,enemyNodePool:[],projectileNodePool:[],impactNodePool:[],rendererMode:"dom",canvasRenderer:null,canvasFrames:0,canvasFallbacks:0,enemyVisualClock:0,enemyStateVisualClock:0,projectileVisualClock:0,renderWidth:0,renderHeight:0,mapIntroPlayed:false,lowFx:false,potatoFx:false,renderTier:0,renderTierChanges:0,performanceLow:false,performanceRecovery:0,frameMs:16.7,frameP95:16.7,frameP99:16.7,frameStress:0,slowFrameStreak:0,frameSamples:[],frameSampleClock:0,governorTier:0,governorPressureSeconds:0,governorStableSeconds:0,fixedSimulation:true,simAccumulator:0,presentationAccumulator:0,simStepSamples:[],simStepP95:0,simStepWorst:0,simBacklogEvents:0,maxCatchUpObserved:0,lastSimSteps:0,presentationFrames:0,coalescedVisualShots:0,coalescedLogicalShots:0,maxLogicalProjectilesObserved:0,droppedCosmetics:0,enemyNodesCreated:0,enemyNodesAcquired:0,projectileNodesCreated:0,projectileNodesAcquired:0,impactNodesCreated:0,impactNodesAcquired:0,enemyPositionWrites:0,enemyClassWrites:0,enemyHealthWrites:0,enemyStateWrites:0,projectilePositionWrites:0,autoPaused:false,wavePreview:[],uiClock:0,uiDirty:true,rosterDirty:false,lastPopSfxAt:-99,lastSpawnedEnemyId:null,spawnWaitReason:"idle",peakAlive:0,schoolCoachSignature:"",wavePreviewSignature:"",abilityTraySignature:"",intelTraySignature:"",waveTotal:0,waveResolved:0,hudRenderCount:0,rosterRenderCount:0,trayRenderCount:0,intelRenderCount:0,checkpointDirty:false,checkpointClock:0,lastCheckpointAt:0,checkpointWrites:0,hintFlags:{},pendingIncome:0,pendingIncomeEvents:0,pendingIncomeSources:{},nextIncomeFlushAtReal:0,cashWriteCount:0,targetScans:0,targetSnapshotBuilds:0,targetSnapshot:[],targetSnapshotAtReal:0,childSpawnsReleased:0,lastIncomeBatch:null,maxActiveEnemiesObserved:0,maxProjectileNodesObserved:0,maxEffectNodesObserved:0,worldPerkUsed:false,cinematicMomentId:0,cinematicMomentCount:0,cinematicMomentKind:null,cinematicMomentPriority:0,cinematicMomentUntilReal:0,lastGateMomentAtReal:-99,gateFlameArmed:false,gateFlameReadyAt:0,gateFlameUntil:0,gateFlameProgress:.86,gateFlameNextTick:0,gateFlameTicks:0,lastHudLives:null,lastHudCash:null,ending:false,endingReason:null,enemyStats:{spawned:{},popped:{},leaked:{},heartLoss:0,counters:{armorBreaks:0,armorShreds:0,reveals:0,phaseLocks:0,bossInterrupts:0}}});
-    mini.score=0;mini.hits=0;mini.entities=[];
-  }
-  function defenseRosterMarkup(){
-    const d=mini.defense;
-    return defenseRoster().map(row=>{
-      const copies=d.towers.filter(tower=>tower.petId===row.pet.id).length;
-      const cost=defenseDeployCost(row);
-      const uniqueBlocked=defenseContractRule("unique",d)&&copies>0,placementLocked=!defensePlacementAllowed(d),disabled=placementLocked||d.towers.length>=d.maxTowers||d.cash<cost||uniqueBlocked;
-      const selected=d.pendingPlacement?.row?.pet?.id===row.pet.id;
-      const variant=VARIANTS.find(item=>item.id===(row.pet.variant||row.pet.hiddenVariant))||VARIANTS[0],mastery=state.scores?.defenseMastery?.[row.pet.id],masteryTitle=mastery?defenseMasteryTitle(mastery):"UNTESTED";
-      const instruction=placementLocked?"PLANNING ONLY":selected?"TAP MAP OR DRAG":uniqueBlocked?"ONE PER CONTRACT":row.source==="active"&&!copies?"FREE DEPLOY":d.towers.length>=d.maxTowers?`FIELD FULL • ${d.maxTowers}`:`${cost} COINS`;
-      const role=defenseTowerStats(row.pet).profile.label;
-      const benchInstruction=placementLocked?"WAIT FOR PLAN":selected?"TAP / DRAG":uniqueBlocked?"ONE PER RUN":d.towers.length>=d.maxTowers?"FIELD FULL":d.cash<cost?"NEED CASH":role;
-      const badge=placementLocked?"Ⅱ":selected?"✓":uniqueBlocked?"✕":row.source==="active"&&!copies?"FREE":String(cost);
-      return `<button type="button" class="defense-roster-pet defense-roster-pet-simple ${copies?"placed":""} ${selected?"placement-selected":""}" data-defense-roster-id="${escapeHTML(row.pet.id)}" ${disabled?"disabled":""} aria-pressed="${selected}" title="${escapeHTML(row.pet.name)} • ${escapeHTML(instruction)}" aria-label="${escapeHTML(row.pet.name)}, ${escapeHTML(instruction)}" style="--roster-color:${variant.color}"><span class="defense-roster-frame" aria-hidden="true"></span>${petMarkup({pet:row.pet,extraClass:"defense-roster-rizo",context:"thumbnail",label:row.pet.name})}<span class="defense-roster-info"><b>${escapeHTML(row.pet.name)}</b><small>${escapeHTML(benchInstruction)}</small></span>${masteryTitle!=="UNTESTED"?`<em class="defense-roster-mastery">${escapeHTML(masteryTitle)}</em>`:""}${copies?`<u class="defense-roster-copies">×${copies}</u>`:""}<i class="defense-roster-badge">${escapeHTML(badge)}</i></button>`;
-    }).join("");
-  }
-
-  function defenseMapIntroSeenKey(mapId){return `rizo-defense-map-seen:${String(mapId||"unknown")}`;}
-  function closeDefenseMapIntro(){
-    const d=mini.defense,intro=$("#defenseMapIntro");
-    if(d){try{localStorage.setItem(defenseMapIntroSeenKey(d.mapId),"1");}catch(error){}}
-    if(!intro)return;
-    intro.classList.add("leaving");
-    queueMiniTimeout(()=>intro.remove(),360);
-  }
-  function playDefenseMapIntro(){
-    const d=mini.defense,intro=$("#defenseMapIntro");
-    if(!d||!intro||d.mapIntroPlayed||d.wave>0||d.towers.length){
-      if(d)d.mapIntroPlayed=true;intro?.remove();return false;
+  // A run that would count confirms before it ends, and confirming banks it.
+  function requestArcadeQuit(){
+    if(!mini?.active || !trainingRun) return false;
+    const score=Math.max(0,Math.floor(mini.score||0));
+    const meaningful=score>0 && arcadeRunQualified();
+    if(meaningful && !trainingRun.quitConfirmed){
+      if(!trainingRun.paused) openArcadePause();
+      trainingRun.quitConfirmed=true;
+      renderArcadePausePanel();
+      const card=el.miniPausePanel?.querySelector(".arcade-pause-card");
+      if(card){
+        const copy=card.querySelector("p");
+        if(copy) copy.textContent=`End the run here? ${formatNumber(score)} points bank exactly as they stand — the rest of the clock is forfeit.`;
+        const actions=card.querySelector(".arcade-pause-actions");
+        if(actions) actions.innerHTML=`<button type="button" class="danger" data-arcade-quit>BANK ${formatNumber(score)} • END RUN</button><button type="button" class="primary" data-arcade-resume>KEEP PLAYING</button>`;
+      }
+      sfx("no");
+      return false;
     }
-    d.mapIntroPlayed=true;
-    let seen=false;try{seen=localStorage.getItem(defenseMapIntroSeenKey(d.mapId))==="1";}catch(error){}
-    if(seen){intro.classList.add("returning");requestAnimationFrame(()=>intro.classList.add("playing"));queueMiniTimeout(closeDefenseMapIntro,state.settings.reducedMotion?120:520);return true;}
-    requestAnimationFrame(()=>intro.classList.add("playing"));
-    queueMiniTimeout(closeDefenseMapIntro,state.settings.reducedMotion?360:2400);
+    closeArcadePause(true);
+    finishMiniGame(true);
     return true;
   }
 
-  function defenseShouldUseCanvas(){
-    const requested=defenseRendererOverride||new URLSearchParams(location.search).get("renderer");
-    if(requested==="dom")return false;
-    if(requested==="canvas")return Boolean(globalThis.RizoDefenseCanvas?.create);
-    const qa=IS_QA_BUILD||location.hostname==="localhost"||location.hostname==="127.0.0.1"||new URLSearchParams(location.search).get("qa")==="1";
-    return !qa&&Boolean(globalThis.RizoDefenseCanvas?.create);
+  // ===== RESULTS =====
+  // Why a run ended is first-class: death, the clock, a cleared board and
+  // walking away read as four different screens. A game reports "cleared"
+  // itself; the runner never infers it.
+  const ARCADE_END_REASONS = Object.freeze({
+    death:{label:"RUN ENDED", tone:"death"},
+    timeup:{label:"TIME UP", tone:"timeup"},
+    cleared:{label:"CLEARED", tone:"cleared"},
+    quit:{label:"RUN BANKED", tone:"quit"}
+  });
+  function arcadeResultVoice(mode, reason, score, gameVoice){
+    const name=arcadeName(mode);
+    if(reason==="death") return { headline:"RUN ENDED", line:score>=30?`${name} TOOK IT ALL THE WAY DOWN SWINGING.`:score>=10?"THAT LAST ONE GOT YOU.":"GONE ALREADY. BRUTAL.", art:"✖" };
+    if(reason==="quit") return { headline:"RUN BANKED", line:score>=30?"WALKED AWAY RICH. RESPECT.":"CASHED OUT EARLY. NOTHING LOST.", art:"⏻" };
+    if(gameVoice?.line) return { headline:String(gameVoice.headline||"TIME UP"), line:String(gameVoice.line), art:gameVoice.art||null };
+    if(reason==="cleared") return { headline:"CLEARED", line:"THE WHOLE BOARD. CLEAN.", art:"✓" };
+    return { headline:"TIME UP", line:score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.", art:null };
   }
-  function defenseUsesCanvas(d=mini.defense){return Boolean(d?.rendererMode==="canvas"&&d.canvasRenderer?.enabled);}
-  function setupDefenseCombatRenderer(){
-    const d=mini.defense,canvas=$("#defenseCombatCanvas"),shell=$(".defense-shell");if(!d||!canvas)return false;
-    d.canvasRenderer?.destroy?.();d.canvasRenderer=null;d.rendererMode="dom";shell?.classList.remove("canvas-combat");
-    if(!defenseShouldUseCanvas())return false;
-    try{const renderer=globalThis.RizoDefenseCanvas.create(canvas,{build:RIZO_RUNTIME_BUILD});if(!renderer?.enabled)throw new Error("2D canvas unavailable");d.canvasRenderer=renderer;d.rendererMode="canvas";shell?.classList.add("canvas-combat");renderer.resize(d.renderWidth||canvas.clientWidth||390,d.renderHeight||canvas.clientHeight||390,d.governorTier||0);return true;}catch(error){d.canvasFallbacks=(d.canvasFallbacks||0)+1;return false;}
+  function arcadeResultGrid(stats){
+    const rows=(Array.isArray(stats)?stats:[]).filter(row=>row&&row.label!==undefined).slice(0,4);
+    if(!rows.length) return "";
+    return `<div class="arcade-result-grid stat-${rows.length}">${rows.map(stat=>`<span>${escapeHTML(String(stat.label))}<b>${escapeHTML(String(stat.value))}</b></span>`).join("")}</div>`;
+  }
+  function trainingGainsLine(gains){
+    const parts=Object.entries(gains.skills||{}).filter(([,amount])=>amount>=.05).map(([skill,amount])=>`+${amount.toFixed(1)} ${skill.toUpperCase()}`);
+    if(gains.xp>=1) parts.push(`+${Math.round(gains.xp)} XP`);
+    if(gains.embers>0) parts.push(`+${gains.embers} R`);
+    if(gains.bond>=.5) parts.push(`+${gains.bond.toFixed(1)} BOND`);
+    return parts.join(" • ");
   }
 
-  function fallbackDefenseCanvasToDom(reason="renderer-fallback"){
-    const d=mini.defense;if(!d)return false;
-    d.canvasFallbacks=(d.canvasFallbacks||0)+1;d.rendererMode="dom";d.canvasRenderer?.destroy?.();d.canvasRenderer=null;$(".defense-shell")?.classList.remove("canvas-combat");
-    for(const enemy of d.enemies||[]){
-      if(enemy.dead||enemy.node)continue;
-      const node=acquireDefenseEnemyNode();if(!node)continue;
-      node.dataset.enemyId=enemy.id;node.style.setProperty("--balloon-color",enemy.renderColor||"#ff7d32");if(node._rizoTrait)node._rizoTrait.textContent=enemy.renderIcon||"○";enemy.node=node;enemy.visualSignature="";enemy.stateSignature="";enemy.lastRenderedHealth=-1;updateDefenseEnemyNode(enemy,true);
+  // ===== FINISH =====
+  function finishMiniGame(quit = false, endReasonHint = null, options = {}) {
+    const run=trainingRun;
+    if (!mini.active || !run) return;
+    const def=run.def, mode=def.id, board=mini, discard=Boolean(options?.discard);
+    const endReason=quit?"quit":(["death","cleared"].includes(board.endReason)?board.endReason:"timeup");
+    // The game settles the run first (Spark Stash banks or spills its stash).
+    if(!discard) callGame("settle", endReason);
+    const score=Math.max(0,Math.floor(board.score||0));
+    const qualified=!discard && Boolean(callGame("qualified", board));
+    const report=(!discard && qualified) ? (callGame("result", board, endReason) || {}) : {};
+    board.active=false;
+    closeArcadePause(true);
+    callGame("stop");
+    cancelAnimationFrame(run.frameId);
+    run.jobs.clear();
+    for (const entity of board.entities || []) entity.node?.remove?.();
+    trainingRun=null;
+    el.miniQuit.textContent="QUIT RUN";
+    el.miniGameOverlay.hidden=true;
+    delete el.miniGameOverlay.dataset.training;
+    el.miniArena.innerHTML="";
+    syncUILock();
+    activeMusicOverride=null;
+    syncMusic(true);
+    if(lastOverlayFocus?.isConnected) lastOverlayFocus.focus({preventScroll:true});
+    if(discard) return;
+    // Walking away from a run that never got going is a non-event.
+    if(quit && !qualified) return;
+    if(!qualified){
+      showModal(`<div class="modal-card arcade-result minigame-result-${mode} arcade-no-credit"><div class="modal-art">${arcadeArt(mode)}</div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))}</small><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>CHOOSE A DRILL</button><button data-training-home>GO HOME</button><button data-replay-game="${mode}">TRY AGAIN</button></div></div>`);
+      return;
     }
-    for(const shot of d.projectiles||[]){
-      if(shot.node||!shot.renderVisible)continue;
-      const node=acquireDefenseProjectileNode();if(!node)continue;
-      const variant=shot.tower?.pet?.variant||shot.tower?.pet?.hiddenVariant||"classic",masteryTier=defenseMasteryTierForPet(shot.tower?.petId);
-      node.className=`defense-shot shot-${shot.kind||"pulse"} signature-${variant} mastery-shot-${masteryTier} ${shot.doctrineStrike?`shot-doctrine-${shot.doctrineStrike}`:""}`;node.style.setProperty("--signature-color",shot.renderColor||"#ff7d32");positionDefenseMovingNode(node,shot.x,shot.y);shot.node=node;shot.renderVisible=false;
-    }
-    d.poolsWarmed=false;warmDefensePools(d);console.warn?.("Rizo Defense canvas fell back to DOM",reason);return true;
+    applyTrainingResult(def, board, score, endReason, report);
   }
 
-  function warmDefensePools(owner=mini.defense){
-    if(!owner||owner!==mini.defense)return false;
-    if(defenseUsesCanvas(owner)){owner.poolsWarmed=true;return true;}
-    const budget=defensePerformanceBudget(owner),enemyTarget=budget.maxActiveEnemies,projectileTarget=budget.maxVisibleProjectiles,impactTarget=budget.maxImpactEffects;
-    while(owner.enemyNodePool.length<enemyTarget){const node=createDefenseEnemyNode();node.hidden=true;owner.enemyNodePool.push(node);owner.enemyNodesCreated=(owner.enemyNodesCreated||0)+1;}
-    while(owner.projectileNodePool.length<projectileTarget){const node=document.createElement("i");node.hidden=true;node.className="defense-shot";owner.projectileNodePool.push(node);owner.projectileNodesCreated=(owner.projectileNodesCreated||0)+1;}
-    while(owner.impactNodePool.length<impactTarget){const node=document.createElement("i");node.hidden=true;node.className="defense-impact";owner.impactNodePool.push(node);owner.impactNodesCreated=(owner.impactNodesCreated||0)+1;}
-    owner.poolsWarmed=true;return true;
-  }
-  function defenseUiIcon(name,extraClass=""){
-    const paths={
-      speed:'<path d="M4 7.5 8.5 12 4 16.5M11 7.5l4.5 4.5-4.5 4.5M18 7.5v9"/>',
-      intel:'<path d="M2.8 12s3.4-5.2 9.2-5.2 9.2 5.2 9.2 5.2-3.4 5.2-9.2 5.2S2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="2.8"/>',
-      power:'<path d="m13.2 2.8-7 10h5.1l-.5 8.4 7-10h-5.1l.5-8.4Z"/>',
-      bench:'<circle cx="7" cy="9" r="2.4"/><circle cx="17" cy="9" r="2.4"/><path d="M3.7 19c.3-3.1 1.5-5 3.3-5s3 1.9 3.3 5M13.7 19c.3-3.1 1.5-5 3.3-5s3 1.9 3.3 5"/>',
-      menu:'<path d="M5 6h14M5 12h14M5 18h14"/><circle cx="8" cy="6" r="1"/><circle cx="16" cy="12" r="1"/><circle cx="10" cy="18" r="1"/>',
-      play:'<path class="fill" d="m8 5 10 7-10 7V5Z"/>',
-      pause:'<path class="fill" d="M7 5h4v14H7zM13 5h4v14h-4z"/>',
-      route:'<path d="M4 18c0-7 5-3 5-9 0-3 2-5 5-5 3.4 0 6 2.4 6 6 0 5-5 3-5 8"/><path d="m12 15 3 3 3-3"/>',
-      fullscreen:'<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
-      guide:'<path d="M4 5.5c2.6-.8 5.3-.3 8 1.5v12c-2.7-1.8-5.4-2.3-8-1.5v-12ZM20 5.5c-2.6-.8-5.3-.3-8 1.5v12c2.7-1.8 5.4-2.3 8-1.5v-12Z"/>',
-      bank:'<path d="M4 4h11l4 4v12H4V4Z"/><path d="M8 4v6h7V4M8 20v-6h8v6"/><path d="m3 12 3-3M3 12l3 3"/>',
-      close:'<path d="m6 6 12 12M18 6 6 18"/>',
-      heart:'<path class="fill" d="M12 20.2 4.6 13C.8 9.3 3.4 3.5 8.2 4.1c1.7.2 3 1.2 3.8 2.5.8-1.3 2.1-2.3 3.8-2.5 4.8-.6 7.4 5.2 3.6 8.9L12 20.2Z"/>',
-      coin:'<circle cx="12" cy="12" r="8.2"/><path d="M14.9 8.7c-.8-.8-1.8-1.2-3-1.2-1.6 0-2.8.8-2.8 2 0 3 6.1 1.3 6.1 4.7 0 1.4-1.3 2.4-3.2 2.4-1.4 0-2.7-.5-3.5-1.4M12 5.5v13"/>',
-      wave:'<path d="M3 15c2.2-4 4.4-4 6.6 0s4.4 4 6.6 0S20.6 11 22 13.5"/><path d="M3 9c2.2-4 4.4-4 6.6 0s4.4 4 6.6 0S20.6 5 22 7.5"/>',
-      target:'<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 1.8v4M12 18.2v4M1.8 12h4M18.2 12h4"/>',
-      upgrade:'<path d="m12 3 6 6h-4v7H10V9H6l6-6Z"/><path d="M5 20h14"/>',
-      sell:'<path d="M4 7h16M8 7V4h8v3M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/>',
-      check:'<path d="m5 12.5 4.2 4.2L19 7"/>',
-      snap:'<path d="M6 8a6 6 0 1 1 0 8M6 8V4M6 8H2"/><circle cx="12" cy="12" r="2.2"/>',
-      warning:'<path d="m12 3 9 17H3L12 3Z"/><path d="M12 8v5M12 17h.01"/>'
-    };
-    const body=paths[name]||paths.menu;
-    return `<svg class="rizo-ui-icon ${escapeHTML(extraClass)}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
-  }
-  function setDefenseWaveIcon(node,kind){if(node)node.innerHTML=defenseUiIcon(kind);}
-
-  function renderDefenseWorld(){
-    const d=mini.defense,map=d.map,roadPath=defenseMapSvgPath(map),entry=map.path[0]||{x:.03,y:.2},entryX=clamp(entry.x,.035,.965),entryY=clamp(entry.y,.08,.9),gatePoint=defenseGatePoint(map);
-    const contract=d.contract,contractBadge=contract?`<div class="defense-contract-badge"><small>TRAIL CONTRACT</small><b>${escapeHTML(contract.title)}</b><span>${contract.rules.map(id=>escapeHTML(DEFENSE_CONTRACT_RULES[id].name)).join(" • ")}</span></div>`:"";
-    el.miniArena.innerHTML=`<div class="defense-shell rizo-defense-ui" data-defense-map="${map.id}" style="--field-accent:${defenseMapAccent(map.id)}">
-      <section class="defense-command-deck" aria-label="Defense command deck">
-        <div class="defense-command-world"><span class="defense-command-mark"><img src="./assets/rizo-full-mark.png" alt=""/></span><div><small>${map.icon} WORLD ${map.level} • ${contract?"CONTRACT":"OPEN TRAIL"}</small><b>${escapeHTML(map.name)}</b><em>${escapeHTML(map.entrance)}</em></div></div>
-        <div class="defense-hud" aria-label="Field status"><span class="defense-stat defense-stat-lives" id="defenseLivesArt"><i>${defenseUiIcon("heart")}</i><b id="defenseLives">${d.lives}</b><small>GATE</small></span><span class="defense-stat defense-stat-cash" id="defenseCashArt"><i>${defenseUiIcon("coin")}</i><b id="defenseCash">${d.cash}</b><small>GOLD</small></span></div>
-        <div class="defense-command-actions">
-          <button type="button" class="defense-speed defense-action-circle" data-defense-speed aria-label="Change Defense speed"><i>${defenseUiIcon("speed")}</i><span class="defense-action-label"><strong id="defenseSpeedValue">1×</strong><em>SPEED</em></span></button>
-          <button type="button" class="defense-intel-button defense-action-circle" id="defenseIntelButton" data-defense-toggle-intel aria-label="Open threat intel" aria-expanded="false"><i>${defenseUiIcon("intel")}</i><span class="defense-action-label">THREATS</span><b id="defenseIntelCount">0</b></button>
-          <button type="button" class="defense-abilities-button defense-action-circle" id="defenseAbilitiesButton" data-defense-toggle-abilities aria-label="Use Field Leader power" aria-expanded="false"><i>${defenseUiIcon("power")}</i><span class="defense-action-label" id="defenseLeaderPowerLabel">FIELD POWER</span><b id="defenseAbilityCount">—</b></button>
-          <button type="button" class="defense-gate-flame-button defense-action-circle" id="defenseGateFlameButton" data-defense-gate-flame aria-label="Place Ember Pod"><i class="defense-flame-icon" aria-hidden="true">✹</i><span class="defense-action-label">POD</span><b id="defenseGateFlameState">WAVE ONLY</b></button>
-          <button type="button" class="defense-bench-button defense-action-circle active" id="defenseBenchButton" data-defense-toggle-bench aria-label="Show or hide Rizo bench" aria-expanded="true"><i>${defenseUiIcon("bench")}</i><span class="defense-action-label">RIZOS</span><b id="defenseBenchCount">${defenseRoster().length}</b></button>
-          <button type="button" class="defense-menu-button defense-action-circle" id="defenseMenuButton" data-defense-toggle-field-menu aria-label="Open field menu" aria-expanded="false"><i>${defenseUiIcon("menu")}</i><span class="defense-action-label">MENU</span></button>
-        </div>
-        ${contractBadge}
-      </section>
-      <div class="defense-school-coach" id="defenseSchoolCoach" hidden></div>
-      <div class="defense-stage-frame">
-        <button type="button" class="defense-wave-button" id="defenseWaveButton" data-defense-run-control disabled><i id="defenseWaveIcon">${defenseUiIcon("play")}</i><span id="defenseWaveLabel">PLACE FIRST</span></button>
-        <div class="defense-moment" id="defenseMoment" role="status" aria-live="assertive" aria-atomic="true" hidden></div>
-        <div class="defense-wave-banner" aria-label="Wave and defense phase"><i>${defenseUiIcon("wave")}</i><div class="defense-wave-count"><small>WAVE</small><b id="defenseWave">0</b><em>CLEARED <strong id="defenseClearedWave">0</strong></em></div><span class="defense-phase-indicator" id="defensePhaseIndicator" data-tone="info"><i aria-hidden="true"></i><span><small>PHASE</small><b id="defensePhaseLabel">PLAN</b><em id="defensePhaseDetail">BUILD WINDOW</em></span></span></div>
-        <div class="mini-world defense-world ${map.className} ${contract?"contract-active":""}" id="defenseWorld" data-defense-map="${map.id}" style="--gate-x:${gatePoint.x*100}%;--gate-y:${gatePoint.y*100}%">
-          <div class="defense-sky"><i></i><i></i><i></i></div><div class="defense-hills"></div><div class="defense-trees"></div><div class="defense-map-props"><i></i><i></i><i></i></div><div class="defense-world-features">${defenseWorldFeatureMarkup(map)}</div><div class="defense-map-landmarks">${defenseLandmarkMarkup(map)}</div><div class="defense-build-pockets">${defenseBuildPocketMarkup(map)}</div><div class="defense-weather weather-${map.weather}"><i></i><i></i><i></i></div><div class="defense-obstacles">${defenseObstacleMarkup(map)}</div>
-          <svg class="defense-road" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Curved balloon trail"><path class="defense-road-shadow" d="${roadPath}"/><path class="defense-road-border" d="${roadPath}"/><path class="defense-road-fill" d="${roadPath}"/><path class="defense-road-edge-light" d="${roadPath}"/><path class="defense-road-stitch" d="${roadPath}"/></svg><div class="defense-route-markers">${defenseRouteMarkersMarkup(map)}</div><div class="defense-route-scout" id="defenseRouteScout" style="left:${entryX*100}%;top:${entryY*100}%"><i></i></div><div class="defense-entrance" style="--entrance-x:${entryX*100}%;--entrance-y:${entryY*100}%" aria-label="Enemy entrance"><i aria-hidden="true"></i><span><b>ENTRY</b></span></div>
-          <div class="defense-gate" aria-label="Ember Gate"><i aria-hidden="true"></i><b>GATE</b><span aria-hidden="true">♥</span></div>
-          <div class="defense-gate-flame-live defense-ember-pod-live" id="defenseGateFlameLive" hidden aria-hidden="true"><i></i><i></i><i></i><span></span></div>
-          <div class="defense-layer" id="defenseTowers"></div><canvas class="defense-combat-canvas" id="defenseCombatCanvas" aria-hidden="true"></canvas><div class="defense-layer" id="defenseEnemies"></div><div class="defense-layer defense-projectiles" id="defenseProjectiles"></div><div class="defense-layer defense-effects" id="defenseEffects"></div>
-          <div class="defense-placement-preview" id="defensePlacementPreview" hidden aria-hidden="true"></div><div class="defense-placement-grid" aria-hidden="true"></div>
-          <div class="defense-map-intro" id="defenseMapIntro" aria-label="Entering ${escapeHTML(map.name)}"><i class="defense-intro-vignette"></i><div class="defense-intro-copy"><small>WORLD ${map.level} • OPEN TRAIL</small><b>${escapeHTML(map.name)}</b><span>${escapeHTML(map.routeType)} • ${escapeHTML(map.entrance)} → EMBER GATE</span></div><div class="defense-intro-rizo"><i class="defense-intro-scout-line"></i>${petMarkup({pet:state.pet,extraClass:"defense-intro-pet",context:"arcade",label:state.pet.name})}<i class="defense-intro-look">!</i></div><div class="defense-intro-cta"><b>READ THE ROAD</b><span>PLACE RIZO • START WHEN READY</span></div><button type="button" data-defense-skip-map-intro>ENTER FIELD</button></div>
-        </div>
-      </div>
-      <section class="defense-field-feed" aria-live="polite">
-        <div class="defense-message" id="defenseMessage"><b>DEFEND THE EMBER GATE</b><span>Tap a Rizo, then tap grass. Or drag one directly onto the field. The circle is its reach.</span></div>
-        <div class="defense-live-status" id="defenseLiveStatus" hidden><small>WAVE STATUS</small><b id="defenseThreatsLeft">0 THREATS LEFT</b><i><u id="defenseWaveProgress"></u></i></div>
-        <div class="defense-boss-bar" id="defenseBossBar" hidden><span><small>BOSS</small><b id="defenseBossName">UNKNOWN</b></span><i><u id="defenseBossHealth"></u></i><em id="defenseBossPercent">100%</em></div>
-      </section>
-      <button type="button" class="defense-context-scrim" data-defense-dismiss-context aria-label="Close open Defense panel" hidden></button><section class="defense-context-dock" aria-live="polite">
-        <div class="defense-wave-preview" id="defenseWavePreview"></div>
-        <div class="defense-tower-panel" id="defenseTowerPanel" hidden></div>
-        <div class="defense-ability-tray" id="defenseAbilityTray" hidden></div>
-        <div class="defense-intel-tray" id="defenseIntelTray" hidden></div>
-        <div class="defense-field-menu rizo-field-sheet" id="defenseFieldMenu" hidden>
-          <div class="defense-field-menu-head"><div class="defense-sheet-title"><span><img src="./assets/rizo-full-mark.png" alt=""/></span><div><small>FIELD MENU</small><b>${escapeHTML(map.name)}</b></div></div><button type="button" data-defense-toggle-field-menu aria-label="Close field menu">${defenseUiIcon("close")}</button></div>
-          <div class="defense-field-menu-grid">
-            <button type="button" data-defense-trace-route><i>${defenseUiIcon("route")}</i><span><b>TRACE TRAIL</b><small>Show the enemy route.</small></span></button>
-            <button type="button" data-defense-toggle-legend><i>${defenseUiIcon("intel")}</i><span><b>FIELD LEGEND</b><small>Explain every symbol.</small></span></button>
-            <button type="button" data-defense-toggle-fullscreen><i>${defenseUiIcon("fullscreen")}</i><span><b>FULLSCREEN</b><small>Use the largest field.</small></span></button>
-            <button type="button" data-defense-field-guide="rizos"><i>${defenseUiIcon("guide")}</i><span><b>FIELD GUIDE</b><small>Rizos, threats, and worlds.</small></span></button>
-            <button type="button" data-defense-auto-start><i>${defenseUiIcon("snap")}</i><span><b id="defenseAutoStartLabel">AUTO WAVES • ${state.settings.defenseAutoStart?"ON":"OFF"}</b><small id="defenseAutoStartCopy">${state.settings.defenseAutoStart?"2.8s planning countdown after clears.":"You decide when each wave begins."}</small></span></button>
-            <button type="button" class="danger" data-defense-bank-leave><i>${defenseUiIcon("bank")}</i><span><b>BANK & LEAVE</b><small>Cleared waves bank. The active wave is excluded.</small></span></button>
-          </div>
-        </div>
-      </section>
-      <section class="defense-deploy-dock" aria-label="Rizo deployment bench">
-        <div class="defense-roster" id="defenseRoster">${defenseRosterMarkup()}</div>
-        <button type="button" class="defense-cancel-placement" data-defense-cancel-placement hidden>CANCEL</button>
-      </section>
-    </div>`;
-    el.miniQuit.textContent="BANK & LEAVE";
-    el.miniHint.textContent=contract?`${contract.title} • Clear Wave ${contract.targetWave}. ${contract.rules.map(id=>DEFENSE_CONTRACT_RULES[id].name).join(" • ")}.`:`${map.name} • ${map.strategy}. Build from the bench and defend the Ember Gate.`;
-    const renderedWorld=$("#defenseWorld");
-    sizeDefenseSquareField();
-    d.renderWidth=renderedWorld?.clientWidth||360;
-    d.renderHeight=renderedWorld?.clientHeight||520;
-    setupDefenseCombatRenderer();
-    updateDefenseHud();
-    updateDefenseSchoolCoach();
-    playDefenseMapIntro();
-    /* Pools grow through real use; eager allocation is intentionally avoided on low-memory phones. */
-  }
-
-  function defenseRosterSignature(){const d=mini.defense;if(!d)return"";return `${d.towers.length}/${d.maxTowers}|${defenseRoster().map(row=>{const copies=d.towers.filter(tower=>tower.petId===row.pet.id).length,cost=defenseDeployCost(row);return `${row.pet.id}:${copies}:${d.cash>=cost?1:0}:${cost}`;}).join("|")}`;}
-  function defenseHudCounter(value){
-    const amount=Math.max(0,Math.floor(Number(value)||0));
-    if(amount>=1_000_000)return `${(amount/1_000_000).toFixed(amount>=10_000_000?0:1).replace(/\.0$/,"")}M`;
-    if(amount>=10_000)return `${(amount/1_000).toFixed(amount>=100_000?0:1).replace(/\.0$/,"")}K`;
-    return String(amount);
-  }
-  function updateDefenseRoster(force=true){const host=$("#defenseRoster"),d=mini.defense;if(!host||!d)return;const signature=defenseRosterSignature();if(!force&&signature===d.rosterSignature)return;host.innerHTML=defenseRosterMarkup();d.rosterSignature=signature;d.rosterRenderCount=(d.rosterRenderCount||0)+1;}
-  function updateDefenseHud(){
-    if(!mini.active||mini.mode!=="defense"||!mini.defense)return;
-    const d=mini.defense;d.hudRenderCount=(d.hudRenderCount||0)+1;
-    const phaseShell=$(".defense-shell");if(phaseShell){phaseShell.dataset.defensePhase=d.phase;phaseShell.dataset.currentWave=String(d.currentWave);phaseShell.dataset.clearedWave=String(d.clearedWave);phaseShell.dataset.fieldDensity=d.towers.length>=7?"crowded":d.towers.length>=4?"busy":"open";phaseShell.dataset.performanceTier=String(d.governorTier||0);}
-    const wave=$("#defenseWave"),clearedWave=$("#defenseClearedWave"),phaseIndicator=$("#defensePhaseIndicator"),phaseLabel=$("#defensePhaseLabel"),phaseDetail=$("#defensePhaseDetail"),lives=$("#defenseLives"),cash=$("#defenseCash"),speed=$("[data-defense-speed]"),speedValue=$("#defenseSpeedValue"),guide=$("#defensePlacementGuide"),deployHint=$("#defenseDeployHint"),cancel=$("[data-defense-cancel-placement]"),world=$("#defenseWorld"),shell=$(".defense-shell"),flameButton=$("#defenseGateFlameButton"),flameState=$("#defenseGateFlameState"),flameLive=$("#defenseGateFlameLive");
-    if(wave)wave.textContent=d.currentWave;
-    if(clearedWave)clearedWave.textContent=d.clearedWave;
-    const phaseUi=defensePhaseUi(d),showTech=Boolean(d.paused||(d.governorTier||0)>0);if(phaseIndicator){phaseIndicator.hidden=!showTech;phaseIndicator.dataset.tone=d.paused?"paused":"danger";}if(phaseLabel)phaseLabel.textContent=d.paused?"PAUSED":"PERFORMANCE";if(phaseDetail)phaseDetail.textContent=d.paused?"TAP RESUME":(d.governorTier||0)>=2?"LOW VISUAL MODE":"REDUCING EFFECTS";
-    if(lives){const prior=d.lastHudLives;lives.textContent=d.lives;if(prior!==null&&prior!==d.lives){const art=$("#defenseLivesArt");art?.classList.remove("hud-hit","hud-heal");void art?.offsetWidth;art?.classList.add(d.lives<prior?"hud-hit":"hud-heal");}d.lastHudLives=d.lives;}
-    if(cash){const exact=Math.floor(d.cash),prior=d.lastHudCash;cash.textContent=defenseHudCounter(exact);cash.title=exact.toLocaleString();cash.closest(".defense-stat-cash")?.setAttribute("aria-label",`${exact.toLocaleString()} gold`);if(prior!==null&&prior!==exact){const art=$("#defenseCashArt");art?.classList.remove("hud-gain","hud-spend");void art?.offsetWidth;art?.classList.add(exact>prior?"hud-gain":"hud-spend");}d.lastHudCash=exact;}
-    if(speedValue)speedValue.textContent=d.speed===.5?"½×":`${d.speed}×`;
-    if(speed)speed.disabled=false;
-    if(flameButton){const nowGame=defenseNow(),remaining=Math.max(0,(d.gateFlameReadyAt||0)-nowGame),active=(d.gateFlameUntil||0)>nowGame,ready=remaining<=0&&!active,canPlace=defenseIsActiveWave(d)&&!d.paused;flameButton.classList.toggle("armed",Boolean(d.gateFlameArmed));flameButton.classList.toggle("active",active);flameButton.classList.toggle("cooling",!active&&remaining>0);flameButton.disabled=!canPlace&&!active;flameButton.setAttribute("aria-pressed",String(Boolean(d.gateFlameArmed)));flameButton.setAttribute("aria-label",active?"Ember Pod active":!canPlace?"Ember Pod is available during a live wave":ready?"Place Ember Pod on the trail":`Ember Pod ready in ${Math.ceil(remaining)} seconds`);if(flameState)flameState.textContent=active?`${Math.max(1,Math.ceil(d.gateFlameUntil-nowGame))}S`:d.gateFlameArmed?"TAP ROAD":!canPlace?"WAVE ONLY":ready?"READY":`${Math.ceil(remaining)}S`;}
-    if(flameLive){const active=(d.gateFlameUntil||0)>defenseNow();flameLive.hidden=!active;flameLive.style.left=`${defensePointAt(d.gateFlameProgress||0).x*100}%`;flameLive.style.top=`${defensePointAt(d.gateFlameProgress||0).y*100}%`;flameLive.classList.toggle("low-fx",(d.governorTier||0)>0);}
-    const leader=defenseFieldLeader(d),leaderButton=$("#defenseAbilitiesButton"),leaderCount=$("#defenseAbilityCount"),leaderLabel=$("#defenseLeaderPowerLabel");if(leaderButton){const sealed=defenseContractRule("silent",d),unlocked=leader&&leader.upgrade>=2&&leader.doctrine,remaining=leader?Math.ceil(defenseAbilityRemaining(leader)):0,canCast=Boolean(unlocked&&!sealed&&DefenseCore.phaseAllows(d.phase,"ability")&&remaining<=0),power=leader?defenseAbilityPresentation(leader):null;leaderButton.disabled=!canCast;leaderButton.classList.toggle("ready",canCast);leaderButton.classList.toggle("empty",!leader);leaderButton.setAttribute("aria-expanded","false");leaderButton.setAttribute("aria-label",!leader?"Place a Rizo to choose the Field Leader":!unlocked?`${leader.pet.name} unlocks the Field Power at Level 3 after choosing a path`:remaining?`${power.active} ready in ${remaining} seconds`:canCast?`Use ${power.active}, ${leader.pet.name}'s Field Power`:"Field Power available during combat");if(leaderLabel)leaderLabel.textContent=power?.active||"FIELD POWER";if(leaderCount)leaderCount.textContent=!leader?"—":sealed?"×":!unlocked?"LV3":remaining?`${remaining}s`:canCast?"READY":"WAIT";}
-    const autoLabel=$("#defenseAutoStartLabel"),autoCopy=$("#defenseAutoStartCopy");if(autoLabel)autoLabel.textContent=`AUTO WAVES • ${state.settings.defenseAutoStart?"ON":"OFF"}`;if(autoCopy)autoCopy.textContent=state.settings.defenseAutoStart?"2.8s planning countdown after clears.":"You decide when each wave begins.";
-    world?.classList.toggle("defense-paused",d.paused);
-    world?.style.setProperty("--wave-darkness",String(Math.min(.18,d.wave*.0075)));
-    shell?.style.setProperty("--wave-darkness",String(Math.min(.18,d.wave*.0075)));
-    world?.classList.toggle("hud-danger",d.lives<=Math.max(5,Math.ceil(d.map.lives*.35)));
-    shell?.classList.toggle("has-placement",Boolean(d.pendingPlacement));
-    shell?.classList.toggle("has-towers",d.towers.length>0);
-    shell?.classList.toggle("wave-running",defenseIsActiveWave(d));
-    syncDefenseOverlayState();
-    el.miniTimer.textContent=`WORLD ${d.map.level}`;
-    el.miniScore.textContent=`${d.kills} POPS`;
-    const button=$("#defenseWaveButton");
-    if(button){
-      const hasTower=d.towers.length>0,running=defenseIsActiveWave(d),waveLabel=$("#defenseWaveLabel"),waveIcon=$("#defenseWaveIcon");
-      button.classList.toggle("paused",running&&d.paused);
-      button.classList.toggle("running",running&&!d.paused);
-      if(!running){
-        const settling=hasTower&&defenseRealNow(d)<(d.nextWaveReadyAtReal||0);button.disabled=!hasTower||settling;
-        if(waveIcon)setDefenseWaveIcon(waveIcon,"play");
-        const autoWaiting=hasTower&&!settling&&d.phase===DEFENSE_PHASES.WAVE_COMPLETE&&state.settings.defenseAutoStart&&d.autoStartAtReal>defenseRealNow(d),autoSeconds=autoWaiting?Math.max(0,d.autoStartAtReal-defenseRealNow(d)):0;
-        if(waveLabel)waveLabel.textContent=!hasTower?"PLACE FIRST":settling?"FIELD CLEAR…":autoWaiting?`AUTO ${autoSeconds.toFixed(1)}S`:d.wave?`START WAVE ${d.wave+1}`:"START WAVE 1";
-        button.setAttribute("aria-label",!hasTower?"Place a Rizo first":settling?"Field settling after wave clear":autoWaiting?`Next wave auto-starts in ${autoSeconds.toFixed(1)} seconds; tap to start now`:d.wave?`Start Wave ${d.wave+1}`:"Start Wave 1");
-      }else{
-        button.disabled=false;
-        if(waveIcon)setDefenseWaveIcon(waveIcon,d.paused?"play":"pause");
-        if(waveLabel)waveLabel.textContent=d.paused?"RESUME":"PAUSE";
-        button.setAttribute("aria-label",d.paused?"Resume Defense":"Pause Defense");
+  // ===== GROWTH =====
+  // The one place a training run changes the save. Every number comes from
+  // RizoTraining.convert(); the only per-game inputs are the definition's own
+  // declared fields (quest, counter, signal, finds).
+  const TRAINING_COUNTERS = Object.freeze(["totalWalks"]);
+  function applyTrainingResult(def, board, score, endReason, report) {
+    const mode=def.id;
+    const previousBest=Math.max(0,Number(state.scores?.[mode])||0);
+    const rewardScore=Number.isFinite(Number(report.rewardScore)) ? Number(report.rewardScore) : score;
+    const gains=Training.convert(def, { score: rewardScore, reason: endReason, inputs: Math.max(1, board.playerInputs||0) });
+    const firstPatch=!state.home.trained.includes(mode);
+    mutate((pet,whole)=>{
+      whole.meta.totalGames+=1;
+      Home.recordTraining(whole.home, mode);
+      pet.careProfile.games[mode]=(pet.careProfile.games[mode]||0)+1;
+      state.scores[mode]=Math.max(state.scores[mode]||0,score);
+      for(const [skill,amount] of Object.entries(gains.skills)){
+        const gained=gainSkill(skill,amount,{silent:true});
+        if(skill==="power") pet.strength=clamp((pet.strength||0)+gained);
       }
-      button.hidden=false;
-    }
-    if(guide){
-      guide.hidden=Boolean(d.towers.length&&!d.pendingPlacement);
-      const step=guide.querySelector("span"),title=guide.querySelector("b");
-      if(step)step.textContent=d.pendingPlacement?"2":d.towers.length?"✓":"1";
-      if(title)title.textContent=d.pendingPlacement?`PLACE ${d.pendingPlacement.row.pet.name}`:defenseIsActiveWave(d)?"FIELD IS LIVE":d.towers.length?"BUILD OR BEGIN":"CHOOSE A RIZO";
-    }
-    if(deployHint){
-      const remaining=d.spawnQueue.length+d.enemies.filter(enemy=>!enemy.dead).length;
-      deployHint.textContent=d.pendingPlacement?"Tap a glowing build pocket. The soft ground halo shows attack reach.":defenseIsActiveWave(d)?`${remaining} ${remaining===1?"threat":"threats"} remain. Placement is locked; abilities and targeting remain available.`:d.towers.length?`Upgrade, target, or start Wave ${d.wave+1}.`:"Your active Rizo deploys free. Tap a card, then grass.";
-    }
-    if(cancel)cancel.hidden=!d.pendingPlacement;
-    const benchCount=$("#defenseBenchCount");if(benchCount)benchCount.textContent=String(defenseRoster().length);
-    updateDefenseAbilityPanel();
-    updateDefenseIntelTray();
-    updateDefenseWavePreview();
-    updateDefenseLiveStatus();
-    updateDefenseSchoolCoach();
-    d.uiDirty=false;
-  }
-
-  function markDefenseUi({roster=false}={}){const d=mini.defense;if(!d)return;d.uiDirty=true;d.checkpointDirty=true;if(roster)d.rosterDirty=true;}
-  function flushDefenseUi(force=false){const d=mini.defense;if(!d)return;if(d.rosterDirty){updateDefenseRoster(false);d.rosterDirty=false;}if(force||d.uiDirty||d.abilityTrayOpen||d.selectedTowerId)updateDefenseHud();else updateDefenseLiveStatus();}
-
-  function defenseAbilityId(tower){return tower?.pet?.variant||tower?.pet?.hiddenVariant||"classic";}
-  function defenseReadyAbilities(){
-    const d=mini.defense;if(!d)return[];
-    return d.towers.filter(tower=>tower.upgrade>=2&&tower.doctrine).map(tower=>({tower,abilityId:defenseAbilityId(tower),ability:defenseAbilityData(tower),remaining:Math.ceil(defenseAbilityRemaining(tower))}));
-  }
-  function defenseAbilityGroups(){
-    const groups=new Map();
-    for(const row of defenseReadyAbilities()){
-      if(!groups.has(row.abilityId))groups.set(row.abilityId,{id:row.abilityId,ability:row.ability,instances:[]});
-      groups.get(row.abilityId).instances.push(row);
-    }
-    return [...groups.values()].map(group=>{
-      group.instances.sort((a,b)=>a.remaining-b.remaining||b.tower.upgrade-a.tower.upgrade||(a.tower.copyNumber||1)-(b.tower.copyNumber||1));
-      group.ready=group.instances.filter(row=>row.remaining<=0);
-      group.nextRemaining=Math.min(...group.instances.filter(row=>row.remaining>0).map(row=>row.remaining),Infinity);
-      return group;
+      pet.xp+=gains.xp;
+      pet.bond=clamp(pet.bond+gains.bond);
+      pet.mood=clamp(pet.mood+gains.mood);
+      pet.hunger=clamp(pet.hunger+gains.hunger);
+      pet.energy=clamp(pet.energy+gains.energy);
+      pet.hype=Math.max(0,(Number(pet.hype)||0)+gains.hype);
+      whole.wallet.embers=SaveCore.clampInteger(whole.wallet.embers+gains.embers,0,CORE_LIMITS.MAX_WALLET_EMBERS,whole.wallet.embers);
+      if(gains.alignment) shiftAlignment(gains.alignment,`${mode}-play`);
+      earnHeat(10,false);
+      progressQuest("play");
+      if(def.quest) progressQuest(def.quest);
+      if(TRAINING_COUNTERS.includes(def.counter)) whole.meta[def.counter]=(whole.meta[def.counter]||0)+1;
+      if(def.signal) whole.meta.retroSignal=(whole.meta.retroSignal||0)+Math.max(1,Math.round(gains.performance*6));
     });
-  }
-  function defenseTowerFieldLabel(tower){
-    const vertical=tower.y<.34?"TOP":tower.y>.66?"BOTTOM":"MID",horizontal=tower.x<.34?"LEFT":tower.x>.66?"RIGHT":"CENTER";
-    return `${vertical} ${horizontal}`;
-  }
-  function defenseAbilityGroupStatus(group,d){
-    if(d.paused)return"RESUME TO CAST";
-    if(!defenseIsActiveWave(d))return"START A WAVE";
-    if(group.ready.length===1)return group.instances.length===1?"READY":"1 READY";
-    if(group.ready.length>1)return`${group.ready.length} READY • PICK ONE`;
-    return Number.isFinite(group.nextRemaining)?`${group.nextRemaining}s COOLDOWN`:"COOLDOWN";
-  }
-  function defenseAbilityStackMarkup(group){
-    const shown=group.instances.slice(0,3).map(({tower})=>`<i>${petMarkup({pet:tower.pet,extraClass:"defense-ability-rizo",context:"thumbnail",label:tower.pet.name})}</i>`).join("");
-    return `<span class="defense-ability-stack">${shown}${group.instances.length>3?`<u>+${group.instances.length-3}</u>`:""}</span>`;
-  }
-  function defenseAbilityPickerMarkup(group,d){
-    return `<div class="defense-ability-picker" role="group" aria-label="Choose which ${escapeHTML(group.ability.active)} to cast">${group.instances.map(({tower,remaining})=>{const ready=remaining<=0&&DefenseCore.phaseAllows(d.phase,"ability");return`<button type="button" class="${ready?"ready":"cooling"}" data-defense-cast="${tower.id}" ${ready?"":"disabled"}><span>${defenseTowerFieldLabel(tower)}</span><b>LV ${tower.upgrade+1}${tower.copyNumber>1?` • COPY ${tower.copyNumber}`:""}</b><em>${ready?"CAST":remaining?`${remaining}s`:d.paused?"PAUSED":"WAIT"}</em></button>`;}).join("")}</div>`;
-  }
-  function activateDefenseAbilityGroup(abilityId){
-    const d=mini.defense;if(!d)return false;const group=defenseAbilityGroups().find(item=>item.id===abilityId),ready=group?.ready.filter(row=>DefenseCore.phaseAllows(d.phase,"ability"))||[];
-    if(!group||!ready.length)return false;
-    if(ready.length===1){d.abilityGroupOpen=null;return activateDefenseAbility(ready[0].tower.id,{keepAbilityTray:true});}
-    d.abilityGroupOpen=d.abilityGroupOpen===abilityId?null:abilityId;markDefenseUi();flushDefenseUi(true);return true;
-  }
-  function updateDefenseAbilityTray(){
-    const d=mini.defense,button=$("#defenseAbilitiesButton"),count=$("#defenseAbilityCount"),tray=$("#defenseAbilityTray");if(!d||!button||!tray)return;
-    const sealed=defenseContractRule("silent",d),groups=defenseAbilityGroups(),casting=DefenseCore.phaseAllows(d.phase,"ability"),readyGroups=sealed?0:groups.filter(group=>casting&&group.ready.length>0).length,scroll=tray.scrollTop;
-    if(d.abilityGroupOpen&&!groups.some(group=>group.id===d.abilityGroupOpen&&casting&&group.ready.length>1))d.abilityGroupOpen=null;
-    if(count)count.textContent=sealed?"×":String(readyGroups);
-    button.classList.toggle("ready",readyGroups>0);button.classList.toggle("empty",groups.length===0);button.classList.toggle("paused",d.paused);button.classList.toggle("sealed",sealed);button.setAttribute("aria-expanded",String(Boolean(d.abilityTrayOpen)));
-    tray.hidden=!d.abilityTrayOpen;
-    if(!d.abilityTrayOpen){d.abilityTraySignature="";d.abilityGroupOpen=null;return;}
-    const cards=groups.map(group=>{const expanded=d.abilityGroupOpen===group.id,canCast=casting&&group.ready.length>0,subline=group.instances.length===1?`${group.instances[0].tower.pet.name} • LV ${group.instances[0].tower.upgrade+1}`:`${group.instances.length} RIZOS • ${group.ready.length} CHARGED`,action=group.ready.length>1?(expanded?"−":"+"):"›";return`<article class="defense-ability-group ${canCast?"ready":""} ${expanded?"expanded":""}" data-ability-group="${escapeHTML(group.id)}"><button type="button" class="defense-ability-card" data-defense-cast-group="${escapeHTML(group.id)}" aria-expanded="${expanded}" ${canCast?"":"disabled"}>${defenseAbilityStackMarkup(group)}<span class="defense-ability-copy"><small>${escapeHTML(subline)}</small><b>${escapeHTML(group.ability.active)}</b><em>${escapeHTML(defenseAbilityGroupStatus(group,d))}</em></span><i class="defense-ability-action" aria-hidden="true">${action}</i></button>${expanded?defenseAbilityPickerMarkup(group,d):""}</article>`;}).join("");
-    const markup=sealed?`<div class="defense-ability-tray-head"><div class="defense-sheet-title"><span>${defenseUiIcon("power")}</span><div><small>TRAIL CONTRACT</small><b>ACTIVATED EFFECTS SEALED</b></div></div><button type="button" data-defense-toggle-abilities>${defenseUiIcon("close")}</button></div><div class="defense-ability-list"><p>Every Rizo keeps its passive identity. Manual abilities are unavailable for this run.</p></div>`:`<div class="defense-ability-tray-head"><div class="defense-sheet-title"><span>${defenseUiIcon("power")}</span><div><small>GROUPED POWERS</small><b>${d.paused?"PAUSED • RESUME TO CAST":`${readyGroups} READY • ${groups.length} ${groups.length===1?"POWER":"POWERS"}`}</b></div></div><button type="button" data-defense-toggle-abilities>${defenseUiIcon("close")}</button></div><div class="defense-ability-list">${groups.length?cards:`<p>Reach Level 3 and choose a path to unlock activated effects.</p>`}</div>`,signature=`${sealed}|${d.paused}|${d.phase}|${d.abilityGroupOpen||""}|${groups.map(group=>`${group.id}[${group.instances.map(row=>`${row.tower.id}:${row.tower.upgrade}:${row.tower.doctrine}:${row.tower.targetMode}:${row.remaining}`).join(",")}]`).join("|")}`;
-    if(signature!==d.abilityTraySignature){d.trayRenderCount=(d.trayRenderCount||0)+1;tray.innerHTML=markup;d.abilityTraySignature=signature;tray.scrollTop=scroll;}
-  }
-  const DEFENSE_CONTEXT_SELECTORS=Object.freeze({menu:"#defenseFieldMenu",abilities:"#defenseAbilityTray",intel:"#defenseIntelTray",tower:"#defenseTowerPanel"});
-  function defenseContextSurface(d=mini.defense){if(!d)return null;if(d.fieldMenuOpen)return"menu";if(d.abilityTrayOpen)return"abilities";if(d.intelOpen)return"intel";if(d.selectedTowerId)return"tower";return null;}
-  function defenseContextElement(name){return name?$(DEFENSE_CONTEXT_SELECTORS[name]||""):null;}
-  function defenseSetBackgroundInert(active){
-    const shell=$(".defense-shell");if(!shell)return;for(const selector of[".defense-command-deck",".defense-stage-frame",".defense-field-feed",".defense-deploy-dock",".defense-school-coach"]){const node=shell.querySelector(selector);if(!node)continue;node.inert=Boolean(active);if(active)node.setAttribute("aria-hidden","true");else node.removeAttribute("aria-hidden");}
-  }
-  function defenseFocusContext(name){const host=defenseContextElement(name);if(!host||host.hidden)return;const target=host.querySelector('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])');(target||host).focus?.({preventScroll:true});}
-  function defenseClearTowerSelection(){const panel=$("#defenseTowerPanel");if(panel)panel.hidden=true;if(mini.defense)mini.defense.selectedTowerId=null;mini.defense?.towers.forEach(t=>{t.node?.classList.remove("selected");t.node?.setAttribute("aria-pressed","false");});}
-  function defenseCloseContextSurfaces(except="",{sync=false}={}){
-    const d=mini.defense;if(!d)return;for(const name of["menu","abilities","intel","tower"]){if(name===except)continue;if(name==="menu")d.fieldMenuOpen=false;else if(name==="abilities"){d.abilityTrayOpen=false;d.abilityGroupOpen=null;}else if(name==="intel"){d.intelOpen=false;d.intelPausedByOpen=false;}else defenseClearTowerSelection();}if(sync)syncDefenseOverlayState();
-  }
-  function defenseDismissContextSurface({restoreFocus=true}={}){
-    const d=mini.defense;if(!d)return false;const active=defenseContextSurface(d);if(!active)return false;defenseCloseContextSurfaces("",{sync:false});syncDefenseOverlayState({restoreFocus});markDefenseUi();flushDefenseUi(true);return true;
-  }
-  function syncDefenseOverlayState({restoreFocus=true}={}){
-    const d=mini.defense,shell=$(".defense-shell"),bench=$("#defenseBenchButton"),menuButton=$("#defenseMenuButton"),menu=$("#defenseFieldMenu"),scrim=$(".defense-context-scrim");if(!d)return;
-    // Last-open wins. If legacy booleans somehow disagree, normalize immediately.
-    let active=defenseContextSurface(d),openCount=[d.fieldMenuOpen,d.abilityTrayOpen,d.intelOpen,Boolean(d.selectedTowerId)].filter(Boolean).length;
-    if(openCount>1&&active){defenseCloseContextSurfaces(active,{sync:false});active=defenseContextSurface(d);}
-    const prior=d.contextSurface||null;
-    if(active&&prior!==active&&!d.contextReturnFocus?.isConnected)d.contextReturnFocus=document.activeElement;
-    d.contextSurface=active;
-    shell?.classList.toggle("bench-open",Boolean(d.benchOpen));shell?.classList.toggle("bench-collapsed",!d.benchOpen);shell?.classList.toggle("field-menu-open",Boolean(d.fieldMenuOpen));shell?.classList.toggle("context-open",Boolean(active));if(shell)shell.dataset.contextSurface=active||"none";
-    if(bench){bench.classList.toggle("active",Boolean(d.benchOpen));bench.setAttribute("aria-expanded",String(Boolean(d.benchOpen)));}
-    if(menuButton){menuButton.classList.toggle("active",Boolean(d.fieldMenuOpen));menuButton.setAttribute("aria-expanded",String(Boolean(d.fieldMenuOpen)));}
-    if(menu)menu.hidden=!d.fieldMenuOpen;if(scrim)scrim.hidden=!active;defenseSetBackgroundInert(Boolean(active));
-    if(active&&prior!==active)requestAnimationFrame(()=>defenseFocusContext(active));
-    if(!active&&prior&&restoreFocus){const target=d.contextReturnFocus;d.contextReturnFocus=null;if(target?.isConnected)requestAnimationFrame(()=>target.focus?.({preventScroll:true}));}
-  }
-  function defenseHandleContextKeydown(event){
-    const d=mini.defense,active=defenseContextSurface(d);if(!d||!active)return false;
-    if(event.key==="Escape"){event.preventDefault();event.stopPropagation();defenseDismissContextSurface();return true;}
-    if(event.key!=="Tab")return false;const host=defenseContextElement(active);if(!host)return false;const focusable=[...host.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(node=>!node.hidden&&getComputedStyle(node).display!=="none");if(!focusable.length){event.preventDefault();host.focus?.();return true;}const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();return true;}if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();return true;}return false;
-  }
-  function toggleDefenseBench(force){
-    const d=mini.defense;if(!d)return;d.benchOpen=typeof force==="boolean"?force:!d.benchOpen;if(d.pendingPlacement)d.benchOpen=true;syncDefenseOverlayState();markDefenseUi();flushDefenseUi(true);scheduleDefenseTowerGeometrySync();
-  }
-  function toggleDefenseFieldMenu(force){const d=mini.defense;if(!d)return;const opening=typeof force==="boolean"?force:!d.fieldMenuOpen;if(opening){clearDefensePlacementMode();defenseCloseContextSurfaces("menu",{sync:false});}d.fieldMenuOpen=opening;syncDefenseOverlayState();markDefenseUi();flushDefenseUi(true);}
-  function toggleDefenseAbilityTray(force){const d=mini.defense;if(!d)return;const opening=typeof force==="boolean"?force:!d.abilityTrayOpen;if(opening){clearDefensePlacementMode();defenseCloseContextSurfaces("abilities",{sync:false});}d.abilityTrayOpen=opening;if(!opening)d.abilityGroupOpen=null;syncDefenseOverlayState();markDefenseUi();flushDefenseUi(true);}
-  function toggleDefenseIntel(force){
-    const d=mini.defense;if(!d)return;const opening=typeof force==="boolean"?force:!d.intelOpen;
-    if(opening){
-      clearDefensePlacementMode();defenseCloseContextSurfaces("intel",{sync:false});d.intelOpen=true;completeDefenseSchoolLesson("intel");
-      // Threat intel is a deliberate thinking surface. If combat is moving, pause it rather than
-      // making the player read while balloons keep leaking. Closing it never surprise-resumes.
-      if(defenseIsSimulating(d)){defenseSetPhase(d,DEFENSE_PHASES.PAUSED,{resumePhase:d.phase});d.intelPausedByOpen=true;d.autoPaused=false;setDefenseMessage("THREATS PAUSED","Read the cards. Close them when you're ready.");}
-    }else{
-      d.intelOpen=false;if(d.intelPausedByOpen){d.intelPausedByOpen=false;setDefenseMessage("THREATS CLOSED","The trail stays paused until you press play.");}
+    if (gains.performance >= .2) {
+      const memory = lifeMemory();
+      memory.arcadeAfterglowUntil = now() + 16000;
+      memory.lastArcadeMode = mode;
+      saveState();
     }
-    syncDefenseOverlayState();markDefenseUi();flushDefenseUi(true);
+    evaluateForm(true);
+    const finds=applyTrainingFinds(def, report.finds, gains.performance);
+    const voice=arcadeResultVoice(mode,endReason,score,report.voice);
+    const art=voice.art||arcadeArt(mode);
+    const subtitle=report.subtitle?`<div class="result-track-title">${escapeHTML(report.subtitle)}</div>`:"";
+    const treasureCopy=finds.treasure?`<div class="event-reward">${finds.treasure.icon} FOUND: ${finds.treasure.name}</div>`:"";
+    const rare=finds.variant;
+    const rareCopy=rare?`<div class="rare-discovery-stage ${rare.id}">${petMarkup({extraClass:"rare-reaction-pet",id:"rareReactionPet"})}<div class="rare-found-pet"><img src="${rare.sprite}" alt="${rare.name}"></div><b>${rare.name} DISCOVERED</b></div>`:"";
+    if(rare){activeMusicOverride=rare.id==="shadow"?"shadow":rare.id==="retro"?"retro":"forest";startMusicForScene(activeMusicOverride,true);duckMusic(1400,.08);}
+    const newBest=score>previousBest?`<div class="arcade-best-banner"><i aria-hidden="true">★</i><div><small>NEW PERSONAL BEST</small><b>${formatNumber(score)}</b><em>PREVIOUS ${formatNumber(previousBest)}</em></div></div>`:"";
+    if(score>previousBest){sfx("jackpot");sensoryBurst("NEW BEST","#ffd45a",16);}
+    const gainsLine=trainingGainsLine(gains);
+    rememberHomeReturn("training", def.name, gains.embers);
+    // What this drill means at home: a patch for the board, and the next room.
+    const next=Home.next(state.home);
+    const patch=`<div class="result-patch" style="--c:${DRILL_PATCH[mode]||"#cfc4a2"}"><i aria-hidden="true"></i><div><small>${firstPatch?"NEW PATCH":"ANOTHER STITCH"}</small><b>${firstPatch?`${escapeHTML(arcadeName(mode))} goes on the board at home.`:`${state.home.trained.length}/10 drills on the board at home.`}</b></div></div>`;
+    const meter=`<span class="result-home-meter" aria-hidden="true"><i style="width:${clamp(state.wallet.embers/(next?.cost||Home.HORIZON.cost)*100)}%"></i></span>`;
+    showModal(`<div class="modal-card arcade-result arcade-end-${endReason} minigame-result-${mode} ${rare?"rare-result":""}"><div class="modal-art result-art">${petMarkup({extraClass:"result-rizo",context:"card"})}<span class="result-badge">${art}</span></div><small class="arcade-result-mode">${escapeHTML(arcadeName(mode))} • ${escapeHTML(ARCADE_END_REASONS[endReason].label)}</small>${subtitle}${newBest}<h2>${score} POINTS</h2><p class="big-line">${escapeHTML(voice.line)}</p>${arcadeResultGrid(report.stats)}${treasureCopy}${rareCopy}<p class="training-gains" data-training-gains>${escapeHTML(gainsLine)}</p>${patch}<p class="result-home-progress">${escapeHTML(homeTargetCopy())}</p>${meter}<div class="modal-buttons"><button class="primary" data-training-home>TAKE IT HOME</button><button data-training-continue>ANOTHER DRILL</button><button data-replay-game="${mode}">RUN IT BACK</button></div></div>`, { onClose: () => changeView("home") });
+    advanceTutorial("play");
+    if(gains.performance>=1 && (endReason!=="death" || score>previousBest)) celebrate();
   }
 
-  function defenseEnemyKey(entry){if(!entry)return"puff";if(typeof entry==="string")return entry;return entry.bossId?`boss:${entry.bossId}`:(entry.type||"puff");}
-  function defenseEnemyData(key){if(String(key).startsWith("boss:")){const boss=DEFENSE_BOSSES.find(item=>item.id===String(key).slice(5))||DEFENSE_BOSSES[0];return{...boss,key,name:boss.name,icon:boss.icon||"!",trait:boss.trait||"BOSS",counter:boss.counter||"FOCUS FIRE",intel:boss.hint};}const enemy=DEFENSE_ENEMIES[key]||DEFENSE_ENEMIES.puff;return{...enemy,key,name:enemy.name,icon:enemy.icon||"○",trait:enemy.trait||"THREAT",counter:enemy.counter||"ANY RIZO",intel:enemy.intel||"Read the trail and adjust your field."};}
-  function defenseRecordEnemyStat(bucket,key,amount=1){const stats=mini.defense?.enemyStats;if(!stats||!stats[bucket])return;const id=String(key||"puff");stats[bucket][id]=(Number(stats[bucket][id])||0)+amount;}
-  function defenseCountsFromEntries(entries){const counts=new Map();for(const entry of entries||[]){const key=defenseEnemyKey(entry);counts.set(key,(counts.get(key)||0)+1);}return counts;}
-  function defenseIntelCounts(){const d=mini.defense;if(!d)return new Map();if(defenseIsActiveWave(d)){const counts=defenseCountsFromEntries(d.spawnQueue);for(const enemy of d.enemies){if(enemy.dead)continue;const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type;counts.set(key,(counts.get(key)||0)+1);}return counts;}return defenseWavePreviewData(d.wave+1).counts;}
-  function defenseCounterReadiness(counts){const towers=mini.defense?.towers||[],keys=[...counts.keys()],needs={speed:keys.some(key=>["fleet","storm","boss:apex"].includes(key)),armor:keys.some(key=>["shell","frost","boss:crown"].includes(key)),veil:keys.some(key=>["shade","ghost"].includes(key)),swarm:keys.some(key=>key==="split")};const ready={speed:towers.some(t=>t.doctrine==="control"||["frost","moss","bubblegum","retro"].includes(t.pet.variant||t.pet.hiddenVariant)),armor:towers.some(t=>t.doctrine==="power"||["diamond","obsidian","glitch"].includes(t.pet.variant||t.pet.hiddenVariant)),veil:towers.some(t=>t.upgrade>=2||["shadow","aurora","glitch"].includes(t.pet.variant||t.pet.hiddenVariant)),swarm:towers.some(t=>["violet","diamond","obsidian","moss"].includes(t.pet.variant||t.pet.hiddenVariant)||t.doctrine==="power")};return{needs,ready,missing:Object.keys(needs).filter(key=>needs[key]&&!ready[key])};}
-  function defenseMapIntel(){const d=mini.defense;if(!d)return{title:"NO WORLD",copy:""};const weather=d.map.weather;return weather==="ash"?{title:"ASH VEIL",copy:"Ash periodically camouflages the trail. Awakened and detector Rizos keep sight."}:weather==="moon"?{title:"MOONLIGHT WINDOW",copy:"Moonlight periodically exposes camo and phase threats for every Rizo."}:weather==="storm"?{title:"LIGHTNING SURGE",copy:"Every threat accelerates during the storm pulse. Keep FIRST and CONTROL coverage."}:weather==="blizzard"?{title:"WHITEOUT",copy:"Most Rizo ranges shrink. Frost and Aurora hold steady."}:weather==="eclipse"?{title:"ECLIPSE VEIL",copy:"The eclipse periodically camouflages every threat."}:{title:"CLEAR TRAIL",copy:"No world hazard. Learn the enemy identities and build clean coverage."};}
-  function updateDefenseIntelTray(){
-    const d=mini.defense,button=$("#defenseIntelButton"),count=$("#defenseIntelCount"),tray=$("#defenseIntelTray");if(!d||!button||!tray)return;const counts=defenseIntelCounts(),ordered=[...counts.entries()].sort((a,b)=>(DEFENSE_THREAT_PRIORITY[b[0]]||0)-(DEFENSE_THREAT_PRIORITY[a[0]]||0));if(count)count.textContent=String(ordered.length);button.classList.toggle("warning",ordered.some(([key])=>!["puff","fleet"].includes(key)));button.setAttribute("aria-expanded",String(Boolean(d.intelOpen)));tray.hidden=!d.intelOpen;if(!d.intelOpen){d.intelTraySignature="";return;}
-    const cards=ordered.map(([key,total])=>{const data=defenseEnemyData(key);return`<article class="defense-intel-card v79" data-intel-type="${escapeHTML(key)}"><span style="--intel-color:${escapeHTML(data.color||"#ff5b68")}">${escapeHTML(data.icon)}</span><div><small>${total}× • ${escapeHTML(data.trait||"THREAT")}</small><b>${escapeHTML(data.name.replace(" BALLOON",""))}</b><em>USE ${escapeHTML(String(data.counter||"ANY RIZO").split(" • ").slice(0,2).join(" / "))}</em></div></article>`;}).join("");
-    const markup=`<div class="defense-intel-head"><div class="defense-sheet-title"><span>${defenseUiIcon("intel")}</span><div><small>WHAT'S COMING</small><b>${defenseIsActiveWave(d)?"ON THE TRAIL":`WAVE ${d.wave+1}`}</b></div></div><button type="button" class="defense-sheet-close-inline" data-defense-toggle-intel aria-label="Close threats">${defenseUiIcon("close")}</button></div><div class="defense-intel-list">${cards||`<p>Nothing strange yet.</p>`}</div><button type="button" class="defense-intel-more" data-defense-field-guide="threats">FULL GUIDE</button>`;
-    const signature=`${d.mapId}|${d.phase}|${[...counts.entries()].map(([key,total])=>`${key}:${total}`).join("|")}`;if(signature!==d.intelTraySignature){d.intelRenderCount=(d.intelRenderCount||0)+1;tray.innerHTML=markup;d.intelTraySignature=signature;}
-  }
-
-
-  function defenseWavePreviewData(wave){
-    const previous=mini.defense.waveAnnouncement,plan=defenseWavePlan(wave),announcement=mini.defense.waveAnnouncement;mini.defense.waveAnnouncement=previous;const counts=new Map();
-    for(const entry of DefenseCore.flattenPackets(plan.packets)){const key=typeof entry==="string"?entry:(entry.bossId?`boss:${entry.bossId}`:entry.type);counts.set(key,(counts.get(key)||0)+1);}return{plan,counts,announcement};
-  }
-  function updateDefenseWavePreview(){
-    const d=mini.defense,host=$("#defenseWavePreview");if(!d||!host)return;const mode=state.settings.defenseWaveIntel||"simple";if(defenseIsActiveWave(d)||mode==="off"){host.hidden=true;host.style.pointerEvents="none";return;}
-    const next=d.wave+1,{plan,counts}=defenseWavePreviewData(next),ordered=[...counts.entries()].sort((a,b)=>(DEFENSE_THREAT_PRIORITY[b[0]]||0)-(DEFENSE_THREAT_PRIORITY[a[0]]||0));
-    host.style.pointerEvents="none";host.hidden=false;let markup;
-    if(mode==="full"){const shown=ordered.slice(0,3),chips=shown.map(([type,count])=>{const data=defenseEnemyData(type),label=type.startsWith("boss:")?"BOSS":String(data.trait||data.name).replace("BALLOON","").split(" ").slice(0,2).join(" ");return`<i data-preview-type="${escapeHTML(type)}"><span class="defense-threat-mini ${escapeHTML(data.className||"")}"></span><b>${count}×</b>${escapeHTML(label)}</i>`;}).join(""),total=DefenseCore.flattenPackets(plan.packets).length;markup=`<small>NEXT • WAVE ${next}</small><b>${total} THREATS</b><span>${chips}</span>`;}
-    else{const top=ordered[0]?.[0],data=top?defenseEnemyData(top):null,boss=ordered.some(([key])=>key.startsWith("boss:")),heavy=ordered.some(([key])=>["brick","lead","shell"].includes(key)),fast=ordered.some(([key])=>["fleet","storm"].includes(key)),hidden=ordered.some(([key])=>["shade","ghost"].includes(key)),hint=boss?"BOSS INCOMING":heavy?"HEAVY ARMOR":hidden?"HIDDEN THREATS":fast?"FAST PRESSURE":plan.modifier&&plan.modifier!=="normal"?String(plan.modifier).toUpperCase()+" WAVE":"READ THE ROAD";markup=`<small>NEXT • WAVE ${next}</small><b>${escapeHTML(hint)}</b><em>${data?escapeHTML(String(data.counter||"BUILD CLEAN")):"BUILD CLEAN"}</em>`;}
-    const signature=`${mode}|${next}|${markup}`;if(signature!==d.wavePreviewSignature){host.innerHTML=markup;d.wavePreviewSignature=signature;}
-  }
-  function updateDefenseLiveStatus(){
-    const d=mini.defense,host=$("#defenseLiveStatus"),left=$("#defenseThreatsLeft"),bar=$("#defenseWaveProgress"),bossHost=$("#defenseBossBar"),bossName=$("#defenseBossName"),bossHealth=$("#defenseBossHealth"),bossPercent=$("#defenseBossPercent"),world=$("#defenseWorld");if(!d||!host||!world)return;
-    const live=defenseIsActiveWave(d),active=d.enemies.filter(enemy=>!enemy.dead),remaining=d.spawnQueue.length+d.childSpawnQueue.length+active.length,total=Math.max(1,d.waveTotal||remaining+d.waveResolved),progress=clamp((d.waveResolved/total)*100),lead=active.reduce((best,enemy)=>Math.max(best,enemy.progress||0),0),boss=active.filter(enemy=>enemy.bossId).sort((a,b)=>b.progress-a.progress)[0]||null;
-    host.hidden=!live;if(left)left.textContent=`${remaining} ${remaining===1?"THREAT":"THREATS"} LEFT`;if(bar)bar.style.width=`${progress}%`;
-    world.classList.toggle("gate-alert",live&&lead>=.7);world.classList.toggle("gate-critical",live&&lead>=.88);defenseApplyRenderTier(d,d.renderTier);world.classList.toggle("boss-active",Boolean(boss));
-    if(bossHost){bossHost.hidden=!boss;if(boss){const data=DEFENSE_BOSSES.find(item=>item.id===boss.bossId);if(bossName)bossName.textContent=data?.name||"BOSS";const pct=clamp(boss.hp/Math.max(1,boss.maxHp)*100);if(bossHealth)bossHealth.style.width=`${pct}%`;if(bossPercent){if(boss.telegraphKind){const tele=DEFENSE_BOSS_TELEGRAPHS[boss.telegraphKind],breakPct=Math.round((boss.telegraphDisruption||0)*100);bossPercent.textContent=tele?.interruptible?`BREAK ${breakPct}%`:"UNSTOPPABLE";}else bossPercent.textContent=`${Math.ceil(pct)}%`;}}}
-  }
-  async function toggleDefenseFullscreen(){
-    const el=$(".defense-shell")||document.documentElement;
-    try{
-      if(!document.fullscreenElement&&!document.webkitFullscreenElement){
-        const request=el.requestFullscreen||el.webkitRequestFullscreen;
-        if(!request){setDefenseMessage("FULLSCREEN UNAVAILABLE","Your browser doesn't support fullscreen here — try rotating manually for a wider map.");return;}
-        await request.call(el);
-        try{await screen.orientation?.lock?.("landscape");}catch(orientationError){/* not all browsers allow locking outside a PWA */}
-        scheduleDefenseTowerGeometrySync();
-        queueMiniTimeout(scheduleDefenseTowerGeometrySync,180);
-      }else{
-        (document.exitFullscreen||document.webkitExitFullscreen)?.call(document);
-        try{screen.orientation?.unlock?.();}catch(orientationError){}
-        scheduleDefenseTowerGeometrySync();
-        queueMiniTimeout(scheduleDefenseTowerGeometrySync,180);
+  // Finds a game may report (def.finds whitelists them): a walk treasure, and a
+  // rare Rizo the game rolled for. Arcade-signal games can reveal Retro.
+  function applyTrainingFinds(def, finds, performance) {
+    const out={treasure:null, variant:null};
+    const allowed=def.finds||{};
+    if(allowed.treasure && finds?.treasure) out.treasure=unlockWalkTreasure(Boolean(finds.treasureForce));
+    if(def.signal && !state.collection.retro && (state.meta.retroSignal||0)>=100 && performance>=.5) out.variant=unlockVariantDiscovery("retro","AN ARCADE SIGNAL");
+    if(!out.variant && Array.isArray(finds?.variants)){
+      for(const find of finds.variants){
+        const id=String(find?.id||"");
+        if(!(allowed.variants||[]).includes(id) || state.collection[id]) continue;
+        const chance=clamp(Number(find.chance)||0,0,.5);
+        if(Math.random()>=chance) continue;
+        if(id==="shadow") state.meta.shadowFinds=(state.meta.shadowFinds||0)+1;
+        out.variant=unlockVariantDiscovery(id, String(find.source||"THE FOREST").slice(0,60));
+        if(out.variant) break;
       }
-    }catch(error){setDefenseMessage("FULLSCREEN UNAVAILABLE","Your browser blocked fullscreen here — try rotating manually for a wider map.");}
-  }
-  function toggleDefensePause(force){const d=mini.defense;if(!d||!defenseIsActiveWave(d))return;const shouldPause=typeof force==="boolean"?force:d.phase!==DEFENSE_PHASES.PAUSED;if(shouldPause){cancelDefenseTransientInput("pause");defenseSetPhase(d,DEFENSE_PHASES.PAUSED,{resumePhase:d.phase});}else defenseSetPhase(d,d.resumePhase||DEFENSE_PHASES.COMBAT);d.autoPaused=false;markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"pause");setDefenseMessage(shouldPause?"PAUSED":"PLAYING",shouldPause?"The simulation is frozen. Combat actions remain locked.":"The packet scheduler is moving again.");sfx("ui");}
-  function pauseDefenseForInterruption(){const d=mini.defense;if(!mini.active||mini.mode!=="defense"||!d||!defenseIsSimulating(d))return false;cancelDefenseTransientInput("interruption");defenseSetPhase(d,DEFENSE_PHASES.PAUSED,{resumePhase:d.phase});d.autoPaused=true;markDefenseUi();return true;}
-  function surfaceDefenseInterruptionPause(){const d=mini.defense;if(!mini.active||mini.mode!=="defense"||!d?.autoPaused)return false;d.autoPaused=false;flushDefenseUi(true);setDefenseMessage("AUTO-PAUSED • WELCOME BACK","The trail stayed frozen while RIZO.GAME was away. Tap ▶ when you are ready.");return true;}
-
-  function cycleDefenseSpeed(){const d=mini.defense;if(!d)return;const values=[.5,1,2],index=values.indexOf(d.speed);d.speed=values[(index+1)%values.length];defenseApplyRenderTier(d);markDefenseUi();updateDefenseHud();writeDefenseCheckpoint(true,"speed");setDefenseMessage(`${d.speed===.5?"SLOW MOTION":d.speed===2?"FAST FORWARD":"NORMAL SPEED"}`,"Simulation speed changes. Music stays readable.");sfx("ui");}
-  const DEFENSE_TRAIL_HALF_WIDTH=.033;
-  const DEFENSE_PLACEMENT_SNAP_PX=9;
-  function defensePlacementGeometry(){
-    const world=$("#defenseWorld"),rect=world?.getBoundingClientRect(),width=Math.max(280,rect?.width||390),height=Math.max(280,rect?.height||390),short=Math.min(width,height);
-    const footprintPx=clamp(short*.079,24,31),safetyPx=clamp(short*.0065,2,3),visualHalfPx=clamp(short*.096,30,39),visualTopPx=clamp(short*.13,40,52),visualBottomPx=clamp(short*.071,22,29);
-    return{rect,width,height,short,footprintPx,safetyPx,footprint:footprintPx/short,pathHalf:DEFENSE_TRAIL_HALF_WIDTH,pathClearance:DEFENSE_TRAIL_HALF_WIDTH+(footprintPx+safetyPx)/short,towerGap:(footprintPx*2+safetyPx*2)/short,obstaclePad:(footprintPx+safetyPx)/short,bounds:{left:(visualHalfPx+2)/width,right:1-(visualHalfPx+2)/width,top:(visualTopPx+2)/height,bottom:1-(visualBottomPx+2)/height},snap:DEFENSE_PLACEMENT_SNAP_PX/short};
-  }
-  function defensePlacementBounds(){return defensePlacementGeometry().bounds;}
-  function defenseArenaPoint(event,{lift=false,strict=true}={}){
-    const world=$("#defenseWorld");if(!world)return null;const rect=world.getBoundingClientRect(),landscape=matchMedia("(max-height:650px) and (orientation:landscape)").matches,touch=event.pointerType==="touch"||event.pointerType==="pen",liftPx=lift&&touch?clamp(Math.min(rect.width,rect.height)*.135,42,56):0,clientX=event.clientX-(landscape?liftPx:0),clientY=event.clientY-(landscape?0:liftPx),rawX=(clientX-rect.left)/Math.max(1,rect.width),rawY=(clientY-rect.top)/Math.max(1,rect.height),margin=DEFENSE_PLACEMENT_SNAP_PX/Math.max(1,Math.min(rect.width,rect.height));
-    if(strict&&(rawX< -margin||rawX>1+margin||rawY< -margin||rawY>1+margin))return null;
-    return{x:clamp(rawX,0,1),y:clamp(rawY,0,1),rawX,rawY,rect,clientX,clientY,liftPx};
-  }
-  function nearestDefensePathPoint(x,y){let best={distance:Infinity,x:0,y:0,segment:null,t:0,progress:0};const metrics=mini.defense.pathMetrics;for(const segment of metrics.segments){const{a,b}=segment,dx=b.x-a.x,dy=b.y-a.y,len2=dx*dx+dy*dy,t=len2?clamp(((x-a.x)*dx+(y-a.y)*dy)/len2,0,1):0,px=a.x+dx*t,py=a.y+dy*t,distance=Math.hypot(x-px,y-py),progress=metrics.total?clamp((segment.start+t*segment.length)/metrics.total,0,1):0;if(distance<best.distance)best={distance,x:px,y:py,segment,t,progress};}return best;}
-  function distanceToDefensePath(x,y){return nearestDefensePathPoint(x,y).distance;}
-  function defenseObstacleAt(x,y,geometry=defensePlacementGeometry()){let best=null;for(const zone of mini.defense.map.blockedZones||[]){const distance=Math.hypot(x-zone.x,y-zone.y),required=zone.r+geometry.obstaclePad;if(distance<required&&(!best||distance-required<best.distance-best.required))best={zone,distance,required};}return best;}
-  function pointInDefenseObstacle(x,y){return Boolean(defenseObstacleAt(x,y));}
-  function defensePlacementIntersectsOverlay(){return false;}
-  function defensePlacementEvaluation(x,y,ignoreTower=null){
-    const geometry=defensePlacementGeometry(),bounds=geometry.bounds;
-    if(x<bounds.left||x>bounds.right||y<bounds.top||y>bounds.bottom)return{valid:false,code:"edge",reason:"KEEP THE WHOLE RIZO ON THE FIELD",geometry};
-    const path=nearestDefensePathPoint(x,y);if(path.distance<geometry.pathClearance)return{valid:false,code:"trail",reason:"FOOTPRINT TOUCHES THE TRAIL",geometry,path,distance:path.distance,required:geometry.pathClearance};
-    const obstacle=defenseObstacleAt(x,y,geometry);if(obstacle)return{valid:false,code:"obstacle",reason:"A MAP PROP BLOCKS THIS FOOTPRINT",geometry,obstacle,distance:obstacle.distance,required:obstacle.required};
-    let nearestTower=null;for(const tower of mini.defense.towers){if(tower.id===ignoreTower)continue;const distance=Math.hypot(tower.x-x,tower.y-y);if(distance<geometry.towerGap&&(!nearestTower||distance<nearestTower.distance))nearestTower={tower,distance};}
-    if(nearestTower)return{valid:false,code:"tower",reason:"TOO CLOSE TO ANOTHER RIZO",geometry,nearestTower,distance:nearestTower.distance,required:geometry.towerGap};
-    return{valid:true,code:"open",reason:"OPEN GRASS",geometry,path,distance:path.distance,required:geometry.pathClearance,clearance:path.distance-geometry.pathClearance};
-  }
-  function defensePlacementPushCandidate(x,y,evaluation){
-    const g=evaluation.geometry||defensePlacementGeometry(),candidates=[];
-    if(evaluation.code==="edge")candidates.push({x:clamp(x,g.bounds.left,g.bounds.right),y:clamp(y,g.bounds.top,g.bounds.bottom)});
-    if(evaluation.code==="trail"&&evaluation.path){const p=evaluation.path,dx=x-p.x,dy=y-p.y,length=Math.hypot(dx,dy),segment=p.segment||{a:{x:0,y:0},b:{x:1,y:0}},sx=segment.b.x-segment.a.x,sy=segment.b.y-segment.a.y,required=g.pathClearance+.002;if(length>.0001)candidates.push({x:p.x+dx/length*required,y:p.y+dy/length*required});else{const sl=Math.max(.0001,Math.hypot(sx,sy)),nx=-sy/sl,ny=sx/sl;candidates.push({x:p.x+nx*required,y:p.y+ny*required},{x:p.x-nx*required,y:p.y-ny*required});}}
-    if(evaluation.code==="obstacle"&&evaluation.obstacle){const{zone,required}=evaluation.obstacle,dx=x-zone.x,dy=y-zone.y,length=Math.hypot(dx,dy)||1;candidates.push({x:zone.x+dx/length*(required+.002),y:zone.y+dy/length*(required+.002)});}
-    if(evaluation.code==="tower"&&evaluation.nearestTower){const{tower}=evaluation.nearestTower,dx=x-tower.x,dy=y-tower.y,length=Math.hypot(dx,dy)||1;candidates.push({x:tower.x+dx/length*(g.towerGap+.002),y:tower.y+dy/length*(g.towerGap+.002)});}
-    return candidates;
-  }
-  function resolveDefensePlacement(x,y,ignoreTower=null,{snapPx=DEFENSE_PLACEMENT_SNAP_PX}={}){
-    const direct=defensePlacementEvaluation(x,y,ignoreTower);if(direct.valid)return{point:{x,y},evaluation:direct,snapped:false,raw:{x,y},snapDistance:0};
-    const geometry=direct.geometry,maxDistance=Math.max(0,Number(snapPx)||0)/geometry.short,candidates=defensePlacementPushCandidate(x,y,direct),steps=4,angles=24;
-    for(let ring=1;ring<=steps;ring+=1){const radius=maxDistance*ring/steps;for(let i=0;i<angles;i+=1){const angle=Math.PI*2*i/angles;candidates.push({x:x+Math.cos(angle)*radius,y:y+Math.sin(angle)*radius});}}
-    let best=null;for(const candidate of candidates){const point={x:clamp(candidate.x,0,1),y:clamp(candidate.y,0,1)},distance=Math.hypot(point.x-x,point.y-y);if(distance>maxDistance+.0001)continue;const evaluation=defensePlacementEvaluation(point.x,point.y,ignoreTower);if(!evaluation.valid)continue;const score=distance+Math.max(0,.003-(evaluation.clearance||0))*.2;if(!best||score<best.score)best={point,evaluation,snapped:distance>.0005,raw:{x,y},snapDistance:distance,score};}
-    return best||{point:{x,y},evaluation:direct,snapped:false,raw:{x,y},snapDistance:0};
-  }
-  function isValidDefensePlacement(x,y,ignoreTower=null){return defensePlacementEvaluation(x,y,ignoreTower).valid;}
-  function defensePlacementReasonCopy(evaluation){return evaluation?.reason||"THAT SPOT IS BLOCKED";}
-  function defensePlacementRangeForRow(row){return defenseTowerStats(row.pet,0).range;}
-  function ensureDefensePlacementPreview(row){const preview=$("#defensePlacementPreview");if(!preview||!row)return preview;const signature=row.pet.id;if(preview.dataset.petId!==signature){preview.dataset.petId=signature;preview.innerHTML=`<span class="defense-placement-range"></span><span class="defense-placement-foot"></span><b class="defense-placement-label">OPEN GRASS</b>`;}const g=defensePlacementGeometry();preview.style.setProperty("--placement-range",`${Math.max(64,defensePlacementRangeForRow(row)*2*g.width)}px`);preview.style.setProperty("--placement-footprint",`${g.footprintPx*2}px`);return preview;}
-  function updateDefensePlacementPreview(result,row,{show=true}={}){const preview=ensureDefensePlacementPreview(row);if(!preview)return;preview.hidden=!show;if(!show)return;const point=result?.point||result?.raw;if(!point)return;preview.style.left=`${point.x*100}%`;preview.style.top=`${point.y*100}%`;preview.classList.toggle("valid",Boolean(result?.evaluation?.valid));preview.classList.toggle("invalid",!result?.evaluation?.valid);preview.classList.toggle("snapped",Boolean(result?.snapped));preview.dataset.reason=result?.evaluation?.code||"blocked";const label=preview.querySelector(".defense-placement-label");if(label)label.textContent=result?.evaluation?.valid?(result.snapped?"EDGE SNAP • READY":"READY TO PLACE"):defensePlacementReasonCopy(result?.evaluation);}
-  function hideDefensePlacementPreview(){const preview=$("#defensePlacementPreview");if(preview){preview.hidden=true;preview.classList.remove("valid","invalid","snapped");}}
-  function cancelDefenseTransientInput(reason="system-cancel") {
-    const d=mini.defense;let cancelled=false;if(d?.gateFlameArmed){d.gateFlameArmed=false;$(".defense-shell")?.classList.remove("gate-flame-aiming");markDefenseUi();cancelled=true;}
-    const drag = mini?.defenseDrag;
-    if (!drag){if(d&&cancelled)d.lastInputCancelReason=reason;return cancelled;}
-    try { drag.source?.releasePointerCapture?.(drag.pointerId); } catch (error) {}
-    drag.ghost?.remove();
-    drag.source?.classList.remove("drag-source");
-    $("#defenseWorld")?.classList.remove("placement-valid", "placement-invalid");
-    hideDefensePlacementPreview();
-    mini.defenseDrag = null;
-    if (d) d.lastInputCancelReason = reason;
-    return true;
-  }
-  function defenseBenchAxis(){return matchMedia("(max-height:650px) and (orientation:landscape)").matches?"vertical":"horizontal";}
-  function defenseDragIntent(dx,dy){const axis=defenseBenchAxis(),ax=Math.abs(dx),ay=Math.abs(dy);if(axis==="horizontal"){if(ax>9&&ax>ay*1.12)return"scroll";if(ay>8&&ay>=ax*.72)return dy<0?"deploy":"wait";}else{if(ay>9&&ay>ax*1.12)return"scroll";if(ax>8&&ax>=ay*.72)return dx<0?"deploy":"wait";}return"wait";}
-
-  function setDefensePlacementMode(row,cost){
-    const d=mini.defense;d.pendingPlacement={row,cost};d.benchOpen=true;d.fieldMenuOpen=false;
-    $("#defenseWorld")?.classList.add("placement-mode");hideDefensePlacementPreview();updateDefenseRoster();updateDefenseHud();
-    setDefenseMessage(`PLACE ${row.pet.name}`,"Drag toward the field or tap exact grass. Green means the full footprint clears the trail.");haptic(8);
-  }
-
-  function clearDefensePlacementMode(){
-    if(!mini.defense)return;mini.defense.pendingPlacement=null;hideDefensePlacementPreview();$("#defenseWorld")?.classList.remove("placement-mode","placement-valid","placement-invalid");updateDefenseRoster();updateDefenseHud();
-  }
-
-  function selectDefenseRosterPet(row){
-    if(!row||!mini.defense)return false;
-    const d=mini.defense;if(!defensePlacementAllowed(d)){setDefenseMessage("PLANNING ONLY","Deployment reopens after the wave is fully resolved.");sfx("no");return false;}
-    if(d.pendingPlacement?.row?.pet?.id===row.pet.id){clearDefensePlacementMode();setDefenseMessage("PLACEMENT CANCELLED","Tap another Rizo when you are ready.");return false;}
-    if(d.towers.length>=d.maxTowers){toast("THE FIELD IS FULL");sfx("no");return false;}
-    if(defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id)){setDefenseMessage("CONTRACT • NO COPIES",`${row.pet.name} already stands on this field.`);sfx("no");return false;}
-    const cost=defenseDeployCost(row);
-    if(d.cash<cost){toast(`NEED ${cost} DEFENSE COINS`);sfx("no");return false;}
-    closeDefenseTowerPanel();
-    setDefensePlacementMode(row,cost);
-    return true;
-  }
-  function beginDefenseDrag(event,row){
-    const d=mini.defense;if(!d||!row)return;if(!defensePlacementAllowed(d)){setDefenseMessage("PLANNING ONLY","New Rizos deploy between waves. Upgrades and powers stay available.");return;}if(d.towers.length>=d.maxTowers){toast("THE FIELD IS FULL");return;}if(defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id)){setDefenseMessage("CONTRACT • NO COPIES",`${row.pet.name} already stands on this field.`);return;}const cost=defenseDeployCost(row);if(d.cash<cost){toast(`NEED ${cost} DEFENSE COINS`);return;}
-    const source=event.target.closest("[data-defense-roster-id]"),roster=source?.closest(".defense-roster");
-    if(event.cancelable)event.preventDefault();
-    try{source?.setPointerCapture?.(event.pointerId);}catch(error){}
-    mini.defenseDrag={pointerId:event.pointerId,pointerType:event.pointerType||"touch",row,cost,ghost:null,source,roster,scrollStartX:roster?.scrollLeft||0,scrollStartY:roster?.scrollTop||0,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,active:false,scrolling:false,moved:false,result:null};if(event.pointerType==="mouse"){activateDefenseDrag(mini.defenseDrag,event);moveDefenseDrag(event);}haptic(6);
-  }
-
-  function activateDefenseDrag(drag,event){
-    if(!drag||drag.active)return;drag.active=true;drag.moved=true;const ghost=document.createElement("div");ghost.className="defense-drag-ghost";ghost.innerHTML=`${petMarkup({pet:drag.row.pet,extraClass:"defense-drag-rizo",context:"thumbnail",label:drag.row.pet.name})}<i class="defense-drag-foot"></i><b class="defense-drag-reason">MOVE TO OPEN GRASS</b>`;document.body.appendChild(ghost);drag.ghost=ghost;drag.source?.classList.add("drag-source");try{drag.source?.setPointerCapture?.(event.pointerId);}catch(error){}$("#defenseWorld")?.classList.add("placement-mode");ensureDefensePlacementPreview(drag.row);
-  }
-  function moveDefenseDrag(event){
-    const drag=mini.defenseDrag;if(!drag||event.pointerId!==drag.pointerId)return;drag.lastX=event.clientX;drag.lastY=event.clientY;const dx=event.clientX-drag.startX,dy=event.clientY-drag.startY,distance=Math.hypot(dx,dy);
-    if(event.cancelable)event.preventDefault();
-    if(drag.scrolling){const axis=defenseBenchAxis();if(drag.roster){if(axis==="horizontal")drag.roster.scrollLeft=drag.scrollStartX-dx;else drag.roster.scrollTop=drag.scrollStartY-dy;}return;}
-    if(!drag.active){if(distance<=6)return;const intent=defenseDragIntent(dx,dy);if(intent==="scroll"){drag.scrolling=true;if(drag.roster){const axis=defenseBenchAxis();if(axis==="horizontal")drag.roster.scrollLeft=drag.scrollStartX-dx;else drag.roster.scrollTop=drag.scrollStartY-dy;}return;}if(intent!=="deploy"){if(distance<18)return;activateDefenseDrag(drag,event);}else activateDefenseDrag(drag,event);}
-    const raw=defenseArenaPoint(event,{lift:true,strict:true}),world=$("#defenseWorld");if(!raw){drag.result=null;drag.ghost.style.left=`${event.clientX}px`;drag.ghost.style.top=`${event.clientY}px`;drag.ghost.classList.remove("valid","snapped");drag.ghost.classList.add("invalid");const reason=drag.ghost.querySelector(".defense-drag-reason");if(reason)reason.textContent="MOVE INTO THE FIELD";hideDefensePlacementPreview();world?.classList.remove("placement-valid");world?.classList.add("placement-invalid");return;}
-    const result=resolveDefensePlacement(raw.x,raw.y,null,{snapPx:DEFENSE_PLACEMENT_SNAP_PX});drag.result=result;const point=result.point,screenX=raw.rect.left+point.x*raw.rect.width,screenY=raw.rect.top+point.y*raw.rect.height,g=result.evaluation.geometry;drag.ghost.style.left=`${screenX}px`;drag.ghost.style.top=`${screenY}px`;drag.ghost.style.setProperty("--placement-range",`${Math.max(64,defensePlacementRangeForRow(drag.row)*2*g.width)}px`);drag.ghost.style.setProperty("--placement-footprint",`${g.footprintPx*2}px`);drag.ghost.classList.toggle("valid",Boolean(result.evaluation.valid));drag.ghost.classList.toggle("invalid",!result.evaluation.valid);drag.ghost.classList.toggle("snapped",Boolean(result.snapped));const reason=drag.ghost.querySelector(".defense-drag-reason");if(reason)reason.textContent=result.evaluation.valid?(result.snapped?"EDGE SNAP":"DROP TO PLACE"):defensePlacementReasonCopy(result.evaluation);updateDefensePlacementPreview(result,drag.row);world?.classList.toggle("placement-valid",Boolean(result.evaluation.valid));world?.classList.toggle("placement-invalid",!result.evaluation.valid);
-  }
-
-  function endDefenseDrag(event,cancelled=false){
-    const drag=mini.defenseDrag;if(!drag||event.pointerId!==drag.pointerId)return;const tap=!cancelled&&!drag.active&&!drag.scrolling&&Math.hypot((event.clientX??drag.lastX)-drag.startX,(event.clientY??drag.lastY)-drag.startY)<=8,result=drag.result,valid=!cancelled&&drag.active&&result?.evaluation?.valid;drag.ghost?.remove();drag.source?.classList.remove("drag-source");try{if(drag.source?.hasPointerCapture?.(drag.pointerId))drag.source.releasePointerCapture(drag.pointerId);}catch(error){}$("#defenseWorld")?.classList.remove("placement-valid","placement-invalid");hideDefensePlacementPreview();mini.defenseDrag=null;if(drag.scrolling)return;if(valid)placeDefenseTower(drag.row,result.point.x,result.point.y,drag.cost);else if(tap)setDefensePlacementMode(drag.row,drag.cost);else if(!cancelled&&drag.active){setDefensePlacementMode(drag.row,drag.cost);setDefenseMessage("KEEP PLACEMENT ACTIVE",defensePlacementReasonCopy(result?.evaluation));sfx("no");haptic([10,14,10]);}
-  }
-
-  function placeDefenseTower(row,x,y,cost){
-    const d=mini.defense;if(!defensePlacementAllowed(d)){setDefenseMessage("PLANNING ONLY","New Rizos deploy between waves.");sfx("no");return false;}if(d.towers.length>=d.maxTowers||!isValidDefensePlacement(x,y)||d.cash<cost||defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id))return false;
-    d.cash-=cost;d.cashWriteCount=(d.cashWriteCount||0)+1;const copies=d.towers.filter(t=>t.petId===row.pet.id).length+1,tower={id:`tower-${d.nextId++}`,petId:row.pet.id,pet:row.pet,source:row.source,rosterIndex:row.rosterIndex,copyNumber:copies,x,y,upgrade:0,cost,spent:cost,cooldown:0,kills:0,damage:0,abilityReadyAt:0,overclockUntil:0,rangeDebuffUntil:0,targetMode:"first",doctrine:null,shots:0,placedAt:d.clock,placedAtReal:defenseRealNow(d),openingPerkApplied:false,targetId:null,retargetAt:0,retargetAtReal:0};d.towers.push(tower);d.usedPetIds.add(row.pet.id);completeDefenseSchoolLesson("route",{silent:true});completeDefenseSchoolLesson("placement");clearDefensePlacementMode();renderDefenseTower(tower);updateDefenseRoster();updateDefenseHud();setDefenseMessage(`${row.pet.name} COPY ${copies} IS READY.`,`Tap it any time to level up, aim, or use its power.`);markDefenseUi({roster:true});writeDefenseCheckpoint(true,"placement");sfx("spark");haptic([8,12,8]);return true;
-  }
-  function applyDefenseTowerGeometry(tower,node=tower?.node){
-    const world=$("#defenseWorld");
-    if(!tower||!node||!world)return false;
-    const stats=defenseCombatStats(tower),worldWidth=world.clientWidth||360,worldHeight=world.clientHeight||520;
-    node.style.left=`${tower.x*100}%`;
-    node.style.top=`${tower.y*100}%`;
-    node.style.setProperty("--tower-range",`${stats.range*200}%`);
-    node.style.setProperty("--tower-range-width",`${Math.max(64,stats.range*2*worldWidth)}px`);
-    node.style.setProperty("--tower-range-height",`${Math.max(64,stats.range*2*worldHeight)}px`);
-    return true;
-  }
-  function sizeDefenseSquareField(){const shell=$(".defense-shell"),world=$("#defenseWorld");if(!shell||!world)return false;world.style.removeProperty("width");world.style.removeProperty("height");const width=shell.clientWidth,height=shell.clientHeight,mode=width>height?"landscape":height<650?"short-portrait":width>=768?"tablet":"portrait";shell.dataset.viewportMode=mode;return true;}
-
-  function syncDefenseTowerGeometry(){
-    const d=mini?.active&&mini.mode==="defense"?mini.defense:null;
-    if(!d)return false;
-    sizeDefenseSquareField();
-    const world=$("#defenseWorld");
-    d.renderWidth=world?.clientWidth||d.renderWidth||360;
-    d.renderHeight=world?.clientHeight||d.renderHeight||520;
-    const unitScale=clamp(d.renderWidth/390,.86,1.16);
-    world?.style.setProperty("--def-unit-scale",unitScale.toFixed(3));
-    d.canvasRenderer?.resize?.(d.renderWidth,d.renderHeight,d.governorTier||0);
-    d.towers.forEach(tower=>applyDefenseTowerGeometry(tower));
-    return true;
-  }
-  function scheduleDefenseTowerGeometrySync(){
-    if(!mini?.active||mini.mode!=="defense"||!mini.defense)return;
-    if(defenseResizeFrame)cancelAnimationFrame(defenseResizeFrame);
-    defenseResizeFrame=requestAnimationFrame(()=>{defenseResizeFrame=null;syncDefenseTowerGeometry();});
-  }
-  function renderDefenseTower(tower){
-    const host=$("#defenseTowers");
-    if(!host)return;
-    const node=document.createElement("button"),stats=defenseCombatStats(tower),tier=defenseTowerTier(tower),variant=VARIANTS.find(item=>item.id===stats.variant)||VARIANTS[0],mastery=defenseMasteryForPet(tower.petId),masteryTier=defenseMasteryTier(mastery||{});
-    node.type="button";
-    node.className=`defense-tower defense-variant-${stats.variant} defense-tier-${tier} defense-upgrade-${tower.upgrade} defense-mastery-${masteryTier} ${tower.superForm?`defense-super-${tower.superForm}`:""} ${tower.doctrine?`defense-doctrine-${tower.doctrine}`:""} ${tower.y<.35?"defense-range-label-low":tower.y>.65?"defense-range-label-high":""}`;
-    node.dataset.defenseTower=tower.id;
-    node.dataset.masteryTier=String(masteryTier);
-    node.setAttribute("aria-pressed","false");
-    node.setAttribute("aria-label",`${tower.pet.name}, Level ${tower.upgrade+1}${tower.superForm?` SUPER ${tower.superForm.toUpperCase()}`:""} ${stats.label} defender. Power ${Math.round(stats.damage)}, Speed ${stats.rate.toFixed(1)}, Reach ${Math.round(stats.range*100)}. Tap for tower actions.`);
-    node.style.setProperty("--tower-color",variant.color);
-    node.style.setProperty("--tower-silhouette",`url("${variant.sprite||"./assets/rizo-classic.png"}")`);
-    node.innerHTML=`<span class="defense-aura" aria-hidden="true"><i></i></span><span class="defense-range" aria-hidden="true"></span><span class="defense-power-mark" aria-hidden="true"><i></i><i></i><i></i></span>${petMarkup({pet:tower.pet,extraClass:"defense-rizo",context:"arcade",label:`${tower.pet.name}, ${stats.label} defender`})}${tower.upgrade?`<i class="defense-level" title="Level ${tower.upgrade+1}">LV${tower.upgrade+1}</i>`:""}${tower.copyNumber>1?`<i class="defense-copy" title="Deployed copy ${tower.copyNumber}">#${tower.copyNumber}</i>`:""}`;
-    host.appendChild(node);
-    tower.node=node;
-    applyDefenseTowerGeometry(tower,node);
-  }
-
-  function refreshDefenseTower(tower){const selected=mini.defense.selectedTowerId===tower.id;tower.node?.remove();renderDefenseTower(tower);if(selected){tower.node?.classList.add("selected");tower.node?.setAttribute("aria-pressed","true");}}
-  function defensePanelStatsMarkup(stats){
-    return `<span class="defense-stat-chip"><small>POWER</small><b>${Math.round(stats.damage)}</b></span><span class="defense-stat-chip"><small>SPEED</small><b>${stats.rate.toFixed(1)}</b></span><span class="defense-stat-chip"><small>REACH</small><b>${Math.round(stats.range*100)}</b></span>`;
-  }
-
-  function defenseSuperCandidates(tower,d=mini.defense){return d?.towers?.filter(other=>other.petId===tower?.petId&&!other.superForm)||[];}
-  function defenseCanAscend(tower,d=mini.defense){const copies=defenseSuperCandidates(tower,d);return Boolean(tower&&tower.upgrade>=4&&tower.doctrine&&copies.length>=10);}
-  function ascendDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!defenseCanAscend(tower,d)){setDefenseMessage("SUPER RIZO NOT READY","Deploy 10 copies of the same Rizo and max the one you want to keep.");sfx("no");return false;}const copies=defenseSuperCandidates(tower,d),sacrifices=copies.filter(t=>t!==tower).slice(0,9);for(const other of sacrifices){other.node?.remove();d.towers=d.towers.filter(t=>t!==other);}tower.superForm=tower.doctrine;tower.abilityReadyAt=Math.min(tower.abilityReadyAt||0,defenseNow()+4);refreshDefenseTower(tower);markDefenseUi({roster:true});updateDefenseRoster();showDefenseTowerPanel(tower);showDefenseCinematicMoment("perfect",{kicker:"TEN BECOME ONE",title:`SUPER ${tower.doctrine.toUpperCase()} ${tower.pet.name}`,copy:"THE FIELD JUST CHANGED.",duration:2200,priority:9,icon:"✦"});setDefenseMessage("SUPER RIZO AWAKENED",tower.doctrine==="power"?"Massive damage. Same field, much bigger consequences.":"Massive reach, speed, and trail control.");writeDefenseCheckpoint(true,"super-rizo");sfx("legendary");haptic([18,30,18,50]);return true;}
-  function showDefenseTowerPanel(tower){
-    const panel=$("#defenseTowerPanel");if(!panel)return;if(mini.defense){clearDefensePlacementMode();defenseCloseContextSurfaces("tower",{sync:false});}
-    const d=mini.defense;d.selectedTowerId=tower.id;d.towers.forEach(item=>{const selected=item.id===tower.id;item.node?.classList.toggle("selected",selected);item.node?.setAttribute("aria-pressed",String(selected));});
-    const variantId=tower.pet.variant||tower.pet.hiddenVariant||"classic",variantData=VARIANTS.find(item=>item.id===variantId)||VARIANTS[0],stats=defenseCombatStats(tower),nextStats=tower.upgrade<4?defenseCombatStats({...tower,upgrade:tower.upgrade+1}):stats,upgradeCost=defenseUpgradeCost(tower,d),target=DEFENSE_TARGET_LABELS[tower.targetMode||"first"],needsDoctrine=tower.upgrade>=2&&!tower.doctrine,forced=defenseContractForcedDoctrine(d),noSell=defenseContractRule("no-sell",d),sell=defenseSellRefund(tower,d),sellLocked=!defenseSellAllowed(d),leader=defenseFieldLeader(d),isLeader=leader?.id===tower.id,power=defenseAbilityPresentation(tower),remaining=Math.ceil(defenseAbilityRemaining(tower));
-    const damageGain=Math.max(0,Math.round((nextStats.damage/Math.max(.01,stats.damage)-1)*100)),rangeGain=Math.max(0,Math.round((nextStats.range/Math.max(.01,stats.range)-1)*100)),rateGain=Math.max(0,Math.round((nextStats.rate/Math.max(.01,stats.rate)-1)*100)),needCoins=Math.max(0,upgradeCost-Math.floor(d.cash));
-    panel.style.setProperty("--panel-accent",variantData.color||"#ff784f");panel.hidden=false;panel.classList.add("rizo-field-sheet","v79-tower-shop","v80-tower-shop");
-    const openingDeal=defenseUpgradeModifier(tower,d)<1,nextCopy=tower.upgrade>=4?"MAX LEVEL":`${openingDeal?"OPENING DEAL • ":""}+${damageGain}% HIT • +${rangeGain}% RANGE • +${rateGain}% SPEED`,pathPicker=needsDoctrine?`<div class="defense-path-choice"><small>CHOOSE HOW ${escapeHTML(tower.pet.name).toUpperCase()} FIGHTS</small><div><button type="button" data-defense-doctrine="${tower.id}:power" ${forced&&forced!=="power"?"disabled":""}><i>◆</i><b>POWER</b><span>Damage, armor breaks, boss pressure.</span></button><button type="button" data-defense-doctrine="${tower.id}:control" ${forced&&forced!=="control"?"disabled":""}><i>⌁</i><b>CONTROL</b><span>Reach, slows, roots, rewinds, interrupts.</span></button></div></div>`:"",upgradeText=tower.upgrade>=4?"MAXED OUT":needsDoctrine?"CHOOSE A PATH FIRST":needCoins?`NEED ${needCoins} MORE`:`LEVEL UP • ${upgradeCost}`;
-    const leaderCopy=isLeader?(tower.upgrade<2?"FIELD LEADER • POWER UNLOCKS AT LV 3":!tower.doctrine?"FIELD LEADER • CHOOSE A PATH":remaining?`FIELD LEADER • ${power.active} ${remaining}s`:`FIELD LEADER • ${power.active}`):`FIELD SUPPORT • ${tower.doctrine?`${tower.doctrine.toUpperCase()} PATH`:"NO PATH YET"}`,superReady=defenseCanAscend(tower,d),superMarkup=tower.superForm?`<div class="defense-super-status"><small>SUPER RIZO</small><b>${escapeHTML(tower.superForm.toUpperCase())} FORM</b><span>${tower.superForm==="power"?"2.75× impact core":"Massive reach + control tempo"}</span></div>`:superReady?`<button type="button" class="defense-super-button" data-defense-super="${tower.id}"><small>SACRIFICE 9 MATCHING COPIES</small><b>ASCEND TO SUPER ${escapeHTML(tower.doctrine.toUpperCase())}</b></button>`:"";
-    panel.innerHTML=`<button type="button" class="defense-sheet-close" data-defense-close-panel aria-label="Close Rizo controls">${defenseUiIcon("close")}</button><div class="defense-panel-hero v80"><span class="defense-panel-portrait">${petMarkup({pet:tower.pet,extraClass:"defense-panel-rizo",context:"thumbnail",label:tower.pet.name})}</span><div class="defense-panel-copy"><small>${escapeHTML(variantData.name)} • ${escapeHTML(stats.label)}</small><b>${escapeHTML(tower.pet.name)} <u>LV ${tower.upgrade+1}</u></b><em>${escapeHTML(leaderCopy)}</em></div><div class="defense-panel-wallet"><small>GOLD</small><b>${defenseHudCounter(d.cash)} 🪙</b></div></div>${pathPicker}<button type="button" class="defense-upgrade-big ${needCoins?"cant-afford":""}" data-defense-upgrade="${tower.id}" ${tower.upgrade>=4||needsDoctrine?"disabled":""}><span>${defenseUiIcon("upgrade")}</span><div><small>${escapeHTML(nextCopy)}</small><b>${escapeHTML(upgradeText)}</b></div></button>${superMarkup}<div class="defense-panel-simple-actions v80"><button type="button" class="target" data-defense-target="${tower.id}"><i>${defenseUiIcon("target")}</i><span><small>TARGET</small><b>${target}</b></span></button><button type="button" class="sell" data-defense-sell="${tower.id}" ${noSell||sellLocked?"disabled":""} aria-label="Sell ${escapeHTML(tower.pet.name)}"><i>${defenseUiIcon("sell")}</i><span><small>${noSell?"LOCKED":sellLocked?"AFTER WAVE":"SELL"}</small><b>${noSell?"NO REFUNDS":sellLocked?"70% BACK":`${sell} 🪙`}</b></span></button></div><p class="defense-ability-one-line"><b>${isLeader?"FIELD POWER":"ROLE"}</b> ${escapeHTML(isLeader?power.copy:(tower.doctrine==="control"?"This Rizo manipulates the trail; the first deployed Rizo owns the active Field Power.":"This Rizo supplies damage; the first deployed Rizo owns the active Field Power."))}</p>`;syncDefenseOverlayState();
-  }
-  function updateDefenseAbilityPanel(){const d=mini.defense;if(!d?.selectedTowerId)return;const tower=d.towers.find(item=>item.id===d.selectedTowerId),upgrade=$("[data-defense-upgrade]");if(!tower)return;if(upgrade&&tower.upgrade<4&&!(tower.upgrade>=2&&!tower.doctrine)){const cost=defenseUpgradeCost(tower,d),need=Math.max(0,cost-Math.floor(d.cash));upgrade.classList.toggle("cant-afford",need>0);const b=upgrade.querySelector("b");if(b)b.textContent=need?`NEED ${need} MORE`:`LEVEL UP • ${cost}`;}tower.node?.classList.toggle("range-weakened",tower.rangeDebuffUntil>defenseNow());}
-  function closeDefenseTowerPanel(){defenseClearTowerSelection();syncDefenseOverlayState();}
-  function upgradeDefenseTower(id){
-    const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!tower||tower.upgrade>=DEFENSE_LIMITS.MAX_TOWER_LEVEL)return;if(!defenseUpgradeAllowed(d)){setDefenseMessage("UPGRADE UNAVAILABLE","This Rizo cannot level up right now.");sfx("no");return false;}if(tower.upgrade>=2&&!tower.doctrine){showDefenseTowerPanel(tower);setDefenseMessage("CHOOSE A PATH FIRST","POWER and CONTROL change the rest of this Rizo's run.");sfx("no");return false;}
-    const before=defenseCombatStats(tower),modifier=defenseUpgradeModifier(tower,d),cost=DefenseCore.upgradeCost(tower.upgrade,modifier);if(d.cash<cost){const need=Math.max(1,cost-Math.floor(d.cash));$(".defense-stat-cash")?.classList.remove("money-nope");void $(".defense-stat-cash")?.offsetWidth;$(".defense-stat-cash")?.classList.add("money-nope");setDefenseMessage(`NEED ${need} MORE COINS`,`${tower.pet.name} needs ${cost} to level up.`);sfx("no");haptic([8,18,8]);return false;}d.cash-=cost;d.cashWriteCount=(d.cashWriteCount||0)+1;tower.spent+=cost;tower.upgrade+=1;if(modifier<1){d.worldPerkUsed=true;tower.openingPerkApplied=true;}tower.targetId=null;tower.retargetAt=0;tower.retargetAtReal=0;refreshDefenseTower(tower);const after=defenseCombatStats(tower),variant=VARIANTS.find(item=>item.id===(tower.pet.variant||tower.pet.hiddenVariant||"classic"))||VARIANTS[0],damageGain=Math.round((after.damage/Math.max(.01,before.damage)-1)*100),rateGain=Math.round((after.rate/Math.max(.01,before.rate)-1)*100),rangeGain=Math.round((after.range/Math.max(.01,before.range)-1)*100);tower.node?.classList.add("just-upgraded");
-    const world=$("#defenseWorld"),fx=document.createElement("div");world?.classList.remove("defense-upgrade-hit");void world?.offsetWidth;world?.classList.add("defense-upgrade-hit");fx.className=`defense-upgrade-burst tier-${defenseTowerTier(tower)} ${tower.y<.34?"labels-below":tower.y>.66?"labels-above":"labels-center"}`;fx.style.left=`${tower.x*100}%`;fx.style.top=`${tower.y*100}%`;fx.style.setProperty("--upgrade-color",variant.color);fx.style.setProperty("--upgrade-silhouette",`url("${variant.sprite||"./assets/rizo-classic.png"}")`);fx.innerHTML=`<i class="defense-upgrade-silhouette"></i><i></i><i></i><i></i><i></i><b>${escapeHTML(defenseUpgradeName(tower))}</b><span>+${damageGain}% DMG • +${rateGain}% SPEED • +${rangeGain}% RANGE</span>`;$("#defenseEffects")?.appendChild(fx);queueMiniTimeout(()=>{fx.remove();world?.classList.remove("defense-upgrade-hit");},1450);
-    setDefenseMessage(`${tower.pet.name} GOT STRONGER`,tower.upgrade===2?"A NEW FIGHTING PATH IS READY.":`LEVEL ${tower.upgrade+1} • ${defenseUpgradeName(tower)}`);showDefenseCinematicMoment("upgrade",{title:defenseUpgradeName(tower),copy:tower.upgrade===2?"DOCTRINE UNLOCKED • CHOOSE POWER OR CONTROL":`LEVEL ${tower.upgrade+1} • ${damageGain}% DAMAGE`});showDefenseTowerPanel(tower);markDefenseUi({roster:true});updateDefenseRoster();updateDefenseHud();writeDefenseCheckpoint(true,"upgrade");duckMusic(720,.14);sfx(tower.upgrade>=4?"legendary":"reward");haptic(tower.upgrade>=4?[24,24,24,45,28]:tower.upgrade>=2?[16,18,16,26]:[12,14,12]);return true;
-  }
-  function cycleDefenseTarget(id){const tower=mini.defense?.towers.find(item=>item.id===id);if(!tower)return;const current=DEFENSE_TARGET_MODES.indexOf(tower.targetMode||"first");tower.targetMode=DEFENSE_TARGET_MODES[(current+1)%DEFENSE_TARGET_MODES.length];tower.targetId=null;tower.retargetAt=0;tower.retargetAtReal=0;completeDefenseSchoolLesson("targeting");markDefenseUi();showDefenseTowerPanel(tower);writeDefenseCheckpoint(true,"target");setDefenseMessage(`${tower.pet.name} TARGETS ${DEFENSE_TARGET_LABELS[tower.targetMode]}`,tower.targetMode==="strong"?"Prioritizes the toughest balloon in range.":tower.targetMode==="last"?"Cleans up balloons furthest from the gate.":tower.targetMode==="close"?"Protects the space nearest this Rizo.":"Guards the balloon closest to the Ember Gate.");sfx("ui");}
-  function chooseDefenseDoctrine(id,doctrine){const d=mini.defense,tower=d?.towers.find(item=>item.id===id),forced=defenseContractForcedDoctrine(d);if(!tower||tower.upgrade<2||tower.doctrine||!DEFENSE_DOCTRINES[doctrine])return false;if(forced&&doctrine!==forced){setDefenseMessage(`${forced.toUpperCase()} OATH`,`This Trail Contract rejects the ${doctrine.toUpperCase()} path.`);sfx("no");return false;}tower.doctrine=doctrine;completeDefenseSchoolLesson("doctrine");refreshDefenseTower(tower);showDefenseTowerPanel(tower);markDefenseUi({roster:true});flushDefenseUi(true);const data=DEFENSE_DOCTRINES[doctrine];writeDefenseCheckpoint(true,"doctrine");setDefenseMessage(`${tower.pet.name} CHOSE ${data.name}`,doctrine==="power"?"Later upgrades unlock charged impact shots.":"Later upgrades unlock trail-locking pulse shots.");showDefenseCinematicMoment("ability",{title:`${defenseAbilityData(tower).active} ONLINE`,copy:`${tower.pet.name} • ${data.name}`});spawnDefenseAbilityFx(tower,doctrine==="power"?"ember":"aurora");sfx("legendary");haptic([12,20,12]);return true;}
-  function requestSellDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id),panel=$("#defenseTowerPanel");if(!tower||!panel)return false;if(!defenseSellAllowed(d)||defenseContractRule("no-sell",d))return sellDefenseTower(id);const refund=defenseSellRefund(tower,d);panel.insertAdjacentHTML("beforeend",`<div class="defense-sell-confirm" role="alertdialog" aria-label="Confirm sale"><b>SELL ${escapeHTML(tower.pet.name).toUpperCase()}?</b><span>You get ${refund} 🪙 back. This Rizo leaves the field.</span><div><button type="button" data-defense-cancel-sell>KEEP RIZO</button><button type="button" class="danger" data-defense-confirm-sell="${tower.id}">YES, SELL</button></div></div>`);panel.querySelector("[data-defense-confirm-sell]")?.focus?.();return true;}
-  function sellDefenseTower(id){const d=mini.defense,tower=d?.towers.find(t=>t.id===id);if(!tower)return false;if(defenseContractRule("no-sell",d)){setDefenseMessage("CONTRACT • NO REFUNDS","This placement is permanent until the run ends.");sfx("no");return false;}if(!defenseSellAllowed(d)){setDefenseMessage("SELLING LOCKED IN COMBAT","Bank the run or wait for planning. Combat selling cannot erase mistakes.");sfx("no");return false;}const undo=defenseCanUndoPlacement(tower,d),refund=defenseSellRefund(tower,d);d.cash=DefenseCore.clampNumber(d.cash+refund,0,DEFENSE_LIMITS.MAX_RUN_CASH,d.cash);d.cashWriteCount=(d.cashWriteCount||0)+1;tower.node?.remove();d.towers=d.towers.filter(t=>t!==tower);closeDefenseTowerPanel();markDefenseUi({roster:true});updateDefenseRoster();updateDefenseHud();if(d.towers.length)writeDefenseCheckpoint(true,"sell");else clearDefenseCheckpoint();setDefenseMessage(undo?`PLACEMENT UNDONE • +${refund}`:`RIZO SOLD • +${refund}`,undo?"Full refund within the five-second planning undo window.":"Planning refunds return 70% of total investment.");sfx("coin");return true;}
-  const DEFENSE_WAVE_FLAVOR=Object.freeze({
-    grove:["Easy now. Watch where the first ones drift.","Good. Now cover the bend.","A few faster ones are testing the trail.","Do not chase every balloon. Build the field.","The forest is starting to push back.","They found another way through. Stay calm.","Your Rizos know the trail now.","This one asks for coverage, not panic.","Save a few coins. Something big is coming.","The trees went quiet. Boss incoming."],
-    ember:["Heat makes everything look faster. Read the road.","Keep one eye on the Gate.","The hot trail rewards hard hits.","Do not let the fire rush your decisions.","They are testing the inside bend.","Your flame is holding. Make it stronger.","A tougher shell is entering the heat.","Leave room for one more answer.","The volcano is rumbling. Save something.","Big shadow in the smoke. Boss incoming."],
-    moon:["Moonlight hides more than it shows.","Watch the silhouettes, not the sparkle.","Fast shapes are slipping through the dark.","Sight matters now. Build with intention.","Something is learning to disappear.","The moon gives you a second to read it.","Keep coverage on both halves of the trail.","If it fades, your awakened Rizos still know.","The whole trail feels watched.","Do not blink. Boss incoming."],
-    storm:["The wind is quiet for now.","Fast balloons love a straight mistake.","Control the trail before the storm does.","A good slow is worth more than another panic buy.","Lightning is changing the rhythm.","Hold the bend. Let them come to you.","The next surge will punish weak coverage.","Your field should feel like a net now.","Save a power. The clouds are charging.","Thunder stopped. Boss incoming."],
-    blizzard:["Cold makes distance hard to judge. Trust the ring.","Keep your Rizos close enough to help each other.","Frozen balloons do not care about weak slows.","Power and coverage beat pretty placement.","The trail is disappearing under snow.","Do not spend just because you can.","A heavy wave is moving through the whiteout.","Your strongest Rizo should have a job.","One more calm breath before the storm.","The snow split open. Boss incoming."],
-    eclipse:["The light is leaving. Build for what you cannot see.","A clean field beats a crowded one.","Hidden threats are testing your weakest angle.","Do not let the darkness make you rush.","Your upgraded Rizos can read deeper into the trail.","Now the world starts mixing its tricks.","Keep one answer ready instead of spending everything.","The Gate is still bright. Protect that advantage.","Everything went still. Save your powers.","Something enormous moved in the dark. Boss incoming."]
-  });
-  function defenseWaveFlavor(mapId,wave,{cleared=false,perfect=false}={}){const lines=DEFENSE_WAVE_FLAVOR[mapId]||DEFENSE_WAVE_FLAVOR.grove,index=Math.max(0,Math.floor(wave)-1);if(index<lines.length)return lines[index];if(wave%10===0)return"That is not a normal balloon. Hold the Gate.";if(cleared&&perfect)return["Not one got through.","Clean field. Keep that flame alive.","That was surgical.","The Gate did not even flinch."][wave%4];if(cleared)return["Good hold. The next wave changes the question.","You bought yourself a breath. Use it.","Still alive. Spend with a plan.","The trail is learning your defense."][wave%4];return["Read the road.","Watch the front balloon.","Let the field do its job.","Save something for the surprise."][wave%4];}
-
-  function defenseBossForWave(wave){const ordinal=Math.max(0,Math.floor(wave/10)-1),base=DEFENSE_BOSSES[ordinal%DEFENSE_BOSSES.length],intensity=Math.floor(ordinal/DEFENSE_BOSSES.length);return{...base,intensity};}
-  function defenseWavePlan(wave){
-    const d=mini.defense,plan=DefenseCore.createWavePlan({wave,specialBias:d.map.specialBias||0,weather:d.map.weather,bossIds:DEFENSE_BOSSES.map(item=>item.id)});d.waveAnnouncement=plan.announcement;
-    const bossEntry=DefenseCore.flattenPackets(plan.packets).find(entry=>typeof entry==="object"&&entry?.type==="boss");if(bossEntry){const boss=defenseBossForWave(wave);d.waveAnnouncement={title:`${boss.name} • BOSS WAVE`,copy:boss.hint};}
-    return plan;
-  }
-  function startDefenseWave(){
-    const d=mini.defense;if(defenseIsActiveWave(d)||!d.towers.length||!DefenseCore.phaseAllows(d.phase,"start"))return false;if(defenseRealNow(d)<(d.nextWaveReadyAtReal||0)){setDefenseMessage("FIELD SETTLING","Give the last pop half a second to land. Then the next formation is yours to call.");return false;}
-    d.autoStartAtReal=0;flushDefenseIncome(d,"wave-start");completeDefenseSchoolLesson("route",{silent:true});d.intelOpen=false;d.intelPausedByOpen=false;clearDefensePlacementMode();closeDefenseTowerPanel();d.currentWave=DefenseCore.clampInteger(d.currentWave+1,1,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,1);defenseSetPhase(d,DEFENSE_PHASES.COUNTDOWN);const plan=defenseWavePlan(d.currentWave);d.wavePackets=plan.packets.map(packet=>({enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry}),spawnGap:packet.spawnGap,breakAfter:packet.breakAfter}));d.packetIndex=0;d.packetEnemyIndex=0;d.spawnQueue=DefenseCore.flattenPackets(d.wavePackets).map(entry=>typeof entry==="string"?entry:{...entry});d.currentWavePlan=d.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry});d.childSpawnQueue=[];d.nextChildReleaseAtReal=defenseRealNow(d);d.childSpawnSequence=0;d.targetSnapshot=[];d.targetSnapshotAtReal=0;d.waveTotal=d.spawnQueue.length;d.waveResolved=0;d.nextSpawnAt=d.clock+(d.currentWave===1?1.75:1.28);d.packetBreakUntil=0;d.lastSpawnedEnemyId=null;d.spawnWaitReason="countdown";d.peakAlive=0;d.waveHeartLossStart=d.enemyStats.heartLoss;d.nextWeatherAt=Math.min(d.nextWeatherAt,d.clock+5.5);
-    const announcement=d.waveAnnouncement,world=$("#defenseWorld"),bossWave=Boolean(announcement?.title?.includes("BOSS"));world?.classList.remove("wave-cue");void world?.offsetWidth;world?.classList.add("wave-cue");queueMiniTimeout(()=>world?.classList.remove("wave-cue"),1050);hideDefenseMessage();showDefenseCinematicMoment(bossWave?"boss":"wave-start",{title:bossWave?(announcement?.title||"BOSS INCOMING"):`WAVE ${d.currentWave}`,copy:bossWave?(announcement?.copy||"HOLD THE GATE"):defenseWaveFlavor(d.mapId,d.currentWave),duration:bossWave?1750:820});markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"wave-start");sfx("event");return true;
-  }
-
-  function defenseEnemyCamoActive(enemy,time=defenseNow()){const d=mini.defense;if(!d||!enemy)return false;return Boolean((enemy.camo||d.eclipseUntil>time||d.ashUntil>time)&&d.moonRevealUntil<=time&&enemy.revealUntil<=time);}
-  function revealDefenseEnemy(enemy,duration=2.5,tower=null){if(!enemy||enemy.dead)return false;const d=mini.defense,time=defenseNow(),wasCamo=defenseEnemyCamoActive(enemy,time),wasPhase=Boolean(enemy.phasing&&enemy.phaseSuppressedUntil<=time&&d.moonRevealUntil<=time);enemy.revealUntil=Math.max(enemy.revealUntil||0,time+duration);if(enemy.phasing)enemy.phaseSuppressedUntil=Math.max(enemy.phaseSuppressedUntil||0,time+duration);if(wasCamo&&!enemy.revealCredited){enemy.revealCredited=true;d.enemyStats.counters.reveals+=1;}if(wasPhase&&!enemy.phaseLockCredited){enemy.phaseLockCredited=true;d.enemyStats.counters.phaseLocks+=1;}if(wasCamo||wasPhase){spawnDefenseImpact(enemy.x||0,enemy.y||0,"reveal");updateDefenseEnemyNode(enemy);}return wasCamo||wasPhase;}
-  function shredDefenseArmor(enemy,amount=.04,tower=null){if(!enemy||enemy.dead||enemy.armor<=0)return false;const before=enemy.armor;enemy.armor=Math.max(0,enemy.armor-Math.max(0,amount));if(before-enemy.armor>.005){mini.defense.enemyStats.counters.armorShreds+=1;enemy.armorShredded=true;spawnDefenseImpact(enemy.x||0,enemy.y||0,"armor");updateDefenseEnemyNode(enemy);return true;}return false;}
-  function applyDefenseEnemyThresholds(enemy,tower=null){if(!enemy||enemy.dead||enemy.hp<=0)return;const ratio=enemy.hp/enemy.maxHp,breakable=enemy.type==="shell"||enemy.type==="brick";if(breakable&&!enemy.armorBroken&&ratio<=.5){enemy.armorBroken=true;enemy.armor=Math.min(enemy.armor,enemy.type==="brick"?.02:.06);mini.defense.enemyStats.counters.armorBreaks+=1;spawnDefenseImpact(enemy.x||0,enemy.y||0,"armor");updateDefenseEnemyNode(enemy);if(!mini.defense.hintFlags.armorBreak){mini.defense.hintFlags.armorBreak=true;setDefenseMessage(enemy.type==="brick"?"CERAMIC SHELL CRACKED":"IRON PLATE BROKEN",enemy.type==="brick"?"The heavy shell finally gave. Finish the exposed balloon.":"Below half health, Iron Balloons lose most of their armor. Finish the exposed core.");}}}
-
-  function createDefenseEnemyNode(){
-    const node=document.createElement("div");
-    node.className="defense-enemy";
-    node.innerHTML=`<span class="balloon-body"><i class="balloon-shine"></i><b class="balloon-face"><u></u><u></u><em>×××</em></b></span><span class="balloon-knot"></span><span class="balloon-string"></span><span class="balloon-trait" aria-hidden="true"></span><span class="balloon-state" aria-hidden="true"></span><span class="balloon-health"><i></i></span>`;
-    node._rizoTrait=node.querySelector(".balloon-trait");
-    node._rizoState=node.querySelector(".balloon-state");
-    return node;
-  }
-  function acquireDefenseProjectileNode(){
-    const d=mini.defense,host=$("#defenseProjectiles");if(!d||!host)return null;let node=d.projectileNodePool.pop();if(!node){node=document.createElement("i");d.projectileNodesCreated=(d.projectileNodesCreated||0)+1;}node.hidden=false;node.removeAttribute("style");node._rizoMoveX=NaN;node._rizoMoveY=NaN;node.className="defense-shot";host.appendChild(node);d.projectileNodesAcquired=(d.projectileNodesAcquired||0)+1;return node;
-  }
-  function releaseDefenseProjectileNode(shot){
-    const d=mini.defense,node=shot?.node;if(!d||!node)return;node.remove();node.hidden=true;node.className="defense-shot";node.removeAttribute("style");node._rizoMoveX=NaN;node._rizoMoveY=NaN;shot.node=null;if(d.projectileNodePool.length<96)d.projectileNodePool.push(node);
-  }
-
-  function acquireDefenseEnemyNode(){
-    const d=mini.defense;let node=d.enemyNodePool.pop();if(!node){node=createDefenseEnemyNode();d.enemyNodesCreated=(d.enemyNodesCreated||0)+1;}
-    node.hidden=false;node.removeAttribute("style");node.className="defense-enemy";node.dataset.enemyId="";
-    if(!node._rizoTrait)node._rizoTrait=node.querySelector(".balloon-trait");
-    if(!node._rizoState)node._rizoState=node.querySelector(".balloon-state");
-    if(node._rizoState){node._rizoState.textContent="";node._rizoState.hidden=true;}
-    $("#defenseEnemies")?.appendChild(node);d.enemyNodesAcquired=(d.enemyNodesAcquired||0)+1;return node;
-  }
-
-  function releaseDefenseEnemyNode(enemy){
-    const d=mini.defense,node=enemy?.node;if(!node)return;
-    node.remove();node.hidden=true;node.className="defense-enemy";node.dataset.enemyId="";node.removeAttribute("style");
-    if(node._rizoState){node._rizoState.textContent="";node._rizoState.hidden=true;}
-    enemy.node=null;enemy.visualSignature="";enemy.stateSignature="";enemy.lastRenderedHealth=-1;enemy.lastRenderX=NaN;enemy.lastRenderY=NaN;
-    if(d&&d.enemyNodePool.length<64)d.enemyNodePool.push(node);
-  }
-
-  function queueDefenseChildSpawn(entry,{progress=0,delay=0,options={}}={}){
-    const d=mini.defense,clean=defenseQueueEntry(entry);if(!d||!clean)return false;if(d.childSpawnQueue.length>=DEFENSE_LIMITS.MAX_CHILD_BUFFER){defenseRecordValidationWarning("child-buffer-cap",{wave:d.currentWave});return false;}const item={entry:clean,progress:clamp(progress,0,.995),releaseAt:d.clock+Math.max(.04,delay),sequence:(d.childSpawnSequence=(d.childSpawnSequence||0)+1),options:{...options}},index=d.childSpawnQueue.findIndex(queued=>queued.releaseAt>item.releaseAt||(queued.releaseAt===item.releaseAt&&(queued.sequence||0)>item.sequence));if(index<0)d.childSpawnQueue.push(item);else d.childSpawnQueue.splice(index,0,item);return true;
-  }
-  function releaseDefenseChildSpawn(d){if(!d?.childSpawnQueue?.length)return false;const child=d.childSpawnQueue[0];if(child.releaseAt>d.clock||!defenseDensityAllowsSpawn(d,child.entry,true))return false;d.childSpawnQueue.shift();spawnDefenseEnemy(child.entry,{progress:child.progress,...child.options});d.nextChildReleaseAtReal=defenseRealNow(d);d.childSpawnsReleased=(d.childSpawnsReleased||0)+1;return true;}
-
-  function spawnDefenseEnemy(entry,options={}){
-    const descriptor=typeof entry==="string"?{type:entry}:entry||{type:"puff"},type=descriptor.type||"puff",d=mini.defense,boss=type==="boss"?DEFENSE_BOSSES.find(item=>item.id===(descriptor.bossId||"crown"))||DEFENSE_BOSSES[0]:null,base=boss||DEFENSE_ENEMIES[type]||DEFENSE_ENEMIES.puff,scale=(1+(d.wave-1)*.115)*(d.map.hp||1)*(boss?1+(descriptor.intensity||0)*.23:1)*defenseDurabilityScale(d.currentWave||d.wave,{boss:Boolean(boss)}),hp=Number(options.hpOverride)||base.hp*scale;
-    const point=defensePointAt(Number.isFinite(options.progress)?options.progress:0),baseVisualClass=boss?`balloon-boss ${boss.className}`:base.className;
-    const enemy={id:`enemy-${d.nextId++}`,type,bossId:boss?.id||null,bossIntensity:descriptor.intensity||0,bossChild:Boolean(options.bossChild),progress:Number.isFinite(options.progress)?options.progress:0,x:point.x,y:point.y,prevX:point.x,prevY:point.y,hp,maxHp:Number(options.maxHpOverride)||hp,speed:base.speed*(1+Math.min(.22,d.wave*.006))*(d.map.speed||1),reward:DefenseCore.calculateEnemyReward(base.reward,d.currentWave,{rewardScale:options.rewardScale??1}),damage:base.damage,baseArmor:base.armor||0,armor:base.armor||0,armorBroken:false,armorShredded:false,fireproof:Boolean(base.fireproof),slowResist:base.slowResist||0,stormPulse:Boolean(base.stormPulse),stormCharging:false,phasing:Boolean(base.phasing),camo:Boolean(base.camo),phaseOffset:Math.random()*6.28,phaseActive:false,revealUntil:0,phaseSuppressedUntil:0,revealCredited:false,phaseLockCredited:false,slow:0,slowUntil:0,burn:0,burnUntil:0,burnSource:null,poison:0,poisonUntil:0,poisonSource:null,rootUntil:0,hitFlash:0,phaseTriggered:false,nextBossPulse:d.clock+4,telegraphKind:null,telegraphStartedAt:0,telegraphUntil:0,telegraphDisruption:0,apexSurgeUntil:0,bossMechanicLocked:false,baseVisualClass,renderColor:base.color,renderIcon:base.icon||"○",renderName:base.name||type,renderSkin:"clean",renderCamo:false,renderRevealed:false,renderStateSymbol:"",visualSignature:"",stateSignature:"",lastRenderedHealth:-1,lastRenderX:NaN,lastRenderY:NaN,node:null};
-    const node=defenseUsesCanvas(d)?null:acquireDefenseEnemyNode();if(node){node.className=`defense-enemy ${baseVisualClass}`;node.dataset.enemyId=enemy.id;node.style.setProperty("--balloon-color",base.color);if(node._rizoTrait)node._rizoTrait.textContent=base.icon||"○";enemy.node=node;}d.enemies.push(enemy);d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);mini.entities.push(enemy);if(!options.skipAnalytics)defenseRecordEnemyStat("spawned",boss?`boss:${boss.id}`:type);updateDefenseEnemyNode(enemy,true);if(boss&&!options.bossChild){showDefenseCinematicMoment("boss",{title:boss.name,copy:boss.trait,kicker:`WAVE ${d.currentWave} • BOSS ENTRANCE`});duckMusic(900,.12);haptic([18,24,18,38]);}if(enemy.camo&&!d.camoHintSeen){d.camoHintSeen=true;setDefenseMessage("SHADE BALLOON", "BASE RIZOS ONLY DEAL 25% DAMAGE. AWAKEN OR USE SHADOW, AURORA, OR GLITCH.");}return enemy;
-  }
-
-  function defenseEnemySkin(enemy,time){
-    if(enemy.burnUntil>time)return"burn";
-    if(enemy.poisonUntil>time)return"poison";
-    if(enemy.rootUntil>time)return"root";
-    if(enemy.slowUntil>time)return"frost";
-    if(enemy.armorBroken)return"cracked";
-    if(enemy.armorShredded)return"shredded";
-    return"clean";
-  }
-  function positionDefenseEnemyNode(enemy,force=false,renderX=enemy?.x,renderY=enemy?.y){
-    const d=mini.defense,node=enemy?.node;if(!d||!node)return false;
-    const width=Math.max(1,d.renderWidth||$("#defenseWorld")?.clientWidth||360),height=Math.max(1,d.renderHeight||$("#defenseWorld")?.clientHeight||360),px=Math.round((Number(renderX)||0)*width*10)/10,py=Math.round((Number(renderY)||0)*height*10)/10;
-    if(!force&&px===enemy.lastRenderX&&py===enemy.lastRenderY)return false;
-    node.style.transform=`translate3d(${px}px,${py}px,0)`;enemy.lastRenderX=px;enemy.lastRenderY=py;d.enemyPositionWrites=(d.enemyPositionWrites||0)+1;return true;
-  }
-  function positionDefenseMovingNode(node,x,y){
-    const d=mini.defense;if(!node||!d)return false;
-    const width=Math.max(1,d.renderWidth||$("#defenseWorld")?.clientWidth||360),height=Math.max(1,d.renderHeight||$("#defenseWorld")?.clientHeight||360),px=Math.round((Number(x)||0)*width*10)/10,py=Math.round((Number(y)||0)*height*10)/10;
-    if(px===node._rizoMoveX&&py===node._rizoMoveY)return false;
-    node.style.transform=`translate3d(${px}px,${py}px,0)`;node._rizoMoveX=px;node._rizoMoveY=py;return true;
-  }
-  function updateDefenseEnemyNode(enemy,force=false){
-    const time=defenseNow(),d=mini.defense;if(!enemy||!d)return false;
-    if(!Number.isFinite(enemy.x)||!Number.isFinite(enemy.y)){const point=defensePointAt(enemy.progress);enemy.x=point.x;enemy.y=point.y;}
-    const phaseSuppressed=enemy.phaseSuppressedUntil>time||d.moonRevealUntil>time,camo=defenseEnemyCamoActive(enemy,time),stormCharging=Boolean(enemy.stormPulse&&Math.sin(time*4+enemy.phaseOffset)>.48),ashCloaked=Boolean(d.ashUntil>time&&enemy.revealUntil<=time&&d.moonRevealUntil<=time),revealed=!camo&&(enemy.camo||enemy.revealUntil>time||d.moonRevealUntil>time),skin=defenseEnemySkin(enemy,time),health=Math.round(clamp(enemy.hp/Math.max(.001,enemy.maxHp)*100)),damaged=health<99;
-    const symbol=enemy.armorBroken?"×":phaseSuppressed&&enemy.phasing?"⌁":revealed?"◉":enemy.telegraphKind||stormCharging?"!":"",stateSignature=`${symbol}|${symbol?0:1}`;
-    enemy.stormCharging=stormCharging;enemy.renderSkin=skin;enemy.renderCamo=camo;enemy.renderRevealed=revealed;enemy.renderStateSymbol=symbol;enemy.phaseActive=Boolean(enemy.phasing&&!phaseSuppressed&&Math.sin(time*3+enemy.phaseOffset)>.12);
-    if(!enemy.node){enemy.visualSignature="canvas";enemy.stateSignature=stateSignature;enemy.lastRenderedHealth=health;return true;}
-    const classes=["defense-enemy",enemy.baseVisualClass,`skin-${skin}`,damaged?"damaged":"",enemy.hitFlash>0?"hit":"",enemy.phaseActive?"phased":"",phaseSuppressed&&enemy.phasing?"phase-suppressed":"",camo?"camouflaged":"",revealed?"revealed":"",ashCloaked?"ash-cloaked":"",stormCharging?"storm-charging":"",enemy.telegraphKind?"boss-telegraph":"",enemy.telegraphKind?`telegraph-${enemy.telegraphKind}`:"",enemy.armorBroken?"armor-broken":"",enemy.armorShredded&&!enemy.armorBroken?"armor-shredded":""].filter(Boolean).join(" ");
-    if(force||classes!==enemy.visualSignature){enemy.node.className=classes;enemy.visualSignature=classes;d.enemyClassWrites=(d.enemyClassWrites||0)+1;}
-    if(force||health!==enemy.lastRenderedHealth){enemy.node.style.setProperty("--enemy-health",`${health}%`);enemy.lastRenderedHealth=health;d.enemyHealthWrites=(d.enemyHealthWrites||0)+1;}
-    if(force||enemy.lastTelegraphBreak!==enemy.telegraphDisruption){enemy.node.style.setProperty("--telegraph-break",`${Math.round(clamp((enemy.telegraphDisruption||0)*100))}%`);enemy.lastTelegraphBreak=enemy.telegraphDisruption;}
-    if(force||stateSignature!==enemy.stateSignature){const stateNode=enemy.node._rizoState;if(stateNode){stateNode.textContent=symbol;stateNode.hidden=!symbol;}enemy.stateSignature=stateSignature;d.enemyStateWrites=(d.enemyStateWrites||0)+1;}
-    if(!d.fixedSimulation||force)positionDefenseEnemyNode(enemy,force);return true;
-  }
-
-  function defenseAuroraBuff(tower){return 1+mini.defense.towers.filter(other=>other!==tower&&(other.pet.variant||other.pet.hiddenVariant)==="aurora"&&Math.hypot(other.x-tower.x,other.y-tower.y)<.25).length*.16;}
-  function defenseEnemyThreat(enemy){const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type,identity=(DEFENSE_THREAT_PRIORITY[key]||30)/100;return (enemy.maxHp||enemy.hp||1)*(1+(enemy.armor||0))*(1+Math.max(0,(enemy.damage||1)-1)*.22)*(1+identity*.16)*(enemy.bossId?2:1);}
-  // Camouflage and phasing reduce damage through dealDefenseDamage; they do not make an
-  // already acquired target disappear. This predicate exists only for cached-target validity.
-  function canDefenseTowerSee(tower,enemy){return Boolean(tower&&enemy&&!enemy.dead&&enemy.hp>0);}
-  function defenseTargetSnapshot(d=mini.defense,force=false){const realTime=defenseRealNow(d),budget=defensePerformanceBudget(d);if(force||!Array.isArray(d.targetSnapshot)||realTime>=(d.targetSnapshotAtReal||0)){d.targetSnapshot=d.enemies.filter(enemy=>!enemy.dead&&enemy.hp>0);d.targetSnapshotAtReal=realTime+budget.targetRefreshMs/1000;d.targetSnapshotBuilds=(d.targetSnapshotBuilds||0)+1;}return d.targetSnapshot;}
-  function pickDefenseTarget(tower,stats,candidates=defenseTargetSnapshot()){
-    const mode=tower.targetMode||"first",rangeSq=stats.range*stats.range;let best=null,bestDistance=Infinity,bestThreat=-Infinity;
-    for(const enemy of candidates){
-      if(enemy.hp<=0)continue;const dx=enemy.x-tower.x,dy=enemy.y-tower.y,distanceSq=dx*dx+dy*dy;if(distanceSq>rangeSq)continue;
-      if(!best){best=enemy;bestDistance=distanceSq;if(mode==="strong")bestThreat=defenseEnemyThreat(enemy);continue;}
-      if(mode==="strong"){
-        const threat=defenseEnemyThreat(enemy);if(threat>bestThreat||(threat===bestThreat&&(enemy.hp>best.hp||(enemy.hp===best.hp&&enemy.progress>best.progress)))){best=enemy;bestThreat=threat;bestDistance=distanceSq;}
-      }else if(mode==="last"){
-        if(enemy.progress<best.progress){best=enemy;bestDistance=distanceSq;}
-      }else if(mode==="close"){
-        if(distanceSq<bestDistance){best=enemy;bestDistance=distanceSq;}
-      }else if(enemy.progress>best.progress){best=enemy;bestDistance=distanceSq;}
     }
-    return best;
-  }
-  function defenseProgressTargetsNear(target,radius,limit){
-    const radiusSq=radius*radius,picks=[];
-    for(const enemy of mini.defense.enemies){
-      if(enemy===target||enemy.hp<=0)continue;const dx=enemy.x-target.x,dy=enemy.y-target.y;if(dx*dx+dy*dy>=radiusSq)continue;
-      let slot=picks.length;for(let index=0;index<picks.length;index+=1){if(enemy.progress>picks[index].progress){slot=index;break;}}
-      picks.splice(slot,0,enemy);if(picks.length>limit)picks.pop();
-    }
-    return picks;
-  }
-  function animateDefenseTower(tower,kind="attack"){
-    if(!tower.node)return;
-    const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",apex=tower.upgrade>=4,classes=[kind==="ability"?"ability-cast":kind==="doctrine"?"doctrine-strike":"firing",`${kind}-${variant}`];if(apex&&kind==="ability")classes.push("apex-cast");tower.node.classList.add(...classes);
-    const attackDurations={classic:210,ember:230,toxic:220,violet:240,moss:235,bubblegum:240,frost:220,glitch:180,obsidian:255,aurora:250,golden:235,diamond:220,shadow:230,retro:180};
-    const duration=kind==="ability"?(apex?900:680):kind==="doctrine"?320:(attackDurations[variant]||220);
-    queueMiniTimeout(()=>tower.node?.classList.remove(...classes),duration);
-  }
-
-  function spawnDefenseAbilityFx(tower,kind){const node=document.createElement("i");node.className=`defense-ability-fx ability-fx-${kind} ${tower.upgrade>=4?"apex-fx":""}`;node.style.left=`${tower.x*100}%`;node.style.top=`${tower.y*100}%`;$("#defenseEffects")?.appendChild(node);queueMiniTimeout(()=>node.remove(),tower.upgrade>=4?1150:900);}
-  function defenseVisibleProjectileCount(d=mini.defense){let count=0;for(const shot of d?.projectiles||[])if(shot.node||shot.renderVisible)count+=1;return count;}
-  function fireDefenseTower(tower,target,stats){
-    const d=mini.defense,variant=stats.variant,shotNumber=(tower.shots||0)+1,masteryTier=defenseMasteryTierForPet(tower.petId);let damage=stats.damage*defenseAuroraBuff(tower),doctrineStrike=null;
-    if(variant==="shadow"&&Math.random()<stats.crit+.18)damage*=2.25;if(variant==="glitch"&&Math.random()<.28)damage*=1.75;if(tower.doctrine==="power"&&tower.upgrade>=3&&shotNumber%(tower.upgrade>=4?4:5)===0){damage*=tower.upgrade>=4?2.1:1.7;doctrineStrike="power";}else if(tower.doctrine==="control"&&tower.upgrade>=3&&shotNumber%(tower.upgrade>=4?4:5)===0)doctrineStrike="control";
-    const projectile={id:`shot-${d.nextId++}`,tower,target,x:tower.x,y:tower.y,prevX:tower.x,prevY:tower.y,life:0,speed:doctrineStrike?2.05:1.8,damage,kind:stats.projectile,doctrineStrike,masteryTier,node:null,renderVisible:false,renderColor:(VARIANTS.find(item=>item.id===variant)||VARIANTS[0]).color},budget=defenseVisualBudget(d),real=defenseRealNow(d),visibleCount=defenseVisibleProjectileCount(d),visualInterval=1/Math.max(1,budget.projectileEmissionHz||10),visualReady=real>=(tower.nextVisualProjectileAtReal||0),visualAllowed=visualReady&&visibleCount<budget.maxVisibleProjectiles;
-    tower.shots=shotNumber;
-    // Logical projectiles are independent from presentation. A rapid-fire Rizo can
-    // remain mathematically exact while only a representative subset gets a DOM
-    // tracer. This is the largest v76 projectile-pressure reduction.
-    if(d.projectiles.length>=160){d.coalescedLogicalShots=(d.coalescedLogicalShots||0)+1;applyDefenseHit(projectile);if(real>=(tower.nextAttackAnimAtReal||0)){animateDefenseTower(tower,doctrineStrike?"doctrine":"attack");tower.nextAttackAnimAtReal=real+visualInterval;}return;}
-    if(visualAllowed){if(defenseUsesCanvas(d)){projectile.renderVisible=true;tower.nextVisualProjectileAtReal=real+visualInterval;}else{const node=acquireDefenseProjectileNode();if(node){node.className=`defense-shot shot-${stats.projectile} signature-${variant} mastery-shot-${masteryTier} ${doctrineStrike?`shot-doctrine-${doctrineStrike}`:""}`;node.style.setProperty("--signature-color",projectile.renderColor);positionDefenseMovingNode(node,tower.x,tower.y);projectile.node=node;tower.nextVisualProjectileAtReal=real+visualInterval;}}}else d.coalescedVisualShots=(d.coalescedVisualShots||0)+1;
-    d.projectiles.push(projectile);d.maxLogicalProjectilesObserved=Math.max(d.maxLogicalProjectilesObserved||0,d.projectiles.length);d.maxProjectileNodesObserved=Math.max(d.maxProjectileNodesObserved||0,defenseVisibleProjectileCount(d));
-    if(projectile.node||projectile.renderVisible||doctrineStrike||real>=(tower.nextAttackAnimAtReal||0)){animateDefenseTower(tower,doctrineStrike?"doctrine":"attack");tower.nextAttackAnimAtReal=real+visualInterval;}
-    if(projectile.node||projectile.renderVisible)defenseSignatureTone(tower,masteryTier);
-  }
-  function dealDefenseDamage(enemy,raw,tower,kind="classic",ignoreArmor=false){if(!enemy||enemy.dead||enemy.hp<=0)return 0;const d=mini.defense,phase=enemy.phaseActive?.34:1,variant=tower?(tower.pet.variant||tower.pet.hiddenVariant||"classic"):null,camoActive=defenseEnemyCamoActive(enemy),camoMultiplier=camoActive&&tower&&!['shadow','aurora','glitch'].includes(variant)&&tower.upgrade<2?.25:1,penetration=tower?(variant==="diamond"?.65:variant==="obsidian"?.35:tower.doctrine==="power"?.28:0):0,effectiveArmor=ignoreArmor?0:Math.max(0,(enemy.armor||0)*(1-penetration)),calculated=Math.max(0,raw*(1-effectiveArmor)*phase*camoMultiplier),dealt=Math.min(enemy.hp,calculated);enemy.hp-=dealt;enemy.hitFlash=.12;if(tower){tower.damage+=dealt;d.totalDamage+=dealt;}markDefenseUi();if(enemy.hp<=0)popDefenseEnemy(enemy,tower);else{applyDefenseEnemyThresholds(enemy,tower);spawnDefenseImpact(enemy.x,enemy.y,kind,0,tower);}return dealt;}
-  function dealDefenseDot(enemy,raw,tower,kind){if(!enemy||enemy.dead||enemy.hp<=0||raw<=0)return 0;const dealt=Math.min(enemy.hp,raw);enemy.hp-=dealt;enemy.hitFlash=.08;if(tower&&mini.defense.towers.includes(tower)){tower.damage+=dealt;mini.defense.totalDamage+=dealt;}markDefenseUi();if(enemy.hp<=0)popDefenseEnemy(enemy,tower&&mini.defense.towers.includes(tower)?tower:null);return dealt;}
-  function applyDefenseHit(projectile){const{target,tower}=projectile;if(!target||target.hp<=0)return;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",time=defenseNow();let raw=projectile.damage;if(variant==="ember"&&target.fireproof)raw*=.68;if(variant==="frost"&&target.fireproof)raw*=1.22;const dealt=dealDefenseDamage(target,raw,tower,projectile.doctrineStrike||variant);if(dealt>0&&target.bossId&&tower.doctrine==="control")disruptDefenseBossTelegraph(target,tower,.3+tower.upgrade*.06);if(target.dead)return;if(variant==="ember"&&!target.fireproof){const burn=dealt*.16;if(burn>=target.burn){target.burn=burn;target.burnSource=tower;}target.burnUntil=time+3.2*(tower.doctrine==="control"?1.28:1);}if(variant==="toxic"){const poison=dealt*.12;if(poison>=target.poison){target.poison=poison;target.poisonSource=tower;}target.poisonUntil=time+5*(tower.doctrine==="control"?1.28:1);}if(variant==="frost"){const slow=.38*(1-(target.slowResist||0));target.slow=Math.max(target.slow,slow);target.slowUntil=time+2.6*(tower.doctrine==="control"?1.28:1);}if(variant==="moss")target.rootUntil=Math.max(target.rootUntil,time+(.55+tower.upgrade*.12)*(tower.doctrine==="control"?1.28:1));if(variant==="bubblegum")target.progress=Math.max(0,target.progress-(.026+tower.upgrade*.006)*(tower.doctrine==="control"?1.28:1));if(variant==="glitch"&&(target.phasing||defenseEnemyCamoActive(target,time))&&Math.random()<.38)revealDefenseEnemy(target,1.4,tower);if(projectile.doctrineStrike==="power"){shredDefenseArmor(target,tower.upgrade>=4?.07:.045,tower);const splash=defenseProgressTargetsNear(target,.105,tower.upgrade>=4?3:2);splash.forEach((enemy,index)=>{dealDefenseDamage(enemy,dealt*(tower.upgrade>=4?.38:.28),tower,"power");shredDefenseArmor(enemy,tower.upgrade>=4?.035:.02,tower);spawnDefenseImpact(enemy.x,enemy.y,"power",index,tower);});}else if(projectile.doctrineStrike==="control"){const resist=1-(target.slowResist||0),slow=(tower.upgrade>=4?.45:.34)*resist;target.slow=Math.max(target.slow,slow);target.slowUntil=Math.max(target.slowUntil,time+(tower.upgrade>=4?1.8:1.35));revealDefenseEnemy(target,tower.upgrade>=4?3.6:2.6,tower);if(tower.upgrade>=4&&!target.bossId)target.progress=Math.max(0,target.progress-.018);spawnDefenseImpact(target.x,target.y,"control",0,tower);}if(variant==="violet"||variant==="diamond"){const jumps=defenseProgressTargetsNear(target,.13,variant==="diamond"?2:1);jumps.forEach((enemy,index)=>{dealDefenseDamage(enemy,dealt*(variant==="diamond"?.58:.42),tower,variant);spawnDefenseImpact(enemy.x,enemy.y,variant,index,tower);});}}
-  function acquireDefenseImpactNode(){
-    const d=mini.defense,host=$("#defenseEffects");if(!d||!host)return null;let node=d.impactNodePool.pop();if(!node){node=document.createElement("i");d.impactNodesCreated=(d.impactNodesCreated||0)+1;}node.hidden=false;node.removeAttribute("style");node.className="defense-impact";host.appendChild(node);d.impactNodesAcquired=(d.impactNodesAcquired||0)+1;return node;
-  }
-  function releaseDefenseImpactNode(node,owner=mini.defense){if(!node)return;node.remove();node.hidden=true;node.className="defense-impact";node.removeAttribute("style");if(owner&&owner===mini.defense&&owner.impactNodePool.length<36)owner.impactNodePool.push(node);}
-  function spawnDefenseImpact(x,y,kind="classic",index=0,tower=null){const d=mini.defense;if(!d)return;const budget=defenseVisualBudget(d),host=$("#defenseEffects");if(!host||d.effects.length>=budget.maxImpactEffects){d.droppedCosmetics=(d.droppedCosmetics||0)+1;return;}const major=["boss","crown","vortex","mirror","apex","gate"].includes(kind),duration=major?.34:kind==="pop"?.13:.20,safeX=clamp(Number(x)||0,.022,.978),safeY=clamp(Number(y)||0,.022,.978),color=tower?(VARIANTS.find(item=>item.id===(tower.pet.variant||tower.pet.hiddenVariant))||VARIANTS[0]).color:"#fff2cf";if(defenseUsesCanvas(d)){const effect={node:null,x:safeX,y:safeY,kind,index,color,major,startedAt:defenseNow(),expiresAt:defenseNow()+duration};d.effects.push(effect);d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length);queueMiniTimeout(()=>removeDefenseRuntimeItem(d.effects,effect),Math.ceil(duration*1000)+30);return;}const node=acquireDefenseImpactNode();if(!node)return;node.className=`defense-impact impact-${kind}`;node.style.left=`${safeX*100}%`;node.style.top=`${safeY*100}%`;node.style.setProperty("--impact-index",index);node.style.setProperty("--impact-life",`${duration}s`);if(tower)node.style.setProperty("--impact-color",color);host.appendChild(node);const effect={node,x:safeX,y:safeY,kind,index,color,major,startedAt:defenseNow(),expiresAt:defenseNow()+duration};d.effects.push(effect);d.maxEffectNodesObserved=Math.max(d.maxEffectNodesObserved||0,d.effects.length);queueMiniTimeout(()=>{removeDefenseRuntimeItem(d.effects,effect);releaseDefenseImpactNode(effect.node);},Math.ceil(duration*1000)+20);}
-
-  function removeDefenseRuntimeItem(list,item){const index=list.indexOf(item);if(index>=0)list.splice(index,1);}
-  function removeDefenseEnemy(enemy){enemy.dead=true;releaseDefenseEnemyNode(enemy);removeDefenseRuntimeItem(mini.defense.enemies,enemy);removeDefenseRuntimeItem(mini.entities,enemy);}
-  function popDefenseEnemy(enemy,tower=null){if(enemy.dead)return;enemy.dead=true;const d=mini.defense,key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type;queueDefenseIncome(Math.round(enemy.reward*defenseGoldenBonus()),enemy.bossId?"boss":"pop");d.kills+=1;d.waveResolved+=1;defenseRecordEnemyStat("popped",key);mini.hits+=1;markDefenseUi({roster:true});mini.score=Math.max(mini.score,d.clearedWave);if(tower)tower.kills+=1;enemy.node?.classList.add("popped");if(!d.lowFx||enemy.bossId)spawnDefenseImpact(enemy.x,enemy.y,enemy.bossId?enemy.bossId:enemy.type==="split"?"bubble":"pop");queueMiniTimeout(()=>releaseDefenseEnemyNode(enemy),enemy.bossId?240:140);removeDefenseRuntimeItem(d.enemies,enemy);removeDefenseRuntimeItem(mini.entities,enemy);if(enemy.type==="split"){d.waveTotal+=2;queueDefenseChildSpawn("puff",{progress:enemy.progress,delay:.08});queueDefenseChildSpawn("fleet",{progress:Math.max(0,enemy.progress-.018),delay:.16});}if(enemy.bossId){d.bossesBeaten.push(enemy.bossId);d.bossesDefeated=(d.bossesDefeated||0)+1;showDefenseCinematicMoment("clear",{title:"BOSS POPPED",copy:(DEFENSE_BOSSES.find(item=>item.id===enemy.bossId)?.name||"BOSS")+" IS OFF THE TRAIL",priority:7,duration:1100});}if(enemy.bossId||defenseRealNow(d)-d.lastPopSfxAt>.065){d.lastPopSfxAt=defenseRealNow(d);sfx(enemy.bossId?"legendary":"spark");}}
-  function triggerCrownGuards(enemy){enemy.phaseTriggered=true;mini.defense.waveTotal+=2;queueDefenseChildSpawn("shell",{progress:clamp(enemy.progress-.025,0,.98),delay:.08});queueDefenseChildSpawn("shell",{progress:clamp(enemy.progress+.025,0,.98),delay:.18});markDefenseUi();setDefenseMessage("THE WARDEN CALLED GUARDS","Two armored escorts are joining the trail.");spawnDefenseImpact(enemy.x,enemy.y,"boss");}
-  function triggerVortexPulse(enemy){const d=mini.defense,time=defenseNow();enemy.nextBossPulse=time+4;for(const tower of d.towers){if(Math.hypot(tower.x-enemy.x,tower.y-enemy.y)<.32){tower.rangeDebuffUntil=Math.max(tower.rangeDebuffUntil,time+2.5);tower.node?.classList.add("range-weakened");}}const ring=document.createElement("i");ring.className="defense-vortex-pulse";ring.style.left=`${enemy.x*100}%`;ring.style.top=`${enemy.y*100}%`;$("#defenseEffects")?.appendChild(ring);queueMiniTimeout(()=>ring.remove(),850);setDefenseMessage("THE MAW DISTORTS THE FIELD", "NEARBY RIZO RANGE IS WEAKENED FOR 2.5 SECONDS.");}
-  function splitMirrorBoss(enemy){enemy.phaseTriggered=true;const remaining=Math.max(1,enemy.hp),progress=enemy.progress,intensity=enemy.bossIntensity;removeDefenseEnemy(enemy);mini.defense.waveTotal+=1;queueDefenseChildSpawn({type:"boss",bossId:"mirror",intensity},{progress:clamp(progress-.018,0,.98),delay:.08,options:{bossChild:true,hpOverride:remaining*.5,maxHpOverride:remaining*.5,rewardScale:.5}});queueDefenseChildSpawn({type:"boss",bossId:"mirror",intensity},{progress:clamp(progress+.018,0,.98),delay:.2,options:{bossChild:true,hpOverride:remaining*.5,maxHpOverride:remaining*.5,rewardScale:.5}});setDefenseMessage("MIRROR SPLIT","The two children are released sequentially so the visual node budget remains stable.");}
-  function beginDefenseBossTelegraph(enemy,kind){const data=DEFENSE_BOSS_TELEGRAPHS[kind];if(!enemy?.bossId||enemy.dead||!data||enemy.telegraphKind)return false;const time=defenseNow();enemy.telegraphKind=kind;enemy.telegraphStartedAt=time;enemy.telegraphUntil=time+data.duration;enemy.telegraphDisruption=0;updateDefenseEnemyNode(enemy);setDefenseMessage(data.title,data.copy);sfx("ui");haptic([8,16,8]);return true;}
-  function clearDefenseBossTelegraph(enemy,interrupted=false){if(!enemy?.telegraphKind)return false;const kind=enemy.telegraphKind,time=defenseNow();enemy.telegraphKind=null;enemy.telegraphStartedAt=0;enemy.telegraphUntil=0;enemy.telegraphDisruption=0;if(interrupted){if(kind==="guards"||kind==="mirror")enemy.phaseTriggered=true;if(kind==="vortex")enemy.nextBossPulse=time+4;if(kind==="apex")enemy.nextBossPulse=time+4.5;enemy.bossMechanicLocked=true;mini.defense.enemyStats.counters.bossInterrupts=(mini.defense.enemyStats.counters.bossInterrupts||0)+1;setDefenseMessage("BOSS SIGNAL BROKEN","CONTROL doctrine cancelled the mechanic before it resolved.");spawnDefenseImpact(enemy.x,enemy.y,"control");sfx("legendary");haptic([12,18,12]);}updateDefenseEnemyNode(enemy);markDefenseUi();return true;}
-  function disruptDefenseBossTelegraph(enemy,tower,amount=.35){const data=DEFENSE_BOSS_TELEGRAPHS[enemy?.telegraphKind];if(!data?.interruptible||tower?.doctrine!=="control"||enemy.dead)return false;enemy.telegraphDisruption=clamp((enemy.telegraphDisruption||0)+Math.max(.05,Number(amount)||0),0,1);if(enemy.telegraphDisruption>=1)return clearDefenseBossTelegraph(enemy,true);updateDefenseEnemyNode(enemy);markDefenseUi();return true;}
-  function resolveDefenseBossTelegraph(enemy){const kind=enemy?.telegraphKind;if(!kind)return false;enemy.telegraphKind=null;enemy.telegraphStartedAt=0;enemy.telegraphUntil=0;enemy.telegraphDisruption=0;if(kind==="guards")triggerCrownGuards(enemy);else if(kind==="mirror")splitMirrorBoss(enemy);else if(kind==="vortex")triggerVortexPulse(enemy);else if(kind==="apex"){const time=defenseNow();enemy.apexSurgeUntil=time+1.4;enemy.nextBossPulse=time+4.5;setDefenseMessage("REDLINE SURGE","THE WIND-UP COMPLETED. HOLD THE FRONT UNTIL THE BURST ENDS.");spawnDefenseImpact(enemy.x,enemy.y,"boss");}markDefenseUi();return true;}
-  function handleDefenseBossMechanics(enemy){if(!enemy.bossId||enemy.dead)return;const time=defenseNow(),ratio=enemy.hp/enemy.maxHp;if(enemy.telegraphKind){if(time>=enemy.telegraphUntil)resolveDefenseBossTelegraph(enemy);return;}if(enemy.bossId==="crown"&&!enemy.phaseTriggered&&ratio<=.5)beginDefenseBossTelegraph(enemy,"guards");else if(enemy.bossId==="mirror"&&!enemy.bossChild&&!enemy.phaseTriggered&&ratio<=.5)beginDefenseBossTelegraph(enemy,"mirror");else if(enemy.bossId==="vortex"&&time>=enemy.nextBossPulse)beginDefenseBossTelegraph(enemy,"vortex");else if(enemy.bossId==="apex"&&time>=enemy.nextBossPulse)beginDefenseBossTelegraph(enemy,"apex");}
-  function applyDefenseControlActive(tower,variant,stats,time,near,front){const d=mini.defense,targets=(near.length?near:front.slice(0,10)).filter(e=>e.hp>0),root=(enemy,seconds)=>enemy.rootUntil=Math.max(enemy.rootUntil||0,time+seconds),slow=(enemy,amount,seconds)=>{enemy.slow=Math.max(enemy.slow||0,amount*(1-(enemy.slowResist||0)));enemy.slowUntil=Math.max(enemy.slowUntil||0,time+seconds);};if(variant==="classic")front.slice(0,7).forEach(e=>{root(e,1.6);slow(e,.42,4);});else if(variant==="ember")front.slice(0,8).forEach(e=>{slow(e,.48,5);if(!e.fireproof){e.burn=Math.max(e.burn||0,stats.damage*.16);e.burnSource=tower;e.burnUntil=Math.max(e.burnUntil||0,time+5);}});else if(variant==="toxic")front.slice(0,10).forEach(e=>{slow(e,.55,6);e.poison=Math.max(e.poison||0,stats.damage*.18);e.poisonSource=tower;e.poisonUntil=Math.max(e.poisonUntil||0,time+7);});else if(variant==="violet")front.slice(0,8).forEach((e,i)=>{root(e,1.2+i*.08);revealDefenseEnemy(e,4,tower);});else if(variant==="moss")targets.slice(0,12).forEach(e=>root(e,4.4));else if(variant==="bubblegum")front.slice(0,10).forEach(e=>{e.progress=Math.max(0,e.progress-.20);slow(e,.25,3);});else if(variant==="frost")front.slice(0,10).forEach(e=>{root(e,2.4);slow(e,.75,6);});else if(variant==="glitch")front.slice(0,12).forEach(e=>{revealDefenseEnemy(e,6,tower);root(e,1.4);});else if(variant==="obsidian")front.slice(0,8).forEach(e=>{root(e,1.8);shredDefenseArmor(e,.12,tower);});else if(variant==="aurora"){d.prismUntil=Math.max(d.prismUntil,time+7);front.slice(0,12).forEach(e=>revealDefenseEnemy(e,7,tower));}else if(variant==="golden"){front.slice(0,9).forEach(e=>slow(e,.52,5));queueDefenseIncome(Math.max(12,Math.round((d.clearedWave+1)*2.2)),"golden-control");}else if(variant==="diamond")front.sort((a,b)=>defenseEnemyThreat(b)-defenseEnemyThreat(a)).slice(0,6).forEach(e=>{root(e,3);shredDefenseArmor(e,.10,tower);});else if(variant==="shadow")front.slice(0,8).forEach(e=>{e.progress=Math.max(0,e.progress-.08);revealDefenseEnemy(e,5,tower);slow(e,.42,5);});else if(variant==="retro")front.slice(0,10).forEach(e=>{e.progress=Math.max(0,e.progress-.15);});targets.slice(0,10).forEach(e=>spawnDefenseImpact(e.x,e.y,variant,0,tower));}
-  function activateDefenseAbility(id,{keepAbilityTray=false}={}){
-    const d=mini.defense,tower=d.towers.find(item=>item.id===id);if(defenseContractRule("silent",d)){setDefenseMessage("CONTRACT • SEALED ACTIVES","Passive identity still works, but activated effects are disabled.");sfx("no");return false;}if(!tower||tower.upgrade<2||!tower.doctrine||!defenseIsActiveWave(d)||d.paused||defenseAbilityRemaining(tower)>0)return false;const variant=tower.pet.variant||tower.pet.hiddenVariant||"classic",stats=defenseCombatStats(tower),time=defenseNow(),power=tower.doctrine==="power"?1.28:1,control=tower.doctrine==="control"?1.28:1,near=d.enemies.filter(enemy=>enemy.hp>0&&Math.hypot(enemy.x-tower.x,enemy.y-tower.y)<Math.max(.28,stats.range*1.75)),front=[...d.enemies].filter(enemy=>enemy.hp>0).sort((a,b)=>b.progress-a.progress);tower.abilityReadyAt=time+defenseAbilityCooldown(tower)*(tower.superForm?.7:1);animateDefenseTower(tower,"ability");spawnDefenseAbilityFx(tower,variant);
-    if(tower.doctrine==="control")applyDefenseControlActive(tower,variant,stats,time,near,front);else if(variant==="classic")d.rallyUntil=time+6;else if(variant==="ember")near.forEach(enemy=>{const dealt=dealDefenseDamage(enemy,stats.damage*2.1*power,tower,"ember");if(!enemy.fireproof&&!enemy.dead){const burn=dealt*.28;if(burn>=enemy.burn){enemy.burn=burn;enemy.burnSource=tower;}enemy.burnUntil=time+5;}});else if(variant==="toxic")front.forEach(enemy=>{const poison=stats.damage*.34*power;if(poison>=enemy.poison){enemy.poison=poison;enemy.poisonSource=tower;}enemy.poisonUntil=time+7*control;spawnDefenseImpact(enemy.x,enemy.y,"toxic",0,tower);});else if(variant==="violet")front.slice(0,6).forEach((enemy,index)=>dealDefenseDamage(enemy,stats.damage*(2.15-index*.12)*power,tower,"violet"));else if(variant==="moss")near.forEach(enemy=>{enemy.rootUntil=Math.max(enemy.rootUntil,time+(3.2+tower.upgrade*.25)*control);spawnDefenseImpact(enemy.x,enemy.y,"moss",0,tower);});else if(variant==="bubblegum")near.forEach(enemy=>{enemy.progress=Math.max(0,enemy.progress-(.12+tower.upgrade*.018)*control);dealDefenseDamage(enemy,stats.damage*.9*power,tower,"bubblegum");});else if(variant==="frost")front.forEach(enemy=>{enemy.rootUntil=Math.max(enemy.rootUntil,time+1.2*control);enemy.slow=Math.max(enemy.slow,.72*(1-(enemy.slowResist||0)));enemy.slowUntil=time+5*control;spawnDefenseImpact(enemy.x,enemy.y,"frost",0,tower);});else if(variant==="glitch"){for(let i=0;i<8;i+=1){const enemy=front[Math.floor(Math.random()*front.length)];if(enemy)dealDefenseDamage(enemy,stats.damage*(1.25+Math.random()*1.4)*power,tower,"glitch");}}else if(variant==="obsidian")near.forEach(enemy=>dealDefenseDamage(enemy,stats.damage*4.2*power,tower,"obsidian"));else if(variant==="aurora")d.prismUntil=time+8*control;else if(variant==="golden"){const goldenCount=d.towers.filter(item=>(item.pet.variant||item.pet.hiddenVariant)==="golden").length,gain=DefenseCore.goldenActivePayout({clearedWave:d.clearedWave,upgradeLevel:tower.upgrade,goldenTowerCount:goldenCount});queueDefenseIncome(gain,"golden-active");setDefenseMessage(`PAYDAY • +${gain}`,goldenCount>1?"Golden duplicates split the market. More gold still helps, but with diminishing returns.":"Golden Rizo made the balloons fund their own defeat.");}else if(variant==="diamond")front.slice(0,8).forEach(enemy=>dealDefenseDamage(enemy,stats.damage*2.8*power,tower,"diamond"));else if(variant==="shadow"){const enemy=front[0];if(enemy)dealDefenseDamage(enemy,enemy.hp/enemy.maxHp<.4?enemy.hp+1:stats.damage*4.8*power,tower,"shadow",true);}else if(variant==="retro")tower.overclockUntil=time+9*control;
-    const doctrineTargets=(near.length?near:front.slice(0,6)).filter(enemy=>enemy.hp>0);
-    if(tower.doctrine==="power")doctrineTargets.slice(0,tower.upgrade>=4?8:5).forEach(enemy=>shredDefenseArmor(enemy,tower.upgrade>=4?.08:.05,tower));
-    else if(tower.doctrine==="control")doctrineTargets.slice(0,tower.upgrade>=4?10:6).forEach(enemy=>revealDefenseEnemy(enemy,tower.upgrade>=4?5:3.5,tower));
-    markDefenseUi();
-    if(keepAbilityTray){d.abilityTrayOpen=true;closeDefenseTowerPanel();updateDefenseHud();}
-    else{updateDefenseHud();showDefenseTowerPanel(tower);}
-    completeDefenseSchoolLesson("abilities");writeDefenseCheckpoint(true,"ability");sfx("legendary");haptic([10,18,10,24]);return true;
-  }
-  function updateDefenseProjectiles(dt){
-    const d=mini.defense;
-    for(let index=d.projectiles.length-1;index>=0;index-=1){
-      const shot=d.projectiles[index];
-      if(!shot.target||shot.target.hp<=0){releaseDefenseProjectileNode(shot);d.projectiles.splice(index,1);continue;}
-      shot.prevX=Number.isFinite(shot.x)?shot.x:shot.tower?.x||0;shot.prevY=Number.isFinite(shot.y)?shot.y:shot.tower?.y||0;
-      shot.life+=dt;const tx=shot.target.x,ty=shot.target.y,dx=tx-shot.x,dy=ty-shot.y,dist=Math.hypot(dx,dy),step=Math.min(dist,shot.speed*dt);
-      if(dist>.0001){shot.x+=dx/dist*step;shot.y+=dy/dist*step;}
-      if(!d.fixedSimulation&&shot.node&&positionDefenseMovingNode(shot.node,shot.x,shot.y))d.projectilePositionWrites=(d.projectilePositionWrites||0)+1;
-      if(dist<.018||shot.life>.7){applyDefenseHit(shot);releaseDefenseProjectileNode(shot);d.projectiles.splice(index,1);}
-    }
-  }
-
-
-  function updateDefenseTowers(dt){
-    const d=mini.defense,time=defenseNow(),realTime=defenseRealNow(d),budget=defensePerformanceBudget(d);let goldenAwakened=0;
-    for(const tower of d.towers){const weakened=tower.rangeDebuffUntil>time;if(weakened!==tower.rangeWeakenedActive){tower.node?.classList.toggle("range-weakened",weakened);tower.rangeWeakenedActive=weakened;}if((tower.pet.variant||tower.pet.hiddenVariant)==="golden"&&tower.upgrade>=2)goldenAwakened+=1;tower.cooldown=Math.max(0,tower.cooldown-dt);const hadCachedTarget=Boolean(tower.targetId);let target=tower.targetRef;if(!target||target.id!==tower.targetId||target.dead||target.hp<=0)target=null;const lostCachedTarget=hadCachedTarget&&!target,retargetExpired=realTime>=(tower.retargetAtReal||0);let stats=null;if(lostCachedTarget||retargetExpired){stats=defenseCombatStats(tower);const targetValid=Boolean(target&&Math.hypot(target.x-tower.x,target.y-tower.y)<=stats.range&&canDefenseTowerSee(tower,target)),lostTarget=hadCachedTarget&&!targetValid;if(!targetValid)target=null;d.targetScans=(d.targetScans||0)+1;target=pickDefenseTarget(tower,stats,defenseTargetSnapshot(d,lostTarget));tower.targetRef=target||null;tower.targetId=target?.id||null;tower.retargetAtReal=realTime+budget.targetRefreshMs/1000;}if(tower.cooldown>0||!target)continue;stats||=(defenseCombatStats(tower));tower.cooldown=1/Math.max(.2,stats.rate);fireDefenseTower(tower,target,stats);}
-    if(goldenAwakened){d.goldenCoinCarry+=dt*Math.min(2,goldenAwakened)*.75;const payout=Math.floor(d.goldenCoinCarry);if(payout>0){d.goldenCoinCarry-=payout;queueDefenseIncome(payout,"golden-passive");}}
-  }
-  const DEFENSE_GATE_FLAME_DURATION=12;
-  const DEFENSE_GATE_FLAME_COOLDOWN=38;
-  function toggleDefenseGateFlame(){
-    const d=mini.defense;if(!d)return false;const time=defenseNow(),active=(d.gateFlameUntil||0)>time,remaining=Math.max(0,(d.gateFlameReadyAt||0)-time);
-    if(active){setDefenseMessage("EMBER POD ACTIVE","The pod is already bursting across that stretch of trail.");sfx("no");return false;}
-    if(!defenseIsActiveWave(d)||d.paused){setDefenseMessage("START THE WAVE FIRST","Ember Pod is a live-field defense. Start a wave, then plant it on the road.");sfx("no");return false;}
-    if(remaining>0){setDefenseMessage(`EMBER POD RECHARGING • ${Math.ceil(remaining)}S`,"Hold the trail until the pod rebuilds pressure.");sfx("no");return false;}
-    d.gateFlameArmed=!d.gateFlameArmed;clearDefensePlacementMode();closeDefenseTowerPanel();$(".defense-shell")?.classList.toggle("gate-flame-aiming",d.gateFlameArmed);setDefenseMessage(d.gateFlameArmed?"PLANT EMBER POD":"POD CANCELLED",d.gateFlameArmed?"Tap the road. The pod bursts outward every half-second for 12 seconds.":"Your strategy stays untouched.");markDefenseUi();flushDefenseUi(true);sfx("ui");haptic([6]);return true;
-  }
-  function placeDefenseGateFlame(event){
-    const d=mini.defense;if(!d?.gateFlameArmed)return false;if(!defenseIsActiveWave(d)||d.paused){d.gateFlameArmed=false;$(".defense-shell")?.classList.remove("gate-flame-aiming");setDefenseMessage("POD CANCELLED","Resume the wave before placing a live-field defense.");markDefenseUi();return false;}const point=defenseArenaPoint(event,{strict:true});if(!point)return false;const nearest=nearestDefensePathPoint(point.x,point.y),world=$("#defenseWorld"),short=Math.max(1,Math.min(world?.clientWidth||390,world?.clientHeight||390)),maxDistance=Math.max(.045,26/short);
-    if(nearest.distance>maxDistance){setDefenseMessage("PUT IT ON THE ROAD","Ember Pod locks onto the trail, not open grass.");haptic([10,16,10]);return true;}
-    const time=defenseNow();d.gateFlameArmed=false;d.gateFlameProgress=nearest.progress;d.gateFlameUntil=time+DEFENSE_GATE_FLAME_DURATION;d.gateFlameReadyAt=time+DEFENSE_GATE_FLAME_COOLDOWN;d.gateFlameNextTick=time;d.gateFlameTicks=0;$(".defense-shell")?.classList.remove("gate-flame-aiming");setDefenseMessage("EMBER POD ONLINE","Radial bursts punish anything crossing this section of trail.");showDefenseCinematicMoment("power",{kicker:"FIELD DEFENSE",title:"EMBER POD",copy:"RADIAL BURST • 12 SECONDS",duration:1200,priority:2,icon:"✹"});markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"ember-pod");sfx("legendary");haptic([10,20,10]);return true;
-  }
-  function updateDefenseGateFlame(){
-    const d=mini.defense;if(!d)return;const time=defenseNow();if((d.gateFlameUntil||0)<=time)return;if(time+1e-9<(d.gateFlameNextTick||0))return;d.gateFlameNextTick=time+.5;d.gateFlameTicks=(d.gateFlameTicks||0)+1;const center=d.gateFlameProgress||0,raw=2.0+Math.min(5.2,(d.currentWave||1)*.075),radius=.065;for(const enemy of d.enemies){if(enemy.dead||enemy.hp<=0)continue;if(Math.abs((enemy.progress||0)-center)>radius)continue;const damage=raw*(enemy.fireproof?.35:1);dealDefenseDamage(enemy,damage,null,"ember");if(!enemy.dead){enemy.slow=Math.max(enemy.slow||0,.18*(1-(enemy.slowResist||0)));enemy.slowUntil=Math.max(enemy.slowUntil||0,time+.7);if(!enemy.fireproof){enemy.burn=Math.max(enemy.burn||0,.55);enemy.burnUntil=Math.max(enemy.burnUntil||0,time+1.4);}}spawnDefenseImpact(enemy.x,enemy.y,"ember");}markDefenseUi();
-  }
-
-  function updateDefenseWeather(){const d=mini.defense,time=defenseNow();if(!defenseIsActiveWave(d)||time<d.nextWeatherAt)return;const weather=d.map.weather;d.nextWeatherAt=time+(weather==="ash"?12:weather==="moon"?12:weather==="storm"?11:weather==="blizzard"?10:weather==="eclipse"?9:999);if(weather==="ash"){d.ashUntil=time+3.2;setDefenseMessage("ASH VEIL", "THE TRAIL IS CAMOUFLAGED FOR 3 SECONDS. AWAKENED AND DETECTOR RIZOS KEEP SIGHT.");$("#defenseWorld")?.classList.add("weather-active");}else if(weather==="moon"){d.moonRevealUntil=time+3.5;for(const enemy of d.enemies)if(enemy.hp>0)revealDefenseEnemy(enemy,3.5);setDefenseMessage("MOONLIGHT WINDOW", "CAMOUFLAGE AND PHASING ARE EXPOSED FOR 3 SECONDS. PRESS THE ADVANTAGE.");$("#defenseWorld")?.classList.add("weather-active");}else if(weather==="storm"){d.stormWeatherUntil=time+3.4;setDefenseMessage("LIGHTNING SURGE", "EVERY BALLOON MOVES 32% FASTER FOR 3 SECONDS.");$("#defenseWorld")?.classList.add("weather-active");}else if(weather==="blizzard"){d.whiteoutUntil=time+4;setDefenseMessage("❄ WHITEOUT • RANGE -18%", "Most range rings shrink now. Frost and Aurora resist the whiteout.");$("#defenseWorld")?.classList.add("weather-active","whiteout-live");syncDefenseTowerGeometry();queueMiniTimeout(()=>{$("#defenseWorld")?.classList.remove("whiteout-live");syncDefenseTowerGeometry();},4100);}else if(weather==="eclipse"){d.eclipseUntil=time+4;setDefenseMessage("ECLIPSE VEIL", "EVERY BALLOON IS CAMOUFLAGED FOR 4 SECONDS.");$("#defenseWorld")?.classList.add("weather-active");}queueMiniTimeout(()=>$("#defenseWorld")?.classList.remove("weather-active"),4200);}
-  function updateDefenseEnemies(dt){
-    const d=mini.defense,time=defenseNow(),tier=d.renderTier||defenseApplyRenderTier(d);
-    d.enemyStateVisualClock=(d.enemyStateVisualClock||0)+dt/Math.max(.5,d.speed||1);
-    const stateInterval=tier===2?.20:tier===1?.14:.10,stateStep=d.enemyStateVisualClock>=stateInterval;if(stateStep)d.enemyStateVisualClock%=stateInterval;
-    for(let index=d.enemies.length-1;index>=0;index-=1){
-      const enemy=d.enemies[index];if(enemy.dead)continue;
-      enemy.prevX=Number.isFinite(enemy.x)?enemy.x:0;enemy.prevY=Number.isFinite(enemy.y)?enemy.y:0;
-      enemy.hitFlash=Math.max(0,enemy.hitFlash-dt);
-      const phaseSuppressed=enemy.phaseSuppressedUntil>time||d.moonRevealUntil>time;if(enemy.phasing)enemy.phaseActive=!phaseSuppressed&&Math.sin(time*2.35+enemy.phaseOffset)>.32;
-      if(enemy.burnUntil>time)dealDefenseDot(enemy,enemy.burn*dt,enemy.burnSource,"ember");if(enemy.dead)continue;
-      if(enemy.poisonUntil>time)dealDefenseDot(enemy,enemy.poison*dt,enemy.poisonSource,"toxic");if(enemy.dead)continue;
-      handleDefenseBossMechanics(enemy);if(enemy.dead)continue;
-      const rooted=enemy.rootUntil>time,slow=enemy.slowUntil>time?1-enemy.slow:1,stormPulse=enemy.stormPulse?1.18+.2*Math.max(0,Math.sin(time*4+enemy.phaseOffset)):1,apexPulse=enemy.bossId==="apex"?(enemy.apexSurgeUntil>time?1.9:.82):1,mapPulse=d.stormWeatherUntil>time?1.32:1;
-      if(!rooted)enemy.progress+=enemy.speed*DEFENSE_GLOBAL_MOVEMENT_PACE*slow*stormPulse*apexPulse*mapPulse*dt;
-      const point=defensePointAt(Math.min(enemy.progress,.999));enemy.x=point.x;enemy.y=point.y;
-      if(enemy.progress>=1){const key=enemy.bossId?`boss:${enemy.bossId}`:enemy.type,loss=Math.min(d.lives,enemy.damage);releaseDefenseEnemyNode(enemy);d.enemies.splice(index,1);removeDefenseRuntimeItem(mini.entities,enemy);d.waveResolved+=1;d.lives=Math.max(0,d.lives-enemy.damage);defenseRecordEnemyStat("leaked",key);d.enemyStats.heartLoss+=loss;markDefenseUi();const end=defenseGatePoint(d.map);spawnDefenseImpact(end.x,end.y,"gate");showDefenseGateDamageMoment(loss);haptic([12,25,12]);if(d.lives<=0){finishDefenseRunWithMoment("gate");return;}}
-      else{if(!d.fixedSimulation)positionDefenseEnemyNode(enemy);if(stateStep||enemy.telegraphKind)updateDefenseEnemyNode(enemy);}
-    }
-  }
-
-
-  function defenseReducedMotion(){
-    try{return Boolean(state.settings?.reducedMotion||matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);}catch(error){return Boolean(state.settings?.reducedMotion);}
-  }
-  function showDefenseCinematicMoment(kind,options={}){
-    const d=mini.defense,host=$("#defenseMoment"),shell=$(".defense-shell"),stage=$(".defense-stage-frame");if(!d||!host)return false;
-    const base=DEFENSE_CINEMATIC_MOMENTS[kind]||DEFENSE_CINEMATIC_MOMENTS.clear,real=defenseRealNow(d),priority=Number.isFinite(Number(options.priority))?Number(options.priority):base.priority;
-    if(d.cinematicMomentUntilReal>real&&priority<(d.cinematicMomentPriority||0))return false;
-    const reduced=defenseReducedMotion(),duration=Math.max(120,Number(options.duration)||base.duration),effectiveDuration=reduced?Math.min(260,duration):duration,id=(d.cinematicMomentId||0)+1;
-    d.cinematicMomentId=id;d.cinematicMomentCount=(d.cinematicMomentCount||0)+1;d.cinematicMomentKind=kind;d.cinematicMomentPriority=priority;d.cinematicMomentUntilReal=real+effectiveDuration/1000;
-    const title=String(options.title||kind.replace(/-/g," ")).toUpperCase(),copy=String(options.copy||"");
-    host.hidden=false;host.className=`defense-moment moment-${kind} tone-${options.tone||base.tone}${reduced?" reduced":""}`;host.style.setProperty("--moment-duration",`${effectiveDuration}ms`);host.innerHTML=`<div class="defense-moment-card"><i aria-hidden="true">${escapeHTML(options.icon||base.icon)}</i><span><small>${escapeHTML(options.kicker||"RIZO DEFENSE")}</small><b>${escapeHTML(title)}</b>${copy?`<em>${escapeHTML(copy)}</em>`:""}</span>${options.dismissible?`<button type="button" class="defense-moment-dismiss" data-defense-dismiss-moment aria-label="Dismiss reward">×</button>`:""}</div>`;host.classList.toggle("dismissible",Boolean(options.dismissible));
-    if(shell){shell.dataset.cinematicMoment=kind;shell.classList.toggle("cinematic-danger",kind==="danger"||kind==="defeat");shell.classList.toggle("cinematic-boss",kind==="boss");}
-    if(stage){stage.classList.remove("moment-pulse","moment-heavy");void stage.offsetWidth;stage.classList.add("moment-pulse");if(priority>=7)stage.classList.add("moment-heavy");}
-    queueMiniTimeout(()=>{if(!mini.defense||mini.defense.cinematicMomentId!==id)return;host.hidden=true;host.className="defense-moment";host.textContent="";host.removeAttribute("style");if(shell){delete shell.dataset.cinematicMoment;shell.classList.remove("cinematic-danger","cinematic-boss");}stage?.classList.remove("moment-pulse","moment-heavy");d.cinematicMomentKind=null;d.cinematicMomentPriority=0;d.cinematicMomentUntilReal=defenseRealNow(d);},effectiveDuration+40);
-    return true;
-  }
-  function showDefenseGateDamageMoment(loss=1){
-    const d=mini.defense;if(!d)return false;const real=defenseRealNow(d),critical=d.lives<=Math.max(5,Math.ceil(d.map.lives*.35));if(real-(d.lastGateMomentAtReal||-99)<.28&&!critical)return false;d.lastGateMomentAtReal=real;return showDefenseCinematicMoment("danger",{title:critical?`GATE CRITICAL • ${d.lives} HEART${d.lives===1?"":"S"}`:`GATE HIT • -${Math.max(1,loss)}`,copy:critical?"THE EMBER GATE IS ONE BAD LEAK FROM TROUBLE.":"A threat reached the end of the trail."});
-  }
-  function finishDefenseRunWithMoment(reason="banked"){
-    const d=mini.defense;if(!mini.active||mini.mode!=="defense"||!d||d.ending)return false;flushDefenseIncome(d,reason==="gate"?"defeat":"bank");d.ending=true;d.endingReason=reason;cancelDefenseTransientInput(`run-${reason}`);clearDefensePlacementMode();defenseSetPhase(d,DEFENSE_PHASES.RUN_COMPLETE,{force:true});
-    if(reason==="gate"){setDefenseMessage("EMBER GATE DOWN",`Cleared Wave ${d.clearedWave}. Reached Wave ${d.currentWave}.`);showDefenseCinematicMoment("defeat",{title:"GATE DOWN",copy:`CLEARED ${d.clearedWave} • REACHED ${d.currentWave}`});sfx("no");haptic([26,42,26,70]);}
-    else{setDefenseMessage("RUN BANKED",d.currentWave>d.clearedWave?`Cleared ${d.clearedWave}. Wave ${d.currentWave} was active and is not credited.`:`Cleared ${d.clearedWave}. Progress is secured.`);showDefenseCinematicMoment("bank",{title:"RUN BANKED",copy:d.currentWave>d.clearedWave?`CLEARED ${d.clearedWave} • WAVE ${d.currentWave} EXCLUDED`:`CLEARED ${d.clearedWave} • PROGRESS SECURED`});sfx("reward");haptic([10,18,10,28]);}
-    markDefenseUi();flushDefenseUi(true);const delay=defenseReducedMotion()?90:(reason==="gate"?920:680);queueMiniTimeout(()=>{if(mini.active&&mini.mode==="defense"&&mini.defense?.ending)finishMiniGame(false,reason);},delay);return true;
-  }
-  function hideDefenseMessage(){const host=$("#defenseMessage");if(host)host.hidden=true;}
-  function setDefenseMessage(title,text=""){const host=$("#defenseMessage");if(!host)return;host.hidden=false;host.innerHTML=`<b>${escapeHTML(title)}</b>${text?`<span>${escapeHTML(text)}</span>`:""}`;host.classList.remove("flash","milestone");void host.offsetWidth;host.classList.add("flash");}
-  function isWaveFullyResolved(d=mini.defense){return Boolean(d&&d.packetIndex>=d.wavePackets.length&&d.spawnQueue.length===0&&d.childSpawnQueue.length===0&&!d.enemies.some(enemy=>!enemy.dead));}
-  function retireDefenseWaveResidue(d=mini.defense){if(!d)return;for(const shot of d.projectiles||[])releaseDefenseProjectileNode(shot);d.projectiles=[];d.effects=(d.effects||[]).filter(effect=>effect?.major&&Number(effect.expiresAt)>defenseNow());}
-  function completeDefenseWave(){const d=mini.defense;if(!isWaveFullyResolved(d))return false;retireDefenseWaveResidue(d);d.gateFlameArmed=false;d.gateFlameUntil=Math.min(d.gateFlameUntil||0,d.clock);$(".defense-shell")?.classList.remove("gate-flame-aiming");flushDefenseIncome(d,"wave-complete");d.clearedWave=Math.max(d.clearedWave,d.currentWave);const heartsLost=Math.max(0,d.enemyStats.heartLoss-(d.waveHeartLossStart||0));if(heartsLost===0)d.perfectWaveCount=Math.min(d.clearedWave,(d.perfectWaveCount||0)+1);const bonus=DefenseCore.calculateWaveBonus({clearedWave:d.clearedWave,heartsLostThisWave:heartsLost,towersPlaced:d.towers.length});d.cash=DefenseCore.clampNumber(d.cash+bonus,0,DEFENSE_LIMITS.MAX_RUN_CASH,d.cash);d.cashWriteCount=(d.cashWriteCount||0)+1;d.lastWaveBonus=bonus;defenseSetPhase(d,DEFENSE_PHASES.WAVE_COMPLETE);d.nextWaveReadyAtReal=defenseRealNow(d)+.72;d.autoStartAtReal=state.settings.defenseAutoStart?defenseRealNow(d)+2.8:0;const contractProgress=recordDefenseContractProgress(d),unlocked=DEFENSE_MILESTONES.find(value=>value===d.clearedWave&&!state.scores.defenseMilestones.includes(value));if(unlocked){state.scores.defenseMilestones.push(unlocked);state.scores.defenseMilestones.sort((a,b)=>a-b);saveState();}if(contractProgress.justCompleted){setDefenseMessage("CONTRACT SEALED • WAVE 10","The Gate recorded ten completed waves. Started waves never count.");$("#defenseMessage")?.classList.add("milestone");haptic([18,28,18,40]);sfx("legendary");}else if(unlocked){setDefenseMessage(`MILESTONE • WAVE ${unlocked}`,unlocked===100?"THE GATE NOW KNOWS YOUR NAME.":"A completed-wave badge was recorded.");$("#defenseMessage")?.classList.add("milestone");haptic([18,30,18,45]);sfx("legendary");}else{setDefenseMessage(`+${bonus} COINS • WAVE ${d.clearedWave} CLEAR`,defenseWaveFlavor(d.mapId,d.clearedWave,{cleared:true,perfect:heartsLost===0}));sfx("reward");haptic([10,18,10]);}renderDefensePresentation(1,true);showDefenseCinematicMoment("money",{kicker:`WAVE ${d.clearedWave} CLEAR`,title:`+${bonus} GOLD`,copy:heartsLost===0?"PERFECT • NOTHING TOUCHED THE GATE":defenseWaveFlavor(d.mapId,d.clearedWave,{cleared:true}),duration:heartsLost===0?2200:1900,priority:5,icon:"🪙",dismissible:true});updateDefenseRoster();markDefenseUi();flushDefenseUi(true);writeDefenseCheckpoint(true,"wave-clear");return true;}
-  function defenseDensityCap(d=mini.defense,nextEntry=null){if(!d)return 0;return DefenseCore.densityCap({low:false,speed:d.speed,bossActive:d.enemies.some(enemy=>enemy.bossId)||(typeof nextEntry==="object"&&nextEntry?.type==="boss")});}
-  function defenseDensityAllowsSpawn(d,nextEntry,child=false){if(!d)return false;const cap=defenseDensityCap(d,nextEntry),reserved=child?0:DefenseCore.childReservationCount(d.childSpawnQueue,d.clock,.2,3),active=d.enemies.length;return active+reserved<cap;}
-  function updateDefenseRealTime(realDt){
-    const d=mini.defense;if(!d)return;const safeRealDt=Math.max(0,Number(realDt)||0);
-    d.realClock=(d.realClock||0)+safeRealDt;d.uiClock=(d.uiClock||0)+safeRealDt;maybeWriteDefenseCheckpoint(safeRealDt);defenseApplyRenderTier(d);
-    if(d.pendingIncome&&defenseRealNow(d)>=(d.nextIncomeFlushAtReal||0))flushDefenseIncome(d,"timer");
-    if(d.phase===DEFENSE_PHASES.WAVE_COMPLETE&&state.settings.defenseAutoStart&&d.towers.length){
-      const planningBusy=Boolean(d.pendingPlacement||defenseContextSurface(d));
-      if(planningBusy)d.autoStartAtReal=defenseRealNow(d)+2.8;
-      else if(!(d.autoStartAtReal>0))d.autoStartAtReal=defenseRealNow(d)+2.8;
-      else if(defenseRealNow(d)>=d.autoStartAtReal)startDefenseWave();
-    }else if(!state.settings.defenseAutoStart)d.autoStartAtReal=0;
-    if(d.uiClock>=defensePerformanceBudget(d).uiRefreshMs/1000){d.uiClock=0;flushDefenseUi();}
-  }
-
-  function stepDefenseSimulation(dt){
-    const d=mini.defense;if(!d||d.phase===DEFENSE_PHASES.PAUSED||!defenseIsSimulating(d))return false;
-    d.clock+=dt;
-    if(d.phase===DEFENSE_PHASES.COUNTDOWN&&d.clock>=d.nextSpawnAt)defenseSetPhase(d,DEFENSE_PHASES.COMBAT);
-    if(d.phase===DEFENSE_PHASES.PACKET_BREAK&&d.clock>=d.packetBreakUntil){defenseSetPhase(d,DEFENSE_PHASES.COMBAT);}
-    updateDefenseWeather();releaseDefenseChildSpawn(d);
-    if(d.phase===DEFENSE_PHASES.COMBAT&&d.packetIndex<d.wavePackets.length){
-      const packet=d.wavePackets[d.packetIndex],entry=packet?.enemies?.[d.packetEnemyIndex];
-      if(entry!==undefined&&d.clock>=d.nextSpawnAt&&defenseDensityAllowsSpawn(d,entry)){const enemy=spawnDefenseEnemy(entry);enemy.spawnDescriptor=typeof entry==="string"?entry:{...entry};d.lastSpawnedEnemyId=enemy.id;d.packetEnemyIndex+=1;d.spawnQueue.shift();d.nextSpawnAt=d.clock+DefenseCore.clampNumber(packet.spawnGap,.07,1.0,.34);d.spawnWaitReason="timer";markDefenseUi();}
-      else if(entry!==undefined)d.spawnWaitReason=defenseDensityAllowsSpawn(d,entry)?"timer":"density";
-      if(d.packetEnemyIndex>=packet.enemies.length){d.packetIndex+=1;d.packetEnemyIndex=0;if(d.packetIndex<d.wavePackets.length){d.packetBreakUntil=d.clock+DefenseCore.clampNumber(packet.breakAfter,.8,2.4,1.2);defenseSetPhase(d,DEFENSE_PHASES.PACKET_BREAK);}}
-    }
-    updateDefenseEnemies(dt);updateDefenseGateFlame();if(!mini.active)return false;d.peakAlive=Math.max(d.peakAlive||0,d.enemies.length);d.maxActiveEnemiesObserved=Math.max(d.maxActiveEnemiesObserved||0,d.enemies.length);updateDefenseTowers(dt);updateDefenseProjectiles(dt);if(isWaveFullyResolved(d))completeDefenseWave();return true;
-  }
-
-  function renderDefensePresentation(alpha=1,force=false){
-    const d=mini.defense;if(!d)return false;const blend=clamp(Number(alpha)||0,0,1);
-    if(d.rendererMode==="canvas"){
-      if(!d.canvasRenderer?.enabled)fallbackDefenseCanvasToDom("renderer-disabled");
-      else{const rendered=d.canvasRenderer.render({enemies:d.enemies,projectiles:d.projectiles,effects:d.effects,alpha:blend,gameTime:defenseNow(),tier:d.governorTier||0,width:d.renderWidth,height:d.renderHeight});if(rendered){d.canvasFrames=(d.canvasFrames||0)+1;d.presentationFrames=(d.presentationFrames||0)+1;return true;}fallbackDefenseCanvasToDom("render-returned-false");}
-    }
-    for(const enemy of d.enemies){if(enemy.dead||!enemy.node)continue;const x=Number.isFinite(enemy.prevX)?enemy.prevX+(enemy.x-enemy.prevX)*blend:enemy.x,y=Number.isFinite(enemy.prevY)?enemy.prevY+(enemy.y-enemy.prevY)*blend:enemy.y;positionDefenseEnemyNode(enemy,force,x,y);}
-    for(const shot of d.projectiles){if(!shot.node)continue;const x=Number.isFinite(shot.prevX)?shot.prevX+(shot.x-shot.prevX)*blend:shot.x,y=Number.isFinite(shot.prevY)?shot.prevY+(shot.y-shot.prevY)*blend:shot.y;if(positionDefenseMovingNode(shot.node,x,y))d.projectilePositionWrites=(d.projectilePositionWrites||0)+1;}
-    d.presentationFrames=(d.presentationFrames||0)+1;return true;
-  }
-
-  function advanceDefenseFixedFrame(realDt,{forceRender=false}={}){
-    const d=mini.defense;if(!d)return false;const safeRealDt=Math.max(0,Number(realDt)||0),step=DefenseCore.SIMULATION?.stepSeconds||1/30,maxSteps=DefenseCore.SIMULATION?.maxCatchUpSteps||4;
-    updateDefenseRealTime(safeRealDt);d.fixedSimulation=true;
-    if(d.phase===DEFENSE_PHASES.PAUSED||!defenseIsSimulating(d)){d.simAccumulator=0;d.presentationAccumulator=(d.presentationAccumulator||0)+safeRealDt;if(forceRender)renderDefensePresentation(1,true);return true;}
-    d.simAccumulator=(d.simAccumulator||0)+safeRealDt*Math.max(.5,d.speed||1);let steps=0;
-    while(d.simAccumulator+1e-9>=step&&steps<maxSteps&&mini.active){const began=performance.now();stepDefenseSimulation(step);const elapsed=Math.max(0,performance.now()-began);d.simStepSamples ||= [];d.simStepSamples.push(elapsed);if(d.simStepSamples.length>120)d.simStepSamples.shift();d.simStepWorst=Math.max(d.simStepWorst||0,elapsed);d.simAccumulator-=step;steps+=1;}
-    d.lastSimSteps=steps;d.maxCatchUpObserved=Math.max(d.maxCatchUpObserved||0,steps);
-    if(d.simAccumulator>=step){d.simBacklogEvents=(d.simBacklogEvents||0)+1;d.performanceLow=true;d.governorTier=2;d.simAccumulator=Math.min(d.simAccumulator,step*.99);}
-    if(d.simStepSamples?.length){const sorted=[...d.simStepSamples].sort((a,b)=>a-b),pick=q=>sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*q))];d.simStepP95=pick(.95);}
-    d.presentationAccumulator=(d.presentationAccumulator||0)+safeRealDt;const presentationFps=defenseVisualBudget(d).presentationFps||60,interval=1/presentationFps,shouldRender=forceRender||d.presentationAccumulator+1e-6>=interval;
-    if(shouldRender){d.presentationAccumulator%=interval;renderDefensePresentation(step>0?d.simAccumulator/step:1,forceRender);}
-    return true;
-  }
-
-  // Compatibility entry point used by the QA harness and older call sites. The
-  // supplied game-time dt is intentionally ignored: v76 derives game time from
-  // real time + the selected speed and advances only fixed 1/30 s simulation steps.
-  function updateDefenseGame(dt,realDt=dt/Math.max(.5,mini.defense?.speed||1)){return advanceDefenseFixedFrame(realDt);}
-
-
-  function handleDefensePointerDown(event){
-    if(event.target.closest("[data-defense-dismiss-moment]")){const host=$("#defenseMoment");if(host){host.hidden=true;host.textContent="";}return;}
-    if(event.target.closest("[data-defense-dismiss-context]")){defenseDismissContextSurface();return;}
-    if(event.target.closest("#defenseMapIntro")){closeDefenseMapIntro();return;}
-    if(event.target.closest("[data-defense-trace-route]")){toggleDefenseFieldMenu(false);traceDefenseRoute();return;}
-    if(event.target.closest("[data-defense-school-hide-run]")){if(mini.defense){mini.defense.schoolHiddenRun=true;updateDefenseSchoolCoach();}return;}
-    if(event.target.closest("[data-defense-field-guide]")){toggleDefenseFieldMenu(false);showDefenseFieldGuide(event.target.closest("[data-defense-field-guide]").dataset.defenseFieldGuide||"rizos");return;}
-    const speed=event.target.closest("[data-defense-speed]");
-    if(speed){cycleDefenseSpeed();return;}
-    if(event.target.closest("[data-defense-toggle-abilities]")){activateDefenseFieldLeader();return;}
-    if(event.target.closest("[data-defense-gate-flame]")){toggleDefenseGateFlame();return;}
-    if(event.target.closest("[data-defense-toggle-intel]")){toggleDefenseIntel();return;}
-    if(event.target.closest("[data-defense-toggle-bench]")){toggleDefenseBench();return;}
-    if(event.target.closest("[data-defense-toggle-field-menu]")){toggleDefenseFieldMenu();return;}
-    if(event.target.closest("[data-defense-auto-start]")){state.settings.defenseAutoStart=!state.settings.defenseAutoStart;saveState(true);if(mini.defense){mini.defense.autoStartAtReal=state.settings.defenseAutoStart&&mini.defense.phase===DEFENSE_PHASES.WAVE_COMPLETE?defenseRealNow(mini.defense)+2.8:0;markDefenseUi();flushDefenseUi(true);}setDefenseMessage(state.settings.defenseAutoStart?"AUTO WAVES ON":"AUTO WAVES OFF",state.settings.defenseAutoStart?"The next cleared field gets a 2.8-second planning countdown. Opening a planning panel resets it.":"Wave boundaries are yours again. Start each formation when you are ready.");sfx("ui");return;}
-    if(event.target.closest("[data-defense-bank-leave]")){writeDefenseCheckpoint(true,"field-menu-leave");finishDefenseRunWithMoment("banked");return;}
-    if(event.target.closest("[data-defense-toggle-legend]")){toggleDefenseFieldMenu(false);showDefenseControlLegend();return;}
-    if(event.target.closest("[data-defense-toggle-fullscreen]")){toggleDefenseFieldMenu(false);toggleDefenseFullscreen();return;}
-    const cast=event.target.closest("[data-defense-cast]")?.dataset.defenseCast;
-    if(cast){activateDefenseAbility(cast,{keepAbilityTray:true});updateDefenseAbilityTray();return;}
-    const castGroup=event.target.closest("[data-defense-cast-group]")?.dataset.defenseCastGroup;
-    if(castGroup){activateDefenseAbilityGroup(castGroup);return;}
-    const cancel=event.target.closest("[data-defense-cancel-placement]");
-    if(cancel){clearDefensePlacementMode();setDefenseMessage("PLACEMENT CANCELLED","Tap a Rizo below whenever you are ready.");return;}
-    const runControl=event.target.closest("[data-defense-run-control]");
-    if(runControl){if(defenseIsActiveWave(mini.defense))toggleDefensePause();else startDefenseWave();return;}
-    const close=event.target.closest("[data-defense-close-panel]");
-    if(close){closeDefenseTowerPanel();return;}
-    const doctrineRaw=event.target.closest("[data-defense-doctrine]")?.dataset.defenseDoctrine;
-    if(doctrineRaw){const [id,doctrine]=doctrineRaw.split(":");chooseDefenseDoctrine(id,doctrine);return;}
-    const targetId=event.target.closest("[data-defense-target]")?.dataset.defenseTarget;
-    if(targetId){cycleDefenseTarget(targetId);return;}
-    const upgrade=event.target.closest("[data-defense-upgrade]")?.dataset.defenseUpgrade;
-    if(upgrade){upgradeDefenseTower(upgrade);return;}
-    const ability=event.target.closest("[data-defense-ability]")?.dataset.defenseAbility;
-    if(ability){activateDefenseAbility(ability);return;}
-    const superId=event.target.closest("[data-defense-super]")?.dataset.defenseSuper;if(superId){ascendDefenseTower(superId);return;}
-    const confirmSell=event.target.closest("[data-defense-confirm-sell]")?.dataset.defenseConfirmSell;if(confirmSell){sellDefenseTower(confirmSell);return;}
-    if(event.target.closest("[data-defense-cancel-sell]")){const tower=mini.defense?.towers.find(item=>item.id===mini.defense?.selectedTowerId);if(tower)showDefenseTowerPanel(tower);return;}
-    const sell=event.target.closest("[data-defense-sell]")?.dataset.defenseSell;
-    if(sell){requestSellDefenseTower(sell);return;}
-    const towerId=event.target.closest("[data-defense-tower]")?.dataset.defenseTower;
-    if(towerId){event.preventDefault?.();event.stopPropagation?.();const tower=mini.defense.towers.find(item=>item.id===towerId);if(tower){tower.node?.classList.remove("tap-pop");void tower.node?.offsetWidth;tower.node?.classList.add("tap-pop");showDefenseTowerPanel(tower);haptic([5]);}return;}
-    const rosterButton=event.target.closest("[data-defense-roster-id]");
-    const petId=rosterButton?.dataset.defenseRosterId;
-    if(petId){
-      const row=defenseRoster().find(item=>item.pet.id===petId),d=mini.defense;
-      if(!row)return;
-      if(d.towers.length>=d.maxTowers){toast("THE FIELD IS FULL");return;}
-      if(defenseContractRule("unique",d)&&d.towers.some(tower=>tower.petId===row.pet.id)){setDefenseMessage("CONTRACT • NO COPIES",`${row.pet.name} already stands on this field.`);return;}
-      const cost=defenseDeployCost(row);
-      if(d.cash<cost){toast(`NEED ${cost} DEFENSE COINS`);return;}
-      beginDefenseDrag(event,row);return;
-    }
-    if(event.target.closest("#defenseWorld")){
-      const d=mini.defense;
-      if(d.gateFlameArmed){placeDefenseGateFlame(event);return;}
-      if(d.pendingPlacement){
-        const raw=defenseArenaPoint(event,{strict:true}),result=raw?resolveDefensePlacement(raw.x,raw.y,null,{snapPx:DEFENSE_PLACEMENT_SNAP_PX}):null;
-        if(result?.evaluation?.valid)placeDefenseTower(d.pendingPlacement.row,result.point.x,result.point.y,d.pendingPlacement.cost);
-        else{if(result)updateDefensePlacementPreview(result,d.pendingPlacement.row);setDefenseMessage("THAT SPOT IS BLOCKED",defensePlacementReasonCopy(result?.evaluation));sfx("no");haptic([12,18,12]);queueMiniTimeout(hideDefensePlacementPreview,700);}
-        return;
-      }
-      closeDefenseTowerPanel();
-      if(d.towers.length)setDefenseMessage("FIELD READY","Tap a deployed Rizo to inspect it, or choose another from the bench.");
-      else setDefenseMessage("SELECT A RIZO FIRST","Tap a roster card below. No dragging is required.");
-    }
-  }
-
-  function rewardDefenseRun(){const d=mini.defense,clearedWave=DefenseCore.clampInteger(d?.clearedWave,0,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,0);if(!d||clearedWave<=0)return{embers:0,trained:0};const embers=DefenseCore.calculateRunEmbers({clearedWave,kills:d.kills,bossesDefeated:d.bossesDefeated??new Set(d.bossesBeaten||[]).size,perfectWaveCount:d.perfectWaveCount}),killsByPet=new Map();let trained=0;for(const tower of d.towers)killsByPet.set(tower.petId,(killsByPet.get(tower.petId)||0)+(tower.kills||0));const rosterById=new Map(defenseRoster().map(row=>[row.pet.id,row.pet])),usedIds=new Set(d.usedPetIds?.length?d.usedPetIds:d.towers.map(tower=>tower.petId));for(const petId of usedIds){const pet=rosterById.get(petId);if(!pet)continue;const towerKills=killsByPet.get(petId)||0;pet.skills||={speed:0,power:0,instinct:0,stamina:0,luck:0};pet.genes||=createGenes();const amount=Math.min(8,.25+clearedWave*.12+towerKills*.035);for(const key of["power","instinct","stamina"]){const before=Number(pet.skills[key])||0;pet.skills[key]=clamp(before+amount*(key==="power"?1:.55),0,Number(pet.genes[key])||100);}pet.xp=(Number(pet.xp)||0)+Math.min(90,clearedWave*2.2+towerKills*.5);pet.bond=clamp((Number(pet.bond)||0)+Math.min(8,clearedWave*.18));pet.careProfile||={kind:0,wild:0,balanced:0,foods:{},games:{}};pet.careProfile.games||={};pet.careProfile.games.defense=(pet.careProfile.games.defense||0)+1;trained+=1;}state.wallet.embers+=embers;state.pet.energy=clamp(state.pet.energy-8);state.pet.hunger=clamp(state.pet.hunger-3);state.pet.mood=clamp(state.pet.mood+Math.min(18,clearedWave*.6));state.meta.totalGames+=1;earnHeat(Math.min(80,10+clearedWave*3),false);progressQuest("play");saveState();return{embers,trained};}
-
-
-  function cleanupMiniRuntime() {
-    mini.defense?.canvasRenderer?.destroy?.();if(mini.defense){mini.defense.canvasRenderer=null;mini.defense.rendererMode="dom";}
-    if (mini.defenseDrag?.ghost) mini.defenseDrag.ghost.remove(); hideDefensePlacementPreview();
-    mini.defenseDrag = null;
-    el.miniQuit.textContent = "QUIT RUN";
-    el.miniArena.classList.remove("defense-host");
-    el.miniGameOverlay.classList.remove("defense-active");
-    document.documentElement.classList.remove("defense-performance-session");
-    unlockDefenseViewport();
-    clearInterval(mini.timer);
-    clearInterval(mini.mover);
-    for (const id of mini.intervals || []) clearInterval(id);
-    for (const id of mini.timeouts || []) clearTimeout(id);
-    if (mini.frame) cancelAnimationFrame(mini.frame);
-    if (defenseResizeFrame) { cancelAnimationFrame(defenseResizeFrame); defenseResizeFrame = null; }
-    stopRhythmVoices();
-    for (const entity of mini.entities || []) entity.node?.remove?.();
-    mini.intervals = []; mini.timeouts = []; mini.entities = [];
+    if(out.treasure || out.variant) saveState();
+    return out;
   }
 
   function unlockWalkTreasure(force = false) {
@@ -6339,144 +4641,6 @@
     celebrate();
     return variant;
   }
-
-  function maybeUnlockSpecialRizo(mode, score, walkPath = null) {
-    if (["rush","rhythm","glide","breaker"].includes(mode) && !state.collection.retro && (state.meta.retroSignal || 0) >= 100 && score >= 20) return unlockVariantDiscovery("retro", "AN ARCADE SIGNAL");
-    // Choosing to follow the rustling (the risky fork) roughly doubles the
-    // odds of the two rarest walk-only discoveries — the payoff for risk.
-    const deepBonus = mini.walkRisk >= 4 || String(walkPath).includes("ruins") ? 3 : mini.walkRisk >= 2 || String(walkPath).startsWith("deep") ? 2 : 1;
-    if (mode === "walk" && !state.collection.shadow && score >= 15 && Math.random() < .035 * deepBonus) {
-      state.meta.shadowFinds = (state.meta.shadowFinds || 0) + 1;
-      return unlockVariantDiscovery("shadow", walkPath === "deep" ? "THE RUSTLING PATH" : "A PATH THAT WAS NOT THERE BEFORE");
-    }
-    if (mode === "walk" && !state.collection.moss && score >= 10 && Math.random() < .12 * deepBonus) return unlockVariantDiscovery("moss", "THE RAIN TRAIL");
-    return null;
-  }
-
-  function arcadeRunQualified(mode, score) {
-    if(mode==="defense")return true;
-    if(mode==="power")return Boolean(mini.powerEngaged && mini.hits>=2 && score>=2);
-    if(mode==="spark")return Boolean(mini.hits>=2 && ((mini.sparkBanked||0)>0 || (mini.sparkStash||0)>=2));
-    if(mode==="forage")return Boolean((mini.playerInputs||0)>=1 && mini.hits>=2);
-    if(mode==="rush")return Boolean((mini.playerInputs||0)>=1 && ((mini.rushClears||0)>=2 || (mini.rushDeliveries||0)>=1));
-    if(mode==="walk")return Boolean((mini.walkChoices||[]).length || ((mini.playerInputs||0)>=1 && mini.hits>=1));
-    if(mode==="rhythm")return Boolean(mini.hits>=3);
-    if(mode==="memory")return Boolean(mini.hits>=1);
-    if(mode==="glide")return Boolean((mini.playerInputs||0)>=1 && (mini.glideClears||0)>=1);
-    if(mode==="breaker")return Boolean((mini.breakerMoves||0)>=1 && score>=3);
-    if(mode==="maze")return Boolean((mini.mazeInputs||0)>=1 && score>=5);
-    return score>0;
-  }
-
-  function finishMiniGame(quit = false, defenseEndReason = null) {
-    if (!mini.active) return;
-    const completedMode=mini.mode;
-    if(completedMode==="spark"&&!quit&&mini.sparkStash>0)bankSparkStash(true);
-    const score=Math.max(0,Math.floor(mini.score));
-    const treasureRolls=mini.treasureRolls||0;
-    if(completedMode==="defense"&&mini.defense)flushDefenseIncome(mini.defense,"finish");
-    const defenseSnapshot=completedMode==="defense"&&mini.defense?{currentWave:mini.defense.currentWave,clearedWave:mini.defense.clearedWave,wave:mini.defense.currentWave,ended:defenseEndReason==="gate"?"gate":"banked",lives:mini.defense.lives,kills:mini.defense.kills,cash:mini.defense.cash,totalDamage:mini.defense.totalDamage,towers:mini.defense.towers,usedPetIds:[...(mini.defense.usedPetIds||[])],bossesBeaten:[...(mini.defense.bossesBeaten||[])],bossesDefeated:mini.defense.bossesDefeated||0,perfectWaveCount:mini.defense.perfectWaveCount||0,enemyStats:JSON.parse(JSON.stringify(mini.defense.enemyStats||{})),contract:mini.defense.contract?{...mini.defense.contract}:null,mapId:mini.defense.mapId,map:mini.defense.map}:null;
-    const rhythmSnapshot=completedMode==="rhythm"?{track:mini.rhythmTrack,maxStreak:mini.rhythmMaxStreak||0,accuracy:rhythmAccuracyPercent(),judgements:{...(mini.rhythmJudgements||{})},misses:mini.rhythmMisses||0,blankTaps:mini.rhythmBlankTaps||0}:null;
-    const rhythmQuality=rhythmSnapshot?Math.max(5,Math.min(80,Math.round(rhythmSnapshot.accuracy*.45+Math.min(35,rhythmSnapshot.maxStreak*.7)))):score;
-    const previousBest=Math.max(0,Number(state.scores?.[completedMode])||0);
-    const qualifiedRun=arcadeRunQualified(completedMode,score);
-    const arcadeSnapshot={powerBestStreak:mini.powerBestStreak||0,powerCallsRead:mini.powerCallsRead||0,powerWrongCalls:mini.powerWrongCalls||0,sparkBestStreak:mini.sparkBestStreak||0,sparkAvoided:mini.sparkAvoided||0,sparkFrenzies:mini.sparkFrenzies||0,sparkBanks:mini.sparkBanks||0,sparkLost:mini.sparkLost||0,forageBestStreak:mini.forageBestStreak||0,rushBestStreak:mini.rushBestStreak||0,rushClears:mini.rushClears||0,rushDeliveries:mini.rushDeliveries||0,memoryRound:mini.memoryBestRound||mini.memoryRound||0,memoryLives:mini.memoryLives||0,memoryMode:mini.memoryMode||"forward",glideBestStreak:mini.glideBestStreak||0,glideGates:mini.glideGateCount||0,glideClears:mini.glideClears||0,glideThermals:mini.glideThermals||0,breakerBestStreak:mini.breakerBestStreak||0,breakerLevel:mini.breakerLevel||1,breakerCoresBroken:mini.breakerCoresBroken||0,powerGuardReads:mini.powerGuardReads||0,mazeLevel:mini.mazeLevel||1,mazeBestCombo:mini.mazeBestCombo||0,mazeTags:mini.mazeHunterTags||0,mazeHunts:mini.mazeHunts||0};
-    mini.active=false;
-    cleanupMiniRuntime();
-    el.miniGameOverlay.hidden=true;
-    el.miniArena.innerHTML="";
-    syncUILock();
-    activeMusicOverride=null;
-    syncMusic(true);
-    if(lastOverlayFocus?.isConnected) lastOverlayFocus.focus({preventScroll:true});
-    if(quit) return;
-    if(completedMode!=="defense"&&!qualifiedRun){
-      const art={power:"🥊",spark:"★",forage:"🍓",rush:"🔥",walk:"☂",rhythm:"♫",memory:"▦",glide:"☁",breaker:"✦",maze:"⌗"}[completedMode]||"★";
-      showModal(`<div class="modal-card minigame-result-${completedMode} arcade-no-credit"><div class="modal-art">${art}</div><h2>${score} POINTS</h2><p class="big-line">WARM-UP RUN. NO PERMANENT CREDIT.</p><p>Make at least one real play and complete part of the game's core challenge. No Energy, Embers, XP, Heat, or high-score credit was consumed or awarded.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="${completedMode}">TRY AGAIN</button></div></div>`);
-      return;
-    }
-    if(completedMode==="defense") {
-      clearDefenseCheckpoint();
-      mini.defense={...defenseSnapshot,towers:defenseSnapshot?.towers||[]};
-      const rewards=rewardDefenseRun();
-      state.scores.defense=Math.max(state.scores.defense||0,defenseSnapshot?.clearedWave||0);
-      state.scores.defenseMaps ||= {};
-      const priorMapBest=defenseSnapshot?.mapId?Math.max(0,Math.floor(Number(state.scores.defenseMaps?.[defenseSnapshot.mapId])||0)):0;
-      if(defenseSnapshot?.mapId)state.scores.defenseMaps[defenseSnapshot.mapId]=Math.max(priorMapBest,defenseSnapshot?.clearedWave||0);
-      const runRecord=recordDefenseRun(defenseSnapshot);
-      if((defenseSnapshot?.clearedWave||0)>0){const memory=lifeMemory();memory.arcadeAfterglowUntil=now()+16000;memory.lastArcadeMode="defense";}
-      saveState();renderAll();
-      const wave=defenseSnapshot?.clearedWave||0,reachedWave=defenseSnapshot?.currentWave||wave,kills=defenseSnapshot?.kills||0,lives=defenseSnapshot?.lives||0,bosses=[...new Set(defenseSnapshot?.bossesBeaten||[])],stats=defenseSnapshot?.enemyStats||{},heartLoss=Number(stats.heartLoss)||0,leaks=Object.values(stats.leaked||{}).reduce((sum,value)=>sum+(Number(value)||0),0),counters=stats.counters||{},leaders=[...(defenseSnapshot?.towers||[])].sort((a,b)=>(b.damage||0)-(a.damage||0)).slice(0,3),topTower=leaders[0],perfect=wave>0&&heartLoss===0,mapBest=Math.max(0,Math.floor(Number(state.scores.defenseMaps?.[defenseSnapshot?.mapId])||0)),medal=defenseMedalName(defenseMedalTier(mapBest)),mastery=runRecord?.mvpPetId?state.scores.defenseMastery?.[runRecord.mvpPetId]:null;
-      const century=wave>=100,newBest=wave>priorMapBest;showModal(`<div class="modal-card defense-result defense-run-recap ${century?"century-clear":""}"><div class="defense-result-hero"><div class="modal-art defense-result-balloon"><i></i></div><small>${escapeHTML(defenseSnapshot?.map?.name||"PINE BEND")} • RUN COMPLETE</small><h2>${century?"WAVE 100+":"WAVE "+wave}${newBest?` <u>NEW BEST</u>`:""}</h2><p class="big-line">${century?"THE GATE SURVIVED A CENTURY.":lives<=0?"THE GATE FINALLY FELL.":perfect?"PERFECT GATE. NOTHING GOT THROUGH.":"RUN BANKED."}</p></div><div class="defense-result-primary"><span>${defenseMedalMarkup(defenseSnapshot?.mapId,mapBest)}<b>${escapeHTML(medal)}</b></span><span><small>R EARNED</small><b>+${rewards.embers}</b></span><span><small>MVP</small><b>${escapeHTML(topTower?.pet?.name||state.pet.name)}</b></span></div><div class="defense-result-grid v80"><span>POPS<b>${kills}</b></span><span>HEARTS LOST<b>${heartLoss}</b></span><span>BOSSES<b>${bosses.length}</b></span></div>${runRecord?.contractComplete?`<div class="defense-contract-seal"><span>◇</span><div><small>TRAIL CONTRACT SEALED</small><b>${escapeHTML(defenseSnapshot.contract?.title||"DAILY TRAIL CONTRACT")}</b></div></div>`:""}<details class="defense-result-details"><summary>RUN DETAILS</summary><div class="defense-counter-recap"><span>LEAKS <b>${leaks}</b></span><span>RIZOS TRAINED <b>${rewards.trained}</b></span><span>ARMOR BROKEN <b>${Number(counters.armorBreaks)||0}</b></span><span>ARMOR SHRED <b>${Number(counters.armorShreds)||0}</b></span><span>REVEALS <b>${Number(counters.reveals)||0}</b></span><span>PHASE LOCKS <b>${Number(counters.phaseLocks)||0}</b></span><span>BOSS BREAKS <b>${Number(counters.bossInterrupts)||0}</b></span><span>DAMAGE <b>${Math.round(topTower?.damage||0)}</b></span></div></details><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO ARCADE</button><button data-replay-game="defense">RUN IT BACK</button></div></div>`);
-      advanceTutorial("play");if(wave>=10)celebrate();return;
-    }
-    state.scores[completedMode]=Math.max(state.scores[completedMode]||0,score);
-    let foundTreasure=null;
-    mutate((pet,whole)=>{
-      whole.meta.totalGames+=1;
-      pet.careProfile.games[completedMode]=(pet.careProfile.games[completedMode]||0)+1;
-      earnHeat(10,false);
-      progressQuest("play");
-      if(completedMode==="power"){
-        const gained=gainSkill("power",Math.max(.5,score*.18),{silent:true}); pet.strength=clamp(pet.strength+gained); pet.xp+=score*1.22; pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.hunger=clamp(pet.hunger-6); whole.wallet.embers+=Math.max(5,score); shiftAlignment(-.5,"power-training"); progressQuest("train");
-      }
-      if(completedMode==="spark"){
-        gainSkill("instinct",Math.max(.5,score*.16),{silent:true}); pet.bond=clamp(pet.bond+score*.5); pet.mood=clamp(pet.mood+score*.75); pet.xp+=score*.8; pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); whole.wallet.embers+=Math.max(4,score); shiftAlignment(1,"spark-play");
-      }
-      if(completedMode==="forage"){
-        gainSkill("instinct",Math.max(.35,score*.09),{silent:true}); gainSkill("luck",Math.max(.2,score*.05),{silent:true}); pet.hunger=clamp(pet.hunger+score*1.1); pet.mood=clamp(pet.mood+score*.45); pet.xp+=score*.72; pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); whole.wallet.embers+=Math.max(4,score*2);
-      }
-      if(completedMode==="rush"){
-        gainSkill("speed",Math.max(.6,score*.11),{silent:true}); pet.hype+=score; pet.mood=clamp(pet.mood+Math.min(25,score*.28)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.xp+=score*.62; whole.wallet.embers+=Math.max(8,Math.floor(score*1.25)); state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(score/5)); earnHeat(Math.max(8,Math.floor(score/2)),false);
-      }
-      if(completedMode==="walk"){
-        gainSkill("stamina",Math.max(.5,score*.13),{silent:true}); gainSkill("luck",Math.max(.15,score*.04),{silent:true}); pet.bond=clamp(pet.bond+Math.min(22,score*.7)); pet.mood=clamp(pet.mood+Math.min(24,score*.8)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.hunger=clamp(pet.hunger-4); pet.xp+=score*.75; whole.wallet.embers+=Math.max(5,score*2); whole.meta.totalWalks=(whole.meta.totalWalks||0)+1; shiftAlignment(1,"walk");
-        progressQuest("walk");
-        if(treasureRolls>0||score>=12) foundTreasure=unlockWalkTreasure(treasureRolls>1);
-      }
-      if(completedMode==="rhythm"){
-        // Four-lane charts contain far more notes than the old single-lane
-        // version. Permanent rewards use bounded accuracy/combo quality so an
-        // Expert song cannot inflate the economy simply by containing more notes.
-        gainSkill("speed",Math.max(.5,rhythmQuality*.1),{silent:true}); pet.bond=clamp(pet.bond+Math.min(18,rhythmQuality*.32)); pet.mood=clamp(pet.mood+Math.min(24,rhythmQuality*.45)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.xp+=rhythmQuality*.72; whole.wallet.embers+=Math.max(6,Math.floor(rhythmQuality*1.35)); state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(rhythmQuality/8)); shiftAlignment(1,"rhythm-play");
-      }
-      if(completedMode==="memory"){
-        gainSkill("instinct",Math.max(.5,score*.09),{silent:true}); gainSkill("luck",Math.max(.2,score*.035),{silent:true}); pet.bond=clamp(pet.bond+Math.min(20,score*.36)); pet.mood=clamp(pet.mood+Math.min(18,score*.3)); pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode)); pet.xp+=score*.78; whole.wallet.embers+=Math.max(7,Math.floor(score*1.5)); shiftAlignment(2,"memory-play");
-      }
-      if(completedMode==="glide"){
-        gainSkill("stamina",Math.max(.5,score*.08),{silent:true}); gainSkill("speed",Math.max(.35,score*.055),{silent:true}); pet.hype+=Math.min(18,score*.18);pet.mood=clamp(pet.mood+Math.min(20,score*.28));pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode));pet.xp+=score*.7;whole.wallet.embers+=Math.max(7,Math.floor(score*1.25));state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(score/10));shiftAlignment(1,"skybound-play");
-      }
-      if(completedMode==="breaker"){
-        gainSkill("power",Math.max(.5,score*.065),{silent:true}); gainSkill("instinct",Math.max(.3,score*.04),{silent:true});pet.strength=clamp(pet.strength+Math.min(3,score*.02));pet.mood=clamp(pet.mood+Math.min(18,score*.2));pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode));pet.hunger=clamp(pet.hunger-4);pet.xp+=score*.66;whole.wallet.embers+=Math.max(8,Math.floor(score*1.18));shiftAlignment(-.25,"breaker-training");progressQuest("train");
-      }
-      if(completedMode==="maze"){
-        gainSkill("instinct",Math.max(.55,score*.055),{silent:true});gainSkill("speed",Math.max(.4,score*.04),{silent:true});pet.bond=clamp(pet.bond+Math.min(18,score*.16));pet.mood=clamp(pet.mood+Math.min(22,score*.2));pet.energy=clamp(pet.energy-miniEnergyNeeded(completedMode));pet.xp+=score*.58;whole.wallet.embers+=Math.max(8,Math.floor(score*.9));state.meta.retroSignal=(state.meta.retroSignal||0)+Math.max(1,Math.floor(score/16));shiftAlignment(-.5,"runaway-play");
-      }
-    });
-    if (score >= 8) {
-      const memory = lifeMemory();
-      memory.arcadeAfterglowUntil = now() + 16000;
-      memory.lastArcadeMode = completedMode;
-      saveState();
-    }
-    evaluateForm(true);
-    const rareDiscovery = maybeUnlockSpecialRizo(completedMode, score, mini.walkPath);
-    const trainedSkill = ({power:"power",spark:"instinct",forage:"instinct",rush:"speed",walk:"stamina",rhythm:"speed",memory:"instinct",glide:"stamina",breaker:"power",maze:"instinct",defense:"power"})[completedMode];
-    const art={power:"🥊",spark:"★",forage:"🍓",rush:"🔥",walk:"☂",rhythm:"♫",memory:"▦",glide:"☁",breaker:"✦",maze:"⌗",defense:"🎈"}[completedMode];
-    const trackTitle=completedMode==="rhythm"?(rhythmSnapshot?.track?.title||"EMBER BEAT"):null;
-    const line=score<5?"WE ARE NEVER POSTING THAT RUN.":score>35?"THAT LOOKED LIKE A REAL GAME TRAILER.":"OKAY. THAT WAS ACTUALLY CLEAN.";
-    const treasureCopy=foundTreasure?`<div class="event-reward">${foundTreasure.icon} FOUND: ${foundTreasure.name}</div>`:"";
-    const rareCopy=rareDiscovery?`<div class="rare-discovery-stage ${rareDiscovery.id}">${petMarkup({extraClass:"rare-reaction-pet",id:"rareReactionPet"})}<div class="rare-found-pet"><img src="${rareDiscovery.sprite}" alt="${rareDiscovery.name}"></div><b>${rareDiscovery.name} DISCOVERED</b></div>`:"";
-    if(rareDiscovery){activeMusicOverride=rareDiscovery.id==="shadow"?"shadow":rareDiscovery.id==="retro"?"retro":"forest";startMusicForScene(activeMusicOverride,true);duckMusic(1400,.08);}
-    const skill=SKILLS.find(item=>item.id===trainedSkill);
-    const rhythmBreakdown=rhythmSnapshot?`<div class="rhythm-result-grid"><span>ACCURACY<b>${rhythmSnapshot.accuracy}%</b></span><span>MAX COMBO<b>${rhythmSnapshot.maxStreak}</b></span><span>PERFECT<b>${rhythmSnapshot.judgements.perfect||0}</b></span><span>MISSES<b>${rhythmSnapshot.judgements.miss||0}</b></span></div>`:"";
-    const arcadeBreakdown=completedMode==="power"?`<div class="arcade-result-grid"><span>BEST STREAK<b>${arcadeSnapshot.powerBestStreak}</b></span><span>COACH CALLS<b>${arcadeSnapshot.powerCallsRead}</b></span><span>FEINTS READ<b>${arcadeSnapshot.powerGuardReads}</b></span><span>WRONG SHOTS<b>${arcadeSnapshot.powerWrongCalls}</b></span></div>`:completedMode==="spark"?`<div class="arcade-result-grid"><span>BANKS<b>${arcadeSnapshot.sparkBanks}</b></span><span>STASH LOST<b>${arcadeSnapshot.sparkLost}</b></span><span>DECOYS READ<b>${arcadeSnapshot.sparkAvoided}</b></span><span>SPARK RUSHES<b>${arcadeSnapshot.sparkFrenzies}</b></span></div>`:completedMode==="forage"?`<div class="arcade-result-grid"><span>LUNCH CHAIN<b>${arcadeSnapshot.forageBestStreak}</b></span><span>PRISM ROLLS<b>${treasureRolls}</b></span></div>`:completedMode==="rush"?`<div class="arcade-result-grid"><span>DELIVERIES<b>${arcadeSnapshot.rushDeliveries}</b></span><span>CLEAN STREAK<b>${arcadeSnapshot.rushBestStreak}</b></span><span>OBSTACLES<b>${arcadeSnapshot.rushClears}</b></span></div>`:completedMode==="memory"?`<div class="arcade-result-grid"><span>ROUND REACHED<b>${arcadeSnapshot.memoryRound}</b></span><span>HEARTS LEFT<b>${arcadeSnapshot.memoryLives}</b></span></div>`:completedMode==="glide"?`<div class="arcade-result-grid"><span>THERMALS<b>${arcadeSnapshot.glideThermals}</b></span><span>THREAD STREAK<b>${arcadeSnapshot.glideBestStreak}</b></span><span>GATES<b>${arcadeSnapshot.glideClears}</b></span></div>`:completedMode==="breaker"?`<div class="arcade-result-grid"><span>FORGE REACHED<b>${arcadeSnapshot.breakerLevel}</b></span><span>CORES BROKEN<b>${arcadeSnapshot.breakerCoresBroken}</b></span></div>`:completedMode==="maze"?`<div class="arcade-result-grid"><span>MAZE REACHED<b>${arcadeSnapshot.mazeLevel}</b></span><span>BEST HUNT CHAIN<b>${arcadeSnapshot.mazeBestCombo}</b></span><span>SHADOW TAGS<b>${arcadeSnapshot.mazeTags}</b></span><span>PRISM HUNTS<b>${arcadeSnapshot.mazeHunts}</b></span></div>`:"";
-    const newBest=score>previousBest?`<div class="new-arcade-best">NEW PERSONAL BEST</div>`:"";
-    showModal(`<div class="modal-card minigame-result-${completedMode} ${rareDiscovery?"rare-result":""}"><div class="modal-art">${art}</div>${trackTitle?`<div class="result-track-title">${trackTitle} • ${rhythmSnapshot?.track?.difficulty||"NORMAL"}</div>`:""}${newBest}<h2>${score} POINTS</h2><p class="big-line">${line}</p>${rhythmBreakdown}${arcadeBreakdown}${treasureCopy}${rareCopy}<p>${skill?.name || "Growth"} rose permanently. The arcade is training your actual Rizo, not just filling a leaderboard.</p><div class="modal-buttons"><button class="primary" data-close-modal>BACK TO RIZO</button><button data-replay-game="${completedMode}">RUN IT BACK</button></div></div>`);
-    advanceTutorial("play");
-    if(score>20) celebrate();
-  }
-
 
   function keeperRank() {
     const level = state.season?.level || 1;
@@ -6622,8 +4786,16 @@
     sfx("reward");celebrate();sensoryBurst("✦","#9eff75",24);
   }
 
-  function animatePet(className, duration=600) {
-    el.petActor.classList.remove(className); void el.petActor.offsetWidth; el.petActor.classList.add(className); setTimeout(()=>el.petActor.classList.remove(className),duration);
+  function animatePet(className, duration = 600) {
+    clearTimeout(denReactions.get(className));
+    const actor = el.petActor, petId = state.pet.id;
+    actor.classList.remove(className); void actor.offsetWidth; actor.classList.add(className);
+    const timer = setTimeout(() => {
+      if (denReactions.get(className) !== timer) return;
+      denReactions.delete(className);
+      if (state.pet.id === petId) actor.classList.remove(className);
+    }, duration);
+    denReactions.set(className, timer);
   }
 
   function sensoryBurst(symbol="✦", color="#16c8ff", count=10, event=null) {
@@ -6643,6 +4815,7 @@
     state.meta.recoveries = (state.meta.recoveries || 0) + 1;
     addMemory("TOO MUCH", `${pet.name} became overwhelmed and hid under the blanket. Nothing permanent was lost.`, "☁");
     saveState(true);
+    if (modeCareHold) { modeCareHold.deferred.add("recovery"); return; }
     if (!silent || document.visibilityState === "visible") showRecoveryModal();
   }
 
@@ -6675,6 +4848,7 @@
     pet.lifespanDays += 9999;
     addMemory("ELDER FLAME", `${pet.name} reached the end of one life cycle and can now create a Legacy Egg.`, "↻");
     saveState(true);
+    if (modeCareHold) { modeCareHold.deferred.add("elder"); return; }
     if (!silent || document.visibilityState === "visible") showRebirthInfo();
   }
 
@@ -6693,7 +4867,7 @@
     const inheritance = seed
       ? `<div class="bond-seed-mini"><b>♡ BOND EGG READY</b><span>${escapeHTML(pet.name)} + ${escapeHTML(seed.name)}</span><small>Both lineages will blend their genetic caps. One parent does not overwrite the other.</small></div>`
       : `<div class="sheet-note">Optional: invite another Keeper's mature Rizo and save a Friendship Spark in House. A normal Legacy Egg still works without one.</div>`;
-    showModal(`<div class="modal-card legacy-modal"><div class="modal-art">↻</div><h2>${seed ? "BOND LEGACY EGG" : "LEGACY EGG"}</h2><p class="big-line">REBIRTH IS THE LONG GAME.</p><p>${ready ? `${escapeHTML(pet.name)} becomes an ancestor. The new egg inherits higher, randomized caps${seed ? ` blended with ${escapeHTML(seed.name)}` : " from this lineage"}. Collection, rooms, cosmetics and currency remain.` : `Requirements: ${stageOk ? "✓ Mature" : "Reach Mature"} • ${bondNeed <= 0 ? "✓ 80 Bond" : `${Math.ceil(bondNeed)} more Bond`} • ${statNeed <= 0 ? "✓ 300 Training" : `${Math.ceil(statNeed)} more Training`}.`}</p><div class="gene-preview">${SKILLS.map(skill=>`<span>${skill.icon} ${skill.name}<b>${Math.floor(pet.skills?.[skill.id]||0)}/${Math.floor(pet.genes?.[skill.id]||100)}</b></span>`).join("")}</div>${inheritance}<div class="modal-buttons">${ready ? `<button class="primary" data-confirm-rebirth>${seed ? "CREATE BOND EGG" : "CREATE LEGACY EGG"}</button>` : ""}<button data-close-modal>NOT YET</button></div></div>`);
+    showModal(`<div class="modal-card legacy-modal"><div class="modal-art">↻</div><h2>${seed ? "BOND LEGACY EGG" : "LEGACY EGG"}</h2><p class="big-line">REBIRTH IS THE LONG GAME.</p><p>${ready ? `${escapeHTML(pet.name)} becomes an ancestor. The new egg inherits higher, randomized caps${seed ? ` blended with ${escapeHTML(seed.name)}` : " from this lineage"}. Collection, rooms, cosmetics and currency remain.` : `Requirements: ${stageOk ? "✓ Mature" : "Reach Mature"} • ${bondNeed <= 0 ? "✓ 80 Bond" : `${Math.ceil(bondNeed)} more Bond`} • ${statNeed <= 0 ? "✓ 300 Training" : `${Math.ceil(statNeed)} more Training`}.`}</p><div class="gene-preview">${SKILLS.map(skill=>`<span>${skill.icon} ${skill.name}<b>${Math.floor(pet.skills?.[skill.id]||0)}/${Math.floor(pet.genes?.[skill.id]||100)}</b></span>`).join("")}</div>${inheritance}${ready ? modeJourneyNote(pet.id) : ""}<div class="modal-buttons">${ready ? `<button class="primary" data-confirm-rebirth>${seed ? "CREATE BOND EGG" : "CREATE LEGACY EGG"}</button>` : ""}<button data-close-modal>NOT YET</button></div></div>`);
   }
 
   function combinedDominantSkill(parent, partner) {
@@ -6740,6 +4914,7 @@
     next.alignment = clamp((old.alignment || 0) * .16 + (seed?.alignment || 0) * .08, -22, 22);
     next.careProfile.inheritedFrom = seed ? [old.name, seed.name] : [old.name];
 
+    resetDenPresentation();
     state.pet = next;
     state.meta.rebirths = (state.meta.rebirths || 0) + 1;
     if (seed) state.meta.bondEggs = (state.meta.bondEggs || 0) + 1;
@@ -6769,6 +4944,7 @@
     const cost = costs[type];
     if (state.wallet.embers < cost) { toast("YOU CANNOT FINANCE AN EGG"); return; }
     state.wallet.embers -= cost;
+    resetDenPresentation();
     state.pet = createPet({ lucky: type === "lucky" || type === "prism", shame: type === "shame" });
     if (type === "prism") state.pet.hiddenVariant = rollVariant(true,false,Math.max(30,state.meta.pity||0)).id;
     state.meta.nextPetNumber += 1;
@@ -6860,9 +5036,9 @@
   }
 
   let audioContext;
-  function ensureAudio() { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); if(audioContext.state === "suspended") audioContext.resume(); return audioContext; } catch(error){ return null; } }
-  function soundVolume(){ return state?.settings?.sound ? clamp(Number(state.settings.soundVolume ?? .85),0,1) : 0; }
-  function musicVolume(){ return state?.settings?.music ? clamp(Number(state.settings.musicVolume ?? .85),0,1) : 0; }
+  function ensureAudio() { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); if(audioContext.state === "suspended" && !adAudioHolds) audioContext.resume(); return audioContext; } catch(error){ return null; } }
+  function soundVolume(){ return !adAudioHolds && state?.settings?.sound ? clamp(Number(state.settings.soundVolume ?? .85),0,1) : 0; }
+  function musicVolume(){ return !adAudioHolds && state?.settings?.music ? clamp(Number(state.settings.musicVolume ?? .85),0,1) : 0; }
   function currentMusicGain(){ return Math.max(.001, MUSIC_MASTER_GAIN * musicVolume()); }
   function currentRhythmGain(){ return Math.max(.001, .76 * musicVolume()); }
   function tone(freq=420,duration=.05,type="square",volume=.035,delay=0,slide=0){
@@ -6898,17 +5074,36 @@
     else if(name==="hatch"){[260,390,520,780].forEach((f,i)=>tone(f,.16,"triangle",.03,i*.06,100));}
     else if(name==="level"||name==="reward"){[440,554,659,880].forEach((f,i)=>tone(f,.12,"square",.026,i*.055,80));}
     else if(name==="depart"){tone(500,.12,"sine",.022,0,-180);tone(300,.2,"sine",.018,.1,-120);}
+    else if(name==="ui"){tone(540,.026,"triangle",.016);tone(760,.02,"sine",.01,.022);}
+    else if(name==="coin"){tone(880,.045,"square",.022,0,90);tone(1320,.07,"square",.018,.04);}
+    // ===== ARCADE SIGNATURES =====
+    // Eleven games used to share two failure sounds. Each mode family now has a
+    // recognisable win and loss so a dropped package cannot sound like a
+    // corrupted broadcast.
+    else if(name==="fail-air"){tone(520,.16,"sine",.03,0,-330);noise(.13,.016,.05);tone(180,.2,"triangle",.026,.12,-60);}
+    else if(name==="fail-drop"){noise(.09,.026);tone(190,.16,"square",.032,.02,-70);tone(120,.14,"triangle",.022,.12,-40);}
+    else if(name==="fail-chase"){tone(300,.1,"sawtooth",.03,0,-90);tone(226,.12,"sawtooth",.028,.09,-70);tone(168,.18,"sawtooth",.024,.19,-50);}
+    else if(name==="fail-signal"){noise(.16,.024);tone(410,.09,"square",.026,0,-190);tone(300,.13,"square",.022,.1,240);}
+    else if(name==="fail-forge"){tone(260,.07,"square",.034,0,-40);noise(.11,.02,.04);tone(140,.2,"triangle",.028,.08,-45);}
+    else if(name==="fail-lunch"){tone(360,.08,"triangle",.028,0,-130);tone(240,.11,"sine",.022,.07,-90);}
+    else if(name==="fail-spark"){noise(.1,.018);tone(600,.14,"sine",.026,0,-400);}
+    else if(name==="fail-power"){tone(200,.1,"square",.034,0,-60);noise(.08,.022,.02);}
+    else if(name==="win-air"){[660,880,1100].forEach((f,i)=>tone(f,.11,"sine",.026,i*.045,80));}
+    else if(name==="win-forge"){tone(330,.06,"square",.03);[520,780].forEach((f,i)=>tone(f,.09,"triangle",.026,.05+i*.05,60));}
+    else if(name==="win-chase"){[590,740,990].forEach((f,i)=>tone(f,.07,"square",.028,i*.04,120));}
+    else if(name==="win-signal"){[440,660,880].forEach((f,i)=>tone(f,.1,"sine",.026,i*.05,60));noise(.05,.008,.14);}
+    else if(name==="win-lunch"){tone(620,.055,"triangle",.026);tone(830,.07,"triangle",.024,.05);noise(.04,.01,.02);}
+    else if(name==="win-drop"){[500,700,940,1180].forEach((f,i)=>tone(f,.08,"square",.026,i*.038,90));}
     else tone(420,.05,"square",.03);
   }
 
+  // Per-mode audio identity without eleven bespoke sound banks: the family a
+  // mode belongs to picks the signature, and anything unmapped keeps the old
+  // generic tone rather than going silent.
   function haptic(pattern = 15) {
     if (state.settings.haptics && navigator.vibrate) navigator.vibrate(pattern);
   }
 
-
-  // ===== PROCEDURAL CHIPTUNE MUSIC =====
-  // No audio files or licensing costs: each scene generates a tiny looping theme
-  // with WebAudio after the first user gesture, which is required on iOS.
   const MUSIC_TRACKS = {
     origin:{tempo:560,lead:[64,null,67,null,71,null,67,null],bass:[40,null,null,null,43,null,null,null],wave:"sine"},
     home:{tempo:430,lead:[64,67,71,67,62,66,69,66],bass:[40,null,47,null,38,null,45,null],wave:"triangle"},
@@ -6923,13 +5118,6 @@
     shadow:{tempo:520,lead:[55,null,58,54,null,61,57,null],bass:[31,null,null,38,null,null,30,null],wave:"sine"},
     retro:{tempo:145,lead:[64,67,71,76,79,76,71,67],bass:[40,40,47,47,45,45,52,52],wave:"square"},
     visitor:{tempo:300,lead:[67,71,74,79,76,74,71,69],bass:[43,null,50,null,45,null,52,null],wave:"triangle"},
-    "mini-power":{tempo:205,lead:[52,55,59,64,59,55,62,59],bass:[28,null,35,null,31,null,38,null],wave:"square"},
-    "mini-spark":{tempo:230,lead:[76,79,83,86,83,79,81,84],bass:[48,null,55,null,50,null,57,null],wave:"triangle"},
-    "mini-forage":{tempo:285,lead:[64,66,67,71,67,66,62,64],bass:[40,null,43,null,38,null,45,null],wave:"square"},
-    "mini-rush":{tempo:155,lead:[64,67,71,76,74,71,79,76],bass:[40,40,47,47,45,45,52,52],wave:"square"},
-    "mini-defense":{tempo:330,lead:[40,null,43,47,50,null,47,43,38,null,43,47,52,null,48,45,36,null,40,43,47,null,50,47,43,null,45,48,52,50,47,null],bass:[24,null,31,null,27,null,34,null,22,null,29,null,25,null,32,null,20,null,27,null,23,null,30,null,19,null,26,null,31,null,34,null],wave:"triangle"},
-    "mini-walk":{tempo:360,lead:[67,null,71,74,72,null,69,67],bass:[43,null,50,null,45,null,52,null],wave:"triangle"},
-    "mini-memory":{tempo:520,lead:[60,null,64,null,67,71,null,67],bass:[36,null,null,43,null,null,40,null],wave:"sine"}
   };
 
   function midiFrequency(note){ return 440 * Math.pow(2,(note-69)/12); }
@@ -6947,25 +5135,11 @@
 
   function musicBeat(){
     if(!musicUnlocked || !state?.settings?.music || document.hidden)return;
-    const track=MUSIC_TRACKS[musicScene]||MUSIC_TRACKS.home;
+    const track=MUSIC_TRACKS[musicScene]||modeMusicTracks.get(musicScene)||MUSIC_TRACKS.home;
     const i=musicStep%track.lead.length;
     const lead=track.lead[i], bass=track.bass[i%track.bass.length];
-    if(musicScene==="mini-defense"){
-      const wave=Math.max(0,Number(mini?.defense?.currentWave)||0),active=defenseIsSimulating(mini?.defense),boss=active&&wave>0&&wave%10===0;
-      if(boss){
-        const bossPulse=[28,null,28,null,31,null,27,null][i%8];
-        if(bossPulse!=null)musicTone(bossPulse,track.tempo/1000*2.35,.044,0,"sawtooth");
-        if(i%4===2)musicTone(34,.16,.014,.02,"square");
-        if(i%8===7)musicTone(40,.48,.018,.02,"triangle");
-        musicStep+=1;return;
-      }
-      if(bass!=null)musicTone(bass,track.tempo/1000*1.75,.03,0,"sawtooth");
-      if(lead!=null&&active)musicTone(lead,track.tempo/1000*.9,.022,.015,"triangle");
-      if(i%4===0)musicTone(40,.18,.022,0,"sine");
-      if(active&&i%4===1)musicTone(43,.06,.008,0,"triangle");
-      if(i%8===7)musicTone(43,.32,.014,.02,"triangle");
-      musicStep+=1;return;
-    }
+    // A game mode's adaptive track decides its own notes each step.
+    if(typeof track.beat==="function"){ try{ track.beat(musicStep,(note,duration,volume,delay,type)=>musicTone(note,duration,volume,delay,type)); }catch(error){ console.warn("Rizo mode music failed",error); } musicStep+=1; return; }
     if(lead!=null) musicTone(lead,track.tempo/1000*.72,.026,0,track.wave);
     if(bass!=null) musicTone(bass,track.tempo/1000*1.45,.018,0,"triangle");
     if((musicScene==="arcade"||musicScene.startsWith("mini-"))&&i%2===0) musicTone(84, .025, .006, 0, "square");
@@ -7002,10 +5176,13 @@
     return currentView||"home";
   }
 
+  // Adaptive tracks lent by game modes: { id, tempo, lead[], bass[], beat(step, play) }.
+  const modeMusicTracks = new Map();
   function startMusicForScene(scene,force=false){
-    if(scene==="mini-rhythm"){clearInterval(musicTimer);musicTimer=null;musicScene="mini-rhythm";return;}
-    if(!musicUnlocked || !state?.settings?.music || document.hidden){ if(!state?.settings?.music) stopMusic(); return; }
-    const key=MUSIC_TRACKS[scene]?scene:"home";
+    // A training game that plays its own music (Ember Beat) silences the hub's.
+    if(scene.startsWith("mini-")&&trainingGame(scene.slice(5))?.music===false){clearInterval(musicTimer);musicTimer=null;musicScene=scene;return;}
+    if(adAudioHolds || !musicUnlocked || !state?.settings?.music || document.hidden){ if(!state?.settings?.music) stopMusic(); return; }
+    const key=MUSIC_TRACKS[scene]||modeMusicTracks.has(scene)?scene:"home";
     if(!force&&musicScene===key&&musicTimer)return;
     const token=++musicTransitionToken;
     clearInterval(musicTimer); musicTimer=null; clearTimeout(musicStopTimer);
@@ -7013,13 +5190,13 @@
     const begin=()=>{
       if(token!==musicTransitionToken||!state?.settings?.music)return;
       musicScene=key; musicStep=0; musicBeat();
-      musicTimer=setInterval(musicBeat,MUSIC_TRACKS[key].tempo);
+      musicTimer=setInterval(musicBeat,(MUSIC_TRACKS[key]||modeMusicTracks.get(key)).tempo);
       setMusicGain(currentMusicGain(),.28);
     };
     if(musicScene && !state.settings.reducedMotion)setTimeout(begin,130); else begin();
   }
 
-  function syncMusic(force=false){ startMusicForScene(sceneMusicKey(),force); }
+  function syncMusic(force=false){ document.body.dataset.rizoSound = (state?.settings?.sound && Number(state.settings.soundVolume) > 0) || (state?.settings?.music && Number(state.settings.musicVolume) > 0) ? "on" : "off"; startMusicForScene(sceneMusicKey(),force); }
 
   function unlockMusic(){
     musicUnlocked=true;
@@ -7129,12 +5306,13 @@
   }
 
   function keeperRecoveryCode(){const savedAt=now(),envelope=buildStateEnvelope(state,savedAt);return encodeGardenCode({...envelope,v:VERSION,exportedAt:savedAt});}
-  function readPreRecoveryBackup(){
-    try{const raw=localStorage.getItem(`${SAVE_KEY}:pre-recovery`);if(!raw)return null;const decoded=decodeStateText(raw);return decoded.status==="invalid"?null:decoded.state;}catch(error){return null;}
+  function readPreRecoveryDecoded(){
+    try{const raw=localStorage.getItem(`${SAVE_KEY}:pre-recovery`);if(!raw)return null;const decoded=decodeStateText(raw);return ["verified","migrated","sanitized"].includes(decoded.status)&&decoded.state?decoded:null;}catch(error){return null;}
   }
-  function showKeeperRecoveryPreview(recovered,source="KEEPER CODE",schema="?"){
+  function readPreRecoveryBackup(){return readPreRecoveryDecoded()?.state||null;}
+  function showKeeperRecoveryPreview(recovered,source="KEEPER CODE",schema="?",modes={}){
     const pet=recovered.pet,variant=VARIANTS.find(item=>item.id===(pet.variant||pet.hiddenVariant))||VARIANTS[0];
-    window.__pendingKeeperRecovery=recovered;
+    window.__pendingKeeperRecovery=recovered;pendingRecoveryModes=modes||{};
     showModal(`<div class="modal-card keeper-recovery-preview"><small>VALID ${escapeHTML(source)} • SCHEMA ${escapeHTML(String(schema||"?"))}</small><div class="keeper-recovery-pet">${petMarkup({pet,extraClass:"recovery-rizo",context:"thumbnail",label:pet.name})}</div><h2>${escapeHTML(pet.name||"MYSTERY EGG")}</h2><p>${escapeHTML(variant.name)} • ${escapeHTML(String(pet.stage||"egg").toUpperCase())} • GEN ${Math.max(1,Number(pet.generation)||1)}<br>R ${Math.floor(recovered.wallet?.embers||0)} • ${Math.floor(recovered.wallet?.sparks||0)} SPARKS</p><p class="big-line">REPLACE THIS DEVICE'S CURRENT TIMELINE?</p><div class="modal-buttons"><button data-close-modal>CANCEL</button><button class="primary" data-apply-recovery>RESTORE KEEPER</button></div></div>`);
   }
   function openKeeperRecovery(){
@@ -7145,10 +5323,10 @@
   async function pasteKeeperRecoveryCode(){const input=$("#keeperRecoveryInput");if(!input)return;try{const text=await navigator.clipboard.readText();if(!text.trim())throw new Error("empty");input.value=text.trim();input.focus();toast("KEEPER CODE PASTED");}catch(error){input.focus();toast("PRESS AND HOLD THE BOX, THEN TAP PASTE");}}
   async function copyKeeperRecoveryCode(){const code=keeperRecoveryCode();try{await navigator.clipboard.writeText(code);state.meta.lastBackupAt=now();saveState(true);toast("KEEPER RECOVERY CODE COPIED");}catch(error){const input=$("#keeperRecoveryInput");if(input){input.value=code;input.select();}toast("CODE READY TO COPY");}}
   function previewKeeperRecoveryCode(raw){
-    try{const data=decodeGardenCode(raw);if(data?.app!=="RIZO LIFE"||!data.state)throw new Error("bad recovery");const decoded=decodeStatePayload(data);if(decoded.status==="invalid")throw new Error("bad recovery");if(decoded.status==="sanitized")recordSaveValidationWarning("keeper-code-sanitized",{});showKeeperRecoveryPreview(decoded.state,decoded.status==="verified"?"VERIFIED KEEPER SAVE":"SANITIZED KEEPER SAVE",data.v||"?");}catch(error){window.__pendingKeeperRecovery=null;toast("THAT KEEPER CODE IS INVALID OR INCOMPLETE");sfx("no");}
+    try{const data=decodeGardenCode(raw);if(data?.app!=="RIZO LIFE"||!data.state)throw new Error("bad recovery");const decoded=decodeStatePayload(data);if(decoded.status==="future"){toast("THAT KEEPER CODE IS FROM A NEWER RIZO.GAME • UPDATE FIRST");return;}if(decoded.status==="invalid")throw new Error("bad recovery");if(decoded.status==="sanitized")recordSaveValidationWarning("keeper-code-sanitized",{});showKeeperRecoveryPreview(decoded.state,decoded.status==="verified"?"VERIFIED KEEPER SAVE":"SANITIZED KEEPER SAVE",data.v||"?",decoded.modes);}catch(error){window.__pendingKeeperRecovery=null;toast("THAT KEEPER CODE IS INVALID OR INCOMPLETE");sfx("no");}
   }
-  function previewPreRecoveryBackup(){const recovered=readPreRecoveryBackup();if(!recovered){toast("NO PREVIOUS TIMELINE IS STORED");sfx("no");return;}showKeeperRecoveryPreview(recovered,"DEVICE BACKUP",recovered.version||VERSION);}
-  function applyKeeperRecovery(){const recovered=window.__pendingKeeperRecovery;if(!recovered)return;try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}clearDefenseCheckpoint();state=recovered;window.__pendingKeeperRecovery=null;saveState(true);closeModal();changeView("home");renderAll();toast("KEEPER TIMELINE RESTORED");sfx("legendary");celebrate();}
+  function previewPreRecoveryBackup(){const decoded=readPreRecoveryDecoded();if(!decoded){toast("NO PREVIOUS TIMELINE IS STORED");sfx("no");return;}showKeeperRecoveryPreview(decoded.state,"DEVICE BACKUP",decoded.state.version||VERSION,decoded.modes);}
+  function applyKeeperRecovery(){const recovered=window.__pendingKeeperRecovery;if(!recovered)return;try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}clearModeRuns();resetDenPresentation();state=recovered;modeSlices=pendingRecoveryModes||{};pendingRecoveryModes={};window.__pendingKeeperRecovery=null;prepareModeSlices();saveState(true);closeModal();changeView("home");renderAll();toast("KEEPER TIMELINE RESTORED");sfx("legendary");celebrate();}
 
   function exportSave() {
     const savedAt=now(),payload = JSON.stringify({...buildStateEnvelope(state,savedAt),version:VERSION,exportedAt:savedAt}, null, 2);
@@ -7174,8 +5352,14 @@
       if (!incoming.pet || !incoming.player) throw new Error("Not a Rizo save");
       const decoded=decodeStatePayload(parsed);
       if(decoded.status==="invalid")throw new Error("Invalid Rizo save");
-      clearDefenseCheckpoint();
+      if(decoded.status==="future"){toast("THAT SAVE IS FROM A NEWER RIZO.GAME • UPDATE FIRST");return;}
+      // The timeline being replaced stays restorable from Keeper Recovery.
+      try{localStorage.setItem(`${SAVE_KEY}:pre-recovery`,JSON.stringify(buildStateEnvelope(state)));}catch(error){}
+      clearModeRuns();
+      resetDenPresentation();
       state = decoded.state;
+      modeSlices = decoded.modes || {};
+      prepareModeSlices();
       if(decoded.status==="sanitized")recordSaveValidationWarning("import-sanitized",{});
       saveState(true);
       closeSheet();
@@ -7216,10 +5400,11 @@ Streak: ${state.player.streak}`;
   function resetSave() {
     if (!confirm("Delete every Rizo, unlock, memory, and ember?")) return;
     if (!confirm("Really? This is the dramatic second confirmation.")) return;
-    localStorage.removeItem(SAVE_KEY);
-    localStorage.removeItem(LEGACY_KEY);
-    localStorage.removeItem(DEFENSE_CHECKPOINT_KEY);
-    localStorage.removeItem(`${SAVE_KEY}:pre-recovery`);
+    // Block first: the unload handler saves, and used to write the old save back.
+    blockSaving("reset");
+    for (const key of [SAVE_V2_KEY, SAVE_V2_BACKUP_KEY, SAVE_KEY, SAVE_BACKUP_KEY, LEGACY_KEY, ...LEGACY_DEFENSE_CHECKPOINT_KEYS, `${SAVE_KEY}:pre-recovery`, ...saveQuarantineKeys(), ...storageKeysWithPrefix(MODE_RUN_PREFIX), ...storageKeysWithPrefix(LEGACY_MAP_SEEN_PREFIX)]) {
+      try { localStorage.removeItem(key); } catch (error) {}
+    }
     location.reload();
   }
 
@@ -7342,11 +5527,14 @@ Streak: ${state.player.streak}`;
     if (mini.active || worldEventOpen || el.bottomSheet?.classList.contains("show")) return;
     if (state.pet.stage === "egg") { toast("HATCH YOUR EGG BEFORE SWAPPING"); return; }
     if (!state.pet.alive) { toast("REVIVE YOUR CURRENT RIZO FIRST"); return; }
+    resetDenPresentation();
     const outgoing = state.pet;
     outgoing.homeRoom = target.homeRoom;
     state.farm.roster.splice(rosterIndex, 1, outgoing);
     state.pet = target;
     delete state.pet.homeRoom;
+    // House residents live passively, so the clock starts when they come back.
+    state.pet.lastTick = now();
     processElapsedTime();
     if (state.pet.alive && state.pet.health <= 0) enterRecoveryState("neglect", true);
     updateStage(); checkAchievements();
@@ -7359,7 +5547,7 @@ Streak: ${state.player.streak}`;
     const pet = state.farm.roster[rosterIndex];
     if (!pet) return;
     const variant = VARIANTS.find(item => item.id === pet.variant) || VARIANTS[0];
-    showModal(`<div class="modal-card release-scene"><small>THE FRONT DOOR</small><h2>LET ${escapeHTML(pet.name)} GO?</h2><div class="capsule-stage" style="--reveal-color:${variant.color}"><div class="rarity-reveal"><img src="${variant.sprite}" alt="${escapeHTML(variant.name)}"></div></div><p class="release-line">${escapeHTML(pet.name)} stands by the door without making it dramatic.</p><p class="release-line">You make it dramatic enough for both of you.</p><p class="release-line">This isn't a delete. It's a life outside this house.</p><div class="modal-buttons"><button data-close-modal>KEEP THEM HOME</button><button class="primary" data-confirm-release="${rosterIndex}">SET THEM FREE</button></div></div>`);
+    showModal(`<div class="modal-card release-scene"><small>THE FRONT DOOR</small><h2>LET ${escapeHTML(pet.name)} GO?</h2><div class="capsule-stage" style="--reveal-color:${variant.color}"><div class="rarity-reveal"><img src="${variant.sprite}" alt="${escapeHTML(variant.name)}"></div></div><p class="release-line">${escapeHTML(pet.name)} stands by the door without making it dramatic.</p><p class="release-line">You make it dramatic enough for both of you.</p><p class="release-line">This isn't a delete. It's a life outside this house.</p>${modeJourneyNote(pet.id)}<div class="modal-buttons"><button data-close-modal>KEEP THEM HOME</button><button class="primary" data-confirm-release="${rosterIndex}">SET THEM FREE</button></div></div>`);
     sfx("talk");
   }
 
@@ -7448,7 +5636,8 @@ Streak: ${state.player.streak}`;
     // click. Suppress that one ghost click so it cannot activate whatever button
     // was underneath the food tray (room nav, growth info, etc.). Keyboard clicks
     // still use the normal data-food-drag path because no pointer block is set.
-    if (now() < feedClickBlockedUntil) {
+    if (event.detail > 0 && now() < feedClickBlockedUntil) {
+      feedClickBlockedUntil = 0;
       event.preventDefault();
       event.stopImmediatePropagation?.();
       return;
@@ -7457,6 +5646,15 @@ Streak: ${state.player.streak}`;
     if(event.target.closest("[data-update-later]")){document.getElementById("rizoUpdateBar")?.setAttribute("hidden","");return;}
     if(event.target.closest("[data-update-now], [data-refresh-latest]")){forceReleaseRefresh();return;}
 
+    if (event.target.closest("[data-open-home-plans]")) { openHomePlans(); return; }
+    const build = event.target.closest("[data-home-upgrade]")?.dataset.homeUpgrade;
+    if (build) { buildHome(build); return; }
+    if (event.target.closest("[data-den-play-done]")) { endDenPlay(); return; }
+    if (event.target.closest("[data-den-bed]")) { endDenPlay(); toggleSleep(); return; }
+    if (event.target.closest("[data-training-home]")) { closeModal(); changeView("home"); return; }
+    if (event.target.closest("[data-training-continue]")) { closeModal(); changeView("arcade"); return; }
+    const focus = event.target.closest("[data-training-focus]")?.dataset.trainingFocus;
+    if (focus) { trainingFocus = focus; renderArcade(); return; }
     const nav = event.target.closest("[data-nav]")?.dataset.nav;
     if (nav) { changeView(nav); return; }
 
@@ -7473,39 +5671,9 @@ Streak: ${state.player.streak}`;
     }
 
     const game = event.target.closest("[data-minigame]")?.dataset.minigame;
-    if (game) { if (game === "defense") showDefenseOriginIntro(false); else startMiniGame(game); return; }
-    if (event.target.closest("[data-defense-intro-continue]")) { rememberUnlockScene(DEFENSE_INTRO_SCENE_ID); saveState(true); showDefenseWorldLobby("auto"); return; }
-    if (event.target.closest("[data-replay-defense-intro]")) { showDefenseOriginIntro(true); return; }
-    if (event.target.closest("[data-defense-lobby-more]")) { showDefenseWorldExtras(); return; }
-    if (event.target.closest("[data-defense-records]")) { showDefenseRecords(); return; }
-    const guideButton=event.target.closest("[data-defense-field-guide]");
-    if(guideButton){showDefenseFieldGuide(guideButton.dataset.defenseFieldGuide||"rizos");return;}
-    const guideTab=event.target.closest("[data-field-guide-tab]")?.dataset.fieldGuideTab;
-    if(guideTab){showDefenseFieldGuide(guideTab);return;}
-    if(event.target.closest("[data-defense-school-open]")){showDefenseTrailSchool();return;}
-    if(event.target.closest("[data-defense-school-restart]")){restartDefenseSchool();showDefenseTrailSchool();return;}
-    if(event.target.closest("[data-defense-school-dismiss]")){const school=defenseSchoolState();school.dismissed=!school.dismissed;saveState(true);showDefenseTrailSchool();return;}
-    if (event.target.closest("[data-defense-records-back]")) { showDefenseWorldLobby(pendingDefenseMapChoice); return; }
-    const replayContractId=event.target.closest("[data-replay-defense-contract]")?.dataset.replayDefenseContract;
-    if(replayContractId){const contract=normalizeDefenseRunContract((state.scores?.defenseContracts||[]).find(item=>item?.id===replayContractId));if(!contract){toast("CONTRACT RECORD NOT FOUND");return;}closeModal();setTimeout(()=>startMiniGame("defense",{mapId:contract.mapId,defenseContract:contract}),180);return;}
-    if (event.target.closest("[data-discard-defense-run]")) { clearDefenseCheckpoint(); showDefenseWorldLobby(pendingDefenseMapChoice); toast("DEFENSE CHECKPOINT DISCARDED"); return; }
-    if (event.target.closest("[data-resume-defense-run]")) {
-      const checkpoint=readDefenseCheckpoint();
-      if(!checkpoint){showDefenseWorldLobby(pendingDefenseMapChoice);toast("NO VALID DEFENSE CHECKPOINT");return;}
-      closeModal();
-      setTimeout(()=>startMiniGame("defense",{mapId:checkpoint.mapId,resumeCheckpoint:checkpoint}),180);
-      return;
-    }
-    const lobbyMap = event.target.closest("[data-defense-lobby-map]")?.dataset.defenseLobbyMap;
-    if (lobbyMap) { showDefenseWorldLobby(lobbyMap); return; }
-    const enterContract = event.target.closest("[data-enter-defense-contract]")?.dataset.enterDefenseContract;
-    if (enterContract) {
-      const contract=ensureDailyDefenseContract();
-      if(contract.id!==enterContract){showDefenseWorldLobby(pendingDefenseMapChoice);toast("TODAY’S CONTRACT CHANGED");return;}
-      closeModal();setTimeout(()=>startMiniGame("defense",{mapId:contract.mapId,defenseContract:contract}),180);return;
-    }
-    const enterDefense = event.target.closest("[data-enter-defense-world]")?.dataset.enterDefenseWorld;
-    if (enterDefense !== undefined) { const mapId = defenseResolvedMapId(enterDefense || "auto"); closeModal(); setTimeout(() => startMiniGame("defense", {mapId}), 180); return; }
+    if (game) { startMiniGame(game); return; }
+    const modeId = event.target.closest("button[data-mode]")?.dataset.mode;
+    if (modeId) { launchModeFromHub(modeId); return; }
 
     const shop = event.target.closest("[data-shop-tab]")?.dataset.shopTab;
     if (shop) {
@@ -7552,8 +5720,6 @@ Streak: ${state.player.streak}`;
       window.RizoInstall?.show?.();
       return;
     }
-    const adReward = event.target.closest("[data-ad-reward]")?.dataset.adReward;
-    if (adReward) { useAdReward(adReward); return; }
 
     if (event.target.closest("[data-open-rename]")) { closeSheet(); showNameModal(false); return; }
     if (event.target.closest("[data-open-journal]")) { closeSheet(); changeView("journal"); return; }
@@ -7569,7 +5735,7 @@ Streak: ${state.player.streak}`;
     if (event.target.closest("[data-clear-bond-seed]")) { clearBondSeed(); return; }
     if (event.target.closest("[data-visitor-interact]")) { say(`${state.social.currentVisitor?.name || "THE VISITOR"}: ${["YOUR GARDEN IS NICE.","DO YOU HAVE SNACKS?","I HEARD ABOUT THE RAIN.","OUR GENETICS ARE NONE OF YOUR BUSINESS."][Math.floor(Math.random()*4)]}`,2800); sfx("talk"); return; }
     const gardenToy = event.target.closest("[data-garden-toy]")?.dataset.gardenToy;
-    if (gardenToy) { useGardenToy(gardenToy); return; }
+    if (gardenToy) { if (now() >= denToyClickBlockedUntil) useGardenToy(gardenToy); return; }
 
     const houseRoom = event.target.closest("[data-house-room]")?.dataset.houseRoom;
     if (houseRoom !== undefined && houseRoom !== "") { selectHouseRoom(Number(houseRoom)); return; }
@@ -7600,7 +5766,7 @@ Streak: ${state.player.streak}`;
       return;
     }
     const replay = event.target.closest("[data-replay-game]")?.dataset.replayGame;
-    if (replay) { closeModal(); if (replay === "defense") showDefenseWorldLobby("auto"); else startMiniGame(replay); return; }
+    if (replay) { closeModal(); startMiniGame(replay); return; }
     if (event.target.closest("[data-revive-thread]")) { revivePet("thread"); return; }
     const newEgg = event.target.closest("[data-new-egg]")?.dataset.newEgg;
     if (newEgg) { buyNewEgg(newEgg); return; }
@@ -7610,21 +5776,25 @@ Streak: ${state.player.streak}`;
 
     const settingChoice = event.target.closest("[data-setting-choice]")?.dataset.settingChoice;
     if (settingChoice) {
-      const [key,value]=settingChoice.split(":");
-      const allowed={defenseFx:["auto","full","low"],defenseUiScale:["compact","standard","large"],defenseWaveIntel:["off","simple","full"]};
-      if(allowed[key]?.includes(value)){state.settings[key]=value;saveState(true);renderAll();toast(`${key==="defenseFx"?"DEFENSE EFFECTS":key==="defenseWaveIntel"?"WAVE INTEL":"BATTLEFIELD UI"} • ${value.toUpperCase()}`);}
+      // Mode settings: "mode:<id>:<key>:<value>" (see modeSettingsMarkup).
+      const [scope,modeId,key,value]=settingChoice.split(":");
+      if(scope==="mode")setModeSetting(modeId,key,value);
       return;
     }
 
+    const modeToggle = event.target.closest("[data-mode-setting]");
+    if (modeToggle) {
+      const [modeId, key] = modeToggle.dataset.modeSetting.split(":");
+      setModeSetting(modeId, key, modeToggle.checked);
+      return;
+    }
     const setting = event.target.closest("[data-setting]");
     if (setting) {
       state.settings[setting.dataset.setting] = setting.checked;
       saveState();
       if (setting.dataset.setting === "music") {
-        if (mini?.active && mini.mode === "rhythm") {
-          if (setting.checked) scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));
-          else stopRhythmVoices();
-        } else syncMusic(true);
+        if (mini?.active && trainingGame(mini.mode)?.music === false) callGame("settingsChanged", "music");
+        else syncMusic(true);
       }
       renderAll();
       return;
@@ -7648,6 +5818,8 @@ Streak: ${state.player.streak}`;
     if (event.target.closest("[data-replay-origin]")) { replayOrigin(); return; }
     if (event.target.closest("[data-copy-summary]")) { copySummary(); return; }
     if (event.target.closest("[data-reset-save]")) { resetSave(); }
+    const setAside = event.target.closest("[data-download-set-aside]");
+    if (setAside) { downloadSaveQuarantine(setAside.dataset.downloadSetAside); return; }
   }
 
   // ===== INPUT ROUTING AND APPLICATION BOOT =====
@@ -7655,15 +5827,13 @@ Streak: ${state.player.streak}`;
     if (runtimeSuspendedAt) return false;
     runtimeSuspendedAt = now();
     runtimeSuspendReason = reason;
-    cancelDefenseTransientInput(reason);
     if (state?.pet) lifeMemory().lastSeenAt = now();
-    pauseDefenseForInterruption();
-    writeDefenseCheckpoint(true, reason);
+    globalThis.RizoModes?.suspendActive?.(reason);
+    // Settle the visible held interval, then let hidden time count as time away.
+    if (modeCareHold && !modeCareHold.away) { processElapsedTime(); modeCareHold.away = true; }
     saveState(true);
-    if (mini?.active) mini.lastFrame = performance.now();
-    if (mini?.active && mini.mode === "rhythm" && !mini.pausedByAd) {
-      mini.pausedByAd = true; mini.pauseAt = now(); mini.rhythmPauseClock = rhythmClockNow(); stopRhythmVoices();
-    }
+    if (trainingRun) trainingRun.lastFrame = performance.now();
+    if (mini?.active) arcadeFreeze("background");
     stopMusic();
     try { if (audioContext?.state === "running") audioContext.suspend(); } catch (error) {}
     return true;
@@ -7673,17 +5843,19 @@ Streak: ${state.player.streak}`;
     const wasSuspended = runtimeSuspendedAt;
     runtimeSuspendedAt = 0;
     runtimeSuspendReason = "";
-    if (mini?.active) mini.lastFrame = performance.now();
+    if (trainingRun) trainingRun.lastFrame = performance.now();
     scheduleRuntimeViewportSync("resume");
     if (!wasSuspended) return false;
-    if(mini?.active && mini.mode==="rhythm" && mini.pausedByAd){
-      const pausedFor=Math.max(0,now()-(mini.pauseAt||now()));
-      mini.endAt+=pausedFor;
-      mini.rhythmStartClock+=Math.max(0,rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));
-      mini.pausedByAd=false;
-      scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));
+    if(mini?.active) arcadeThaw("background");
+    // Time away is accounted before a held mode becomes active again; if it
+    // sent the pet into recovery, the mode saves and returns to the Den first.
+    if (modeCareHold?.away) {
+      processElapsedTime();
+      if (modeCareHold) modeCareHold.away = false;
+      if (state.pet.resting && globalThis.RizoModes?.active?.()) globalThis.RizoModes.quitActive("recovery");
     }
-    processElapsedTime(); renderAll(); surfaceDefenseInterruptionPause(); syncMusic(true); window.RizoBoot?.heartbeat?.(`runtime-${reason}`);
+    globalThis.RizoModes?.resumeActive?.(reason);
+    processElapsedTime(); renderAll(); syncMusic(true); window.RizoBoot?.heartbeat?.(`runtime-${reason}`);
     schedulePetBehavior(4000); scheduleIdleLife(); scheduleLifeWow(9000); greetForSession();
     if (state.pet.resting) showRecoveryModal();
     return true;
@@ -7691,17 +5863,26 @@ Streak: ${state.player.streak}`;
 
   function syncReleaseUpdateBar(){
     const bar=document.getElementById("rizoUpdateBar");if(!bar)return;bar.hidden=!releaseUpdateReady;
-    const copy=bar.querySelector("[data-update-copy]");if(copy)copy.textContent=mini?.active&&mini.mode==="defense"?"New build ready • Update Now checkpoints this run first.":"New Rizo.game build ready.";
+    const copy=bar.querySelector("[data-update-copy]");if(copy)copy.textContent=globalThis.RizoModes?.active?.()?"New build ready • Update Now saves this run first.":"New Rizo.game build ready.";
   }
   function announceReleaseUpdate(registration) {
     releaseUpdateReady = true;
     releaseRegistration = registration || releaseRegistration;
     syncReleaseUpdateBar();
     window.dispatchEvent(new CustomEvent("rizo:update-ready", { detail: releaseStatus() }));
-    if (mini?.active && mini.mode === "defense") setDefenseMessage("UPDATE READY", "Tap UPDATE NOW when you want it. This run checkpoints automatically before refresh.");
-    else toast("RIZO.GAME UPDATE READY • UPDATE NOW WHEN READY");
+    toast("RIZO.GAME UPDATE READY • UPDATE NOW WHEN READY");
   }
 
+  // A mode that reports a save outcome (the Dungeon) must confirm it before
+  // this build is replaced; older modes return nothing and keep their behavior.
+  function modeUpdateHandoff(){
+    const outcome=globalThis.RizoModes?.suspendActive?.("force-update");
+    if(outcome&&typeof outcome==="object"&&(outcome.status==="blocked"||outcome.status==="failed")){
+      recordSaveValidationWarning("update-held-by-mode",{status:outcome.status});
+      return{ok:false,status:outcome.status};
+    }
+    return{ok:true,status:outcome&&typeof outcome==="object"?String(outcome.status||""):""};
+  }
   let releaseRefreshInFlight=false;
   async function forceReleaseRefresh(){
     if(releaseRefreshInFlight)return false;releaseRefreshInFlight=true;
@@ -7709,10 +5890,15 @@ Streak: ${state.player.streak}`;
     try{
       // Never destroy the only playable offline copy just because the user tapped refresh.
       // A cache-busting network probe must succeed before workers/caches are removed.
-      const probe=new URL("./index.html",location.href);probe.searchParams.set("rizoNetworkProbe",String(Date.now()));
+      const probe=new URL("./play",location.href);probe.searchParams.set("rizoNetworkProbe",String(Date.now()));
       const response=await fetch(probe.href,{cache:"no-store",headers:{"x-rizo-update-probe":"1"}});
       if(!response?.ok)throw new Error("latest build is not reachable");
-      if(mini?.active&&mini.mode==="defense"){pauseDefenseForInterruption();writeDefenseCheckpoint(true,"force-update");}
+      const handoff=modeUpdateHandoff();
+      if(!handoff.ok){
+        releaseRefreshInFlight=false;bar?.classList.remove("updating");if(button)button.textContent="UPDATE NOW";
+        toast(handoff.status==="blocked"?"UPDATE PAUSED • THIS TAB IS NOT SAVING":"UPDATE PAUSED • COULDN'T SAVE YOUR JOURNEY YET");
+        return false;
+      }
       saveState(true);
       try{releaseRegistration?.waiting?.postMessage?.({type:"SKIP_WAITING"});}catch(error){}
       if("serviceWorker" in navigator){const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.map(reg=>reg.unregister().catch(()=>false)));}
@@ -7755,10 +5941,8 @@ Streak: ${state.player.streak}`;
       const label=document.querySelector(`[data-volume-value="${key}"]`);
       if(label)label.textContent=`${Math.round(value*100)}%`;
       if(key==="musicVolume"){
-        if(mini?.active&&mini.mode==="rhythm"&&mini.rhythmGain){
-          const ctx=ensureAudio();
-          if(ctx){mini.rhythmGain.gain.cancelScheduledValues(ctx.currentTime);mini.rhythmGain.gain.setTargetAtTime(currentRhythmGain(),ctx.currentTime,.025);}
-        } else if(musicGainNode)setMusicGain(currentMusicGain(),.06);
+        if(mini?.active&&trainingGame(mini.mode)?.music===false) callGame("settingsChanged","volume");
+        else if(musicGainNode)setMusicGain(currentMusicGain(),.06);
       } else if(key==="soundVolume"&&value>0){
         clearTimeout(control._rizoPreviewTimer);
         control._rizoPreviewTimer=setTimeout(()=>beep(540,.035,"square"),90);
@@ -7785,6 +5969,10 @@ Streak: ${state.player.streak}`;
       renderAll();
     });
     el.petTapTarget.addEventListener("pointerdown", tapPet);
+    el.petTapTarget.addEventListener("click", event => { if (event.detail === 0) tapPet(event); });
+    // A fresh press is intentional. Only the previous feeding release owns
+    // the suppressed follow-up click; it cannot swallow the next care action.
+    document.addEventListener("pointerdown", () => { feedClickBlockedUntil = 0; }, { capture:true, passive:true });
     document.addEventListener("pointermove", trackRizoAttention, { passive:true });
     document.addEventListener("pointerdown", () => { lastLifeInputAt = now(); scheduleIdleLife(); }, { passive:true });
     el.dailyGiftButton.addEventListener("click", showDailyGift);
@@ -7797,19 +5985,27 @@ Streak: ${state.player.streak}`;
     el.sheetClose.addEventListener("click", closeSheet);
     el.sheetBackdrop.addEventListener("click", closeSheet);
     el.miniArena.addEventListener("pointerdown", event => {
-      const defenseMode=mini?.active&&mini.mode==="defense";
-      const blocksScroll=defenseMode&&Boolean(event.target.closest("#defenseWorld"));
-      if(!defenseMode||blocksScroll)event.preventDefault();
+      if(!mini?.active)return;
+      event.preventDefault();
       handleMiniInput(event);
     });
     el.miniArena.addEventListener("pointermove", handleMiniMove, { passive: true });
-    document.addEventListener("pointermove", event => { if (mini?.active && mini.mode === "defense" && mini.defenseDrag) moveDefenseDrag(event); }, { passive: false });
+    document.addEventListener("pointerdown", beginDenToyDrag);
+    document.addEventListener("pointermove", moveDenToyDrag, { passive: true });
+    document.addEventListener("pointerup", event => endDenToyDrag(event));
+    document.addEventListener("pointercancel", event => endDenToyDrag(event, true));
     document.addEventListener("pointerdown", beginFoodDrag);
     document.addEventListener("pointermove", moveFoodDrag, { passive: true });
-    document.addEventListener("pointerup", event => { endFoodDrag(event); if(mini?.active&&mini.mode==="defense")endDefenseDrag(event); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; });
-    document.addEventListener("pointercancel", event => { if(mini?.active&&mini.mode==="defense")endDefenseDrag(event,true); if(mini?.active&&mini.mode==="maze")mini.mazePointerStart=null; });
+    document.addEventListener("pointerup", event => { endFoodDrag(event); handleMiniRelease(event); });
+    document.addEventListener("pointercancel", event => handleMiniRelease(event, true));
     document.addEventListener("pointercancel", event => endFoodDrag(event, true));
-    el.miniQuit.addEventListener("click", () => mini.mode==="defense"?finishDefenseRunWithMoment("banked"):finishMiniGame(true));
+    el.miniQuit.addEventListener("click", () => requestArcadeQuit("button"));
+    el.miniPause?.addEventListener("click", () => toggleArcadePause());
+    el.miniPausePanel?.addEventListener("click", event => {
+      if(event.target.closest("[data-arcade-resume]")){ closeArcadePause(); return; }
+      if(event.target.closest("[data-arcade-restart]")){ restartArcadeRun(); return; }
+      if(event.target.closest("[data-arcade-quit]")){ requestArcadeQuit("panel"); return; }
+    });
     el.tutorialClose.addEventListener("click", () => {
       state.player.tutorialDismissed = true;
       saveState();
@@ -7820,45 +6016,525 @@ Streak: ${state.player.streak}`;
       if (file) importSave(file);
     });
     document.addEventListener("keydown", event => {
+      if (event.key === "Tab") {
+        const top = el.modalOverlay?.classList.contains("show") ? el.modalOverlay
+          : el.bottomSheet?.classList.contains("show") ? el.bottomSheet
+          : !el.miniGameOverlay.hidden ? el.miniGameOverlay : null;
+        if (top) {
+          const nodes = [...top.querySelectorAll("button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex='0']")]
+            .filter(node => !node.closest("[inert]") && node.getClientRects().length > 0);
+          const first = nodes[0], last = nodes[nodes.length - 1];
+          if (first && (event.shiftKey ? document.activeElement === first || !top.contains(document.activeElement)
+            : document.activeElement === last || !top.contains(document.activeElement))) {
+            event.preventDefault(); (event.shiftKey ? last : first).focus({ preventScroll: true });
+          }
+        }
+      }
       if (event.key === "Enter" && event.target?.id === "modalNameInput") {
         event.preventDefault();
         if (renamePet(event.target.value)) closeModal();
         return;
       }
-      if(mini?.active&&mini.mode==="defense"&&defenseHandleContextKeydown(event))return;
-      if(mini?.active&&mini.mode==="maze"&&!mini.pausedByAd){const keyDir={arrowup:"up",w:"up",arrowdown:"down",s:"down",arrowleft:"left",a:"left",arrowright:"right",d:"right"}[String(event.key).toLowerCase()];if(keyDir){event.preventDefault();mazeSetDirection(keyDir);return;}}
-      if(mini?.active&&mini.mode==="rhythm"&&!mini.pausedByAd){
-        const keyLane={"1":0,"2":1,"3":2,"4":3,"d":0,"f":1,"j":2,"k":3}[String(event.key).toLowerCase()];
-        if(keyLane!==undefined){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;rhythmTap(keyLane);return;}
+      // The active game mode sees keys first and may claim them.
+      if(globalThis.RizoModes?.keyActive?.(event))return;
+      const typingTarget=Boolean(event.target?.closest?.("input, textarea, select, [contenteditable='true']"));
+      if(mini?.active && !typingTarget && !event.metaKey && !event.ctrlKey && !event.altKey){
+        const key=String(event.key);
+        // P pauses any arcade run.
+        if(key.toLowerCase()==="p" && el.modalOverlay && !el.modalOverlay.classList.contains("show")){ event.preventDefault(); toggleArcadePause(); return; }
+        // The live training game sees its keys next (lanes, strikes, flaps).
+        if(handleMiniKey(event)) return;
       }
-      if(mini?.active&&mini.mode==="power"&&!mini.pausedByAd){const tech={"1":"jab","2":"body","3":"hook","j":"jab","k":"body","l":"hook"}[String(event.key).toLowerCase()];if(tech){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;powerTap(tech);return;}}
-      if(mini?.active&&mini.mode==="spark"&&!mini.pausedByAd&&String(event.key).toLowerCase()==="b"){event.preventDefault();mini.playerInputs=(mini.playerInputs||0)+1;bankSparkStash(false);return;}
       if (event.key !== "Escape") return;
-      if (!el.miniGameOverlay.hidden) finishMiniGame(mini.mode!=="defense");
+      // Escape used to silently destroy a personal best with zero friction.
+      if (!el.miniGameOverlay.hidden) { if(trainingRun?.paused) closeArcadePause(); else if(!openArcadePause()) requestArcadeQuit("escape"); }
       else if (el.modalOverlay.classList.contains("show")) closeModal();
       else if (el.bottomSheet.classList.contains("show")) closeSheet();
     });
+    // A live OS reduced-motion change re-applies without a reload.
+    try{ matchMedia("(prefers-reduced-motion: reduce)")?.addEventListener?.("change",()=>{ document.body.classList.toggle("reduce-motion", reducedMotionActive()); }); }catch(error){}
     document.addEventListener("visibilitychange", () => document.hidden ? suspendRuntime("background") : resumeRuntime("visible"));
     window.addEventListener("pagehide", () => suspendRuntime("pagehide"), { capture: true });
+    window.addEventListener("storage", event => {
+      if (saveBlocked || (event.key !== null && event.key !== SAVE_V2_KEY)) return;
+      const writeId = saveTextWriteId(event.newValue);
+      if (event.key === null || event.newValue === null || (writeId !== null && writeId !== saveWriteId)) blockSaving("conflict");
+    });
     window.addEventListener("pageshow", () => resumeRuntime("pageshow"), { capture: true });
     document.addEventListener("freeze", () => suspendRuntime("freeze"));
     document.addEventListener("resume", () => resumeRuntime("resume"));
-    window.addEventListener("blur", () => cancelDefenseTransientInput("window-blur"), { passive: true });
     window.addEventListener("focus", () => scheduleRuntimeViewportSync("focus"), { passive: true });
     window.addEventListener("resize", () => scheduleRuntimeViewportSync("resize"), { passive: true });
-    window.addEventListener("orientationchange", () => { cancelDefenseTransientInput("orientationchange"); scheduleRuntimeViewportSync("orientation"); }, { passive: true });
+    window.addEventListener("orientationchange", () => scheduleRuntimeViewportSync("orientation"), { passive: true });
     window.visualViewport?.addEventListener("resize", () => scheduleRuntimeViewportSync("visual-resize"), { passive: true });
     window.visualViewport?.addEventListener("scroll", () => scheduleRuntimeViewportSync("visual-scroll"), { passive: true });
     document.addEventListener("fullscreenchange", () => scheduleRuntimeViewportSync("fullscreen"), { passive: true });
     document.addEventListener("webkitfullscreenchange", () => scheduleRuntimeViewportSync("fullscreen"), { passive: true });
-    document.addEventListener("lostpointercapture", event => { if (mini?.active && mini.mode === "defense" && mini.defenseDrag?.pointerId === event.pointerId) cancelDefenseTransientInput("lost-capture"); });
-    window.addEventListener("beforeunload", () => { suspendRuntime("unload"); writeDefenseCheckpoint(true,"unload"); saveState(true); });
+    window.addEventListener("beforeunload", () => { suspendRuntime("unload"); saveState(true); });
+  }
+
+  // ===== GAME-MODE HOST ADAPTER =====
+  // The only bridge between the hub's save and a game mode (core/rizo-modes.js).
+  // Modes receive frozen pet snapshots and a narrow API; every write lands here
+  // and is applied under hub rules (caps, gene limits, stage growth, quests).
+  const MODE_RUN_PREFIX = "rizo-mode-run:";
+  const LEGACY_MAP_SEEN_PREFIX = "rizo-defense-map-seen:";
+  // Pre-contract data a mode used to keep in the hub, offered once to its first
+  // slice migration (state.modeInbox, plus loose keys only Defense ever wrote).
+  const MODE_LEGACY_VIEWS = {
+    defense: () => {
+      const inbox = state.modeInbox?.defense;
+      const mapIntrosSeen = storageKeysWithPrefix(LEGACY_MAP_SEEN_PREFIX).filter(key => readSaveText(key) === "1").map(key => key.slice(LEGACY_MAP_SEEN_PREFIX.length));
+      return inbox || mapIntrosSeen.length ? { ...(inbox || {}), mapIntrosSeen } : null;
+    }
+  };
+  // Pre-contract in-progress runs, newest key first, handed to the mode's run store.
+  const MODE_LEGACY_RUN_KEYS = { defense: LEGACY_DEFENSE_CHECKPOINT_KEYS };
+  let modeExitFocus = null;
+  function storageKeysWithPrefix(prefix) {
+    const keys = [];
+    try { for (let index = 0; index < localStorage.length; index += 1) { const key = localStorage.key(index); if (key && key.startsWith(prefix)) keys.push(key); } } catch (error) {}
+    return keys;
+  }
+  function clearModeRuns() {
+    if (saveBlocked) return;
+    for (const key of storageKeysWithPrefix(MODE_RUN_PREFIX)) { try { localStorage.removeItem(key); } catch (error) {} }
+  }
+
+  function modePetSnapshot(pet, source = "active", rosterIndex = -1) {
+    if (!pet) return null;
+    return {
+      id: pet.id, number: pet.number, name: pet.name, source, rosterIndex,
+      stage: pet.stage, variant: pet.variant || pet.hiddenVariant || "classic", form: pet.form, alignment: Number(pet.alignment) || 0,
+      accessory: pet.accessory || "none", mutation: pet.mutation || "normal", personality: pet.personality, generation: pet.generation || 1, room: pet.room || null,
+      level: pet.stage === "egg" ? 0 : levelForXP(pet.xp), xp: Number(pet.xp) || 0, bond: Number(pet.bond) || 0,
+      hunger: pet.hunger, mood: pet.mood, energy: pet.energy, hygiene: pet.hygiene, health: pet.health,
+      sleeping: Boolean(pet.sleeping), sick: Boolean(pet.sick), resting: Boolean(pet.resting), alive: pet.alive !== false,
+      skills: { ...(pet.skills || {}) }, genes: { ...(pet.genes || {}) },
+      careSummary: modeCareSummary(pet)
+    };
+  }
+  // Recognition cues only, derived from care history with stable tie-breaks.
+  // Modes never receive careProfile, lifeMemory or the histories themselves.
+  function modeCareSummary(pet) {
+    const top = (counts, known) => Object.entries(counts && typeof counts === "object" ? counts : {})
+      .filter(([id, count]) => known(id) && Number(count) > 0)
+      .sort((a, b) => (Number(b[1]) - Number(a[1])) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))[0]?.[0] || null;
+    const foodId = top(pet.careProfile?.foods, id => FOODS.some(food => food.id === id));
+    const food = foodId ? FOODS.find(item => item.id === foodId) : null;
+    const bond = Number(pet.bond) || 0;
+    return {
+      favoriteFood: food ? { id: food.id, name: food.name } : null,
+      favoriteGameId: top(pet.careProfile?.games, id => /^[a-z][a-z0-9-]{1,31}$/.test(id)),
+      bondBand: bond >= 60 ? "attached" : bond >= 25 ? "familiar" : "new"
+    };
+  }
+  function modeRosterSnapshots() {
+    const rows = [modePetSnapshot(state.pet, "active", -1)];
+    (state.farm?.roster || []).forEach((pet, index) => rows.push(modePetSnapshot(pet, "house", index)));
+    return rows.filter(row => row && row.alive && row.stage !== "egg");
+  }
+  function applyModeAward(modeId, award) {
+    const applied = { embers: 0, heat: 0, pets: {}, active: { ...award.active } };
+    mutate((activePet, whole) => {
+      const before = whole.wallet.embers;
+      whole.wallet.embers = SaveCore.clampInteger(before + award.embers, 0, CORE_LIMITS.MAX_WALLET_EMBERS, before);
+      applied.embers = whole.wallet.embers - before;
+      if (award.heat) { earnHeat(award.heat, false); applied.heat = award.heat; }
+      const owned = new Map([[whole.pet.id, whole.pet], ...(whole.farm?.roster || []).map(pet => [pet.id, pet])]);
+      for (const [petId, gains] of Object.entries(award.pets)) {
+        const pet = owned.get(petId);
+        if (!pet || pet.stage === "egg") continue;
+        const got = { xp: gains.xp, bond: 0, skills: {} };
+        for (const [skill, amount] of Object.entries(gains.skills)) got.skills[skill] = Math.round(petGainSkill(pet, skill, amount) * 100) / 100;
+        pet.xp = SaveCore.clampNumber((Number(pet.xp) || 0) + gains.xp, 0, CORE_LIMITS.MAX_PLAYER_XP, 0);
+        const bondBefore = Number(pet.bond) || 0;
+        pet.bond = clamp(bondBefore + gains.bond);
+        got.bond = Math.round((pet.bond - bondBefore) * 100) / 100;
+        if (gains.played) {
+          pet.careProfile ||= { kind: 0, wild: 0, balanced: 0, foods: {}, games: {} };
+          pet.careProfile.games ||= {};
+          pet.careProfile.games[modeId] = (pet.careProfile.games[modeId] || 0) + 1;
+        }
+        applied.pets[petId] = got;
+      }
+      activePet.energy = clamp(activePet.energy + award.active.energy);
+      activePet.hunger = clamp(activePet.hunger + award.active.hunger);
+      activePet.mood = clamp(activePet.mood + award.active.mood);
+      if (award.run) {
+        whole.meta.totalGames += 1;
+        if (modeId === "defense") { whole.home.activity.defense = Math.min(100000000, whole.home.activity.defense + 1); rememberHomeReturn("defense", "RIZO DEFENSE", applied.embers); }
+        progressQuest("play");
+        if (award.embers > 0) { const memory = lifeMemory(); memory.arcadeAfterglowUntil = now() + 16000; memory.lastArcadeMode = modeId; }
+      }
+    });
+    if (award.run) advanceTutorial("play");
+    evaluateForm(true);
+    return Object.freeze(applied);
+  }
+  // What a mode receipt may grant, per mode. Nothing else can be granted
+  // through host.commit(): no currency, XP or arbitrary pet patches.
+  const MODE_ENTITLEMENTS = Object.freeze({
+    dungeon: Object.freeze({
+      "first-knot": Object.freeze({ kind: "wearable", id: "first-knot" }),
+      "shared-hearth": Object.freeze({ kind: "storyMark", id: "shared-hearth" })
+    })
+  });
+  function ownedPetById(petId) {
+    if (state.pet?.id === petId && state.pet.stage !== "egg") return state.pet;
+    return (state.farm?.roster || []).find(pet => pet.id === petId && pet.stage !== "egg") || null;
+  }
+  function commitModeSlice(modeId, { schema, data, reward = null }) {
+    const outcome = (status, extra = {}) => ({ status, rewardApplied: false, duplicateReward: false, backupSynced: false, ...extra });
+    // The old scheduled save would otherwise write later on its own.
+    clearTimeout(saveTimer); saveTimer = null;
+    if (saveBlocked) return outcome("blocked", { reason: `save-${saveBlocked.reason}` });
+    if (stateConflictsWithStorage()) { blockSaving("conflict"); return outcome("blocked", { reason: "save-conflict" }); }
+    let grant = null, duplicate = false;
+    if (reward) {
+      const allowed = MODE_ENTITLEMENTS[modeId] || {};
+      if (reward.entitlements.some(id => !allowed[id])) return outcome("failed", { reason: "unknown-entitlement" });
+      const prior = state.modeReceipts?.[modeId]?.[reward.receiptId];
+      if (prior) {
+        if (prior.petId !== reward.petId || prior.entitlements.join("|") !== reward.entitlements.join("|")) return outcome("failed", { reason: "conflicting-receipt" });
+        duplicate = true;
+      } else {
+        const pet = ownedPetById(reward.petId);
+        if (!pet) return outcome("failed", { reason: "unowned-pet" });
+        if (Object.keys(state.modeReceipts?.[modeId] || {}).length >= MODE_RECEIPT_LIMIT) return outcome("failed", { reason: "receipt-limit" });
+        grant = { pet, entries: reward.entitlements.map(id => allowed[id]) };
+      }
+    }
+    // Everything this commit can touch, for an exact rollback if the primary write fails.
+    const previous = {
+      slice: Object.prototype.hasOwnProperty.call(modeSlices, modeId) ? modeSlices[modeId] : undefined,
+      accessories: [...state.inventory.accessories],
+      marks: grant ? SaveCore.plainJSON(grant.pet.storyMarks || []) : null,
+      receipts: state.modeReceipts?.[modeId] ? { ...state.modeReceipts[modeId] } : undefined,
+      lastActive: state.player.lastActive
+    };
+    modeSlices[modeId] = SaveCore.plainJSON({ schema, data });
+    if (grant) {
+      for (const entry of grant.entries) {
+        if (entry.kind === "wearable" && !state.inventory.accessories.includes(entry.id)) state.inventory.accessories.push(entry.id);
+        if (entry.kind === "storyMark") {
+          grant.pet.storyMarks = normalizeStoryMarks(grant.pet.storyMarks);
+          if (!grant.pet.storyMarks.some(mark => mark.mode === modeId && mark.id === entry.id) && grant.pet.storyMarks.length < STORY_MARK_LIMIT) grant.pet.storyMarks.push({ id: entry.id, mode: modeId, at: now() });
+        }
+      }
+      state.modeReceipts ||= {};
+      state.modeReceipts[modeId] = { ...(state.modeReceipts[modeId] || {}), [reward.receiptId]: { petId: reward.petId, entitlements: [...reward.entitlements], at: now() } };
+    }
+    state.player.lastActive = now();
+    const written = persistStateNow();
+    if (written.status !== "committed") {
+      if (previous.slice === undefined) delete modeSlices[modeId]; else modeSlices[modeId] = previous.slice;
+      state.inventory.accessories = previous.accessories;
+      if (grant) {
+        grant.pet.storyMarks = previous.marks;
+        if (previous.receipts === undefined) delete state.modeReceipts[modeId]; else state.modeReceipts[modeId] = previous.receipts;
+      }
+      state.player.lastActive = previous.lastActive;
+      return outcome(written.status, { reason: written.status === "blocked" ? "save-blocked" : "write-failed" });
+    }
+    return outcome("committed", { rewardApplied: Boolean(grant), duplicateReward: duplicate, backupSynced: written.backupSynced });
+  }
+  // Foreground care policy: settle ordinary time before a held mode opens and
+  // when it closes; presentations it would have shown wait for the Den.
+  function beginModeSession(modeId, { carePolicy } = {}) {
+    if (carePolicy !== "foreground-hold") return;
+    processElapsedTime();
+    modeCareHold = { modeId, away: Boolean(runtimeSuspendedAt), deferred: new Set() };
+  }
+  function endModeSession(modeId) {
+    if (modeCareHold?.modeId !== modeId) return;
+    processElapsedTime();
+    const deferred = modeCareHold.deferred;
+    modeCareHold = null;
+    pendingCarePresentations = deferred;
+  }
+  let pendingCarePresentations = null;
+  function flushCarePresentations() {
+    const deferred = pendingCarePresentations;
+    pendingCarePresentations = null;
+    if (!deferred?.size || document.hidden) return;
+    if (state.pet.resting) showRecoveryModal();
+    else if (deferred.has("elder")) showRebirthInfo();
+  }
+  function recordModeEvent(modeId, event) {
+    modeEventLog.push({ mode: modeId, ...event, at: now() });
+    while (modeEventLog.length > 24) modeEventLog.shift();
+  }
+  // A journey a mode is holding for one pet, from its public summary only.
+  function modeJourneyNote(petId) {
+    const Modes = globalThis.RizoModes;
+    const notes = [];
+    for (const def of Modes?.list?.() || []) {
+      const journey = Modes.summary(def.id)?.journey;
+      if (journey && journey.petId === petId && !journey.complete) notes.push(`${def.name}: ${journey.petName || "this Rizo"}'s journey is saved and waits for this Rizo. It will not move to another pet.`);
+    }
+    return notes.length ? `<p class="mode-journey-note">${notes.map(escapeHTML).join("<br>")}</p>` : "";
+  }
+
+  function modeRunStore(modeId) {
+    const key = `${MODE_RUN_PREFIX}${modeId}`;
+    return Object.freeze({
+      key,
+      read() { try { const text = localStorage.getItem(key); return text ? JSON.parse(text) : null; } catch (error) { return null; } },
+      write(value) { if (saveBlocked) return false; try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (error) { notifySaveFailure(error); return false; } },
+      clear() { if (saveBlocked) return false; try { localStorage.removeItem(key); return true; } catch (error) { return false; } }
+    });
+  }
+  // The stage is the arcade overlay, lent to one mode at a time. The mode may
+  // add classes to stage.root and fill stage.arena; both are reset on close.
+  const STAGE_ROOT_CLASS = "minigame-overlay";
+  function setStageHeader(fields = {}) {
+    if (fields.kicker !== undefined) el.miniKicker.textContent = String(fields.kicker);
+    if (fields.title !== undefined) el.miniTitle.textContent = String(fields.title);
+    if (fields.timer !== undefined) el.miniTimer.textContent = String(fields.timer);
+    if (fields.score !== undefined) el.miniScore.textContent = String(fields.score);
+    if (fields.hint !== undefined) el.miniHint.textContent = String(fields.hint);
+    if (fields.quit !== undefined) el.miniQuit.textContent = String(fields.quit);
+  }
+  function mountMode(modeId, options = {}) {
+    if (mini?.active) finishMiniGame(true, null, { discard: true });
+    closeSheet(); clearToasts();
+    modeExitFocus = document.activeElement;
+    el.miniArena.innerHTML = "";
+    el.miniGameOverlay.className = STAGE_ROOT_CLASS;
+    // Not data-mode: that attribute marks the shelf's launch buttons, and the
+    // shelf refresh (every 5 s on the Arcade view) rewrites their text.
+    el.miniGameOverlay.dataset.activeMode = modeId;
+    if (el.miniPausePanel) { el.miniPausePanel.hidden = true; el.miniPausePanel.innerHTML = ""; }
+    setStageHeader(options);
+    el.miniGameOverlay.hidden = false;
+    lockStageViewport();
+    syncUILock();
+    return Object.freeze({
+      root: el.miniGameOverlay,
+      arena: el.miniArena,
+      panel: el.miniPausePanel || null,
+      header: setStageHeader,
+      // Hides the stage but keeps the mode open (e.g. for its results screen).
+      close: () => closeModeStage(modeId)
+    });
+  }
+  function closeModeStage(modeId) {
+    if (el.miniGameOverlay.dataset.activeMode !== modeId) return false;
+    delete el.miniGameOverlay.dataset.activeMode;
+    el.miniGameOverlay.hidden = true;
+    el.miniGameOverlay.className = STAGE_ROOT_CLASS;
+    el.miniArena.className = "mini-arena";
+    el.miniArena.innerHTML = "";
+    if (el.miniPausePanel) { el.miniPausePanel.hidden = true; el.miniPausePanel.innerHTML = ""; }
+    setStageHeader({ quit: "QUIT RUN" });
+    unlockStageViewport();
+    syncUILock();
+    if (modeExitFocus?.isConnected) modeExitFocus.focus({ preventScroll: true });
+    return true;
+  }
+  function unmountMode(modeId) { closeModeStage(modeId); }
+  function attachModeHost() {
+    const Modes = globalThis.RizoModes;
+    if (!Modes) return false;
+    Modes.attachHub({
+      readSlice: id => (modeSlices[id] ? SaveCore.plainJSON(modeSlices[id]) : null),
+      writeSlice: (id, slice) => { modeSlices[id] = SaveCore.plainJSON(slice); },
+      legacyView: id => (typeof MODE_LEGACY_VIEWS[id] === "function" ? MODE_LEGACY_VIEWS[id]() : null),
+      petSnapshot: () => modePetSnapshot(state.pet, "active", -1),
+      rosterSnapshots: modeRosterSnapshots,
+      petMarkup: (pet, options = {}) => petMarkup({ ...options, pet }),
+      applyAward: applyModeAward,
+      settings: () => ({ sound: state.settings.sound, soundVolume: state.settings.soundVolume, music: state.settings.music, musicVolume: state.settings.musicVolume, haptics: state.settings.haptics, reducedMotion: state.settings.reducedMotion }),
+      audio: Object.freeze({
+        sfx: (name, ...args) => sfx(name, ...args),
+        tone: (...args) => tone(...args),
+        noise: (...args) => noise(...args),
+        haptic: pattern => haptic(pattern),
+        duck: (ms, level) => duckMusic(ms, level),
+        // A built-in scene name, an adaptive track { id, tempo, lead, bass, beat }, or null to hand music back to the hub.
+        music: track => {
+          if (track && typeof track === "object") { const key = `mode-track:${track.id || "mode"}`; modeMusicTracks.set(key, track); activeMusicOverride = key; startMusicForScene(key, true); }
+          else if (typeof track === "string") { activeMusicOverride = track; startMusicForScene(track, true); }
+          else { activeMusicOverride = null; syncMusic(true); }
+        }
+      }),
+      ui: Object.freeze({
+        toast: message => toast(message),
+        modal: (markup, options = {}) => showModal(markup, { onClose: options.onClose }),
+        closeModal: (options = {}) => closeModal({ silent: Boolean(options.silent) }),
+        modalOpen: () => el.modalOverlay.classList.contains("show"),
+        cutscene: options => playPetCutscene(options),
+        celebrate: () => celebrate()
+      }),
+      keeperId: () => state.player.keeperId,
+      report: (modeId, kind, details) => recordSaveValidationWarning(`mode-${modeId}-${kind}`, details),
+      debug: IS_QA_BUILD,
+      build: RIZO_RUNTIME_BUILD,
+      runStore: modeRunStore,
+      mount: mountMode,
+      unmount: unmountMode,
+      save: () => saveState(),
+      commitSlice: commitModeSlice,
+      modeEvent: recordModeEvent,
+      sessionStart: beginModeSession,
+      sessionEnd: endModeSession,
+      onExit: (modeId, summary, { destination } = {}) => {
+        activeMusicOverride = null; syncMusic(true);
+        if (modeId === "dungeon") rememberHomeReturn("dungeon", "RIZO DUNGEON");
+        playDoorway("return");
+        changeView("home");
+        recordModeEvent(modeId, { kind: "returnedToHub", boundaryId: "hub", campaignId: "", tone: "protected", interruption: "none" });
+        flushCarePresentations();
+        // A proof homecoming gets one small familiar gesture in the Den, nothing more.
+        if (destination === "home" && summary?.homecoming === true) setTimeout(() => setLifeBehavior("shake", 1800), 650);
+      }
+    });
+    prepareModeSlices();
+    return true;
+  }
+  // Runs every registered mode's slice migration once, hands over legacy
+  // in-progress runs, and clears the inbox for modes that now have a slice.
+  function prepareModeSlices() {
+    const Modes = globalThis.RizoModes;
+    if (!Modes) return;
+    let changed = false;
+    for (const mode of Modes.list()) {
+      try {
+        const result = Modes.ensureSlice(mode.id);
+        if (result && !result.newer && state.modeInbox?.[mode.id]) { delete state.modeInbox[mode.id]; changed = true; }
+        if (result && !result.newer && mode.id === "defense") for (const key of storageKeysWithPrefix(LEGACY_MAP_SEEN_PREFIX)) { if (!saveBlocked) try { localStorage.removeItem(key); } catch (error) {} }
+        adoptLegacyModeRun(mode.id);
+      }
+      catch (error) { console.warn(`Rizo could not prepare the ${mode.id} save`, error); recordSaveValidationWarning("mode-slice-migration-failed", { mode: mode.id, message: String(error?.message || error).slice(0, 200) }); }
+    }
+    if (changed) saveState();
+  }
+  function adoptLegacyModeRun(modeId) {
+    const keys = MODE_LEGACY_RUN_KEYS[modeId];
+    if (!keys?.length || saveBlocked) return false;
+    const store = modeRunStore(modeId);
+    const text = keys.map(readSaveText).find(Boolean);
+    if (!text) return false;
+    let value = null;
+    try { value = JSON.parse(text); } catch (error) { value = null; }
+    // Copy first; the old keys go only once the copy is safely written.
+    if (value && !store.read() && !store.write(value)) return false;
+    for (const key of keys) { try { localStorage.removeItem(key); } catch (error) {} }
+    return true;
+  }
+
+  // ===== GAME MODES ON THE HUB =====
+  function modeEntryBlocker(def) {
+    const pet = state.pet;
+    if (pet.stage === "egg") return "HATCH FIRST";
+    if (pet.resting) return "RECOVERING";
+    if (pet.sleeping) return "WAKE RIZO";
+    if (pet.energy < (def.entry?.energy || 0)) return `NEED ${def.entry.energy} ENERGY`;
+    return "";
+  }
+  function launchModeFromHub(modeId) {
+    const Modes = globalThis.RizoModes, def = Modes?.get?.(modeId);
+    if (!def) { toast("THAT GAME IS NOT AVAILABLE ON THIS BUILD"); return false; }
+    if (!canCare()) return false;
+    if (def.carePolicy === "foreground-hold") processElapsedTime();
+    const blocked = modeEntryBlocker(def);
+    if (blocked) { toast(`${blocked} • ${def.name}`); sfx("no"); return false; }
+    playDoorway("leave", def.name);
+    try { return Modes.launch(modeId, {}); }
+    catch (error) { console.warn(`Rizo could not open ${modeId}`, error); toast("THAT GAME COULD NOT OPEN • YOUR SAVE IS SAFE"); return false; }
+  }
+  // Leaving home and coming back are a doorway, not a cut. Presentation only:
+  // the mode launches (or the Den returns) immediately underneath it.
+  function playDoorway(direction, name = "") {
+    if (reducedMotionActive()) return;
+    document.querySelectorAll(".go-doorway").forEach(node => node.remove());
+    const door = document.createElement("div");
+    door.className = `go-doorway ${direction}`;
+    door.setAttribute("aria-hidden", "true");
+    door.innerHTML = direction === "leave"
+      ? `<i class="doorway-light"></i><b>${escapeHTML(state.pet.name)} IS HEADING OUT</b><small>${escapeHTML(String(name).toUpperCase())}</small>`
+      : `<i class="doorway-light"></i><b>HOME</b>`;
+    document.body.appendChild(door);
+    setTimeout(() => door.remove(), direction === "leave" ? 1100 : 800);
+  }
+  // Shelf cards for modes: [data-mode="<id>"] buttons and [data-mode-best] cells.
+  function renderModeShelf() {
+    const Modes = globalThis.RizoModes;
+    if (!Modes) return;
+    for (const button of $$("button[data-mode]")) {
+      const def = Modes.get(button.dataset.mode);
+      if (!def) { button.classList.add("game-blocked"); button.textContent = "UNAVAILABLE"; continue; }
+      const blocked = modeEntryBlocker(def);
+      button.classList.toggle("game-blocked", Boolean(blocked));
+      button.textContent = blocked || button.dataset.modeLabel || "PLAY";
+    }
+    for (const cell of $$("[data-mode-best]")) {
+      const def = Modes.get(cell.dataset.modeBest), summary = Modes.summary(cell.dataset.modeBest);
+      const value = cell.querySelector("b"), label = cell.querySelector("span");
+      if (value) value.textContent = summary?.bestLabel || "—";
+      if (label && def) label.textContent = summary?.unit === "wave" ? `${def.name} • WAVE` : summary?.unit === "journey" ? `${def.name} • JOURNEY` : def.name;
+      cell.classList.toggle("score-cell-wave", summary?.unit === "wave");
+    }
+    // A mode's summary may carry a small badge ({ text, title }) for its card.
+    for (const card of $$("[data-mode-card]")) {
+      const badgeInfo = Modes.summary(card.dataset.modeCard)?.badge;
+      let badge = card.querySelector(".mode-badge");
+      if (badgeInfo?.text) {
+        if (!badge) { badge = document.createElement("i"); badge.className = "mode-badge"; card.appendChild(badge); }
+        badge.textContent = String(badgeInfo.text);
+        badge.title = String(badgeInfo.title || "");
+      } else badge?.remove();
+    }
+    for (const meta of $$("[data-mode-meta]")) {
+      const def = Modes.get(meta.dataset.modeMeta), summary = Modes.summary(meta.dataset.modeMeta);
+      if (!def) continue;
+      const affordable = (state.pet?.energy ?? 0) >= (def.entry?.energy || 0);
+      const bestTitle = summary?.unit === "wave" ? "BEST WAVE" : summary?.unit === "journey" ? "JOURNEY" : "BEST";
+      const entryCell = summary?.entryLabel ? `<span class="meta-energy"><small>ENTRY</small><b>${escapeHTML(summary.entryLabel)}</b></span>` : `<span class="meta-energy${affordable ? "" : " short"}"><small>ENERGY</small><b>${def.entry?.energy || 0}</b></span>`;
+      const lengthCell = summary?.unit === "journey" ? `<span class="meta-length"><small>PACE</small><b>SAVED STORY</b></span>` : `<span class="meta-length"><small>${summary?.lengthLabel ? "LENGTH" : "RUN"}</small><b>${escapeHTML(summary?.lengthLabel || "ENDLESS")}</b></span>`;
+      meta.innerHTML = `<span class="meta-best"><small>${bestTitle}</small><b>${escapeHTML(summary?.bestLabel || "—")}</b></span>${entryCell}${lengthCell}`;
+    }
+  }
+  // Journal → Settings rows declared by each mode (def.settings), stored in its slice.
+  function modeSettingsMarkup() {
+    const Modes = globalThis.RizoModes;
+    return (Modes?.list?.() || []).filter(def => def.settings?.length).map(def => {
+      const values = Modes.readSettings(def, modeSlices[def.id]?.data);
+      const rows = def.settings.map(setting => setting.kind === "toggle"
+        ? `<label class="setting-row"><span>${escapeHTML(setting.title)}<small>${escapeHTML(setting.copy)}</small></span><input class="toggle" type="checkbox" data-mode-setting="${escapeHTML(def.id)}:${escapeHTML(setting.key)}" ${values[setting.key] ? "checked" : ""}></label>`
+        : `<div class="setting-row setting-choice-row"><span>${escapeHTML(setting.title)}<small>${escapeHTML(setting.copy)}</small></span><span class="setting-choice-control" role="group" aria-label="${escapeHTML(setting.title)}">${setting.choices.map(([value, label]) => `<button type="button" data-setting-choice="mode:${escapeHTML(def.id)}:${escapeHTML(setting.key)}:${escapeHTML(value)}" class="${values[setting.key] === value ? "active" : ""}" aria-pressed="${values[setting.key] === value}">${escapeHTML(label)}</button>`).join("")}</span></div>`).join("");
+      return `<section class="settings-board"><h3>${escapeHTML(def.name)}</h3>${rows}</section>`;
+    }).join("");
+  }
+  function setModeSetting(modeId, key, value) {
+    const Modes = globalThis.RizoModes, def = Modes?.get?.(modeId);
+    if (!def) return false;
+    const next = Modes.writeSetting(def, modeSlices[modeId]?.data, key, value);
+    if (!next) return false;
+    modeSlices[modeId] = { schema: modeSlices[modeId]?.schema || def.schema, data: next };
+    saveState(true); renderAll();
+    const setting = def.settings.find(item => item.key === key);
+    toast(`${setting?.title || key} • ${String(setting?.kind === "toggle" ? (next.settings[key] ? "ON" : "OFF") : next.settings[key]).toUpperCase()}`);
+    return true;
   }
 
   function boot() {
-    document.addEventListener("rizo:ad-start", () => { if (mini?.active) { mini.pausedByAd = true; mini.pauseAt = now(); if(mini.mode==="rhythm"){mini.rhythmPauseClock=rhythmClockNow();stopRhythmVoices();} } stopMusic(); });
-    document.addEventListener("rizo:ad-end", () => { if (mini?.active) { const pausedFor=Math.max(0, now() - (mini.pauseAt || now())); mini.endAt += pausedFor; if(mini.mode==="rhythm"){const seconds=Math.max(0,rhythmClockNow()-(mini.rhythmPauseClock||rhythmClockNow()));mini.rhythmStartClock+=seconds;scheduleRhythmAudio(Math.max(0,rhythmClockNow()-mini.rhythmStartClock));} mini.pausedByAd = false; } syncMusic(true); });
+    document.addEventListener("rizo:ad-start", () => {
+      if (adAudioHolds++ === 0) adAudioWasRunning = audioContext?.state === "running";
+      arcadeFreeze("ad"); globalThis.RizoModes?.suspendActive?.("ad"); stopMusic(0);
+      if (audioContext?.state === "running") audioContext.suspend().catch(() => {});
+      syncUILock();
+    });
+    document.addEventListener("rizo:ad-end", event => {
+      adAudioHolds = Math.max(0, adAudioHolds - 1);
+      if (event.detail?.requiresResume) { openArcadePause(); globalThis.RizoModes?.suspendActive?.("manual"); }
+      arcadeThaw("ad"); globalThis.RizoModes?.resumeActive?.("ad"); syncUILock();
+      if (!adAudioHolds && !document.hidden && adAudioWasRunning) audioContext?.resume().catch(() => {});
+      if (!adAudioHolds) syncMusic(true);
+    });
     loadState();
+    attachModeHost();
     buildRain();
     bindEvents();
     scheduleIdleLife();
@@ -7905,15 +6581,20 @@ Streak: ${state.player.streak}`;
   function createRizoRuntimeQA(){return Object.freeze({
     defaultState: () => JSON.parse(JSON.stringify(defaultState())),
     buildStateEnvelopeForQA: payload => buildStateEnvelope(payload||state,123456789),
-    verifyStateEnvelopeForQA: envelope => DefenseCore.verifyStateSignature(envelope),
+    verifyStateEnvelopeForQA: envelope => SaveCore.verifyEnvelope(envelope),
     decodeStatePayloadForQA: payload => {const decoded=decodeStatePayload(payload);return{status:decoded.status,state:decoded.state};},
     saveValidationWarningForQA: () => {try{return JSON.parse(localStorage.getItem(SAVE_VALIDATION_WARNING_KEY)||"null");}catch(error){return null;}},
     visualMatrixForQA: () => ({matrix:RIZO_FORMS,variants:VARIANTS,stages:STAGES,ages:AGE_VISUALS,calibration:VARIANT_VISUAL_CALIBRATION,wearables:WEARABLE_DEFS}),
     resolveRizoVisualForQA: options => resolveRizoVisual(options||{}),
-    beatTracksForQA: () => ({tracks:EMBER_BEAT_TRACKS,chart:EMBER_BEAT_TRACKS.map(track=>({id:track.id,events:buildRhythmChart(track)})),stepSeconds:EMBER_BEAT_TRACKS.map(track=>({id:track.id,value:rhythmStepSeconds(track)}))}),
     normalizeState: payload => normalizeStateDetached(payload),
     loadForQA(payload = {}) {
-      state = normalizeState(payload);
+      if (globalThis.RizoModes?.active?.()) globalThis.RizoModes.quitActive("qa-load");
+      const { qaModes = null, ...hubPayload } = payload || {};
+      resetDenPresentation();
+      state = normalizeState(hubPayload);
+      modeSlices = qaModes && typeof qaModes === "object" ? SaveCore.normalizeModes(SaveCore.plainJSON(qaModes)) : {};
+      for (const modeId of Object.keys(state.modeInbox || {})) delete modeSlices[modeId];
+      prepareModeSlices();
       activeHouseRoom = state.farm?.activeRoom || 0;
       state.introSeen = true;
       el.originScreen.hidden = true;
@@ -7922,157 +6603,111 @@ Streak: ${state.player.streak}`;
       renderAll();
       return {version:state.version,stage:state.pet.stage,variant:state.pet.variant,accessory:state.pet.accessory};
     },
-    snapshot: () => JSON.parse(JSON.stringify(state)),
+    snapshot: () => ({ ...JSON.parse(JSON.stringify(state)), qaModes: SaveCore.plainJSON(modeSlices) }),
     saveForQA: () => { saveState(true); return true; },
-    showDefenseLobbyForQA: (choice="auto") => { showDefenseWorldLobby(choice); return {choice:pendingDefenseMapChoice,checkpoint:Boolean(readDefenseCheckpoint())}; },
-    defenseWriteCheckpointForQA: (reason="qa") => writeDefenseCheckpoint(true,String(reason||"qa")),
-    defenseReadCheckpointForQA: () => { const checkpoint=readDefenseCheckpoint(); return checkpoint?{checkpointVersion:checkpoint.checkpointVersion,savedAt:checkpoint.savedAt,keeperId:checkpoint.keeperId,mapId:checkpoint.mapId,contract:checkpoint.contract?{...checkpoint.contract}:null,currentWave:checkpoint.currentWave,clearedWave:checkpoint.clearedWave,reachedWave:checkpoint.currentWave,lives:checkpoint.lives,cash:checkpoint.cash,phase:checkpoint.phase,resumePhase:checkpoint.resumePhase,speed:checkpoint.speed,clock:checkpoint.clock,towers:checkpoint.towers.map(tower=>({...tower})),enemies:checkpoint.enemies.map(enemy=>({...enemy})),projectiles:checkpoint.projectiles.map(shot=>({...shot})),spawnQueue:checkpoint.spawnQueue.map(entry=>typeof entry==="string"?entry:{...entry}),wavePackets:checkpoint.wavePackets.map(packet=>({...packet,enemies:packet.enemies.map(entry=>typeof entry==="string"?entry:{...entry})})),childSpawnQueue:checkpoint.childSpawnQueue.map(item=>({...item,options:{...item.options}})),waveTotal:checkpoint.waveTotal,waveResolved:checkpoint.waveResolved,validationWarning:checkpoint.validationWarning||null,reason:checkpoint.reason}:null; },
-    defenseClearCheckpointForQA: () => { clearDefenseCheckpoint(); return !readDefenseCheckpoint(); },
-    defenseCheckpointKeyForQA: () => DEFENSE_CHECKPOINT_KEY,
-    defenseRestoreCheckpointForQA: raw => restoreDefenseCheckpoint(raw),
-    defenseNormalizeCheckpointForQA: raw => {const normalized=normalizeDefenseCheckpoint(raw);return normalized?JSON.parse(JSON.stringify(normalized)):null;},
-    defenseSignCheckpointForQA: (raw,version=DEFENSE_CHECKPOINT_VERSION) => {const checkpoint=JSON.parse(JSON.stringify(raw||{})),safeVersion=DefenseCore.clampInteger(version,2,DEFENSE_CHECKPOINT_VERSION,DEFENSE_CHECKPOINT_VERSION);checkpoint.checkpointVersion=safeVersion;checkpoint.signature=DefenseCore.createSaveSignature(checkpoint,safeVersion);return checkpoint;},
-    defenseBuildCheckpointForQA: (reason="qa") => mini.defense?JSON.parse(JSON.stringify(buildDefenseCheckpoint(mini.defense,String(reason||"qa")))):null,
-    defenseCoreForQA: () => ({version:DefenseCore.VERSION,limits:{...DEFENSE_LIMITS},phases:{...DEFENSE_PHASES},budgets:JSON.parse(JSON.stringify(DEFENSE_BUDGETS)),simulation:{...DefenseCore.SIMULATION},economy:{...DefenseCore.ECONOMY},upgradeCosts:[...DefenseCore.UPGRADE_COSTS],goldenAtTwenty:DefenseCore.goldenBonus(20),goldenActiveOne:DefenseCore.goldenActivePayout({clearedWave:20,upgradeLevel:2,goldenTowerCount:1}),goldenActiveFive:DefenseCore.goldenActivePayout({clearedWave:20,upgradeLevel:2,goldenTowerCount:5}),deploySamples:[0,1,2,3].map(paidTowerCount=>DefenseCore.deploymentCost({paidTowerCount,copyCount:0,activeFirst:false})),densityNormal1x:DefenseCore.densityCap({low:false,speed:1}),densityNormal2x:DefenseCore.densityCap({low:false,speed:2}),densityLow1x:DefenseCore.densityCap({low:true,speed:1}),visualNormal1x:DefenseCore.visualBudget({low:false,speed:1}),visualNormal2x:DefenseCore.visualBudget({low:false,speed:2}),visualLow2x:DefenseCore.visualBudget({low:true,speed:2})}),
-    defenseSetRunForQA: (values={}) => { const d=mini.defense;if(!d)return null;if(Number.isFinite(Number(values.wave)))d.wave=Math.max(0,Math.floor(Number(values.wave)));if(Number.isFinite(Number(values.lives)))d.lives=clamp(Math.floor(Number(values.lives)),0,d.map.lives);if(Number.isFinite(Number(values.cash)))d.cash=Math.max(0,Number(values.cash));if(values.phase)d.phase=DefenseCore.normalizePhase(values.phase,d.phase);if(Number.isFinite(Number(values.clock)))d.clock=Math.max(0,Number(values.clock));if(typeof values.paused==="boolean")d.paused=values.paused;markDefenseUi({roster:true});flushDefenseUi(true);return{currentWave:d.currentWave,clearedWave:d.clearedWave,wave:d.currentWave,lives:d.lives,cash:d.cash,phase:d.phase,clock:d.clock,paused:d.paused}; },
-    defensePhaseForQA: () => {const d=mini.defense;if(!d)return null;const ui=defensePhaseUi(d);return{phase:d.phase,resumePhase:d.resumePhase||null,currentWave:d.currentWave,clearedWave:d.clearedWave,label:ui.label,detail:ui.detail,tone:ui.tone,domLabel:$("#defensePhaseLabel")?.textContent||"",domDetail:$("#defensePhaseDetail")?.textContent||"",domWave:$("#defenseWave")?.textContent||"",domCleared:$("#defenseClearedWave")?.textContent||"",transitionRejects:d.phaseTransitionRejects||0};},
-    defenseAttemptPhaseForQA: requested => {const d=mini.defense;if(!d)return null;const before=d.phase,normalized=DefenseCore.normalizePhase(requested,before),accepted=defenseSetPhase(d,normalized),after=d.phase;flushDefenseUi(true);return{before,requested:normalized,accepted,after,rejects:d.phaseTransitionRejects||0};},
-    defenseOverlayForQA: () => {const d=mini.defense;if(!d)return null;const surface=defenseContextSurface(d),host=surface?defenseContextElement(surface):null,active=document.activeElement;return{surface,fieldMenuOpen:Boolean(d.fieldMenuOpen),abilityTrayOpen:Boolean(d.abilityTrayOpen),intelOpen:Boolean(d.intelOpen),towerOpen:Boolean(d.selectedTowerId),scrimHidden:$(".defense-context-scrim")?.hidden??true,stageInert:Boolean($(".defense-stage-frame")?.inert),commandsInert:Boolean($(".defense-command-deck")?.inert),rosterInert:Boolean($(".defense-deploy-dock")?.inert),focusInside:Boolean(host&&active&&host.contains(active)),activeTag:active?.tagName||"",activeText:(active?.textContent||"").trim().slice(0,80)};},
-    defenseSchoolForQA: () => JSON.parse(JSON.stringify(defenseSchoolState())),
-    defenseSchoolRestartForQA: () => {restartDefenseSchool();return JSON.parse(JSON.stringify(defenseSchoolState()));},
-    defenseSchoolCompleteForQA: id => {const ok=completeDefenseSchoolLesson(String(id||""),{silent:true});return{ok,school:JSON.parse(JSON.stringify(defenseSchoolState()))};},
-    defenseSchoolCoachForQA: () => ({next:defenseSchoolNext()?.id||null,hidden:$("#defenseSchoolCoach")?.hidden??true,text:$("#defenseSchoolCoach")?.textContent||""}),
-    defenseTraceRouteForQA: () => traceDefenseRoute(),
-    defenseFieldGuideMarkupForQA: tab => defenseFieldGuideMarkup(tab||"rizos"),
-    defenseShowFieldGuideForQA: tab => {showDefenseFieldGuide(tab||"rizos");const card=document.querySelector("#modalOverlay .defense-field-guide");return{shown:Boolean(card),text:card?.textContent||""};},
-    defenseShowRecordsForQA: () => {showDefenseRecords();const card=document.querySelector("#modalOverlay .defense-records-modal");return{shown:Boolean(card),text:card?.textContent||""};},
-    defenseShowLobbyForQA: mapId => {showDefenseWorldLobby(mapId||"grove");const card=document.querySelector("#modalOverlay .defense-world-lobby");return{shown:Boolean(card),text:card?.textContent||""};},
-    defenseShowTowerPanelForQA: () => {const tower=mini.defense?.towers[0];if(!tower)return false;showDefenseTowerPanel(tower);return{shown:!$("#defenseTowerPanel")?.hidden,text:$("#defenseTowerPanel")?.textContent||""};},
-    showDefenseFieldGuideForQA: tab => {showDefenseFieldGuide(tab||"rizos");return true;},
-    defenseMapMetaForQA: () => Object.fromEntries(DEFENSE_MAP_ORDER.map(id=>[id,{entrance:DEFENSE_MAPS[id].entrance,lore:DEFENSE_MAPS[id].lore,lesson:DEFENSE_MAPS[id].lesson}])),
-    defenseRecordsForQA: () => JSON.parse(JSON.stringify({history:state.scores?.defenseHistory||[],mastery:state.scores?.defenseMastery||{},contracts:state.scores?.defenseContracts||[],perfectMaps:state.scores?.defensePerfectMaps||[],maps:state.scores?.defenseMaps||{}})),
-    defenseSetMasteryForQA: (petId,waves=0) => {const row=defenseRoster().find(item=>item.pet.id===petId)||defenseRoster()[0];if(!row)return null;const prior=state.scores.defenseMastery?.[row.pet.id]||{};state.scores.defenseMastery||={};state.scores.defenseMastery[row.pet.id]={petId:row.pet.id,name:row.pet.name,variant:row.pet.variant||row.pet.hiddenVariant||"classic",runs:Math.max(1,Number(prior.runs)||1),waves:Math.max(0,Number(waves)||0),bestWave:Math.max(0,Number(prior.bestWave)||0),pops:Math.max(0,Number(prior.pops)||0),damage:Math.max(0,Number(prior.damage)||0),bosses:Math.max(0,Number(prior.bosses)||0),powerPaths:Math.max(0,Number(prior.powerPaths)||0),controlPaths:Math.max(0,Number(prior.controlPaths)||0),lastAt:now()};return{tier:defenseMasteryTier(state.scores.defenseMastery[row.pet.id]),title:defenseMasteryTitle(state.scores.defenseMastery[row.pet.id]),signature:defenseMasterySignatureName(state.scores.defenseMastery[row.pet.id])};},
-    defenseSetPresentationForQA: (fx="auto",ui="standard",signatures=true) => {state.settings.defenseFx=["auto","full","low"].includes(fx)?fx:"auto";state.settings.defenseUiScale=["compact","standard","large"].includes(ui)?ui:"standard";state.settings.defenseSignatures=signatures!==false;renderSharedUI();return{fx:state.settings.defenseFx,ui:state.settings.defenseUiScale,signatures:state.settings.defenseSignatures,body:document.body.className};},
-    defenseSetRendererForQA: mode => {defenseRendererOverride=["canvas","dom"].includes(String(mode))?String(mode):null;return defenseRendererOverride||"auto";},
-    defenseDisableCanvasForQA: () => {const d=mini.defense;if(!d?.canvasRenderer)return false;d.canvasRenderer.enabled=false;renderDefensePresentation(1,true);return{rendererMode:d.rendererMode,enemyNodes:document.querySelectorAll(".defense-enemy").length,projectileNodes:document.querySelectorAll(".defense-shot").length,canvasFallbacks:d.canvasFallbacks||0};},
-    defenseRecordsMarkupForQA: () => defenseRecordsMarkup(),
-    showDefenseRecordsForQA: () => {showDefenseRecords();return true;},
-    defenseDailyContractForQA: date => JSON.parse(JSON.stringify(ensureDailyDefenseContract(date||dateKey()))),
-    defenseStartContractForQA: raw => {const contract=normalizeDefenseRunContract(raw)||ensureDailyDefenseContract();startMiniGame("defense",{mapId:contract.mapId,defenseContract:contract});return mini.defense?{id:mini.defense.contract?.id||null,mapId:mini.defense.mapId,rules:[...(mini.defense.contract?.rules||[])],maxTowers:mini.defense.maxTowers}:null;},
-    defenseContractForQA: () => mini.defense?.contract?JSON.parse(JSON.stringify(mini.defense.contract)):null,
-    defenseSellForQA: () => {const tower=mini.defense?.towers[0];return tower?sellDefenseTower(tower.id):false;},
-    defenseSellLastForQA: () => {const tower=mini.defense?.towers.at(-1);return tower?sellDefenseTower(tower.id):false;},
-    defenseBuyUpgradeForQA: id => {const tower=id?mini.defense?.towers.find(item=>item.id===id):mini.defense?.towers.at(-1);return tower?upgradeDefenseTower(tower.id):false;},
-    defenseEconomyForQA: () => {const d=mini.defense,tower=d?.towers.at(-1);return d?{baseStartingCash:BASE_DEFENSE_STARTING_CASH,cash:d.cash,mapId:d.mapId,worldPerk:defenseWorldPerkLabel(d),worldPerkUsed:Boolean(d.worldPerkUsed),phase:d.phase,placementAllowed:defensePlacementAllowed(d),sellAllowed:defenseSellAllowed(d),upgradeAllowed:defenseUpgradeAllowed(d),goldenBonus:defenseGoldenBonus(),tower:tower?{id:tower.id,cost:tower.cost,spent:tower.spent,upgrade:tower.upgrade,openingPerkApplied:Boolean(tower.openingPerkApplied),canUndo:defenseCanUndoPlacement(tower,d),sellRefund:defenseSellRefund(tower,d),nextUpgradeCost:defenseUpgradeCost(tower,d)}:null}:null;},
-    defenseCastForQA: () => {const tower=mini.defense?.towers[0],d=mini.defense;if(!tower||!d)return false;tower.upgrade=Math.max(2,tower.upgrade);tower.doctrine=tower.doctrine||defenseContractForcedDoctrine()||"power";tower.abilityReadyAt=0;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.paused=false;return activateDefenseAbility(tower.id);},
-    defenseAbilityGroupsForQA: () => defenseAbilityGroups().map(group=>({id:group.id,active:group.ability.active,total:group.instances.length,ready:group.ready.length,nextRemaining:Number.isFinite(group.nextRemaining)?group.nextRemaining:null,instances:group.instances.map(row=>({id:row.tower.id,remaining:row.remaining,level:row.tower.upgrade+1,copy:row.tower.copyNumber||1,field:defenseTowerFieldLabel(row.tower)}))})),
-    defenseSetAbilityStateForQA: (id,values={}) => {const d=mini.defense,tower=d?.towers.find(item=>item.id===id);if(!tower)return false;tower.upgrade=Math.max(2,Math.floor(Number(values.upgrade??tower.upgrade)||2));tower.doctrine=DEFENSE_DOCTRINES[values.doctrine]?values.doctrine:(tower.doctrine||"power");const remaining=Math.max(0,Number(values.remaining)||0);tower.abilityReadyAt=defenseNow()+remaining;defenseSetPhase(d,DefenseCore.normalizePhase(values.phase,DEFENSE_PHASES.COMBAT),{force:true});d.paused=Boolean(values.paused);refreshDefenseTower(tower);markDefenseUi();flushDefenseUi(true);return{id:tower.id,abilityId:defenseAbilityId(tower),remaining:Math.ceil(defenseAbilityRemaining(tower)),doctrine:tower.doctrine,upgrade:tower.upgrade};},
-    defenseFieldLeaderForQA: () => {const tower=defenseFieldLeader();return tower?{id:tower.id,petId:tower.petId,name:tower.pet?.name||"",doctrine:tower.doctrine||null,upgrade:tower.upgrade,superForm:tower.superForm||null}:null;},
-    defenseAscendForQA: id => {const tower=mini.defense?.towers.find(item=>item.id===id)||mini.defense?.towers[0];if(!tower)return false;return ascendDefenseTower(tower.id);},
-    defenseOpenAbilitiesForQA: force => {toggleDefenseAbilityTray(force!==false);return{open:Boolean(mini.defense?.abilityTrayOpen),groups:defenseAbilityGroups().length,badge:$("#defenseAbilityCount")?.textContent||"",text:$("#defenseAbilityTray")?.textContent||""};},
-    defenseToggleBenchForQA: force => {toggleDefenseBench(force);return{open:Boolean(mini.defense?.benchOpen),shell:$(".defense-shell")?.className||""};},
-    defenseToggleFieldMenuForQA: force => {toggleDefenseFieldMenu(force);return{open:Boolean(mini.defense?.fieldMenuOpen),hidden:$("#defenseFieldMenu")?.hidden??true,shell:$(".defense-shell")?.className||""};},
-    defenseActivateAbilityGroupForQA: id => activateDefenseAbilityGroup(String(id||"")),
-    defenseBossTelegraphForQA: (bossId="crown") => {const d=mini.defense;if(!d)return false;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});const enemy=spawnDefenseEnemy({type:"boss",bossId,intensity:0},{progress:.42});if(bossId==="crown"||bossId==="mirror")enemy.hp=enemy.maxHp*.49;else enemy.nextBossPulse=d.clock;handleDefenseBossMechanics(enemy);return{enemyId:enemy.id,bossId:enemy.bossId,kind:enemy.telegraphKind,until:enemy.telegraphUntil,interruptible:Boolean(DEFENSE_BOSS_TELEGRAPHS[enemy.telegraphKind]?.interruptible)};},
-    defenseInterruptBossForQA: (enemyId,doctrine="control",hits=4) => {const d=mini.defense,enemy=d?.enemies.find(item=>item.id===enemyId),tower=d?.towers[0];if(!enemy||!tower)return false;tower.doctrine=doctrine;for(let i=0;i<Math.max(1,Number(hits)||1)&&enemy.telegraphKind;i+=1)disruptDefenseBossTelegraph(enemy,tower,.34);return{kind:enemy.telegraphKind,disruption:enemy.telegraphDisruption||0,interrupts:d.enemyStats.counters.bossInterrupts||0,phaseTriggered:Boolean(enemy.phaseTriggered),nextBossPulse:enemy.nextBossPulse};},
+    modeSliceForQA: id => (modeSlices[id] ? SaveCore.plainJSON(modeSlices[id]) : null),
+    modeRunKeyForQA: id => `${MODE_RUN_PREFIX}${id}`,
+    modeSettingsMarkupForQA: () => modeSettingsMarkup(),
     startMiniGame,
     finishMiniGame,
-    chooseEmberBeatTrack,
-    rhythmTapForQA: lane => rhythmTap(Number(lane)),
-    rhythmTimingForQA: () => { const elapsed=mini.mode==="rhythm"?rhythmClockNow()-mini.rhythmStartClock:null; const open=mini.mode==="rhythm"?mini.rhythmChart.filter(note=>!note.handled).map(note=>({lane:note.lane,hitTime:note.hitTime,delta:note.hitTime-elapsed})).sort((a,b)=>Math.abs(a.delta)-Math.abs(b.delta)).slice(0,4):[]; return {ready:Boolean(mini.rhythmReady),elapsed,open}; },
-    rhythmSnapshot: () => ({track:mini.rhythmTrack?.id||null,difficulty:mini.rhythmTrack?.difficulty||null,chart:mini.rhythmChart.map(note=>({hitTime:note.hitTime,lane:note.lane,handled:note.handled||false})),streak:mini.rhythmStreak,maxStreak:mini.rhythmMaxStreak,judgements:{...(mini.rhythmJudgements||{})},accuracy:mini.mode==="rhythm"?rhythmAccuracyPercent():null}),
     renderAll,
-    setBehaviorForQA(behavior = "") { activePetBehavior = behavior; if(currentView === "home") renderHome(); return el.petActor.className; },
+    setBehaviorForQA(behavior = "") { startDenBehavior(behavior); return el.petActor.className; },
+    homeForQA: () => ({view:currentView,home:SaveCore.plainJSON(state.home),position:{...state.pet.denPosition},reactions:[...denReactions.keys()]}),
+    moveDenForQA: moveDenTo,
+    buildHomeForQA: buildHome,
     markupForQA(context = "cutscene", accessory = state.pet.accessory) { return petMarkup({context,overrides:{accessory}}); },
-    miniSnapshot: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,track:mini?.rhythmTrack?.id||null,voices:(mini?.rhythmVoices||[]).length,intervals:(mini?.intervals||[]).length,timeouts:(mini?.timeouts||[]).length,entities:(mini?.entities||[]).length,defense:mini?.defense?{mapId:mini.defense.mapId,contract:mini.defense.contract?{...mini.defense.contract}:null,maxTowers:mini.defense.maxTowers,speed:mini.defense.speed,currentWave:mini.defense.currentWave,clearedWave:mini.defense.clearedWave,wave:mini.defense.currentWave,lives:mini.defense.lives,cash:mini.defense.cash,towers:(mini.defense.towers||[]).length,enemies:(mini.defense.enemies||[]).length,phase:mini.defense.phase}:null}),
-    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,power:{streak:mini?.powerStreak||0,best:mini?.powerBestStreak||0,heat:mini?.powerHeat||0,guard:Boolean((mini?.powerGuardUntil||0)>now()),reads:mini?.powerGuardReads||0,call:mini?.powerCall||null,callsRead:mini?.powerCallsRead||0,wrongCalls:mini?.powerWrongCalls||0},spark:{type:mini?.sparkType||null,streak:mini?.sparkStreak||0,best:mini?.sparkBestStreak||0,avoided:mini?.sparkAvoided||0,frenzy:Boolean((mini?.sparkFeverUntil||0)>now()),frenzies:mini?.sparkFrenzies||0,stash:mini?.sparkStash||0,banked:mini?.sparkBanked||0,banks:mini?.sparkBanks||0,lost:mini?.sparkLost||0},forage:{lane:mini?.lane||0,streak:mini?.forageStreak||0,best:mini?.forageBestStreak||0,order:[...(mini?.forageOrder||[])],orderIndex:mini?.forageOrderIndex||0,ordersDone:mini?.forageOrdersDone||0,panic:Boolean((mini?.forageRushUntil||0)>now())},rush:{jumpY:mini?.jumpY||0,airJumps:mini?.rushAirJumps||0,streak:mini?.rushStreak||0,clears:mini?.rushClears||0,parcel:Boolean(mini?.rushParcel),parcelClears:mini?.rushParcelClears||0,deliveries:mini?.rushDeliveries||0},memory:{round:mini?.memoryRound||0,mode:mini?.memoryMode||null,lives:mini?.memoryLives||0,sequence:[...(mini?.memorySequence||[])],expected:mini?.mode==="memory"?memoryExpectedSequence():[]},glide:{y:mini?.glideY||0,v:mini?.glideV||0,wind:mini?.glideWind||0,hearts:mini?.glideHearts||0,streak:mini?.glideStreak||0,gates:mini?.glideGateCount||0,clears:mini?.glideClears||0,draft:mini?.glideDraft||0,thermals:mini?.glideThermals||0,thermal:Boolean((mini?.glideThermalUntil||0)>now())},breaker:{level:mini?.breakerLevel||0,hearts:mini?.breakerHearts||0,streak:mini?.breakerStreak||0,moves:mini?.breakerMoves||0,piercing:Boolean((mini?.breakerPierceUntil||0)>now()),cores:mini?.breakerCores||0,coresBroken:mini?.breakerCoresBroken||0,pattern:mini?.breakerPatternName||""},maze:{level:mini?.mazeLevel||0,lives:mini?.mazeLives||0,inputs:mini?.mazeInputs||0,pellets:mini?.mazePellets||0,combo:mini?.mazeCombo||0,bestCombo:mini?.mazeBestCombo||0,hunts:mini?.mazeHunts||0,tags:mini?.mazeHunterTags||0,hunting:Boolean((mini?.mazeHuntUntil||0)>now()),player:mini?.mazePlayer?{r:mini.mazePlayer.r,c:mini.mazePlayer.c,dir:mini.mazePlayer.dir,nextDir:mini.mazePlayer.nextDir}:null,favoriteDir:mini?.mazeFavoriteDir||null,hunters:(mini?.mazeHunters||[]).map(h=>({r:h.r,c:h.c,kind:h.kind}))}}),
-    arcadeQualifyForQA: (mode=mini?.mode) => {if(!mini.active||mini.mode!==mode)return false;if(mode==="power"){mini.powerEngaged=true;mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="spark"){mini.hits=Math.max(2,mini.hits||0);mini.sparkBanked=Math.max(2,mini.sparkBanked||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="forage"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(2,mini.hits||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="rush"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.rushClears=Math.max(2,mini.rushClears||0);mini.score=Math.max(2,mini.score||0);}else if(mode==="walk"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="rhythm"){mini.hits=Math.max(3,mini.hits||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="memory"){mini.hits=Math.max(1,mini.hits||0);mini.score=Math.max(1,mini.score||0);}else if(mode==="glide"){mini.playerInputs=Math.max(1,mini.playerInputs||0);mini.glideClears=Math.max(1,mini.glideClears||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="breaker"){mini.breakerMoves=Math.max(1,mini.breakerMoves||0);mini.score=Math.max(3,mini.score||0);}else if(mode==="maze"){mini.mazeInputs=Math.max(1,mini.mazeInputs||0);mini.score=Math.max(5,mini.score||0);}return arcadeRunQualified(mode,Math.max(0,Math.floor(mini.score||0)));},
-    arcadePowerStrikeForQA: (tech=mini?.powerCall||"jab",needle=null) => {if(!mini.active||mini.mode!=="power")return null;mini.needle=needle===null?mini.powerZone:(Number.isFinite(Number(needle))?clamp(Number(needle),0,1):mini.needle);powerTap(String(tech||"jab"));return RizoRuntimeQA.arcadeSnapshotForQA().power},
-    arcadeSparkCatchForQA: (type="normal",streak=null) => {if(!mini.active||mini.mode!=="spark")return null;if(streak!==null)mini.sparkStreak=Math.max(0,Math.floor(Number(streak)||0));moveSparkTarget(String(type||"normal"));catchSpark();return RizoRuntimeQA.arcadeSnapshotForQA().spark},
-    arcadeSparkBankForQA: () => {if(!mini.active||mini.mode!=="spark")return null;bankSparkStash(false);return RizoRuntimeQA.arcadeSnapshotForQA().spark},
-    arcadeForageCompleteOrderForQA: () => {if(!mini.active||mini.mode!=="forage")return null;mini.forageOrderIndex=Math.max(0,(mini.forageOrder||[]).length-1);advanceForageOrder();return RizoRuntimeQA.arcadeSnapshotForQA().forage},
-    arcadeBreakerCollapseCoreForQA: () => {if(!mini.active||mini.mode!=="breaker")return null;const core=mini.entities.find(item=>item.kind==="breaker-block"&&item.special==="core"&&item.node?.isConnected);if(core){core.node.remove();mini.entities=mini.entities.filter(item=>item!==core);breakerCollapseCore(core);}return RizoRuntimeQA.arcadeSnapshotForQA().breaker},
-    arcadeMemoryRoundForQA: round => {if(!mini.active||mini.mode!=="memory")return null;for(const id of mini.timeouts||[])clearTimeout(id);mini.timeouts=[];mini.memoryRound=Math.max(0,Math.floor(Number(round)||1)-1);mini.memorySequence=[];startMemoryRound();return RizoRuntimeQA.arcadeSnapshotForQA().memory;},
-    arcadeMazeDirectionForQA: dir => {if(!mini.active||mini.mode!=="maze")return null;mazeSetDirection(String(dir||""));return RizoRuntimeQA.arcadeSnapshotForQA().maze;},
-    defenseMapsForQA: () => ({best:Number(state.scores?.defense)||0,unlocked:defenseUnlockedMaps().map(map=>map.id),all:Object.values(DEFENSE_MAPS).map(map=>({id:map.id,unlockWave:map.unlockWave,level:map.level}))}),
-    defenseRandomMapsForQA: (count=30) => Array.from({length:Math.max(1,Number(count)||1)},()=>chooseDefenseMapId()),
-    defenseSetMapForQA: selection => { const map=DEFENSE_MAPS[selection]; if(!mini.defense||!map||mini.defense.towers.length||mini.defense.currentWave>0)return mini.defense?.mapId||null; mini.defense.mapId=map.id;mini.defense.map=map;mini.defense.pathMetrics=defensePathMetrics(map.path);mini.defense.lives=map.lives;mini.defense.cash=BASE_DEFENSE_STARTING_CASH;renderDefenseWorld();return map.id; },
-    defenseSetPetVariantForQA: (variant,petId=null) => {const row=petId?defenseRoster().find(item=>item.pet.id===petId):defenseRoster()[0];if(!row||!VARIANTS.some(item=>item.id===variant))return false;row.pet.variant=String(variant);row.pet.hiddenVariant=null;markDefenseUi({roster:true});flushDefenseUi(true);return{petId:row.pet.id,variant:row.pet.variant};},
-    defenseMapRoutesForQA: () => Object.fromEntries(DEFENSE_MAP_ORDER.map(id=>{const map=DEFENSE_MAPS[id],metrics=map.pathMetrics||defensePathMetrics(map.path);return[id,{name:map.name,routeType:map.routeType,strategy:map.strategy,anchors:map.route.map(point=>({...point})),points:map.path.map(point=>({...point})),length:metrics.total,segments:metrics.segments.length,blockedZones:(map.blockedZones||[]).map(zone=>({...zone})),landmarks:(map.landmarks||[]).map(item=>({...item})),buildPockets:(map.buildPockets||[]).map(item=>({...item}))}];})),
-    defenseMapPointForQA: (mapId,progress) => {const map=DEFENSE_MAPS[mapId]||DEFENSE_MAPS.grove;return defenseMapPointAt(map,progress);},
-    defenseMapSvgPathForQA: mapId => defenseMapSvgPath(DEFENSE_MAPS[mapId]||DEFENSE_MAPS.grove),
-    defensePlacementGeometryForQA: () => {const g=defensePlacementGeometry();return{footprintPx:g.footprintPx,safetyPx:g.safetyPx,pathHalf:g.pathHalf,pathClearance:g.pathClearance,towerGap:g.towerGap,bounds:{...g.bounds},snap:g.snap,width:g.width,height:g.height};},
-    defensePlacementEvaluationForQA: (x,y) => {const e=defensePlacementEvaluation(Number(x),Number(y));return{valid:e.valid,code:e.code,reason:e.reason,distance:e.distance??null,required:e.required??null,clearance:e.clearance??null};},
-    defenseResolvePlacementForQA: (x,y,snapPx=DEFENSE_PLACEMENT_SNAP_PX) => {const r=resolveDefensePlacement(Number(x),Number(y),null,{snapPx:Number(snapPx)});return{point:{...r.point},raw:{...r.raw},valid:r.evaluation.valid,code:r.evaluation.code,reason:r.evaluation.reason,snapped:r.snapped,snapDistance:r.snapDistance,distance:r.evaluation.distance??null,required:r.evaluation.required??null};},
-    defenseNearestPathForQA: (x,y) => {const p=nearestDefensePathPoint(Number(x),Number(y));return{x:p.x,y:p.y,distance:p.distance};},
-    defenseDragStateForQA: () => mini.defenseDrag?{active:Boolean(mini.defenseDrag.active),scrolling:Boolean(mini.defenseDrag.scrolling),moved:Boolean(mini.defenseDrag.moved),result:mini.defenseDrag.result?{point:{...mini.defenseDrag.result.point},valid:mini.defenseDrag.result.evaluation.valid,snapped:mini.defenseDrag.result.snapped,code:mini.defenseDrag.result.evaluation.code}:null}:null,
+    miniSnapshot: () => { const jobs=[...(trainingRun?.jobs?.values()||[])]; return {active:Boolean(mini?.active),mode:mini?.mode||null,track:null,voices:0,intervals:jobs.filter(job=>job.period).length,timeouts:jobs.filter(job=>!job.period).length,entities:(mini?.entities||[]).length,...(trainingGame(mini?.mode)?.qaMini?.(mini)||{})}; },
+    arcadeAuthoredForQA: () => Object.fromEntries((Training?.list?.()||[]).filter(def=>def.qaAuthored).map(def=>[def.id,def.qaAuthored(mini,runClockNow())])),
+    arcadeSnapshotForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Number(mini?.score)||0,hits:Number(mini?.hits)||0,playerInputs:Number(mini?.playerInputs)||0,
+      ...Object.fromEntries((Training?.list?.()||[]).filter(def=>def.qaSnapshot).map(def=>[def.id,def.qaSnapshot(mini,runClockNow())]))}),
+    // Shared arcade-layer QA surface: interruption safety, pause state, end
+    // reason and the canonical name table are all player-visible contracts.
+    musicSceneForQA: () => ({scene:musicScene||null, requested:sceneMusicKey(), known:Boolean(MUSIC_TRACKS[sceneMusicKey()]||modeMusicTracks.has(sceneMusicKey()))}),
+    arcadePauseForQA: () => openArcadePause(),
+    arcadeResumeForQA: () => closeArcadePause(true),
+    // A neutral probe job: proves remaining-delay banking without depending on
+    // any one game's timing.
+    arcadeProbeJobForQA: (delay=500) => {
+      if(!mini?.active) return null;
+      mini.qaProbe = {fired:false, count:0, id:null};
+      const probe = mini.qaProbe;
+      probe.id = trainingSchedule(delay, () => { probe.fired = true; probe.count += 1; });
+      return probe.id;
+    },
+    arcadeProbeStateForQA: () => {
+      const probe = mini?.qaProbe;
+      const job = probe ? trainingRun?.jobs?.get(probe.id) : null;
+      return {fired:Boolean(probe?.fired), count:Number(probe?.count)||0,
+              remaining: job ? Math.round(job.due - runClockNow()) : -1, armed: Boolean(job) && !arcadeFrozen()};
+    },
+    arcadeGrantBuffsForQA: () => { if(!mini?.active) return false; trainingGame(mini.mode)?.qaBuffs?.(mini, runClockNow()); return true; },
+    // A deadline that had already lapsed when the hold began must stay lapsed.
+    arcadeExpiredDeadlineSurvivesForQA: () => {
+      if(!mini?.active) return false;
+      mini.glideInvulnerableUntil = runClockNow() - 400;
+      const before = mini.glideInvulnerableUntil;
+      arcadeFreeze("qa-expiry");
+      arcadeThaw("qa-expiry");
+      return mini.glideInvulnerableUntil === before && mini.glideInvulnerableUntil < runClockNow();
+    },
+    // Everything on the run board, in one comparable value. A held run must not change it.
+    arcadeFingerprintForQA: () => JSON.stringify(mini || {}, (key, value) => {
+      if (key === "node" || key === "qaProbe") return undefined;
+      if (typeof value === "number") return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : String(value);
+      if (value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype) return undefined;
+      return value;
+    }),
+    arcadeJobsForQA: () => {
+      const jobs=[...(trainingRun?.jobs?.values()||[])], held=arcadeFrozen(), t=runClockNow();
+      return { count: jobs.length, held, holds: held ? Object.keys(trainingRun.pauseSources).sort() : [], armed: held ? 0 : jobs.length,
+        pending: jobs.map(job => ({id: job.id, remaining: Math.round(job.due - t), repeat: Boolean(job.period)})) };
+    },
+    // Deadlines on the run board (by the *Until / *At convention), measured on the run clock.
+    arcadeDeadlinesForQA: () => {
+      const out = {}, t = runClockNow();
+      for (const key of Object.keys(mini || {})) {
+        if (!/(?:Until|At)$/.test(key) || key === "endAt") continue;
+        const value = mini[key];
+        if (typeof value === "number" && Number.isFinite(value) && value > 0) out[key] = Math.round(value - t);
+      }
+      return out;
+    },
+    arcadeAdvanceClockForQA: ms => {if(!mini?.active||!Number.isFinite(mini.endAt))return false;mini.endAt-=Math.max(0,Number(ms)||0);return true;},
+    arcadeClockForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,endless:!Number.isFinite(mini?.endAt),
+      remaining:Number.isFinite(mini?.endAt)?Math.max(0,mini.endAt-runClockNow()):Infinity,
+      frozen:arcadeFrozen(),paused:Boolean(trainingRun?.paused),sources:Object.keys(trainingRun?.pauseSources||{}).sort(),
+      jobsHeld:arcadeFrozen(),jobHolds:Object.keys(trainingRun?.pauseSources||{}).sort()}),
+    arcadeStateForQA: () => ({active:Boolean(mini?.active),mode:mini?.mode||null,score:Math.max(0,Math.floor(mini?.score||0)),
+      lives:mini?.lives??null,maxLives:mini?.maxLives??null,endReason:mini?.endReason||"",paused:Boolean(trainingRun?.paused),
+      quitConfirmed:Boolean(trainingRun?.quitConfirmed),rhythmReady:Boolean(mini?.rhythmReady)}),
+    arcadeSetScoreForQA: value => {if(!mini?.active)return false;mini.score=Math.max(0,Number(value)||0);return true;},
+    arcadeKillForQA: () => {if(!mini?.active)return false;mini.lives=0;mini.endReason="death";return true;},
+    arcadeFreezeForQA: (source="background") => arcadeFreeze(source),
+    arcadeThawForQA: (source="background") => arcadeThaw(source),
+    suspendRuntimeForQA: (reason="background") => suspendRuntime(reason),
+    resumeRuntimeForQA: (reason="visible") => resumeRuntime(reason),
+    arcadeGamesForQA: () => Object.fromEntries((Training?.list?.()||[]).map(def=>[def.id,{name:def.name,kicker:def.kicker,art:def.art,hint:def.hint,duration:def.duration,energy:def.energy,lives:def.lives,par:def.par,unit:"PTS",best:"points"}])),
+    trainingConvertForQA: (mode, score) => { const def=trainingGame(mode); return def ? Training.convert(def, {score, reason:"timeup", inputs:1}) : null; },
+    arcadeQualifyForQA: (mode=mini?.mode) => {if(!mini?.active||mini.mode!==mode)return false;trainingGame(mode)?.qaQualify?.(mini);return arcadeRunQualified();},
     runtimeViewportForQA: () => runtimeViewportSnapshot(),
     syncRuntimeViewportForQA: () => syncRuntimeViewport(),
     suspendRuntimeForQA: reason => ({changed:suspendRuntime(reason||"qa-suspend"),suspendedAt:runtimeSuspendedAt,reason:runtimeSuspendReason}),
     resumeRuntimeForQA: reason => ({changed:resumeRuntime(reason||"qa-resume"),suspendedAt:runtimeSuspendedAt,reason:runtimeSuspendReason}),
-    cancelDefenseInputForQA: reason => cancelDefenseTransientInput(reason||"qa-cancel"),
     releaseStatusForQA: () => releaseStatus(),
+    modeUpdateHandoffForQA: () => modeUpdateHandoff(),
+    modeEventsForQA: () => SaveCore.plainJSON(modeEventLog),
+    modeReceiptsForQA: () => SaveCore.plainJSON(state.modeReceipts || {}),
+    careHoldForQA: () => (modeCareHold ? { modeId: modeCareHold.modeId, away: modeCareHold.away, deferred: [...modeCareHold.deferred] } : null),
+    agePetClockForQA: ms => { state.pet.lastTick = Math.max(1, (Number(state.pet.lastTick) || now()) - Math.max(0, Number(ms) || 0)); return state.pet.lastTick; },
+    processElapsedForQA: () => { processElapsedTime(); return { hunger: state.pet.hunger, mood: state.pet.mood, energy: state.pet.energy, xp: state.pet.xp, bond: state.pet.bond, lastTick: state.pet.lastTick }; },
+    persistNowForQA: () => persistStateNow(),
+    currentViewForQA: () => currentView,
+    releaseFarmPetForQA: index => { releaseFarmPet(Number(index) || 0); return el.modalOverlay.querySelector(".modal-card")?.textContent || ""; },
+    rebirthInfoForQA: () => { showRebirthInfo(); return el.modalOverlay.querySelector(".modal-card")?.textContent || ""; },
     activateReleaseUpdateForQA: () => activateReleaseUpdate(),
     injectReleaseUpdateForQA: () => {const messages=[];const waiting={postMessage:message=>messages.push(JSON.parse(JSON.stringify(message)))};const registration={waiting};announceReleaseUpdate(registration);return{messages,activate:()=>activateReleaseUpdate(),status:()=>releaseStatus()};},
-    defensePlaceForQA: (petId,x=.2,y=.42) => { const row=defenseRoster().find(item=>item.pet.id===petId)||defenseRoster()[0]; if(!row)return false; placeDefenseTower(row,Number(x),Number(y),defenseDeployCost(row)); return mini.defense.towers.length; },
-    defenseStartWaveForQA: () => { startDefenseWave(); return mini.defense?.wave||0; },
-    defensePlanForQA: wave => { if(!mini.defense)return null; const prior=mini.defense.waveAnnouncement; const plan=defenseWavePlan(Math.max(1,Number(wave)||1)); const announcement=mini.defense.waveAnnouncement; mini.defense.waveAnnouncement=prior; return {wave:plan.wave,modifier:plan.modifier,total:plan.plannedEnemyCount,estimatedDuration:plan.estimatedDuration,packets:plan.packets.map(packet=>({spawnGap:packet.spawnGap,breakAfter:packet.breakAfter,enemies:packet.enemies.map(item=>typeof item==="string"?item:{...item})})),announcement}; },
-    defenseSetWaveForQA: wave => { if(mini.defense)mini.defense.wave=Math.max(0,Number(wave)||0); return mini.defense?.wave||0; },
-    defenseSpawnBossForQA: id => { if(!mini.defense)return false; const boss=DEFENSE_BOSSES.find(item=>item.id===id)||DEFENSE_BOSSES[0]; spawnDefenseEnemy({type:"boss",bossId:boss.id,intensity:0}); return mini.defense.enemies.at(-1)?.bossId||null; },
-    defenseSetEnemyHealthForQA: ratio => { const enemy=mini.defense?.enemies.at(-1); if(!enemy)return false; enemy.hp=Math.max(1,enemy.maxHp*clamp(Number(ratio)||0,0,1)); return enemy.hp; },
-    defenseTickForQA: seconds => { if(!mini.defense)return false; const real=Math.max(0,Number(seconds)||0);updateDefenseGame(real*(mini.defense.speed||1),real); return defenseNow(); },
-    defenseRecordFrameForQA: ms => {const d=mini.defense;if(!d)return null;defenseRecordFramePerformance(Number(ms)||16.7);defenseApplyRenderTier(d);return{frameP95:d.frameP95,frameP99:d.frameP99,governorTier:d.governorTier,renderTier:d.renderTier,performanceLow:Boolean(d.performanceLow),densityCap:defenseDensityCap(d,d.spawnQueue[0]),visualBudget:defenseVisualBudget(d)};},
-    defenseRapidFireForQA: count => {const d=mini.defense,tower=d?.towers[0];if(!d||!tower)return null;let target=d.enemies.find(enemy=>!enemy.dead&&enemy.hp>0);if(!target){let nearest={progress:.2,distance:Infinity};for(let i=0;i<=200;i+=1){const progress=i/200,point=defensePointAt(progress),distance=Math.hypot(point.x-tower.x,point.y-tower.y);if(distance<nearest.distance)nearest={progress,distance};}target=spawnDefenseEnemy("shell",{progress:nearest.progress,hpOverride:1e9,maxHpOverride:1e9});}const stats=defenseCombatStats(tower),shots=clamp(Math.floor(Number(count)||24),1,120);for(let i=0;i<shots;i+=1)fireDefenseTower(tower,target,stats);return{requested:shots,logical:d.projectiles.length,visible:defenseVisibleProjectileCount(d),coalescedVisual:d.coalescedVisualShots||0,coalescedLogical:d.coalescedLogicalShots||0,budget:defenseVisualBudget(d)};},
-    defenseTryCompleteWaveForQA: () => {const d=mini.defense;if(!d)return null;const completed=completeDefenseWave();return{completed,currentWave:d.currentWave,clearedWave:d.clearedWave,spawnQueue:d.spawnQueue.length,childSpawnQueue:d.childSpawnQueue.length,enemies:d.enemies.length,projectiles:d.projectiles.length};},
-    defenseResidueResolutionForQA: () => {const d=mini.defense;if(!d)return null;d.currentWave=Math.max(1,d.currentWave||1);d.clearedWave=Math.min(d.clearedWave,d.currentWave-1);defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.spawnQueue=[];d.wavePackets=[];d.packetIndex=0;d.packetEnemyIndex=0;d.childSpawnQueue=[];for(const enemy of d.enemies)releaseDefenseEnemyNode(enemy);d.enemies=[];d.projectiles.push({id:"qa-stale-shot",node:null,life:99});const before=d.projectiles.length,resolved=isWaveFullyResolved(d),completed=completeDefenseWave();return{before,resolved,completed,after:d.projectiles.length,phase:d.phase,clearedWave:d.clearedWave};},
-    defenseGateFlameForQA: progress => {const d=mini.defense;if(!d)return null;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.gateFlameArmed=false;d.gateFlameProgress=clamp(Number(progress)||.5,0,1);d.gateFlameUntil=d.clock+DEFENSE_GATE_FLAME_DURATION;d.gateFlameReadyAt=d.clock+DEFENSE_GATE_FLAME_COOLDOWN;d.gateFlameNextTick=d.clock;updateDefenseGateFlame();markDefenseUi();flushDefenseUi(true);return RizoRuntimeQA.defenseSnapshotForQA().gateFlame;},
-    defenseQueueChildForQA: (type="fleet",delay=.08) => {const d=mini.defense;if(!d)return null;const queued=queueDefenseChildSpawn(String(type||"fleet"),{progress:.45,delay:Number(delay)||0});return{queued,childSpawnQueue:d.childSpawnQueue.length};},
-    defensePendingIncomeForQA: amount => {const d=mini.defense;if(!d)return null;queueDefenseIncome(Number(amount)||0,"qa");return{cash:d.cash,pendingIncome:d.pendingIncome};},
-    defenseSetLowPerformanceForQA: low => {const d=mini.defense;if(!d)return null;d.performanceLow=Boolean(low);defenseApplyRenderTier(d,d.performanceLow?2:0);return{performanceLow:d.performanceLow,renderTier:d.renderTier,densityCap:defenseDensityCap(d,d.spawnQueue[0]),budget:defensePerformanceBudget(d)};},
-    defenseCompleteWaveForQA: wave => { const d=mini.defense;if(!d)return false;d.currentWave=DefenseCore.clampInteger(wave,1,DEFENSE_LIMITS.MAX_SUPPORTED_WAVE,1);d.clearedWave=Math.min(d.clearedWave,d.currentWave-1);defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.spawnQueue=[];d.wavePackets=[];d.packetIndex=0;d.packetEnemyIndex=0;d.childSpawnQueue=[];d.enemies.forEach(enemy=>releaseDefenseEnemyNode(enemy));d.enemies=[];d.projectiles.forEach(shot=>releaseDefenseProjectileNode(shot));d.projectiles=[];const completed=completeDefenseWave();return{completed,currentWave:d.currentWave,clearedWave:d.clearedWave,milestones:[...(state.scores.defenseMilestones||[])]}; },
-    defenseSetSpeedForQA: speed => { if(!mini.defense)return false; mini.defense.speed=[.5,1,2].includes(Number(speed))?Number(speed):1; defenseApplyRenderTier(mini.defense);updateDefenseHud(); return mini.defense.speed; },
-    defenseSetEnemiesForQA: (progress=.35) => { if(!mini.defense)return 0; for(const enemy of mini.defense.enemies){enemy.progress=clamp(Number(progress)||0,0,.98);const point=defensePointAt(enemy.progress);enemy.x=point.x;enemy.y=point.y;enemy.prevX=point.x;enemy.prevY=point.y;updateDefenseEnemyNode(enemy,true);} return mini.defense.enemies.length; },
-    defenseArrangeEnemiesForQA: () => { if(!mini.defense)return 0; mini.defense.enemies.forEach((enemy,index)=>{enemy.progress=clamp(.11+index*.095,0,.9);const point=defensePointAt(enemy.progress);enemy.x=point.x;enemy.y=point.y;enemy.prevX=point.x;enemy.prevY=point.y;updateDefenseEnemyNode(enemy,true);}); return mini.defense.enemies.length; },
-    defensePlaceNextForQA: petId => { const row=defenseRoster().find(item=>item.pet.id===petId)||defenseRoster()[0]; if(!row)return false; for(let y=.14;y<=.74;y+=.08)for(let x=.11;x<=.89;x+=.08){if(isValidDefensePlacement(x,y)){placeDefenseTower(row,x,y,defenseDeployCost(row));return mini.defense.towers.length;}} return mini.defense.towers.length; },
-    defenseAbilityForQA: id => { const tower=mini.defense?.towers.find(item=>item.id===id)||mini.defense?.towers[0]; if(!tower)return false; tower.upgrade=Math.max(tower.upgrade,2); tower.abilityReadyAt=0; refreshDefenseTower(tower); activateDefenseAbility(tower.id); return {id:tower.id,variant:tower.pet.variant||tower.pet.hiddenVariant,readyAt:tower.abilityReadyAt}; },
-    defenseUpgradeForQA: level => { const tower=mini.defense?.towers[0]; if(!tower)return false; tower.upgrade=clamp(Math.floor(Number(level)||0)-1,0,4); refreshDefenseTower(tower); const aura=tower.node?.querySelector(".defense-aura"); return {upgrade:tower.upgrade,tier:defenseTowerTier(tower),className:tower.node?.className||"",silhouette:tower.node?.style.getPropertyValue("--tower-silhouette")||"",auraDisplay:aura?getComputedStyle(aura).display:null,auraMask:aura?getComputedStyle(aura).webkitMaskImage||getComputedStyle(aura).maskImage:null}; },
-    defenseTargetForQA: mode => { const tower=mini.defense?.towers[0]; if(!tower||!DEFENSE_TARGET_MODES.includes(mode))return false;tower.targetMode=mode;tower.targetId=null;tower.retargetAtReal=0;return tower.targetMode; },
-    defenseDoctrineForQA: doctrine => { const tower=mini.defense?.towers[0];if(!tower)return false;tower.upgrade=Math.max(2,tower.upgrade);tower.doctrine=null;const accepted=chooseDefenseDoctrine(tower.id,doctrine);return {accepted,doctrine:tower.doctrine,stats:defenseCombatStats(tower),className:tower.node?.className||""}; },
-    defensePauseForQA: paused => { toggleDefensePause(Boolean(paused));return mini.defense?.paused||false; },
-    defenseInterruptionForQA: () => { const paused=pauseDefenseForInterruption();return {paused,autoPaused:Boolean(mini.defense?.autoPaused),clock:defenseNow()}; },
-    defenseResumeSurfaceForQA: () => { const surfaced=surfaceDefenseInterruptionPause();return {surfaced,paused:Boolean(mini.defense?.paused),autoPaused:Boolean(mini.defense?.autoPaused)}; },
-    defenseSpawnForQA: (type="puff",progress=.25,hp=null,maxHp=null) => { if(!mini.defense)return false;const options={progress:clamp(Number(progress)||0,0,.98)};if(Number.isFinite(Number(hp)))options.hpOverride=Number(hp);if(Number.isFinite(Number(maxHp)))options.maxHpOverride=Number(maxHp);const enemy=spawnDefenseEnemy(type,options);return {id:enemy.id,type:enemy.type,hp:enemy.hp,maxHp:enemy.maxHp}; },
-    defenseNearestProgressForQA: () => { const tower=mini.defense?.towers[0];if(!tower)return null;let best={progress:0,distance:Infinity};for(let i=0;i<=200;i+=1){const progress=i/200,point=defensePointAt(progress),distance=Math.hypot(point.x-tower.x,point.y-tower.y);if(distance<best.distance)best={progress,distance};}return best; },
-    defenseStrongTargetForQA: () => { const tower=mini.defense?.towers[0];if(!tower)return null;const stats=defenseCombatStats(tower),enemy=pickDefenseTarget(tower,stats);return enemy?{id:enemy.id,type:enemy.type,hp:enemy.hp,maxHp:enemy.maxHp,threat:defenseEnemyThreat(enemy)}:null; },
-    defenseDamageCreditForQA: (raw=50,hp=3) => { const d=mini.defense,tower=d?.towers[0];if(!d||!tower)return false;const enemy=spawnDefenseEnemy("puff",{progress:.2,hpOverride:Number(hp)||3,maxHpOverride:Number(hp)||3}),before={damage:tower.damage,kills:tower.kills};const dealt=dealDefenseDamage(enemy,Number(raw)||50,tower,"classic");return {dealt,before,after:{damage:tower.damage,kills:tower.kills},enemyDead:enemy.dead}; },
-    defenseDoctrineShotForQA: doctrine => { const d=mini.defense,tower=d?.towers[0];if(!d||!tower||!DEFENSE_DOCTRINES[doctrine])return false;tower.upgrade=3;tower.doctrine=doctrine;tower.shots=4;refreshDefenseTower(tower);const nearest=(()=>{let best={progress:0,distance:Infinity};for(let i=0;i<=200;i+=1){const progress=i/200,point=defensePointAt(progress),distance=Math.hypot(point.x-tower.x,point.y-tower.y);if(distance<best.distance)best={progress,distance};}return best;})(),enemy=spawnDefenseEnemy("shell",{progress:nearest.progress,hpOverride:100,maxHpOverride:100});fireDefenseTower(tower,enemy,defenseCombatStats(tower));const shot=d.projectiles.at(-1);return {doctrine:tower.doctrine,shotClass:shot?.node?.className||"",strike:shot?.doctrineStrike||null,shots:tower.shots,masteryTier:shot?.masteryTier||0,towerClass:tower.node?.className||""}; },
-    defenseCrownGuardsForQA: () => { const d=mini.defense;if(!d)return false;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});const enemy=spawnDefenseEnemy({type:"boss",bossId:"crown",intensity:0},{progress:.4});const before=d.waveTotal;enemy.hp=enemy.maxHp*.49;handleDefenseBossMechanics(enemy);d.clock=Math.max(d.clock,enemy.telegraphUntil+.01);handleDefenseBossMechanics(enemy);return {before,after:d.waveTotal,guards:d.enemies.filter(item=>item.type==="shell").length}; },
-    defenseDotCreditForQA: kind => { const d=mini.defense,tower=d?.towers[0];if(!d||!tower)return false;const enemy=spawnDefenseEnemy("puff",{progress:.2,hpOverride:2,maxHpOverride:2});updateDefenseEnemyNode(enemy);if(kind==="burn"){enemy.burn=4;enemy.burnUntil=defenseNow()+2;enemy.burnSource=tower;}else{enemy.poison=4;enemy.poisonUntil=defenseNow()+2;enemy.poisonSource=tower;}const before={damage:tower.damage,kills:tower.kills};updateDefenseEnemies(1);return {before,after:{damage:tower.damage,kills:tower.kills},enemyDead:enemy.dead}; },
-    defenseForceWaveForQA: wave => { const d=mini.defense;if(!d)return false;d.currentWave=Math.max(0,(Number(wave)||1)-1);d.clearedWave=Math.min(d.clearedWave,d.currentWave);d.nextWaveReadyAtReal=0;d.autoStartAtReal=0;defenseSetPhase(d,DEFENSE_PHASES.PLANNING,{force:true});startDefenseWave();return{currentWave:d.currentWave,clearedWave:d.clearedWave,total:d.waveTotal,announcement:d.waveAnnouncement}; },
-    defenseSetCashForQA: cash => { if(mini.defense)mini.defense.cash=Math.max(0,Number(cash)||0); updateDefenseHud(); return mini.defense?.cash||0; },
-    defenseToggleIntelForQA: force => {toggleDefenseIntel(typeof force==="boolean"?force:undefined);return{open:Boolean(mini.defense?.intelOpen),paused:Boolean(mini.defense?.paused),trayHidden:$("#defenseIntelTray")?.hidden??true};},
-    defenseIntelForQA: () => {const counts=defenseIntelCounts(),readiness=defenseCounterReadiness(counts);return{open:Boolean(mini.defense?.intelOpen),types:Object.fromEntries(counts),missing:[...readiness.missing],text:$("#defenseIntelTray")?.textContent||"",renderCount:mini.defense?.intelRenderCount||0};},
-    defenseEnemyStateForQA: id => {const enemy=id?mini.defense?.enemies.find(item=>item.id===id):mini.defense?.enemies.at(-1);return enemy?{id:enemy.id,type:enemy.type,bossId:enemy.bossId||null,hp:enemy.hp,maxHp:enemy.maxHp,reward:enemy.reward,armor:enemy.armor,baseArmor:enemy.baseArmor,armorBroken:Boolean(enemy.armorBroken),armorShredded:Boolean(enemy.armorShredded),camoActive:defenseEnemyCamoActive(enemy),phaseActive:Boolean(enemy.phaseActive),phaseSuppressedUntil:enemy.phaseSuppressedUntil,revealUntil:enemy.revealUntil,visualSignature:enemy.visualSignature||"",className:enemy.node?.className||"",transform:enemy.node?getComputedStyle(enemy.node).transform:"",size:enemy.node?{width:enemy.node.getBoundingClientRect().width,height:enemy.node.getBoundingClientRect().height}:null}:null;},
-    defenseSetEnemyStatusForQA: (id,status={}) => {const enemy=mini.defense?.enemies.find(item=>item.id===id);if(!enemy)return false;const time=defenseNow();if(status.reset){enemy.burnUntil=0;enemy.poisonUntil=0;enemy.slowUntil=0;enemy.rootUntil=0;enemy.armorBroken=false;enemy.armorShredded=false;enemy.armor=enemy.baseArmor;enemy.revealUntil=0;enemy.phaseSuppressedUntil=0;}if(status.burn)enemy.burnUntil=time+Number(status.burn);if(status.poison)enemy.poisonUntil=time+Number(status.poison);if(status.slow)enemy.slowUntil=time+Number(status.slow);if(status.root)enemy.rootUntil=time+Number(status.root);if(status.armorBroken){enemy.armorBroken=true;enemy.armor=0;}if(status.armorShredded)enemy.armorShredded=true;if(status.reveal)enemy.revealUntil=time+Number(status.reveal);updateDefenseEnemyNode(enemy,true);return RizoRuntimeQA.defenseEnemyStateForQA(id);},
-    defenseWarmPoolsForQA: () => {warmDefensePools();return RizoRuntimeQA.defenseSnapshotForQA().poolStats;},
-    defenseRenderTierForQA: () => ({tier:defenseRenderTier(),applied:defenseApplyRenderTier(mini.defense),densityCap:defenseDensityCap(mini.defense,mini.defense?.spawnQueue?.[0])}),
-    defenseLoadQueueForQA: (count=60,type="shell",wave=30,speed=2) => {const d=mini.defense;if(!d)return false;d.currentWave=Math.max(1,Math.floor(Number(wave)||30));d.clearedWave=Math.min(d.clearedWave,d.currentWave-1);d.speed=[.5,1,2].includes(Number(speed))?Number(speed):2;defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});const total=Math.min(DEFENSE_LIMITS.MAX_QUEUE_ENTRIES,Math.max(1,Math.floor(Number(count)||60)));d.wavePackets=[{enemies:Array.from({length:total},()=>String(type||"shell")),spawnGap:.5,breakAfter:0}];d.packetIndex=0;d.packetEnemyIndex=0;d.spawnQueue=DefenseCore.flattenPackets(d.wavePackets);d.currentWavePlan=[...d.spawnQueue];d.childSpawnQueue=[];d.nextChildReleaseAtReal=defenseRealNow(d);d.childSpawnSequence=0;d.targetSnapshot=[];d.targetSnapshotAtReal=0;d.waveTotal=d.spawnQueue.length;d.waveResolved=0;d.nextSpawnAt=d.clock;d.lastSpawnedEnemyId=null;d.peakAlive=d.enemies.length;return{count:d.spawnQueue.length,currentWave:d.currentWave,clearedWave:d.clearedWave,speed:d.speed,cap:defenseDensityCap(d,d.spawnQueue[0])};},
-    defenseClearQueueForQA: () => {const d=mini.defense;if(!d)return false;d.spawnQueue=[];d.wavePackets=[];d.packetIndex=0;d.packetEnemyIndex=0;d.childSpawnQueue=[];d.currentWavePlan=[];d.lastSpawnedEnemyId=null;d.nextSpawnAt=Number.POSITIVE_INFINITY;return true;},
-    defenseDamageEnemyForQA: (id,raw=10,variant=null,doctrine=null) => {const d=mini.defense,enemy=id?d?.enemies.find(item=>item.id===id):d?.enemies.at(-1),tower=d?.towers[0];if(!enemy||!tower)return false;const priorVariant=tower.pet.variant,priorHidden=tower.pet.hiddenVariant,priorDoctrine=tower.doctrine;if(variant)tower.pet.variant=variant;if(doctrine)tower.doctrine=doctrine;const dealt=dealDefenseDamage(enemy,Number(raw)||10,tower,variant||"classic");tower.pet.variant=priorVariant;tower.pet.hiddenVariant=priorHidden;tower.doctrine=priorDoctrine;return{dealt,state:{hp:enemy.hp,armor:enemy.armor,armorBroken:Boolean(enemy.armorBroken),className:enemy.node?.className||""}};},
-    defenseApplyCounterForQA: (id,kind) => {const d=mini.defense,enemy=id?d?.enemies.find(item=>item.id===id):d?.enemies.at(-1),tower=d?.towers[0];if(!enemy||!tower)return false;if(kind==="power")shredDefenseArmor(enemy,.08,tower);else revealDefenseEnemy(enemy,4,tower);return{armor:enemy.armor,camoActive:defenseEnemyCamoActive(enemy),phaseSuppressedUntil:enemy.phaseSuppressedUntil,className:enemy.node?.className||""};},
-    defenseForceWeatherForQA: weather => {const d=mini.defense;if(!d)return false;d.map={...d.map,weather:String(weather||d.map.weather)};defenseSetPhase(d,DEFENSE_PHASES.COMBAT,{force:true});d.nextWeatherAt=d.clock;updateDefenseWeather();d.enemies.forEach(updateDefenseEnemyNode);return{weather:d.map.weather,ashUntil:d.ashUntil,moonRevealUntil:d.moonRevealUntil,eclipseUntil:d.eclipseUntil,clock:d.clock};},
-    defenseLeakForQA: (type="puff",damage=1) => {const d=mini.defense;if(!d)return false;const enemy=spawnDefenseEnemy(type,{progress:.999});enemy.damage=Math.max(1,Number(damage)||1);const before=d.lives;updateDefenseEnemies(1);return{before,after:d.lives,stats:JSON.parse(JSON.stringify(d.enemyStats))};},
-    defenseAnalyticsForQA: () => mini.defense?JSON.parse(JSON.stringify(mini.defense.enemyStats)):null,
-    defenseFinishForQA: () => {if(!mini.active||mini.mode!=="defense")return false;finishMiniGame(false);return Boolean(document.querySelector(".defense-run-recap"));},
-    defenseSyncGeometryForQA: () => {const before=mini.defense?.towers.map(t=>({id:t.id,width:t.node?.style.getPropertyValue("--tower-range-width")||"",height:t.node?.style.getPropertyValue("--tower-range-height")||""}))||[];syncDefenseTowerGeometry();const after=mini.defense?.towers.map(t=>({id:t.id,width:t.node?.style.getPropertyValue("--tower-range-width")||"",height:t.node?.style.getPropertyValue("--tower-range-height")||""}))||[];return{before,after};},
-    defenseCinematicForQA: () => {const d=mini.defense,host=$("#defenseMoment"),shell=$(".defense-shell"),stage=$(".defense-stage-frame");return d?{kind:d.cinematicMomentKind||null,count:d.cinematicMomentCount||0,priority:d.cinematicMomentPriority||0,untilReal:d.cinematicMomentUntilReal||0,hidden:host?.hidden??true,className:host?.className||"",text:(host?.textContent||"").replace(/\s+/g," ").trim(),shellMoment:shell?.dataset.cinematicMoment||null,stagePulse:Boolean(stage?.classList.contains("moment-pulse")),ending:Boolean(d.ending),endingReason:d.endingReason||null,reducedMotion:defenseReducedMotion()}:null;},
-    defenseMomentForQA: (kind="clear",options={}) => showDefenseCinematicMoment(String(kind||"clear"),options||{}),
-    defenseEndRunForQA: (reason="banked") => finishDefenseRunWithMoment(reason==="gate"?"gate":"banked"),
-    defenseArtCohesionForQA: () => {const world=$("#defenseWorld"),style=world?getComputedStyle(world):null;return world?{mapId:mini.defense?.mapId||null,featureCount:world.querySelectorAll(".defense-world-feature").length,featureKinds:[...world.querySelectorAll(".defense-world-feature")].map(node=>node.dataset.worldFeature),buildPocketCount:world.querySelectorAll(".defense-build-pocket").length,unitScale:world.style.getPropertyValue("--def-unit-scale"),playOutline:style?.getPropertyValue("--play-outline").trim()||"",playHalo:style?.getPropertyValue("--play-halo").trim()||"",roadFill:style?.getPropertyValue("--road-fill").trim()||"",visibleLandmarkLabels:[...world.querySelectorAll(".defense-landmark span,.defense-entrance span,.defense-gate b")].filter(node=>getComputedStyle(node).display!=="none").length}:null;},
-    defenseSnapshotForQA: () => mini.defense?{map:mini.defense.mapId,currentWave:mini.defense.currentWave,clearedWave:mini.defense.clearedWave,reachedWave:mini.defense.currentWave,contract:mini.defense.contract?{...mini.defense.contract}:null,maxTowers:mini.defense.maxTowers,wave:mini.defense.wave,lives:mini.defense.lives,cash:mini.defense.cash,worldPerkUsed:Boolean(mini.defense.worldPerkUsed),phase:mini.defense.phase,paused:Boolean(mini.defense.paused),autoPaused:Boolean(mini.defense.autoPaused),waveTotal:mini.defense.waveTotal,waveResolved:mini.defense.waveResolved,lowFx:Boolean(mini.defense.lowFx),performanceLow:Boolean(mini.defense.performanceLow),frameMs:Number(mini.defense.frameMs||0),frameP95:Number(mini.defense.frameP95||0),frameP99:Number(mini.defense.frameP99||0),frameStress:Number(mini.defense.frameStress||0),governorTier:mini.defense.governorTier||0,simStepP95:Number(mini.defense.simStepP95||0),simStepWorst:Number(mini.defense.simStepWorst||0),simBacklogEvents:mini.defense.simBacklogEvents||0,maxCatchUpObserved:mini.defense.maxCatchUpObserved||0,lastSimSteps:mini.defense.lastSimSteps||0,simAccumulator:Number(mini.defense.simAccumulator||0),presentationFrames:mini.defense.presentationFrames||0,rendererMode:mini.defense.rendererMode||"dom",canvasFrames:mini.defense.canvasFrames||0,canvasFallbacks:mini.defense.canvasFallbacks||0,canvasRenderer:mini.defense.canvasRenderer?.snapshot?.()||null,renderTier:mini.defense.renderTier||0,potatoFx:Boolean(mini.defense.potatoFx),renderTierChanges:mini.defense.renderTierChanges||0,densityCap:defenseDensityCap(mini.defense,mini.defense.spawnQueue[0]),poolStats:{enemy:mini.defense.enemyNodePool.length,projectile:mini.defense.projectileNodePool.length,impact:mini.defense.impactNodePool.length,enemyCreated:mini.defense.enemyNodesCreated||0,enemyAcquired:mini.defense.enemyNodesAcquired||0,projectileCreated:mini.defense.projectileNodesCreated||0,projectileAcquired:mini.defense.projectileNodesAcquired||0,impactCreated:mini.defense.impactNodesCreated||0,impactAcquired:mini.defense.impactNodesAcquired||0},visualWrites:{enemyPosition:mini.defense.enemyPositionWrites||0,enemyClass:mini.defense.enemyClassWrites||0,enemyHealth:mini.defense.enemyHealthWrites||0,enemyState:mini.defense.enemyStateWrites||0,projectilePosition:mini.defense.projectilePositionWrites||0},peakAlive:mini.defense.peakAlive||0,spawnWaitReason:mini.defense.spawnWaitReason||"",lastSpawnedEnemyId:mini.defense.lastSpawnedEnemyId||null,ashUntil:mini.defense.ashUntil,moonRevealUntil:mini.defense.moonRevealUntil,intelOpen:Boolean(mini.defense.intelOpen),enemyStats:JSON.parse(JSON.stringify(mini.defense.enemyStats||{})),hudRenderCount:mini.defense.hudRenderCount||0,rosterRenderCount:mini.defense.rosterRenderCount||0,trayRenderCount:mini.defense.trayRenderCount||0,intelRenderCount:mini.defense.intelRenderCount||0,checkpointWrites:mini.defense.checkpointWrites||0,pendingIncome:mini.defense.pendingIncome||0,pendingIncomeEvents:mini.defense.pendingIncomeEvents||0,lastIncomeBatch:mini.defense.lastIncomeBatch?JSON.parse(JSON.stringify(mini.defense.lastIncomeBatch)):null,cashWriteCount:mini.defense.cashWriteCount||0,targetScans:mini.defense.targetScans||0,targetSnapshotBuilds:mini.defense.targetSnapshotBuilds||0,realClock:defenseRealNow(mini.defense),simulationClock:mini.defense.clock||0,visualBudget:defenseVisualBudget(mini.defense),childSpawnsReleased:mini.defense.childSpawnsReleased||0,nextChildReleaseAtReal:mini.defense.nextChildReleaseAtReal||0,maxActiveEnemiesObserved:mini.defense.maxActiveEnemiesObserved||0,maxProjectileNodesObserved:mini.defense.maxProjectileNodesObserved||0,maxLogicalProjectilesObserved:mini.defense.maxLogicalProjectilesObserved||0,visibleProjectileCount:defenseVisibleProjectileCount(mini.defense),coalescedVisualShots:mini.defense.coalescedVisualShots||0,coalescedLogicalShots:mini.defense.coalescedLogicalShots||0,droppedCosmetics:mini.defense.droppedCosmetics||0,maxEffectNodesObserved:mini.defense.maxEffectNodesObserved||0,childSpawnQueue:mini.defense.childSpawnQueue.length,packetIndex:mini.defense.packetIndex,packetCount:mini.defense.wavePackets.length,lastInputCancelReason:mini.defense.lastInputCancelReason||null,frameDiscontinuities:mini.defense.frameDiscontinuities||0,cinematicMomentKind:mini.defense.cinematicMomentKind||null,cinematicMomentCount:mini.defense.cinematicMomentCount||0,gateFlame:{armed:Boolean(mini.defense.gateFlameArmed),readyAt:mini.defense.gateFlameReadyAt||0,until:mini.defense.gateFlameUntil||0,progress:mini.defense.gateFlameProgress||0,ticks:mini.defense.gateFlameTicks||0},ending:Boolean(mini.defense.ending),endingReason:mini.defense.endingReason||null,projectiles:mini.defense.projectiles.map(shot=>({id:shot.id,towerId:shot.tower?.id||null,targetId:shot.target?.id||null,x:shot.x,y:shot.y,life:shot.life,speed:shot.speed,damage:shot.damage,kind:shot.kind,doctrineStrike:shot.doctrineStrike||null})),towers:mini.defense.towers.map(t=>({id:t.id,petId:t.petId,variant:t.pet.variant||t.pet.hiddenVariant,copy:t.copyNumber,x:t.x,y:t.y,upgrade:t.upgrade,cost:t.cost,spent:t.spent,openingPerkApplied:Boolean(t.openingPerkApplied),placedAtReal:t.placedAtReal,kills:t.kills,damage:t.damage,shots:t.shots,targetMode:t.targetMode,doctrine:t.doctrine,superForm:t.superForm||null,readyAt:t.abilityReadyAt,nextUpgradeCost:defenseUpgradeCost(t,mini.defense),sellRefund:defenseSellRefund(t,mini.defense),canUndo:defenseCanUndoPlacement(t,mini.defense)})),enemies:mini.defense.enemies.map(e=>({id:e.id,type:e.type,bossId:e.bossId||null,camo:Boolean(e.camo),camoActive:defenseEnemyCamoActive(e),hp:e.hp,maxHp:e.maxHp,armor:e.armor,baseArmor:e.baseArmor,armorBroken:Boolean(e.armorBroken),armorShredded:Boolean(e.armorShredded),progress:e.progress,phaseActive:Boolean(e.phaseActive),phaseSuppressedUntil:e.phaseSuppressedUntil,revealUntil:e.revealUntil,slow:e.slow,burn:e.burn,poison:e.poison,rootUntil:e.rootUntil,telegraphKind:e.telegraphKind||null,telegraphDisruption:e.telegraphDisruption||0,apexSurgeUntil:e.apexSurgeUntil||0,className:e.node?.className||""}))}:null,
     keeperCodeForQA: () => keeperRecoveryCode(),
     preRecoveryForQA: () => {const recovered=readPreRecoveryBackup();return recovered?{name:recovered.pet?.name||null,embers:recovered.wallet?.embers||0,version:recovered.version}:null;},
-    rushSnapshotForQA: () => ({hits:mini.hits,jumpY:mini.jumpY,entities:mini.entities.filter(e=>e.kind==="rush").map(e=>({type:e.type,x:e.x,speed:e.speed,handled:e.handled}))}),
     setViewForQA(view = "home") { changeView(view); return currentView; },
     setHouseRoomForQA(roomId = 0) { selectHouseRoom(Number(roomId)); return activeHouseRoom; },
     houseSnapshot: () => ({featureUnlocked:houseIsUnlocked(),activeRoom:activeHouseRoom,unlocked:[...state.farm.unlockedRooms],capacity:houseCapacity(),residents:state.farm.roster.map(p=>({id:p.id,name:p.name,room:p.homeRoom}))}),
@@ -8082,7 +6717,11 @@ Streak: ${state.player.streak}`;
     triggerLifeBehaviorForQA: behavior => { setLifeBehavior(behavior,50); return behavior; },
     spawnLifeMomentForQA: () => { spawnLifeMoment(true); return el.habitatScene.querySelectorAll(".life-particle").length; }
   });}
-  if(IS_QA_BUILD)window.RizoRuntimeQA=createRizoRuntimeQA();else{for(const key of["RizoRuntimeQA","RizoVisualQA","RizoBeatQA"]){try{delete window[key];}catch(error){}}}
+
+  // Each game mode may contribute QA hooks (QA builds only); they can wrap the
+  // hub's own (startMiniGame, finishMiniGame, miniSnapshot) for their mode.
+  function createMergedRuntimeQA(){const hubQA=createRizoRuntimeQA(),merged={...hubQA};for(const game of Training?.list?.()||[])if(typeof game.qa==="function")Object.assign(merged,game.qa());for(const mode of globalThis.RizoModes?.list?.()||[])if(typeof mode.qa==="function")Object.assign(merged,mode.qa({...merged}));return Object.freeze(merged);}
+  if(IS_QA_BUILD)window.RizoRuntimeQA=createMergedRuntimeQA();else{for(const key of["RizoRuntimeQA","RizoVisualQA","RizoBeatQA"]){try{delete window[key];}catch(error){}}}
 
   boot();
   window.RizoBoot?.ready?.(RIZO_RUNTIME_BUILD);

@@ -1,9 +1,9 @@
 {
   "id": "./",
-  "name": "Rizo.game \u2014 Rizo Life",
-  "short_name": "Rizo.game",
-  "description": "Raise, collect, customize, and defend with Rizos in a mobile-first Rizo Apparel game.",
-  "start_url": "./index.html?source=pwa",
+  "name": "Rizo World \u2014 Rizo Life",
+  "short_name": "Rizo World",
+  "description": "Raise your Rizo. Make a home. Take the same little flame into games and stories.",
+  "start_url": "./play?source=pwa",
   "scope": "./",
   "display": "standalone",
   "display_override": [
