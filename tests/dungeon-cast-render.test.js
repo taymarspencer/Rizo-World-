@@ -58,6 +58,18 @@ try {
       checkDraw("collector " + profile + "/" + state, ctx => Art.collector(ctx, 120, 180, { profile, state, t: 900, face: -1 }));
     }
   }
+  // A collector must have a complete body in each readable threat state:
+  // search, recognition, committed pursuit. These are poses, not new AI.
+  for (const profile of ["marshal", "gatherer", "runner", "sentry"]) {
+    for (const state of ["search", "spot", "run"]) {
+      checkDraw("Collector " + profile + "/" + state, ctx =>
+        Art.collector(ctx, 120, 180, { profile, state, t: 950, face: 1 }));
+    }
+  }
+  for (const mode of [{ open: 0, lean: .7 }, { open: 1, lampAim: -1 }]) {
+    checkDraw("Porter committed pose", ctx =>
+      Art.porter(ctx, 140, 190, { t: 800, ...mode }));
+  }
   // Existing game characters matter as much as newly redesigned ones.
   // Confirm their speaking, reaction and van poses still produce a complete
   // Canvas frame after animation-direction edits (not a visual beauty grade).
