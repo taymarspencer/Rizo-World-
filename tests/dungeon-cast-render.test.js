@@ -9,6 +9,7 @@ class TestPath2D {
   constructor(d) {
     assert.equal(typeof d, "string");
     assert.ok(d.length > 0, "character path is not empty");
+    this.d = d;
   }
 }
 const originalPath2D = globalThis.Path2D;
@@ -16,7 +17,7 @@ globalThis.Path2D = TestPath2D;
 let checks = 0;
 
 function fakeCanvas() {
-  const stats = { fills: 0, strokes: 0, depth: 0 };
+  const stats = { fills: 0, strokes: 0, depth: 0, paths: [] };
   const ctx = {
     globalAlpha: 1,
     save() { stats.depth++; },
@@ -24,8 +25,8 @@ function fakeCanvas() {
     beginPath() {}, moveTo() {}, lineTo() {}, closePath() {},
     quadraticCurveTo() {}, bezierCurveTo() {}, ellipse() {}, arc() {},
     rect() {}, clip() {}, translate() {}, rotate() {}, scale() {},
-    fill() { stats.fills++; },
-    stroke() { stats.strokes++; },
+    fill(path) { stats.fills++; if(path?.d) stats.paths.push(path.d); },
+    stroke(path) { stats.strokes++; if(path?.d) stats.paths.push(path.d); },
     fillRect() { stats.fills++; },
     strokeRect() { stats.strokes++; }
   };
@@ -39,6 +40,7 @@ function checkDraw(name, draw, minFills = 15, minStrokes = 12) {
   assert.ok(stats.fills >= minFills, name + " drew too little");
   assert.ok(stats.strokes >= minStrokes, name + " lost ink or silhouette");
   checks++;
+  return stats;
 }
 
 try {
@@ -148,6 +150,37 @@ try {
     { t: 1400, state: "look-back" }), 9, 10);
   checkDraw("YOU walking", ctx => Art.keeper(ctx, 120, 180, { t: 900, walking: true, stride: 4, face: 1 }));
   checkDraw("YOU looking back", ctx => Art.keeper(ctx, 120, 180, { t: 900, state: "look-back", face: -1 }));
+  // Asset-first Keeper pass: all appearances pull from ONE head, one coat
+  // and the same umbrella cutout. No new dependencies, idle animation clocks
+  // or separately illustrated portrait facsimiles.
+  const youPortrait = Art.PORTRAITS.you.neutral;
+  assert.ok(youPortrait.includes(Art.characterHeadSvg("you")),
+    "YOU portrait must use the identical gameplay head asset");
+  assert.ok(youPortrait.includes(Art.characterBodySvg("you")),
+    "YOU portrait must use the identical gameplay coat asset");
+  const umbrella = youPortrait.match(/<path d="([^"]+)" fill="#2f6fa5"/);
+  assert.ok(umbrella, "YOU has his blue umbrella in the portrait");
+  const { ctx: youCtx, stats: youStats } = fakeCanvas();
+  Art.keeper(youCtx, 120, 180, { state: "idle", t: 400, face: 1 });
+  assert.ok(youStats.paths.includes(umbrella[1]),
+    "world actor and portrait must draw the same reusable umbrella path");
+  assert.equal(youStats.depth, 0, "YOU leaves Canvas state balanced");
+  checks += 4;
+  for (const [state, opts] of [
+    ["idle", {}],
+    ["door", {}],
+    ["look-back", {face: -1}],
+    ["walking left", {walking:true, stride:4, face:-1}],
+    ["walking right", {walking:true, stride:9, face:1}],
+    ["addressed", {addressed:true, look:{x:-.5,y:0}}],
+  ]) {
+    checkDraw("YOU " + state, ctx => Art.keeper(ctx, 120, 180,
+      {t:1200, ...opts}));
+  }
+  for(const state of ["reach", "look", "keys", "pocket", "reach-up"]) {
+    checkDraw("YOU car " + state, ctx => Art.youSeated(ctx, 120, 180,
+      {t:900, state}), 9, 10);
+  }
   assert.ok(Art.PORTRAITS.orr.serving.includes("<svg"), "Orr has a portrait");
   assert.notEqual(Art.PORTRAITS.orr.serving, Art.PORTRAITS.orr.dry, "Orr's emotional reads differ");
   assert.notEqual(Art.PORTRAITS.driver.neutral, Art.PORTRAITS.driver.scared, "Driver's emotional reads differ");
