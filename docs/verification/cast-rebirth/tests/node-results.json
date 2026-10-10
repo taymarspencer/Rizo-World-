@@ -1,0 +1,66 @@
+[
+  {
+    "suite": "tests/ads-boundary.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/core-contracts.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/defense-core.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/dungeon-actor-direction.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/dungeon-cast-render.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/dungeon-core.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/dungeon-input.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/dungeon-kit.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/home-core.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/mode-host.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/public-product.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/release-integrity.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/service-worker-policy.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/training-boundaries.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/worker-b-economy.test.js",
+    "exit": 0
+  },
+  {
+    "suite": "tests/worker-j-defense-guard.test.js",
+    "exit": 0
+  }
+]

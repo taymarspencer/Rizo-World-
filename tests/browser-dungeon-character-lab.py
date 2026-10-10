@@ -101,7 +101,7 @@ with sync_playwright() as pw:
     art = page.evaluate("""(()=>({portraits: Object.fromEntries(Object.entries(RizoDungeonArt.PORTRAITS).map(([k,v])=>[k,Object.keys(v)])),
       scale: RizoDungeonArt.RULES.scale}))()""")
     cast = {c["id"]: c for c in lab["CAST"]}
-    for want in ["rizo", "latch", "nell", "orr", "porter", "hood-tall", "hood-small", "hood-cap", "keeper", "you-seated", "van-crew", "draftling", "needle", "collector", "boss"]:
+    for want in ["rizo", "latch", "nell", "orr", "porter", "hood-tall", "hood-small", "hood-cap", "driver", "keeper", "you-seated", "van-crew", "draftling", "needle", "collector", "collector-marshal", "collector-gatherer", "collector-runner", "collector-sentry", "boss"]:
         check(f"the lab has {want}", want in cast)
     check("every Nell state the art draws is in the lab", cast["nell"]["states"] == NELL_STATES, (cast["nell"]["states"], NELL_STATES))
     check("every Latch portrait expression is a world expression too", sorted(cast["latch"]["exprs"]) == sorted(art["portraits"]["latch"]),
@@ -141,6 +141,28 @@ with sync_playwright() as pw:
         if c["exprs"]:
             e = {x: page.evaluate("([id,s,x])=>RizoDungeonLab.measure(id,s,1,x)['sig']", [c["id"], c["states"][0], x]) for x in c["exprs"]}
             check(f"{c['id']}: every world expression is different", len(set(e.values())) == len(e), e)
+
+    # Regression: the lab used to omit WORLD_SCALE and show unscaled adults
+    # under an "actual size" label. Compare painted pixels with the actual
+    # actor transform, independently of the lab's measurement implementation.
+    for who in ["latch", "nell", "orr", "keeper", "hood-tall", "hood-small", "hood-cap", "collector-gatherer"]:
+        bounds = page.evaluate("""id=>{
+          const e=RizoDungeonLab.CAST.find(c=>c.id===id), s=e.states[0], A=RizoDungeonArt;
+          const cv=document.createElement('canvas');cv.width=cv.height=800;
+          const g=cv.getContext('2d'), kind=id.startsWith('collector-')?'collector':id;
+          const k=RizoDungeonArt.WORLD_SCALE[kind]??1;
+          g.setTransform(4*k,0,0,4*k,400,600);
+          const o={face:1,t:1200,bob:0,expr:e.exprs?.[0]};
+          if(id.startsWith('hood-')) A.hood(g,id,0,0,o);
+          else if(id.startsWith('collector-')) A.collector(g,0,0,{...o,profile:id.slice(10)});
+          else A[id](g,0,0,o);
+          const a=g.getImageData(0,0,800,800).data;let x0=800,y0=800,x1=-1,y1=-1;
+          for(let y=0;y<800;y++)for(let x=0;x<800;x++)if(a[(y*800+x)*4+3]>=200){
+            x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+          return {w:(x1-x0+1)/4,h:(y1-y0+1)/4,lab:RizoDungeonLab.measure(id,s,1)};
+        }""", who)
+        check(f"{who}: lab painted bounds use the gameplay scale",
+              abs(bounds["w"]-bounds["lab"]["w"]) <= .6 and abs(bounds["h"]-bounds["lab"]["h"]) <= .6, bounds)
 
     # Every view renders, every Rizo pose loads the hub sprite.
     for view in ["inspect", "sheet", "lineup", "phones", "portraits"]:

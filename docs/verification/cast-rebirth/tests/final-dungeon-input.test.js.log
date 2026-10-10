@@ -1,0 +1,28 @@
+PASS dpadVector: the same eight directions and dead zone as before when no direction is held
+PASS dpadVector: a thumb wobbling ±8° at every sector edge no longer flickers
+PASS dpadVector: a real slide still turns the corner, in both directions
+PASS dpadVector: a thumb that is steering lets go nearer the centre than one that is arriving
+PASS a held thumb moves continuously and a release stops it
+PASS sliding across the pad changes direction without lifting; sliding off it keeps steering
+PASS pointercancel releases the pad and the keys
+PASS a release that lands somewhere else (capture lost) still releases
+PASS a pointerup that never arrives is healed when the browser reports no touches left
+PASS a new first finger forgets an older touch that was lost without a release
+PASS a second finger on the pad is not the first finger's business
+PASS two fingers on the pad: opposite directions do not cancel and diagonals are not invented
+PASS the pad and Flare/Tuck work together, in either release order
+PASS mashing the pad leaves nothing held
+PASS a quick tap between frames still registers as a direction edge
+PASS after a dialogue the finger is quiet, wakes on a new direction, and a held direction is never counted again on its own
+PASS every reason except the page-changed ones leaves the finger quiet, including reasons that do not exist yet
+PASS a finger that is quiet still keeps the pad: no second thumb takes it
+PASS blur, hidden, rotation, resize and resume forget every finger and key
+PASS the page events call the right clears: blur, visibility, pagehide, pageshow, orientation
+PASS keyboard: WASD/arrows, Z/Space/J, X/K, Escape/P, repeats ignored, shortcuts and text fields left alone
+PASS keyboard: a key held through a dialogue stays dead until released; after a blur the next fresh press works
+PASS a tap on the dialogue box is NEXT for a finger or pen, not while a choice is up, not for the mouse
+PASS a key finger that drifts off the key and releases elsewhere does not stay pressed
+PASS bind blurs a focused text field so the keys work; unbind clears and removes every listener
+PASS a touch on the game is cancelled at touchstart (no OS text gestures); panel, choice, links and fields keep theirs
+
+26/26 dungeon input checks passed

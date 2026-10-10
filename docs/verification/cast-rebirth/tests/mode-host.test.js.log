@@ -1,0 +1,13 @@
+PASS carePolicy defaults to normal and only accepts the two known policies
+PASS an adapter without the new optional capabilities still attaches
+PASS host.commit fails clearly when the hub cannot confirm saves
+PASS a held mode opens and closes a care session around its life
+PASS existing exits keep their behavior: no destination unless a known one is asked for
+PASS host.commit validates the slice and reward shape before the hub sees it
+PASS commit outcomes are normalized; anything unconfirmed is a failure
+PASS late callbacks after exit are refused without reaching the hub
+PASS events are allowlisted, tagged with the mode, and default to protected/none
+PASS suspend('force-update') hands the mode's commit outcome back to the hub
+PASS a mode that throws on create closes its care session again
+
+11/11 mode host checks passed

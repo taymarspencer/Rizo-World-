@@ -77,6 +77,12 @@ def tp(page, x, y):
 
 def goto(page, room, anchor=None, flags=None, skip=True):
     page.evaluate("([r,a,f])=>RizoRuntimeQA.dungeonGotoForQA(r,a,f||{})", [room, anchor, flags])
+    if room == "porter" and flags and flags.get("porterDown"):
+        # This fixture represents a defeated Porter. A story flag alone does
+        # not populate Core's defeated encounters; leaving the boss alive
+        # lets it wake and enter danger while we test the post-fight exit.
+        settled = page.evaluate("RizoRuntimeQA.dungeonEnemyForQA('night-porter',{state:'settled',hp:0})")
+        assert settled and settled["state"] == "settled" and settled["hp"] == 0, settled
     page.wait_for_timeout(300)
     if skip:
         page.evaluate("RizoRuntimeQA.dungeonSkipSceneForQA()")

@@ -331,6 +331,9 @@
       // extend above it; frame that opening tableau below the HUD at the
       // same scale. Once Rizo moves south, ordinary following takes over.
       if (roomGeo.id === "intake" && py < 260 && !peek) targetY = Math.min(targetY, -90);
+      // At the Press House shutter, Nell's hands reach the actual north
+      // beam. Give that work headroom instead of hiding her under the HUD.
+      if (roomGeo.id === "press" && py < 180 && !peek) targetY = Math.min(targetY, -48);
       if (!camera.ready) { camera.x = targetX; camera.y = targetY; camera.ready = true; return; }
       const k = reducedMotion ? 1 : Math.min(1, dt * (peek ? 3 : 7));
       camera.x += (targetX - camera.x) * k;
@@ -537,7 +540,10 @@
     // "stare", everyone looks at him.
     const crewTalk = { current: null, previous: null, signature: "", startedAt: 0 };
     let lastCrewRoom = "";
-    const headOf = actor => ({ x: actor.x, y: actor.y - (Art.CREW_HEIGHT[actor.id] || 56) + 8 });
+    const headOf = actor => {
+      const [x,y] = Art.CREW_HEAD[actor.id] || [0,-48];
+      return { x: actor.x + x, y: actor.y + y };
+    };
     function crewOptions(actor, t) {
       const npcs = lastNpcs, rizo = { x: crewRizo.x, y: crewRizo.y - 8 };
       const byId = id => npcs.find(entry => entry.id === id);

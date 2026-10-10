@@ -1,4 +1,4 @@
-"""Capture and verify the real opening at 320/390 phone viewports.
+"""Capture and verify the real opening at 320/390/430 phone viewports.
 
 Uses the production build and existing QA scene clock; never substitutes
 standalone art for the game. Chromium evidence, not physical-device QA.
@@ -90,8 +90,8 @@ with sync_playwright() as p:
     def jump(page, ms):
         page.evaluate(f"RizoRuntimeQA.dungeonSceneTimeForQA({ms})")
     out=Path(args.evidence);out.mkdir(parents=True,exist_ok=True)
-    for width in [320,390]:
-        ctx,page,errors=boot(browser,seed={},viewport=(width,568 if width==320 else 844))
+    for width in [320,390,430]:
+        ctx,page,errors=boot(browser,seed={},viewport=(width,{320:568,390:844,430:932}[width]))
         page.evaluate(SETUP);launch(page)
         captured=set(); checkout=[]; trace=[]
         for i in range(1000):

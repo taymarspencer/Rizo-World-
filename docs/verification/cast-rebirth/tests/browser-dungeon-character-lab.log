@@ -1,0 +1,127 @@
+PASS the site build contains files
+PASS no lab file is in the site build
+PASS no tools/ folder is in the site build
+PASS no shipped file links to or names the lab
+PASS the hub bridge boots the real Rizo
+PASS the lab and its hub write nothing to storage
+PASS the hub runs on in-memory stores only
+PASS the bridge never registered a service worker
+PASS the lab has rizo
+PASS the lab has latch
+PASS the lab has nell
+PASS the lab has orr
+PASS the lab has porter
+PASS the lab has hood-tall
+PASS the lab has hood-small
+PASS the lab has hood-cap
+PASS the lab has driver
+PASS the lab has keeper
+PASS the lab has you-seated
+PASS the lab has van-crew
+PASS the lab has draftling
+PASS the lab has needle
+PASS the lab has collector
+PASS the lab has collector-marshal
+PASS the lab has collector-gatherer
+PASS the lab has collector-runner
+PASS the lab has collector-sentry
+PASS the lab has boss
+PASS every Nell state the art draws is in the lab
+PASS every Latch portrait expression is a world expression too
+PASS every portrait set in the game is reachable from a character
+PASS every speaker with a portrait appears in the portraits view
+PASS every portrait expression is shown
+PASS portraits are shown at 46, 56 and 128 px
+PASS no portrait is blank
+PASS latch: every state paints (6)
+PASS latch: listed states are visibly different
+PASS latch: facing left paints a mirror
+PASS latch: every world expression is different
+PASS nell: every state paints (13)
+PASS nell: listed states are visibly different
+PASS nell: facing left paints a mirror
+PASS nell: every world expression is different
+PASS orr: every state paints (4)
+PASS orr: listed states are visibly different
+PASS orr: facing left paints a mirror
+PASS orr: every world expression is different
+PASS porter: every state paints (8)
+PASS porter: listed states are visibly different
+PASS hood-tall: every state paints (4)
+PASS hood-tall: listed states are visibly different
+PASS hood-tall: facing left paints a mirror
+PASS hood-small: every state paints (6)
+PASS hood-small: listed states are visibly different
+PASS hood-small: facing left paints a mirror
+PASS hood-cap: every state paints (4)
+PASS hood-cap: listed states are visibly different
+PASS hood-cap: facing left paints a mirror
+PASS keeper: every state paints (2)
+PASS keeper: listed states are visibly different
+PASS keeper: facing left paints a mirror
+PASS you-seated: every state paints (7)
+PASS you-seated: listed states are visibly different
+PASS van-crew: every state paints (7)
+PASS van-crew: listed states are visibly different
+PASS collector: every state paints (10)
+PASS collector: listed states are visibly different
+PASS collector: facing left paints a mirror
+PASS coat: every state paints (8)
+PASS coat: listed states are visibly different
+PASS boss: every state paints (2)
+PASS boss: listed states are visibly different
+PASS draftling: every state paints (5)
+PASS draftling: listed states are visibly different
+PASS draftling: facing left paints a mirror
+PASS needle: every state paints (5)
+PASS needle: listed states are visibly different
+PASS needle: facing left paints a mirror
+PASS driver: every state paints (1)
+PASS driver: listed states are visibly different
+PASS collector-marshal: every state paints (1)
+PASS collector-marshal: listed states are visibly different
+PASS collector-marshal: facing left paints a mirror
+PASS collector-gatherer: every state paints (1)
+PASS collector-gatherer: listed states are visibly different
+PASS collector-gatherer: facing left paints a mirror
+PASS collector-runner: every state paints (1)
+PASS collector-runner: listed states are visibly different
+PASS collector-runner: facing left paints a mirror
+PASS collector-sentry: every state paints (1)
+PASS collector-sentry: listed states are visibly different
+PASS collector-sentry: facing left paints a mirror
+PASS latch: lab painted bounds use the gameplay scale
+PASS nell: lab painted bounds use the gameplay scale
+PASS orr: lab painted bounds use the gameplay scale
+PASS keeper: lab painted bounds use the gameplay scale
+PASS hood-tall: lab painted bounds use the gameplay scale
+PASS hood-small: lab painted bounds use the gameplay scale
+PASS hood-cap: lab painted bounds use the gameplay scale
+PASS collector-gatherer: lab painted bounds use the gameplay scale
+PASS view inspect renders
+PASS view sheet renders
+PASS view lineup renders
+PASS view phones renders
+PASS view portraits renders
+PASS every Rizo pose loads the hub's sprite (37)
+PASS Rizo poses carry the game's pose classes
+PASS the lab raised no page errors
+PASS still nothing in storage after every view
+PASS 320×568: outside screen is the lab's (292×344)
+PASS 320×568: BELOW screen is the lab's (284×350)
+PASS 320×568: Rizo's actor box in the lab matches the game (27.0 px)
+PASS 320×568: dialogue portrait is 46 px in the game
+PASS 375×812: outside screen is the lab's (340×510)
+PASS 375×812: BELOW screen is the lab's (315×472)
+PASS 375×812: Rizo's actor box in the lab matches the game (30.0 px)
+PASS 375×812: dialogue portrait is 56 px in the game
+PASS 390×844: outside screen is the lab's (355×532)
+PASS 390×844: BELOW screen is the lab's (330×495)
+PASS 390×844: Rizo's actor box in the lab matches the game (32.0 px)
+PASS 390×844: dialogue portrait is 56 px in the game
+PASS 430×932: outside screen is the lab's (393×589)
+PASS 430×932: BELOW screen is the lab's (370×555)
+PASS 430×932: Rizo's actor box in the lab matches the game (35.0 px)
+PASS 430×932: dialogue portrait is 56 px in the game
+
+125/125 passed

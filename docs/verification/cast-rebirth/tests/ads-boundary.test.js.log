@@ -1,0 +1,16 @@
+PASS provider attachment cannot enable a shipped or unknown placement
+PASS unresolved/revoked privacy and active gameplay reject before provider calls
+PASS reward opt-in, a truthful offer callback, natural break and opportunity ID are mandatory
+PASS single in-flight request and opportunity dedupe prevent double reward delivery
+PASS no inventory, provider exceptions and rejected promises fail without reward or holds
+PASS Google beforeReward never auto-shows; a player may refuse with no reward
+PASS privacy changes between offer and Watch prevent showing the ad
+PASS Google completion grants once and only after adViewed and the terminal callback
+PASS dismissal, shown-only and a viewed status string alone never earn a reward
+PASS stalled requests settle, release a started hold, quarantine the provider and reject late rewards
+PASS late SDK display after an initial timeout still receives a balanced pause and requires Resume
+PASS interstitial cooldown, attempt cooldown, and per-session cap remain conservative
+PASS an interstitial cannot impersonate a reward or a preroll placement
+PASS a provider error after beginning cannot silently restart play
+
+14/14 advertising boundary checks passed

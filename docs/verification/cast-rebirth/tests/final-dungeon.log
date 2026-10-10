@@ -1,0 +1,392 @@
+PASS Go describes a free saved story, not an ENDLESS energy run
+PASS the Dungeon opens from the shelf through RizoModes, in the Keeper's car, shell open
+PASS the actual named, dressed Rizo is the actor (canonical markup, one renderer)
+PASS a proof campaign is created, bound to the active pet and saved in the signed envelope
+PASS the Dungeon slice stays small
+PASS the care summary reaches the profile as recognition cues only
+PASS a foreground care hold is active while the Dungeon is open
+PASS the Arcade shelf refresh never rewrites the open stage (data-mode collision)
+PASS the inherited arcade timer and actions are hidden
+PASS while open, the page cannot scroll, rubber-band or select text (Dungeon-scoped)
+PASS Act I: the first Draftling is seen at the edge of his light before it notices him (he pulls in)
+PASS keyboard: holding D moves and the D-pad visibly presses right
+PASS keyboard: Z flares while D keeps moving (move + act together)
+PASS keyboard: the physical Flare key depresses while Z is held
+PASS keys rise again on release
+PASS touch: D-pad and Flare work together on separate pointers
+PASS touch: sliding across the D-pad changes direction without lifting
+PASS touch: pointercancel releases the D-pad
+PASS mouse: right button over the screen is Tuck
+PASS mouse: the page context menu is suppressed inside the handheld
+PASS clicking a rendered key fires that key once, not also a screen attack
+PASS mouse: left button over the screen is Flare
+PASS blur clears held input and a browser repeat cannot restart it
+PASS a keyup outside the device still releases the key
+PASS typing targets and shortcuts are never game input
+PASS inspecting opens a dialogue; a fresh press reveals, another advances
+PASS the press that closes a line (and a key still held) never fires a Flare
+PASS Journal settings offer Gentler timing and text speed
+PASS a held Flare reads the Draftling's draw-back and calms it
+PASS no reward or story claim comes from ordinary play
+PASS the hearth shows a highlighted KINDLE prompt and the key says so
+PASS Secondary cancels a Kindle safely
+PASS Kindle rests: hearth registered, Flame full, checkpoint committed
+PASS rest brings the ordinary Draftling back for a new leg
+PASS the rest is reported as a protected semantic event (dormant)
+PASS Act I: a hit is the first time his light circle shrinks (flame down, the light dips)
+PASS standing in the lunge line brings the Rizo down and back at the hearth
+PASS death keeps the pet, the hearth and the campaign; it is committed
+PASS background → ad → visible → ad-end leaves only a manual hold
+PASS nothing advances under a hold
+PASS a fresh Resume is required, and it restarts play
+PASS Escape opens and closes the device's own pause panel
+PASS resize clears held input and leaves the world unchanged
+PASS no horizontal overflow at 430×932
+PASS visible Dungeon time neither decays needs nor grows the pet
+PASS hidden absence still counts as ordinary time away
+PASS reload resumes the same campaign at its safe anchor with full Flame
+PASS deleted mode-run keys do not touch the journey (it never uses one)
+PASS GO HOME saves and returns to the real Den with JOURNEY SAVED
+PASS leaving restores normal Hub scrolling and selection
+PASS the hub records returnedToHub and releases the care hold
+PASS feeding works in the Den afterwards; no modal interrupts the return
+PASS ordinary care resumes after exit
+PASS the shelf shows the journey's progress
+PASS export/import keeps the journey, bound to the same pet
+PASS the replaced timeline stays restorable from Keeper Recovery
+PASS a House swap cannot rebind the journey: the player is told to activate MOSSY
+PASS releasing the journey's pet shows a warning first
+PASS after release the journey is kept, explained, and never moves to another Rizo
+PASS entry and identity flows raise no page errors
+PASS Scene 1: a new journey opens in the Keeper's parked car, shell open, no music
+PASS 1.1: it fades in from black with control removed, YOU in the driver's seat
+PASS 1.2: after the 4 s fade-in, control is his (full: move, Flare, LOOK)
+PASS approaching YOU: “Hi. Yes. Hi.” in YOU's dialogue box
+PASS a line to Rizo closes itself about 5 s after it is shown (no press needed)
+PASS YOU never repeats: approaching again says nothing
+PASS …and YOU's LOOK prompt goes once YOU has answered
+PASS the dash: “Off the dash, please.”
+PASS a Flare: “Okay, show-off.” (the spark lights the car's ceiling)
+PASS the side window: “It's just rain.”
+PASS each reaction once, in the order he found them
+PASS Scene 1 holds until 20 s have passed even after every reaction
+PASS Scene 2 begins at ≥ 20 s: control removed, YOU takes the keys
+PASS 2.2: the accepted line, with the pet's own name (MOSSY → “Mossy”)
+PASS 2.2: the departure line is player-paced past the old 5 s auto-close window
+PASS 2.3: the dome light clicks on before “There. Light's on.”
+PASS 2.3: “There. Light's on.”
+PASS 2.4: YOU steps into the rain first, looks back, and “Be good.” lands alone
+PASS then a held silence: no line, no control, YOU not gone yet
+PASS 2.5 THUNK: YOU is outside, crossing the lot; he follows with his whole body at the glass
+PASS control returns about 5 s after THUNK (1 s after the store's chime)
+PASS the keeper is inside the store, not on the lot
+PASS YOU drifts between the aisles, in sight about 70% of the time
+PASS looking around brings nothing: 20 s in, still only waiting
+PASS at the glass when YOU goes out of sight: he presses to it
+PASS …and eases when YOU comes back
+PASS seeing YOU through the glass for 1.5 s counts (seenYou)
+PASS the dome light is still on before 35 s
+PASS 3.2: at 35 s the dome light times out; away from the glass he pulls in
+PASS …fading over 3 s: he is the only light inside now
+PASS 3.3: a shopping cart rattles past before the threat turn
+PASS 3.4: seenYou never shortens the wait below 55 s
+PASS …and at 55 s with YOU seen, the headlights begin
+PASS 4.1: he senses it first: the flame pulls in before anything is seen
+PASS 4.2: headlights sweep the cabin and one held low tone begins
+PASS 4.3: the van parks behind; the dread tone cuts out; nothing happens (no one yet)
+PASS the footwell is the darkest place: he curls small there
+PASS 4.4–4.6 play as overheard barks, in order, word for word
+PASS their behavior makes the job look planned: store checked, then two bodies stage at the passenger door
+PASS the barks never take control from him
+PASS hiding records nothing
+PASS the window LOOK is gone once they come (no line can cover the abduction)
+PASS 5.1: the door is forced
+PASS 5.2: a first Flare makes them flinch (“Yo—”); a later one: “It's hot! It's hot!”
+PASS he cannot get away: the hands have him within 6 s
+PASS the grab becomes a carry beat instead of an instant cut
+PASS the grab cuts to a comic page that is nothing like play: control is off and the world waits under it
+PASS a tap skips the comic and the carry resumes
+PASS 5.3: after the visible carry, YOU is at the counter, back turned
+PASS 5.4: “Bag. Bag.” and the pillowcase
+PASS taken is committed once, and he is in the dark with the score gone
+PASS 6.1: in the sack, no control for 4 s, the HUD names no room
+PASS 6.2: then limited control: he can push
+PASS three bursts shake him free
+PASS 6.3: he tumbles onto the van floor
+PASS the sack's silence follows him through the cut
+PASS the moving-van bed enters only after he has landed
+PASS 7.1: the front seats argue in bubbles; nothing to press through
+PASS the talk never blocks him: he moves while they speak
+PASS a LOOK pauses the talk: the line on screen waits under the box, nothing is skipped
+PASS a bump sends a loose cooler down a shown line; the TUCK key wakes once
+PASS Tuck curls him out of the way; a miss would only bump, never burn
+PASS the van plays its three movements in order, including the missed check-in, with nothing skipped
+PASS every accepted RC2 van line survives word for word
+PASS nobody is named and nothing is explained in the van
+PASS 8.1: the door works loose after the talk; at the gap, black and rain
+PASS 8.2: he leans back from the dark, his flame pulled tight
+PASS letting go before 1.5 s: he retreats one step, and the push starts over
+PASS a continuous 1.5 s push carries him through
+PASS outside air replaces the van bed before the roadside room loads
+PASS 8.3: he falls; the fell beat is committed, and the gap is not (no jumpedGap)
+PASS 9.1: alone by the road he lies still until the player asks him to move
+PASS one press and he gets up
+PASS 9.2: far up the road the taillights stop: brake red
+PASS the taillights stopping cuts to a comic page; control is off while it plays
+PASS the comic closes on its own and control comes back for the search
+PASS 9.3: a phone flashlight comes back along the shoulder, two of them
+PASS in the ditch's shadow, not Flaring, he is hidden: curled small, the beam passes
+PASS a Flare gives him away even in shadow: the beam stops on him
+PASS …and a voice: “Yo— was that—” (no capture, no failure)
+PASS standing in the beam out of shadow is seen too, and still nothing happens to him
+PASS the searchers keep to their walk; nobody comes for him
+PASS their talk, word for word, then another car and they go
+PASS 9.5: they are gone; music off, rain only; the search is committed
+PASS nothing in the search names anyone or says why
+PASS Small leaves his actual search phone behind in the panic
+PASS 10.1: the same dropped phone lights up where Small lost it
+PASS up close, its screen shows only CALLER_SYMBOL (a placeholder), no words
+PASS 10.2: touching it connects the call: committed first (callerConnected)
+PASS touching is not a Flare
+PASS the screen: the symbol and a running call timer, nothing else; no narration
+PASS the silent line contains one breath from the other end
+PASS the caller stays on long enough to feel like they are listening
+PASS The Boss speaks on the line (his first words in the game), in his own cold bubble, not a dialogue box
+PASS after ~8.6 s the caller hangs up first and the screen goes dark
+PASS callerConnected stays the only new opening fact
+PASS after one last held rain silence, the walk's sparse music comes back
+PASS RC2's bowl: he approaches and stops (no text forced)
+PASS 11.2: at the midpoint, one car passes from behind
+PASS its light washes over him: he flinches, then turns and watches it go
+PASS only one car passes
+PASS near the culvert, the world points with a draft instead of an objective marker
+PASS 12.1: shelter starts in designed silence while he shakes off the rain
+PASS only after he settles does the drain's warm tonal bed enter
+PASS the dry glove is still there
+PASS 12.3 waits: no headlights before 30 s near the mouth
+PASS …at 30 s, once: headlights sweep in and he flinches deeper
+PASS the warmth reaches his flame before the slope, so deeper is a motivated choice
+PASS at the black back: “Warm air. From down there.”
+PASS no objective marker tells him to go deeper
+PASS 13.1: on the slope he slips (pose), control still his
+PASS any move inside the 1.2 s window scrambles him back up
+PASS 13.2: three seconds after recovering, the second slip: irreversible
+PASS 13.3: falling in the black, his flame streaking (fall effects drawn above the dark)
+PASS 13.4: every sound stops just before impact, the screen already black
+PASS 13.5: the handheld stays open through the fall and locks on impact, not before
+PASS the lock keeps its ~560 ms
+PASS the second slip cuts to the fall comic, a full-motion page
+PASS the fall runs about 0.3 s crack + the fall comic + 2.5 s in the black before impact
+PASS a held black after impact: nothing seen for about 2 s
+PASS no HOME banner appears on its own, not in the fall or the black
+PASS 14.1: total black first, then a pinprick of his flame (presentation only: Flame stays full)
+PASS input before 4 s does not wake him
+PASS the light keeps growing back over 10 s
+PASS 6 s in, the move key pulses once (the only hint)
+PASS 14.2: he wakes when the player moves
+PASS 14.4: standing still near the landing he looks up, and the thought “home?” appears
+PASS the thought is its own thing: lowercase, small, no box, no portrait, no name
+PASS …committed once ever (thought:home) before it shows
+PASS nothing else talks over the thought (no prompt)
+PASS the thought fades on its own
+PASS it never comes back, even standing still at the landing again
+PASS 14.5: no HOME ↑ banner; below is silent until it is found
+PASS the scratched sign is found by LOOK: the accepted line
+PASS on that first read a new motif enters and the music returns
+PASS the opening's beats, in order, each once
+PASS the opening awards nothing and claims nothing
+PASS a reload below resumes in the locked handheld; no landing, no thought replayed
+PASS …and the sign already found keeps the music below playing
+PASS the opening raises no page errors
+PASS idle in the car: nothing at 42 s
+PASS idle 45 s: YOU says “It's just rain.” unprompted
+PASS the 75 s cap ends Scene 1 even for a player who never moves
+PASS a save without a pet name hears the fallback: “Alright Rizo, …”
+PASS with no presses at all, the cinematic dialogue safety fallback prevents a soft-lock
+PASS never looking out: still waiting at 89 s
+PASS …and the headlights at 90 s regardless
+PASS without any input the abduction still happens (the hands come to him)
+PASS 6.2: without a push he is not freed early
+PASS …but at 12 s the sack lets him go anyway
+PASS 8.1: not walking to the gap, he is moved there at 9 s
+PASS no push, no jolt yet at 9 s at the gap
+PASS 8.2: at 10 s the van jolts and throws him regardless
+PASS the phone rings whether or not he goes near it
+PASS still ringing at 39 s
+PASS 10.3: ignored, it rings out and goes dark; resolved, but no callerConnected
+PASS 13.1: on the slope with no input in the window…
+PASS …the second slip follows at once
+PASS the idle paths raise no page errors
+PASS reload in Scene 1 (nothing committed): the car again, from the start
+PASS reload while waiting: back in the car, YOU already in the store; “Be good.” is not replayed
+PASS reload in the sack: he resumes in the van; the abduction is not replayed
+PASS reload in the van: the van again; still one abduction
+PASS reload during the search (fell, not searched): the roadside from where he fell
+PASS reload after the search: no second search; the phone is still ringing
+PASS reload after the call: the walk, no phone again; callerConnected kept
+PASS reload in the drain: the drain's mouth
+PASS reload in the black hold after impact: below, the fall not replayed
+PASS a reload before the thought still lets it come once, near the landing
+PASS the reload paths raise no page errors
+PASS an RC2 journey at the curb resumes sensibly in v4 (car)
+PASS …its committed beats are kept, none replayed or duplicated (at the curb)
+PASS …without page errors (at the curb)
+PASS an RC2 journey taken, in the van resumes sensibly in v4 (van)
+PASS …its committed beats are kept, none replayed or duplicated (taken, in the van)
+PASS …without page errors (taken, in the van)
+PASS an RC2 journey fallen, by the road resumes sensibly in v4 (roadside)
+PASS …its committed beats are kept, none replayed or duplicated (fallen, by the road)
+PASS …without page errors (fallen, by the road)
+PASS an RC2 journey in the drain resumes sensibly in v4 (drain)
+PASS …its committed beats are kept, none replayed or duplicated (in the drain)
+PASS …without page errors (in the drain)
+PASS an RC2 journey below resumes where it was, every fact, choice and hearth intact
+PASS …no thought comes to a journey already past the Slip
+PASS …even standing at the landing
+PASS the migrated below-journey raises no page errors
+PASS reduced motion: the stage carries the reduced-motion class
+PASS reduced motion: the headlights brighten and fade in place instead of sweeping
+PASS reduced motion: no cut to black and no flashes, a slow dim fade instead
+PASS reduced motion: the fall comic still plays, as the reduced page (panels fade, nothing slams or shakes)
+PASS reduced motion: the handheld still locks on impact, quickly (~160 ms)
+PASS reduced motion: the fall still goes silent first and lands without a banner
+PASS reduced motion raises no page errors
+PASS 320×568: no page scroll, the screen sits above the controls
+PASS 320×568: the store window and the whole cabin fit on screen together
+PASS 320×568: YOU's line fits inside the screen, never under controls or over Rizo
+PASS 320×568: no page errors
+PASS 375×667: no page scroll, the screen sits above the controls
+PASS 375×667: the store window and the whole cabin fit on screen together
+PASS 375×667: YOU's line fits inside the screen, never under controls or over Rizo
+PASS 375×667: no page errors
+PASS 390×844: no page scroll, the screen sits above the controls
+PASS 390×844: the store window and the whole cabin fit on screen together
+PASS 390×844: YOU's line fits inside the screen, never under controls or over Rizo
+PASS 390×844: no page errors
+PASS 430×932: no page scroll, the screen sits above the controls
+PASS 430×932: the store window and the whole cabin fit on screen together
+PASS 430×932: YOU's line fits inside the screen, never under controls or over Rizo
+PASS 430×932: no page errors
+PASS Latch, trapped behind a frozen latch: “NO OPEN FLAMES.” (startled)
+PASS optional: looking at Latch first (“Different problem.”) is remembered
+PASS Primary warms the jammed latch (a Kindle), committed before Latch reacts
+PASS the rescue happens exactly once and the route opens
+PASS the hearth registers on safe arrival and restores Flame
+PASS entering the Shared Hearth he visibly loosens: the pose, and his light swells a little
+PASS Latch offers the seat; SIT / GO waits for the player, no timer
+PASS the choice is still waiting after time passes
+PASS SIT is committed (sharedRest) before Latch's answer is shown
+PASS SIT: Rizo settles on the bench beside Latch (a quiet proximity beat)
+PASS SIT's quiet aftermath: after Latch's line, nothing is said for a while
+PASS Latch's warning before the Porter is said
+PASS the cold bowl: narration only (no Rizo speech), bowlSeen kept
+PASS the queue lever opens a real shortcut to the hearth (durable)
+PASS …and walking through it arrives at the hearth
+PASS the Needle shows its lane, then pulses it
+PASS the Porter's room records a pre-fight continuation
+PASS at half health the help beat is committed first (alcove open, Latch helping)
+PASS the Porter climax: his light at its smallest, a look back, nobody there yet
+PASS …then silence, still nobody
+PASS …then the alcove clunks open and Latch is there
+PASS Latch: “Here. I found a door that still does doors.” (urgent)
+PASS reload mid-help: the alcove starts open, the Porter at full HP, the beat acknowledged not repeated
+PASS …and dropping below half again asks for no second help
+PASS the Porter settles; the First Knot and shared-hearth mark are committed with the proof
+PASS the reward is never auto-equipped
+PASS a held quiet after the Porter, before anything is given
+PASS Latch's gift lines: “Keeps the draft off.”
+PASS the open door leads on: the Mending Rows' Receiving, the journey still going and the proof kept
+PASS Latch got there first, and Nell is at work
+PASS ordinary feeding works after leaving the Rows
+PASS the story path raises no page errors
+PASS GO is committed too; it keeps the checkpoint and records no sharedRest
+PASS GO: Latch still helps at half health
+PASS GO: the First Knot alone (no shared-hearth mark)
+PASS the GO path raises no page errors
+PASS (the rescue was committed before the reload)
+PASS an interrupted rescue is not re-run: the gate is open, Latch has gone ahead
+PASS a Gate 1 review campaign keeps its id, pet and settings and starts The Threshold's opening
+PASS the migration boots without page errors
+PASS a live Defense run survives the Go refresh
+PASS First Knot is not in the shop before it is earned
+PASS failed primary write: reported failed, in-memory hub state restored
+PASS failed primary write: storage untouched, reward kept pending in the journey
+PASS no completion event is emitted before a confirmed save
+PASS the pending reward is retried and commits once storage works
+PASS First Knot and the shared-hearth mark are written with a receipt
+PASS the proof completes without claiming the full story
+PASS the garment is not equipped without the player's choice
+PASS a repeated identical receipt commits data but grants nothing again
+PASS a conflicting payload under an existing receipt is refused before anything applies
+PASS unknown entitlements and unowned pets are refused
+PASS primary saved but backup failed: committed, backupSynced false, primary is the record
+PASS that reward is never repeated afterwards
+PASS the completion event fires only after the confirmed commit
+PASS the Closet shows First Knot once earned
+PASS choosing it uses the existing wardrobe path and the Den renders it
+PASS an interrupted homecoming resumes at the open door, never re-awarding
+PASS a held control survives hub refresh and the real autosave tick
+PASS walking out the open door goes on into the Rows; the proof stays complete
+PASS a completed proof still says it reached home, never replaying the reward, and offers the open door
+PASS going on resumes in the Porter's room with the door open, still complete
+PASS …and through it into the Rows; next launch resumes there, not at the panel
+PASS (a completed journey that went on resumes in the Rows; the summary shows how far)
+PASS fixture flows raise no page errors
+PASS Rows: the Porter's open door walks into Receiving; Latch got there first, Nell is mending
+PASS Rows: Latch's greeting remembers the shared rest; his collectors notice for Nell is overheard, not a dialogue box
+PASS Rows: when he comes close, Nell clears a dry patch for him first
+PASS Rows: warming the ledge catch is optional help, and it is remembered
+PASS Rows: at the Dry Table she misreads him (the warm room), then follows his look up: “Further up.”
+PASS Rows: the way into the rows is shut until the work is done
+PASS Rows: the first small job holds (“Holds.”) and opens the door north
+PASS Rows: the table's stove is a dry place to come back to (a checkpoint)
+PASS Rows: reload at the table resumes there; the meeting never replays
+PASS Rows: Hanging Row splits by size: he takes the low route, she names where they'll meet
+PASS Rows: she kept the appointment at Eyelet Landing, and Orr arrives with a tray too big for the hatch
+PASS Rows: the grille opens for the tray; the way back to the table is open
+PASS Rows: the meal: Nell loses a small argument, then SIT or GO
+PASS Rows: GO is honoured (no pressure); the press door opens either way
+PASS Rows: Press House: she braces a screen while the carriage passes once
+PASS Rows: caught on the running track he is knocked clear, never hurt
+PASS Rows: stop, brake (his side), one test with him off the track, parked
+PASS Rows: the shutter: he warms it, she lifts
+PASS Rows: the upper landing: the stair opens, and she names the next appointment (the table)
+PASS Rows: reload on the landing resumes there with nothing replayed
+PASS Rows: she kept the table appointment: a low board set at his height
+PASS Rows: he finds her chalk (“I was keeping it warm.”), and it is remembered
+PASS Rows: the wrap is offered, never put on him: WEAR IT, FOLDED or LEAVE IT
+PASS Rows: WEAR IT is committed and shows on him; she moves the wet sheets off the way on
+PASS Rows: after a reload he is still wearing it
+PASS Rows: through the doorway the sheets hid: Window Hall
+PASS Rows: CLOSED, BACK SOON; Latch remembers the catch he warmed
+PASS Rows: the boundary is said plainly: WINDOW HALL IS NEXT, saved here
+PASS Rows: the shelf summary shows how far the journey went (rooms visited in the Rows)
+PASS Rows: STAY A WHILE closes the card and play goes on
+PASS Rows: the first time he drifts toward the rest of the hall, she keeps him close
+PASS Rows: 320 px: no page scroll, barks inside the screen, nothing selected
+PASS Rows: 375 px: no page scroll, barks inside the screen, nothing selected
+PASS Rows: 430 px: no page scroll, barks inside the screen, nothing selected
+PASS Rows: the next launch resumes at the closed window: Nell waiting, no card replayed, still wearing the wrap
+PASS Rows: the chapter raises no page errors
+PASS Rows: reduced motion is honoured in the Rows
+PASS Rows: without the ledge help Latch says something else, and nothing is closed off
+PASS Rows (reduced-motion variant) raises no page errors
+PASS a forced update aborts when the Dungeon cannot commit
+PASS the held update is explained and a fresh Resume clears it
+PASS …after which play continues
+PASS a confirmed commit lets the update proceed and stops simulation
+PASS after the (simulated) update the same campaign resumes
+PASS a stale tab's commit is blocked and the hub's save-protected notice shows
+PASS save-blocked survives resume notifications and the player's Resume
+PASS the other tab's newer save is untouched
+PASS without Dungeon scripts the hub boots, Defense still registers, the card says UNAVAILABLE
+PASS First Knot stays a working hub wearable without the Dungeon
+PASS the unregistered Dungeon slice survives a save untouched
+PASS a Dungeon start that throws releases the page lock (Hub scroll and selection intact)
+PASS a signed save from a newer hub (unknown wearable) is protected, not normalized
+PASS its original bytes are preserved
+PASS a version-21 save migrates to 23 with empty receipts and story marks, nothing lost
+PASS migration boots without page errors
+PASS if time away sends the pet into recovery, the journey is saved and the Den's recovery flow takes over
+
+390/390 dungeon checks passed

@@ -1,0 +1,74 @@
+PASS 320: tier 0 sleeps inside a tappable bed
+PASS 320: tier 1 sleeps inside a tappable bed
+PASS 320: tier 2 sleeps inside a tappable bed
+PASS 320: tier 3 sleeps inside a tappable bed
+PASS 320: speed selection stages its practice equipment
+PASS 320: instinct selection stages its practice equipment
+PASS 320: power selection stages its practice equipment
+PASS 320: changing station never spends or awards anything
+PASS 320: ten empty practice marks for an untrained Rizo
+PASS 320: yard marks reflect the two earned Home patches
+PASS 320: first drill starts above the fixed navigation
+PASS 320: all ten drills and focus controls retain 44px targets
+PASS 320: expanded training board has no sideways overflow
+PASS 320: GO keeps both valid destinations
+PASS 320: destination tap targets fit the phone
+PASS 320: GO has no horizontal overflow
+PASS 320: first departure is above the fixed navigation
+PASS 320: no browser exceptions
+PASS 375: tier 0 sleeps inside a tappable bed
+PASS 375: tier 1 sleeps inside a tappable bed
+PASS 375: tier 2 sleeps inside a tappable bed
+PASS 375: tier 3 sleeps inside a tappable bed
+PASS 375: speed selection stages its practice equipment
+PASS 375: instinct selection stages its practice equipment
+PASS 375: power selection stages its practice equipment
+PASS 375: changing station never spends or awards anything
+PASS 375: ten empty practice marks for an untrained Rizo
+PASS 375: yard marks reflect the two earned Home patches
+PASS 375: all ten drills and focus controls retain 44px targets
+PASS 375: expanded training board has no sideways overflow
+PASS 375: GO keeps both valid destinations
+PASS 375: destination tap targets fit the phone
+PASS 375: GO has no horizontal overflow
+PASS 375: no browser exceptions
+PASS 390: tier 0 sleeps inside a tappable bed
+PASS 390: tier 1 sleeps inside a tappable bed
+PASS 390: tier 2 sleeps inside a tappable bed
+PASS 390: tier 3 sleeps inside a tappable bed
+PASS 390: speed selection stages its practice equipment
+PASS 390: instinct selection stages its practice equipment
+PASS 390: power selection stages its practice equipment
+PASS 390: changing station never spends or awards anything
+PASS 390: ten empty practice marks for an untrained Rizo
+PASS 390: yard marks reflect the two earned Home patches
+PASS 390: all ten drills and focus controls retain 44px targets
+PASS 390: expanded training board has no sideways overflow
+PASS 390: GO keeps both valid destinations
+PASS 390: destination tap targets fit the phone
+PASS 390: GO has no horizontal overflow
+PASS 390: no browser exceptions
+PASS 430: tier 0 sleeps inside a tappable bed
+PASS 430: tier 1 sleeps inside a tappable bed
+PASS 430: tier 2 sleeps inside a tappable bed
+PASS 430: tier 3 sleeps inside a tappable bed
+PASS 430: speed selection stages its practice equipment
+PASS 430: instinct selection stages its practice equipment
+PASS 430: power selection stages its practice equipment
+PASS 430: changing station never spends or awards anything
+PASS 430: ten empty practice marks for an untrained Rizo
+PASS 430: yard marks reflect the two earned Home patches
+PASS 430: all ten drills and focus controls retain 44px targets
+PASS 430: expanded training board has no sideways overflow
+PASS 430: GO keeps both valid destinations
+PASS 430: destination tap targets fit the phone
+PASS 430: GO has no horizontal overflow
+PASS 430: no browser exceptions
+PASS os reduced motion: ball reaction stays still
+PASS os reduced motion: ripple stays still
+PASS os: toy gestures cannot select text
+PASS setting reduced motion: ball reaction stays still
+PASS setting reduced motion: ripple stays still
+PASS setting: toy gestures cannot select text
+
+72/72 visual uphaul checks passed

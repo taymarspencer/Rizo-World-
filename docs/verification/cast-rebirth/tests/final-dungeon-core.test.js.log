@@ -1,0 +1,88 @@
+PASS content is frozen: the opening plus the six stable Threshold rooms, all reachable
+PASS the six rooms connect as specified, with a real hearth–queue shortcut
+PASS Orr presentation exposes distinct service, irritated, and dry reads
+PASS skill edges use skill/(skill+50) and never pass their caps
+PASS a low-bond, untrained Rizo gets a viable profile and only recognition cues
+PASS movement is 80 units/sec and diagonals are normalized
+PASS the speed edge adds at most 8%
+PASS walls stop the Rizo and it slides along them
+PASS collision does not depend on frame rate: a long move never tunnels a crate
+PASS Flare: 100 ms anticipation, 100 ms active, 130 ms recovery, facing locked
+PASS Flare slows movement to 60% during anticipation/active only
+PASS Flare hits once per attack, 2 damage, inside range/arc and only while active
+PASS Flare misses behind, out of range, and through solid cover
+PASS two clean Flares calm a Draftling; the power edge never makes it one
+PASS holding Primary repeats Flare at the attack cadence only during danger
+PASS Tuck travels about 40 units in 200 ms with 160 ms protection and a 650 ms cooldown
+PASS holding Secondary does not repeat Tuck
+PASS the stamina edge shortens Tuck cooldown by at most 15%
+PASS Tuck cannot cancel Flare anticipation/impact but can cancel its recovery
+PASS a Secondary press buffers for 120 ms until Tuck becomes legal
+PASS when both become legal together, Secondary wins
+PASS Draftling: notices, draws back 850 ms, lunges about 48 units in 240 ms, recovers 700 ms
+PASS the lunge follows the committed line without tracking
+PASS Gentler timing lengthens the draw back by 35% and hurt protection to 1000 ms
+PASS no contact damage outside the lunge; hurt protection prevents chain hits
+PASS Tuck protection carries the Rizo through a lunge
+PASS a lethal Flare resolves before a same-step hit
+PASS Kindle takes about 1.2 s at the hearth and Secondary cancels it safely
+PASS Primary means Flare while an encounter is live, interaction once it ends
+PASS Flame 0 brings the Rizo down; respawn returns full Flame and resets ordinary enemies
+PASS rest restores Flame and returns ordinary enemies
+PASS pause holds: background → ad → visible → ad-end still needs a fresh Resume
+PASS pause holds: lifecycle aliases normalize, and release strings need not match
+PASS pause holds: save-blocked is never released by a resume or by the player
+PASS pause holds: the player's Resume clears manual, performance and a failed update only
+PASS a new campaign binds the pet, starts in the parked car and stays small
+PASS normalizeSlice: empty, ok, and a round trip keeps everything
+PASS an unknown location is repaired to a safe anchor without resetting the campaign
+PASS numeric bounds and unknown ids are clamped on entry
+PASS a newer or unknown content revision is preserved untouched
+PASS death returns to the registered hearth, or where he landed before one
+PASS summary publishes only labels and a journey; never ENDLESS/energy
+PASS in the parked car the Rizo moves only inside the cabin: seats, dash, window, YOU
+PASS the drain goes back too far: concrete, brick, rock, then a slope into nothing
+PASS exits fire once, only after stepping clear; zones report entry
+PASS the jammed gate holds until Latch is freed; warming it is a Kindle
+PASS Needle: a 10-wide lane shown for 1000 ms, a 120 ms pulse, a 1000 ms rest; cover stops it
+PASS the van's cooler bumps but never burns, and Tuck slips it
+PASS Night Porter: wakes, then alternates a 950 ms sweep tell and an 850 ms charge tell
+PASS Night Porter: the closed coat deflects Flare; the open hem takes damage
+PASS Night Porter: help is asked once at 14 HP, never again once committed; it settles at 0
+PASS the alcove shelters from the sweep once opened
+PASS a durable defeat never respawns; ordinary enemies return on rest
+PASS a Gate 1 review campaign is carried into The Threshold explicitly
+PASS story facts, choices and beats are validated against known ids
+PASS an RC2 journey still at the curb becomes the same journey in the car, nothing reset
+PASS RC2 journeys mid-opening keep every committed beat and their room
+PASS RC2 journeys below keep hearth, facts, choices, Latch and rewards exactly
+PASS callerConnected is the one new opening fact: allowlisted, persisted, never invented
+PASS a newer revision is still preserved untouched; a v1 save is never mistaken for one
+PASS the Porter's door now opens into the Mending Rows, and the rows connect both ways
+PASS each Rows route opens through work, never through affection
+PASS a threshold-v2 journey is carried into v4 untouched (rooms and facts were only added)
+PASS Rows choices are allowlisted with their exact values; anything else is dropped
+PASS a collector walks his patrol, lamp first, and is never fought
+PASS seen in his lamp for a second means caught: a flame-out back to the hearth, nothing durable lost
+PASS breaking his line of sight in time loses him; he searches, then walks on
+PASS posts and shadow hide him; a Flare is seen from twice as far, even in shadow
+PASS a soft collector (Clatter's first lamp) stops on him but never catches
+PASS threshold-v4: one revision bump; v3 journeys carry forward untouched; the new facts are allowlisted
+PASS v0.4 cast: the Boss speaks only through his mark; the capped hood has a face; the hoods can be scared
+PASS v0.4 story: the van says what the Boss wants; nobody says why; the cave folk each say why they help
+PASS v0.5: the window opens east into the Long Hall; the building rooms run one way, every one known and saved
+PASS the runner: kept running, he stays ahead of it; standing still, it catches him
+PASS the service windows: a rattle, then a lamp across the hall; in it he staggers and it gains
+PASS the night gate: under it in time, it shuts on the runner, who must go round; too slow, it shuts in his face
+PASS the cage: a rattle while he looks away loosens it; under his eye it costs two and he looks longer; five opens it
+PASS out of the cage: moving while he looks gets him put back; frozen, or behind a crate, he is not seen
+PASS factory: the belts carry him; a crate on the belt hides him, a tray of jars does not; catwalk lamps watch the floor
+PASS vents: moving on a lit grate is heard and he is caught; frozen on it, or on a dark one, he is not
+PASS the tin bell: a lured collector walks over to the sound, looks at it a while, then goes back to his line
+PASS save bounds: every room, beat and find of a whole journey survives a reload
+PASS restart: the story starts over from the car with a new campaign for the same Rizo
+PASS restart: the player's Dungeon settings and an unconfirmed reward are kept
+PASS restart: the result is a valid threshold-v4 slice that reloads unchanged
+PASS restart: an empty or older-revision slice restarts; one from another build is never dropped
+
+86/86 dungeon core checks passed

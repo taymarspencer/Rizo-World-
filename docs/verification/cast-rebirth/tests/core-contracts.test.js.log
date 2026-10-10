@@ -1,0 +1,30 @@
+PASS frozen v1 signature is byte-identical to the one every pre-v88 save used
+PASS v1 envelopes written by older builds still verify, and edits are caught
+PASS v2 envelope signs the whole state and every mode slice
+PASS v2 signing survives values JSON cannot round-trip
+PASS unknown or newer envelope versions never verify
+PASS mode slices keep only well-formed ids and object data
+PASS hub limits live in the save core; Defense keeps only its own
+PASS v1 whole-save signatures detect progression edits
+PASS v1 whole-save signatures cover arcade and unlock progression
+PASS v1 whole-save signature protects Defense history and mastery
+PASS training definitions are validated at load
+PASS a warm-up run earns nothing and costs nothing
+PASS a par run pays the documented budget for its Energy
+PASS score scale does not change pay: 40-point and 600-point games pay alike
+PASS no run can exceed 1.5x a par run, however high the score
+PASS unknown end reasons fall back to timeup
+PASS hype is part of the conversion, scaled by the game's care.hype
+PASS a misspelled hook fails at load instead of silently never running
+PASS all ten games register under their own file's name
+PASS every game declares what the shelf and results need
+PASS no single run of any game can pay more than its 1.5x-par ceiling (audit H3/H4)
+PASS only the declared quest, counter and finds reach the hub
+PASS mode definitions are validated at load
+PASS first slice migration receives the legacy hub fields once
+PASS older slices migrate forward; current ones are left alone
+PASS a slice from a newer build is preserved untouched
+PASS legacy views handed to migrate() are read-only
+PASS awards are clamped and unknown fields dropped
+
+28/28 core contract checks passed

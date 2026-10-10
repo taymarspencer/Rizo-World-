@@ -1,0 +1,31 @@
+320 walk
+320 door
+320 window
+320 reach
+320 comic
+320 grip
+PASS 320: all six opening scenes captured
+PASS 320: shopping ends at a steady checkout, without walking or repeated waves
+PASS 320: opening has no page errors
+PASS 320: phone has no horizontal overflow
+390 walk
+390 door
+390 window
+390 reach
+390 comic
+390 grip
+PASS 390: all six opening scenes captured
+PASS 390: shopping ends at a steady checkout, without walking or repeated waves
+PASS 390: opening has no page errors
+PASS 390: phone has no horizontal overflow
+430 walk
+430 door
+430 window
+430 reach
+430 comic
+430 grip
+PASS 430: all six opening scenes captured
+PASS 430: shopping ends at a steady checkout, without walking or repeated waves
+PASS 430: opening has no page errors
+PASS 430: phone has no horizontal overflow
+12/12 opening direction checks passed

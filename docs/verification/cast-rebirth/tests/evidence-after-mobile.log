@@ -1,0 +1,16 @@
+PASS 320 van-talk-driver
+PASS 320 van-talk-tall
+PASS 320 row-collector
+PASS 320 nell-fix
+PASS 320 nell-lift
+PASS 390 van-talk-driver
+PASS 390 van-talk-tall
+PASS 390 row-collector
+PASS 390 nell-fix
+PASS 390 nell-lift
+PASS 430 van-talk-driver
+PASS 430 van-talk-tall
+PASS 430 row-collector
+PASS 430 nell-fix
+PASS 430 nell-lift
+15/15 captures without errors or horizontal overflow

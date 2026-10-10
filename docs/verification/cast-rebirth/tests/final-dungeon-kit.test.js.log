@@ -1,0 +1,8 @@
+PASS stealth: a cone, line of sight, shadow and lockers; a Flare carries
+PASS a watcher patrols, spots, catches after spotMs, or loses him and goes back to walking
+PASS the chase follows his trail, gains when he stops, and loses him at the goal
+PASS the cage opens only to rattles while the guard looks away; a rattle under his eye costs two notches
+PASS vents: a grid, three grates that show darker rooms when he stays still on them, and the way out
+PASS the kit is dev only: no page, service worker or live script loads it
+
+6/6 dungeon kit checks passed

@@ -1,0 +1,9 @@
+PASS checkpoint schema never regresses below the v9 continuation guard and keeps the projectile budget
+PASS v10 signs the support/boss-phase continuation that v9 did not cover
+PASS legacy v8 continuation signatures remain verifiable after v9 upgrade
+PASS v9 signs tactical tower continuation that v8 intentionally did not cover
+PASS v9 signs status, weather, contract and perfect-wave continuation state
+PASS wave planning is deterministic at authored, boss and endless-range waves
+PASS gameplay density remains invariant while presentation budgets degrade safely
+
+7/7 Worker J guard tests passed.

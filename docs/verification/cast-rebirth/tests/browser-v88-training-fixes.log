@@ -1,0 +1,15 @@
+PASS Spark: an unbanked stash is lost at the buzzer ({'type': 'normal', 'streak': 4, 'best': 4, 'avoided': 0, 'frenzy': False, 'frenzies': 0, 'stash': 4, 'banked': 0, 'banks': 0, 'lost': 0}, {'type': 'normal', 'streak': 0, 'best': 4, 'avoided': 0, 'frenzy': False, 'frenzies': 0, 'stash': 0, 'banked': 0, 'banks': 0, 'lost': 4})
+PASS Spark: a run that never banked is a warm-up modal-card arcade-result minigame-result-spark arcade-no-credit
+PASS Spark: ending the run yourself banks the stash {'type': 'normal', 'streak': 4, 'best': 4, 'avoided': 0, 'frenzy': False, 'frenzies': 0, 'stash': 0, 'banked': 4, 'banks': 1, 'lost': 0}
+PASS rush: a time-up with 3 hearts says TIME UP modal-card arcade-result arcade-end-timeup minigame-result-rush
+PASS breaker: a time-up with 3 hearts says TIME UP modal-card arcade-result arcade-end-timeup minigame-result-breaker
+PASS memory: a time-up with 3 hearts says TIME UP modal-card arcade-result arcade-end-timeup minigame-result-memory
+PASS Lost Signal: a round pays 1 per rune plus the bonus its callout shows {'runes': 1, 'gained': 6, 'callout': 'PLAY OPPOSITES CLEAN • +5'}
+PASS Ember Beat: reward score scales with the share of the song played (3, {'quality': 47, 'reward': 3})
+PASS Skybound: Rizo keeps its place in the sky across a rotation 0.510 -> 0.521
+PASS spark: a par run pays the par budget; any run caps at 1.5x (50, 75, 6)
+PASS memory: a par run pays the par budget; any run caps at 1.5x (35, 53, 4.8)
+PASS power: a par run pays the par budget; any run caps at 1.5x (75, 113, 0)
+PASS no page errors
+
+13/13 training fix checks passed

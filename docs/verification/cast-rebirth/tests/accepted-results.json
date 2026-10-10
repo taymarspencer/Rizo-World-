@@ -1,0 +1,55 @@
+[
+  {
+    "suite": "browser-defense-integration",
+    "command": [
+      "python",
+      "tests/browser-defense-integration.py"
+    ],
+    "exit": 0,
+    "seconds": 47.8
+  },
+  {
+    "suite": "browser-v87-arcade-freeze",
+    "command": [
+      "python",
+      "tests/browser-v87-arcade-freeze.py"
+    ],
+    "exit": 0,
+    "seconds": 85.9
+  },
+  {
+    "suite": "portrait-footer",
+    "command": [
+      "python",
+      "tools/dungeon-lab/capture.py",
+      "--out",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after/lab",
+      "--only",
+      "portraits",
+      "--format",
+      "png"
+    ],
+    "exit": 0,
+    "seconds": 2.5
+  },
+  {
+    "suite": "dungeon-core.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-core.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.3
+  },
+  {
+    "suite": "build",
+    "command": [
+      "python",
+      "tools/build-site.py",
+      "--out",
+      "/tmp/rizo-cast-delivery-site"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  }
+]

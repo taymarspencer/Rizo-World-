@@ -1,0 +1,39 @@
+PASS signed v1 save migrates to v2 with every record kept {'embers': 4321, 'name': 'MOSSY', 'defense': 23, 'saveVersion': 2}
+PASS v1 save is left byte-identical as the rollback copy
+PASS normal boot has no page errors
+PASS raw pre-v66 save (state v12) migrates with every record kept
+PASS orphaned rizo-life-save-v1 key is migrated instead of ignored (M2)
+PASS truncated v1 primary recovers from its backup save-recovered-from-older-copy
+PASS missing v1 primary falls back to the backup (C2)
+PASS unreadable v1 save with no backup is never overwritten (C1) primary-save-sanitized
+PASS truncated v2 primary recovers from the v2 backup primary-signature-recovered
+PASS the truncated v2 primary is set aside before the overwrite 1
+PASS unreadable v2 save with nothing else is set aside, not destroyed (C1)
+PASS missing v2 primary uses the v2 backup (C2) primary-missing-recovered
+PASS broken v2 with no v2 backup falls back to the frozen v1 copy save-recovered-from-older-copy
+PASS tampered v1 save resets rewards but its original bytes stay untouched
+PASS a save from a newer build blocks this build instead of being rewritten THIS SAVE BELONGS TO A NEWER RIZO.GAME
+PASS a Defense run left for 1 hour is still resumable (C4) {'run': True, 'old': False}
+PASS a Defense run left for 8 days is still resumable (C4) {'run': True, 'old': False}
+PASS v87 Defense records move into the Defense slice {'best': 23, 'maps': {'grove': 23, 'ember': 11}, 'milestones': [10], 'perfectMaps': ['grove'], 'history': [{'id': 'run-a', 'at': 1791619512107, 'mapId': 'grove', 'wave': 23, 'clearedWave': 23, 'reachedWave': 24, 'kills': 410, 'heartLoss': 0, 'leaks': 0, 'bosses': 2, 'perfect': False, 'perfectWaveCou
+PASS v87 Defense run history and mastery survive the move {'id': 'run-a', 'at': 1791619512107, 'mapId': 'grove', 'wave': 23, 'clearedWave': 23, 'reachedWave': 24, 'kills': 410, 'heartLoss': 0, 'leaks': 0, 'bosses': 2, 'perfect': False, 'perfectWaveCount': 9,
+PASS v87 Defense settings and school progress survive the move {'settings': {'signatures': False, 'autoStart': True, 'fx': 'low', 'uiScale': 'large', 'waveIntel': 'full'}, 'school': {'dismissed': True, 'completed': ['route', 'placement'], 'replay': False}, 'introSeen': True}
+PASS map intros already seen stay seen, and their loose keys are tidied ['grove', 'ember']
+PASS the hub keeps no Defense fields after the move []
+PASS the v87 save stays byte-identical as the rollback copy
+PASS the in-progress v87 run is handed to the Defense run store
+PASS the Go destination shows the migrated best wave and milestone {'best': 'W23', 'badge': 'W10', 'summary': {'best': 23, 'bestLabel': 'W23', 'unit': 'wave', 'milestones': [10], 'badge': {'text': 'W10', 'title': 'Defense milestone: wave 10'}}}
+PASS Defense migration boot has no page errors
+PASS Ember Beat's song bag moves into training memory (state v21, saved at the current v23) {'stateVersion': 23, 'musicHistory': None, 'trainingMemory': {'rhythm': {'emberBag': ['frostline', 'iron-heart', 'puddle-bounce'], 'emberLast': 'moss-after-dark'}}}
+PASS a second boot keeps the Defense slice exactly as migrated
+PASS a finished Defense run pays out in the hub and is recorded in the slice gained=162 history=2
+PASS the run's result is inside the signed save and no stale run is left
+PASS a tampered v87 save resets Defense records but keeps Defense settings {'records': {'best': 0, 'maps': {}, 'milestones': [], 'perfectMaps': [], 'history': [], 'mastery': {}, 'contracts': []}, 'settings': {'signatures': False, 'autoStart': True, 'fx': 'low', 'uiScale': 'large', 'waveIntel': 'full'}}
+PASS a stale tab never overwrites newer progress from another tab (C3) 9321
+PASS the stale tab says why it stopped saving RIZO IS OPEN SOMEWHERE ELSE
+PASS the tab holding the newest progress keeps saving
+PASS Reset deletes the save instead of writing it back on unload RIZO 01
+PASS import keeps the replaced timeline as a restorable device backup (M3) {'name': 'MOSSY', 'embers': 4321, 'version': 23}
+PASS a House resident comes back as it left, not neglected (H2) {'name': 'LODGER', 'hunger': 90, 'health': 100, 'resting': False}
+
+37/37 save-safety checks passed

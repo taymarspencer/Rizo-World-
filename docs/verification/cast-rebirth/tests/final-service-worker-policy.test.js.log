@@ -1,0 +1,12 @@
+PASS runtime JS is network-first even with poisoned cache
+PASS runtime JS falls back to repaired cache offline
+PASS navigation is network-first and cache-backed offline
+PASS worker has versioned release cache and optional best-effort install
+PASS missing online navigation preserves 404 and is never cached as successful content
+PASS only known World and Play routes have their own offline fallbacks
+PASS legacy and trailing Play aliases redirect once, preserving the PWA query
+PASS an old cached game cannot masquerade as a missing new World shell
+PASS a missing required World or Play shell blocks takeover
+PASS same-origin worker does not intercept or cache a third-party ad request
+
+10/10 service-worker policy checks passed

@@ -1,0 +1,41 @@
+[
+  {
+    "suite": "before-speaking-fit",
+    "command": [
+      "python",
+      "tests/capture-dungeon-character-art.py",
+      "--directory",
+      "/tmp/rizo-cast-before-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/before",
+      "--only",
+      "nell-dialogue,nell-fit"
+    ],
+    "exit": 0,
+    "seconds": 49.0
+  },
+  {
+    "suite": "after-speaking-fit",
+    "command": [
+      "python",
+      "tests/capture-dungeon-character-art.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after",
+      "--only",
+      "nell-dialogue,nell-fit"
+    ],
+    "exit": 0,
+    "seconds": 47.1
+  },
+  {
+    "suite": "browser-defense-integration",
+    "command": [
+      "python",
+      "tests/browser-defense-integration.py"
+    ],
+    "exit": 1,
+    "seconds": 47.6
+  }
+]

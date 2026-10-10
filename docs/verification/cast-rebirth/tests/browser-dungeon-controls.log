@@ -1,0 +1,187 @@
+PASS 320x568: the pad and all three keys are inside the safe area with room for a thumb (no inset emulation here)
+PASS 320x568: every control is at least 44 px each way (a thumb-sized target)
+PASS 320x568: each control answers at its centre and a little outside its drawn edge
+PASS 320x568: the controls do not overlap each other (≤ 2 px at most, never a key over a key)
+PASS 320x568: the page is locked: no scroll offset, body fixed, no sideways overflow
+PASS 320x568: with a dialogue open no control is covered
+PASS 320x568: the dialogue box fits inside the screen
+PASS 320x568: every button of the pause panel is inside the screen, at least 44 px tall, and tappable
+PASS 320x568: swiping from the screen, frame, controls bar and edge never scrolls the page and every touchmove is cancelled
+PASS 320x568: wheel and scroll keys do nothing
+PASS 320x568: every element of the handheld declares touch-action none, user-select none and no callout; overscroll and overflow are locked
+PASS 320x568: the handheld does not re-flow its text when the phone rotates (text-size-adjust 100%)
+PASS 320x568: long-press and triple-tap on text, portrait and keys select nothing
+PASS 320x568: the browser's context menu and double-click never get through
+PASS 320x568: a text selection started by script or by Select All is cancelled
+PASS 320x568: a held thumb moves continuously (about the same distance each 300 ms) and lights the right arm
+PASS 320x568: lifting the thumb stops the Rizo and the pad shows no direction
+PASS 320x568: dragging the thumb far off the pad keeps steering by angle, and releasing out there stops it
+PASS 320x568: a thumb dragged to the bottom-left corner of the screen keeps steering (down-left) and lets go cleanly
+PASS 320x568: a thumb dragged to the top-right corner of the screen keeps steering (up-right) and lets go cleanly
+PASS 320x568: a thumb dragged to the left edge of the screen keeps steering (left) and lets go cleanly
+PASS 320x568: a thumb dragged to the right edge of the screen keeps steering (right) and lets go cleanly
+PASS 320x568: nothing is left moving after the edge drags
+PASS 320x568: sliding from the pad onto the Flare key does not press it
+PASS 320x568: a cancelled touch (system gesture) stops the Rizo and clears the pad
+PASS 320x568: a key finger dragged off and released elsewhere leaves the key up
+PASS 320x568: pad + Flare + Tuck released in the first and last orders leaves nothing held or moving
+PASS 320x568: no page error across layout, page-lock and touch checks
+PASS 375x812: the pad and all three keys are inside the safe area with room for a thumb (no inset emulation here)
+PASS 375x812: every control is at least 44 px each way (a thumb-sized target)
+PASS 375x812: each control answers at its centre and a little outside its drawn edge
+PASS 375x812: the controls do not overlap each other (≤ 2 px at most, never a key over a key)
+PASS 375x812: the page is locked: no scroll offset, body fixed, no sideways overflow
+PASS 375x812: with a dialogue open no control is covered
+PASS 375x812: the dialogue box fits inside the screen
+PASS 375x812: every button of the pause panel is inside the screen, at least 44 px tall, and tappable
+PASS 375x812: swiping from the screen, frame, controls bar and edge never scrolls the page and every touchmove is cancelled
+PASS 375x812: wheel and scroll keys do nothing
+PASS 375x812: every element of the handheld declares touch-action none, user-select none and no callout; overscroll and overflow are locked
+PASS 375x812: the handheld does not re-flow its text when the phone rotates (text-size-adjust 100%)
+PASS 375x812: long-press and triple-tap on text, portrait and keys select nothing
+PASS 375x812: the browser's context menu and double-click never get through
+PASS 375x812: a text selection started by script or by Select All is cancelled
+PASS 375x812: a held thumb moves continuously (about the same distance each 300 ms) and lights the right arm
+PASS 375x812: lifting the thumb stops the Rizo and the pad shows no direction
+PASS 375x812: dragging the thumb far off the pad keeps steering by angle, and releasing out there stops it
+PASS 375x812: a thumb dragged to the bottom-left corner of the screen keeps steering (down-left) and lets go cleanly
+PASS 375x812: a thumb dragged to the top-right corner of the screen keeps steering (up) and lets go cleanly
+PASS 375x812: a thumb dragged to the left edge of the screen keeps steering (left) and lets go cleanly
+PASS 375x812: a thumb dragged to the right edge of the screen keeps steering (right) and lets go cleanly
+PASS 375x812: nothing is left moving after the edge drags
+PASS 375x812: sliding from the pad onto the Flare key does not press it
+PASS 375x812: a cancelled touch (system gesture) stops the Rizo and clears the pad
+PASS 375x812: a key finger dragged off and released elsewhere leaves the key up
+PASS 375x812: pad + Flare + Tuck released in the first and last orders leaves nothing held or moving
+PASS 375x812: no page error across layout, page-lock and touch checks
+PASS 390x844: the pad and all three keys are inside the safe area with room for a thumb (no inset emulation here)
+PASS 390x844: every control is at least 44 px each way (a thumb-sized target)
+PASS 390x844: each control answers at its centre and a little outside its drawn edge
+PASS 390x844: the controls do not overlap each other (≤ 2 px at most, never a key over a key)
+PASS 390x844: the page is locked: no scroll offset, body fixed, no sideways overflow
+PASS 390x844: with a dialogue open no control is covered
+PASS 390x844: the dialogue box fits inside the screen
+PASS 390x844: every button of the pause panel is inside the screen, at least 44 px tall, and tappable
+PASS 390x844: swiping from the screen, frame, controls bar and edge never scrolls the page and every touchmove is cancelled
+PASS 390x844: wheel and scroll keys do nothing
+PASS 390x844: every element of the handheld declares touch-action none, user-select none and no callout; overscroll and overflow are locked
+PASS 390x844: the handheld does not re-flow its text when the phone rotates (text-size-adjust 100%)
+PASS 390x844: long-press and triple-tap on text, portrait and keys select nothing
+PASS 390x844: the browser's context menu and double-click never get through
+PASS 390x844: a text selection started by script or by Select All is cancelled
+PASS 390x844: a held thumb moves continuously (about the same distance each 300 ms) and lights the right arm
+PASS 390x844: lifting the thumb stops the Rizo and the pad shows no direction
+PASS 390x844: dragging the thumb far off the pad keeps steering by angle, and releasing out there stops it
+PASS 390x844: a thumb dragged to the bottom-left corner of the screen keeps steering (down-left) and lets go cleanly
+PASS 390x844: a thumb dragged to the top-right corner of the screen keeps steering (up) and lets go cleanly
+PASS 390x844: a thumb dragged to the left edge of the screen keeps steering (left) and lets go cleanly
+PASS 390x844: a thumb dragged to the right edge of the screen keeps steering (right) and lets go cleanly
+PASS 390x844: nothing is left moving after the edge drags
+PASS 390x844: sliding from the pad onto the Flare key does not press it
+PASS 390x844: a cancelled touch (system gesture) stops the Rizo and clears the pad
+PASS 390x844: a key finger dragged off and released elsewhere leaves the key up
+PASS 390x844: pad + Flare + Tuck released in all six orders leaves nothing held or moving
+PASS 390x844: no page error across layout, page-lock and touch checks
+PASS 430x932: the pad and all three keys are inside the safe area with room for a thumb (no inset emulation here)
+PASS 430x932: every control is at least 44 px each way (a thumb-sized target)
+PASS 430x932: each control answers at its centre and a little outside its drawn edge
+PASS 430x932: the controls do not overlap each other (≤ 2 px at most, never a key over a key)
+PASS 430x932: the page is locked: no scroll offset, body fixed, no sideways overflow
+PASS 430x932: with a dialogue open no control is covered
+PASS 430x932: the dialogue box fits inside the screen
+PASS 430x932: every button of the pause panel is inside the screen, at least 44 px tall, and tappable
+PASS 430x932: swiping from the screen, frame, controls bar and edge never scrolls the page and every touchmove is cancelled
+PASS 430x932: wheel and scroll keys do nothing
+PASS 430x932: every element of the handheld declares touch-action none, user-select none and no callout; overscroll and overflow are locked
+PASS 430x932: the handheld does not re-flow its text when the phone rotates (text-size-adjust 100%)
+PASS 430x932: long-press and triple-tap on text, portrait and keys select nothing
+PASS 430x932: the browser's context menu and double-click never get through
+PASS 430x932: a text selection started by script or by Select All is cancelled
+PASS 430x932: a held thumb moves continuously (about the same distance each 300 ms) and lights the right arm
+PASS 430x932: lifting the thumb stops the Rizo and the pad shows no direction
+PASS 430x932: dragging the thumb far off the pad keeps steering by angle, and releasing out there stops it
+PASS 430x932: a thumb dragged to the bottom-left corner of the screen keeps steering (down-left) and lets go cleanly
+PASS 430x932: a thumb dragged to the top-right corner of the screen keeps steering (up) and lets go cleanly
+PASS 430x932: a thumb dragged to the left edge of the screen keeps steering (left) and lets go cleanly
+PASS 430x932: a thumb dragged to the right edge of the screen keeps steering (right) and lets go cleanly
+PASS 430x932: nothing is left moving after the edge drags
+PASS 430x932: sliding from the pad onto the Flare key does not press it
+PASS 430x932: a cancelled touch (system gesture) stops the Rizo and clears the pad
+PASS 430x932: a key finger dragged off and released elsewhere leaves the key up
+PASS 430x932: pad + Flare + Tuck released in the first and last orders leaves nothing held or moving
+PASS 430x932: no page error across layout, page-lock and touch checks
+PASS 844x390: the pad and all three keys are inside the safe area with room for a thumb (no inset emulation here)
+PASS 844x390: every control is at least 44 px each way (a thumb-sized target)
+PASS 844x390: each control answers at its centre and a little outside its drawn edge
+PASS 844x390: the controls do not overlap each other (≤ 2 px at most, never a key over a key)
+PASS 844x390: the page is locked: no scroll offset, body fixed, no sideways overflow
+PASS 844x390: with a dialogue open no control is covered
+PASS 844x390: the dialogue box fits inside the screen
+PASS 844x390: every button of the pause panel is inside the screen, at least 44 px tall, and tappable
+PASS 844x390: swiping from the screen, frame, controls bar and edge never scrolls the page and every touchmove is cancelled
+PASS 844x390: wheel and scroll keys do nothing
+PASS 844x390: every element of the handheld declares touch-action none, user-select none and no callout; overscroll and overflow are locked
+PASS 844x390: the handheld does not re-flow its text when the phone rotates (text-size-adjust 100%)
+PASS 844x390: long-press and triple-tap on text, portrait and keys select nothing
+PASS 844x390: the browser's context menu and double-click never get through
+PASS 844x390: a text selection started by script or by Select All is cancelled
+PASS 844x390: a held thumb moves continuously (about the same distance each 300 ms) and lights the right arm
+PASS 844x390: lifting the thumb stops the Rizo and the pad shows no direction
+PASS 844x390: dragging the thumb far off the pad keeps steering by angle, and releasing out there stops it
+PASS 844x390: a thumb dragged to the bottom-left corner of the screen keeps steering (down-left) and lets go cleanly
+PASS 844x390: a thumb dragged to the top-right corner of the screen keeps steering (right) and lets go cleanly
+PASS 844x390: a thumb dragged to the left edge of the screen keeps steering (left) and lets go cleanly
+PASS 844x390: a thumb dragged to the right edge of the screen keeps steering (right) and lets go cleanly
+PASS 844x390: nothing is left moving after the edge drags
+PASS 844x390: sliding from the pad onto the Flare key does not press it
+PASS 844x390: a cancelled touch (system gesture) stops the Rizo and clears the pad
+PASS 844x390: a key finger dragged off and released elsewhere leaves the key up
+PASS 844x390: pad + Flare + Tuck released in the first and last orders leaves nothing held or moving
+PASS 844x390: no page error across layout, page-lock and touch checks
+PASS the release is delivered to a different element (pointer capture lost): movement still stops
+PASS a pointerup that never arrives: the next real touch heals it, movement stops, the pad is free
+PASS …and the pad answers the next touch normally
+PASS a Flare release delivered to the page body still lets the key up
+PASS hold the pad and tap Flare: it moves and flares at once, and moving goes on after Flare lifts
+PASS two fingers on the pad, left and right: the first thumb steers, they do not cancel to standing still
+PASS …a third finger on Tuck still works, and the ignored finger lifting changes nothing
+PASS …and after all lift nothing is held
+PASS a thumb resting near a diagonal edge and wobbling holds one direction (it used to flip constantly)
+PASS mashing left/right 40 times leaves nothing held
+PASS eight spaced Flare taps are eight Flares (no tap is lost)
+PASS pressing LOOK with a thumb still on the pad opens the dialogue
+PASS tapping the dialogue box itself advances and closes it, like NEXT
+PASS with the thumb still held in the same place nothing moves by itself (a held direction is never counted again on its own)
+PASS …and sliding the thumb to a new direction wakes the pad at once (it used to stay dead until lifted)
+PASS …and releasing stops it
+PASS 24 rapid LOOK taps: the dialogue cycles open and closed, nothing sticks, nothing Flares
+PASS MENU while moving pauses: the Rizo holds still behind the panel
+PASS …resume with the thumb already lifted leaves no phantom movement
+PASS …and a fresh touch moves again
+PASS rotating to landscape with the thumb down stops the Rizo and clears the pad (the pad moved under the finger)
+PASS …the pad is on screen in landscape and answers a fresh touch
+PASS rotating back with the thumb down is just as safe
+PASS …and portrait works again
+PASS backgrounding the tab while holding movement freezes the game
+PASS coming back after the finger lifted: no phantom movement, no stuck pad
+PASS coming back with the finger still down: the old hold is not trusted (the pad waits for a fresh touch)
+PASS …and then works
+PASS a browser repeat of a key held through a blur cannot restart it, but the next fresh press of that key works (it was swallowed before)
+PASS desktop: d moves the Rizo
+PASS desktop: ArrowLeft moves the Rizo
+PASS desktop: w moves the Rizo
+PASS desktop: ArrowDown moves the Rizo
+PASS desktop: z is Flare
+PASS desktop: Space is Flare
+PASS desktop: j is Flare
+PASS desktop: X is Tuck
+PASS desktop: a left click on the screen is Flare
+PASS desktop: the page context menu is suppressed inside the handheld
+PASS desktop: Escape pauses and Escape resumes
+PASS desktop: the page is still locked
+PASS leaving the Dungeon restores the Hub exactly: scroll position, scrolling and selection
+PASS fuzz seed 101: ~60 random touches, cancels and backgroundings, then everyone lets go: nothing stays pressed or moving
+PASS fuzz seed 102: ~60 random touches, cancels and backgroundings, then everyone lets go: nothing stays pressed or moving
+PASS fuzz seed 103: ~60 random touches, cancels and backgroundings, then everyone lets go: nothing stays pressed or moving
+
+185/185 dungeon controls checks passed

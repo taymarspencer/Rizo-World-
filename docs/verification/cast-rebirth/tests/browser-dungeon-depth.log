@@ -1,0 +1,47 @@
+PASS the van has its own sound: engine and road under the floor, not the street
+PASS the Boss line is given more room than a joke of its length (held on screen longer)
+PASS when the joke dies: wipers only, nobody talks, the music stops
+PASS he feels it before anyone says so: his flame pulls in (fear)
+PASS “What's he even want it for?” is said quietly; nothing else is
+PASS nobody answers: rain only
+PASS the phone rings: everyone freezes, he recoils, his light shrinks
+PASS its first line comes after the ring, not over it
+PASS Small starts to answer and Tall physically stops the Boss call
+PASS still, he looks at whoever is talking (the capped one, on the wheel arch)
+PASS “It's listening.”: everyone turns to him, and he stares back, in rain only
+PASS while the cabin is quiet, no prompt competes with it (even beside the window)
+PASS then the door comes loose and the road is back under everything
+PASS quiet lines stay inside the screen (390)
+PASS no page errors in the van
+PASS first time into a room Below: a slower reveal, his light opening up
+PASS the reveal is done well inside a second, and control never waited on it
+PASS a room he knows is just a cut: no slow reveal
+PASS no page errors walking between rooms
+PASS after the short shelter settle, the drain has earned its own held warm sound
+PASS the Shared Hearth has a warm tune of its own
+PASS the Porter's hall tolls (and its danger layer can rise)
+PASS after the Porter: the Rows are heard faintly through the open door
+PASS reading HOME ↑ is what lets its motif come back
+PASS …as the Shared Hearth's lullaby every fourth phrase (an octave down), and not before it is known
+PASS …and faintly in the music Below, now and then
+PASS a threat winding up near him raises the danger layer and pulls his light in
+PASS the last threat near him settles: he breathes out (relief in his flame and body)
+PASS …and the danger layer falls away again
+PASS danger and relief never touch the Flame stat or the save
+PASS in his light, he notices what matters (the jammed latch, Latch himself)
+PASS …once: noticing never repeats for the same thing
+PASS standing still too long at the gate, he turns to the jam that needs him (a glint, no marker)
+PASS in Clatter, the air moves from the way north and he looks to it
+PASS the room doesn't nag: once, then a long wait before it points again
+PASS moving resets it: the way on is never pointed at while he's going
+PASS freed, Latch walks to the edge of the dark, looks back at him once, then goes to the hearth
+PASS no page errors through rooms, threats and Latch
+FAIL arriving in the Rows he stops and looks up; his light warms before anyone speaks ('porter', None, None, [{'id': 'latch', 'text': 'Go on.', 'quiet': False}])
+FAIL when Nell clears the dry patch for him, his light warms (her three notes play) None
+PASS no page errors in the Rows
+PASS reduced motion: the room still points the way (a still glint instead of drifting air)
+PASS 320×568: the van's quiet line is on screen and inside it; no sideways scroll
+PASS 430×932: the van's quiet line is on screen and inside it; no sideways scroll
+PASS 568×320: the van's quiet line is on screen and inside it; no sideways scroll
+
+43/45 depth checks passed

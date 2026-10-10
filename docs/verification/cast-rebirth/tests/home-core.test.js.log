@@ -1,0 +1,11 @@
+PASS an old home starts without spending or inventing past rewards
+PASS malformed home records cannot add tiers, arbitrary drills, or repeat bonus ids
+PASS a purchased room keeps training history and the original record immutable
+PASS insufficient funds, duplicate purchases, and skipped tiers never spend Embers
+PASS the aspirational Orbit goal cannot sell unimplemented content
+PASS care and object variety pay at most 36 bonus Embers per date
+PASS bonus receipts survive reload and a different date has no streak debt
+PASS drill variety is a memory with ten slots, never a reward multiplier
+PASS position normalization preserves real zero/fractional coordinates and bounds bad data
+
+9/9 home rule checks passed

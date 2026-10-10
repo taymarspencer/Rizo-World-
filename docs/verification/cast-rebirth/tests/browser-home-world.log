@@ -1,0 +1,137 @@
+PASS 320: Home fits without horizontal scrolling {'width': 320, 'overflow': False, 'scene': {'x': 17, 'y': 77.65215301513672, 'width': 289, 'height': 300, 'right': 306, 'bottom': 377.6521530151367}, 'pet': {'x': 95.3499984741211, 'y': 175.23403930664062, 'width': 132.29998779296875, 'height': 128.52001953125, 'right': 227.64998626708984, 'bottom': 303.7540588378906}, 'nav': {'x': 8, 'y': 482, 'width': 304, 'height': 70, 'right': 312, 'bottom': 552}, 'navButtons': [{'id': 'home', 'x': 14.781539916992188, 'right': 109.21846008300781, 'y': 485.6317443847656, 'bottom': 542.3682861328125, 'width': 94.43692016601562, 'height': 56.736541748046875}, {'id': 'arcade', 'x': 112.73339080810547, 'right': 207.26661682128906, 'y': 488.5501403808594, 'bot
+PASS 320: Rizo and the room remain the first-screen center
+PASS 320: care, props, and primary navigation have phone-sized targets [{'id': 'denBed', 'width': 96, 'height': 44}, {'id': 'ball', 'width': 44, 'height': 44}, {'id': 'stump', 'width': 46, 'height': 44}, {'id': 'puddle', 'width': 70, 'height': 44}, {'id': 'bush', 'width': 46, 'height': 44}, {'id': 'feed', 'width': 66.50363159179688, 'height': 58.57373046875}, {'id': 'play', 'width': 66, 'height': 58}, {'id': 'clean', 'width': 66.4534912109375, 'height': 58.5166015625}, {'id': 'sleep', 'width': 66, 'height': 58}, {'id': 'home', 'width': 94.43692016601562, 'height': 56.736541748046875}, {'id': 'arcade', 'width': 94.5332260131836, 'height': 56.899749755859375}, {'id': 'go', 'width': 94.29193115234375, 'height': 56.491424560546875}]
+PASS 320: Home, Train and Go are three even non-overlapping game buttons {'nav': {'x': 8, 'y': 482, 'width': 304, 'height': 70, 'right': 312, 'bottom': 552}, 'buttons': [{'id': 'home', 'x': 14.781539916992188, 'right': 109.21846008300781, 'y': 485.6317443847656, 'bottom': 542.3682861328125, 'width': 94.43692016601562, 'height': 56.736541748046875}, {'id': 'arcade', 'x': 112.73339080810547, 'right': 207.26661682128906, 'y': 488.5501403808594, 'bottom': 545.4498901367188, 'width': 94.5332260131836, 'height': 56.899749755859375}, {'id': 'go', 'x': 210.85403442382812, 'right': 305.1459655761719, 'y': 488.7543029785156, 'bottom': 545.2457275390625, 'width': 94.29193115234375, 'height': 56.491424560546875}]}
+PASS 320: exactly three primary places ⌂
+HOME
+✦
+TRAIN
+↗
+GO
+PASS 320: physical feeding reaches Rizo without a teleport
+PASS 320: Play opens physical Den objects
+PASS 320: Rizo notices the ball and everyday progress accrues {'position': {'x': 32, 'y': 1}, 'walletDelta': 6}
+PASS 320: play state survives a routine redraw
+PASS 320: a real short drill credits existing rewards {'active': True, 'mode': 'power', 'score': 8, 'hits': 2, 'playerInputs': 2, 'power': {'streak': 2, 'best': 2, 'heat': 27, 'guard': False, 'reads': 0, 'call': 'hook', 'callsRead': 2, 'wrongCalls': 0}, 'spark': {'type': None, 'streak': 0, 'best': 0, 'avoided': 0, 'frenzy': False, 'frenzies': 0, 'stash': 0, 'banked': 0, 'banks': 0, 'lost': 0}, 'forage': {'lane': 0, 'streak': 0, 'best': 0, 'order': [], 'orderIndex': 0, 'ordersDone': 0, 'panic': False}, 'rush': {'jumpY': 0, 'airJumps': 0, 'streak': 0, 'clears': 0, 'parcel': False, 'parcelClears': 0, 'deliveries': 0}, 'memory': {'round': 0, 'mode': None, 'lives': 0, 'sequence': [], 'expected': []}, 'glide': {'y': 0, 'v': 0, 'wind': 0, 'hearts': 0,
+PASS 320: performance offers continue and a meaningful return
+PASS 320: take it home restores the Den with an earned keepsake
+PASS 320: earned Embers visibly build the home
+PASS 320: small games have one coherent library
+PASS 320: Pac-Man Rizo is honestly inside Training
+PASS 320: authored journeys are distinct destinations
+PASS 320: departure brings this Rizo into Dungeon
+PASS 320: Dungeon returns to Home and keeps the journey {'home': {'view': 'home', 'home': {'tier': 1, 'builtAt': 1791624901404, 'activity': {'care': 1, 'play': 1, 'training': 1, 'defense': 0}, 'trained': ['power'], 'routine': {'date': '2026-10-10', 'care': ['feed'], 'play': ['ball']}, 'lastReturn': {'source': 'dungeon', 'name': 'RIZO DUNGEON', 'embers': 0, 'at': 1791624904709}}, 'position': {'x': 32, 'y': 1}, 'reactions': []}, 'active': None, 'campaign': {'id': 'threshold-k1hgna9wij', 'kind': 'proof', 'contentRevision': 'threshold-v4', 'petId': 'PET-B831CAE7FEE1', 'petName': 'RIZO', 'status': 'active', 'chapterId': 'threshold'}}
+PASS 320: Home growth, training, and the journey survive reload
+PASS 320: complete loop has no page errors []
+PASS 375: Home fits without horizontal scrolling {'width': 375, 'overflow': False, 'scene': {'x': 20, 'y': 86.6541519165039, 'width': 338, 'height': 350, 'right': 358, 'bottom': 436.6541519165039}, 'pet': {'x': 110.15999603271484, 'y': 223.52325439453125, 'width': 157.67999267578125, 'height': 152.27999877929688, 'right': 267.8399887084961, 'bottom': 375.8032531738281}, 'nav': {'x': 8, 'y': 720, 'width': 359, 'height': 76, 'right': 367, 'bottom': 796}, 'navButtons': [{'id': 'home', 'x': 16.773927688598633, 'right': 126.88232612609863, 'y': 725.5702514648438, 'bottom': 784.4296875, 'width': 110.1083984375, 'height': 58.85943603515625}, {'id': 'arcade', 'x': 132.38040161132812, 'right': 242.60397338867188, 'y': 728.4749755859375, 'bottom': 7
+PASS 375: Rizo and the room remain the first-screen center
+PASS 375: care, props, and primary navigation have phone-sized targets [{'id': 'denBed', 'width': 104, 'height': 44}, {'id': 'ball', 'width': 44, 'height': 44}, {'id': 'stump', 'width': 46, 'height': 44}, {'id': 'puddle', 'width': 78, 'height': 44}, {'id': 'bush', 'width': 46, 'height': 44}, {'id': 'feed', 'width': 78.82296752929688, 'height': 66.6802978515625}, {'id': 'play', 'width': 78.25, 'height': 66}, {'id': 'clean', 'width': 78.76593017578125, 'height': 66.612548828125}, {'id': 'sleep', 'width': 78.25, 'height': 66}, {'id': 'home', 'width': 110.1083984375, 'height': 58.85943603515625}, {'id': 'arcade', 'width': 110.22357177734375, 'height': 59.050048828125}, {'id': 'go', 'width': 109.95843505859375, 'height': 58.5733642578125}]
+PASS 375: Home, Train and Go are three even non-overlapping game buttons {'nav': {'x': 8, 'y': 720, 'width': 359, 'height': 76, 'right': 367, 'bottom': 796}, 'buttons': [{'id': 'home', 'x': 16.773927688598633, 'right': 126.88232612609863, 'y': 725.5702514648438, 'bottom': 784.4296875, 'width': 110.1083984375, 'height': 58.85943603515625}, {'id': 'arcade', 'x': 132.38040161132812, 'right': 242.60397338867188, 'y': 728.4749755859375, 'bottom': 787.5250244140625, 'width': 110.22357177734375, 'height': 59.050048828125}, {'id': 'go', 'x': 248.17703247070312, 'right': 358.1354675292969, 'y': 728.7133178710938, 'bottom': 787.2866821289062, 'width': 109.95843505859375, 'height': 58.5733642578125}]}
+PASS 375: exactly three primary places ⌂
+HOME
+✦
+TRAIN
+↗
+GO
+PASS 375: physical feeding reaches Rizo without a teleport
+PASS 375: Play opens physical Den objects
+PASS 375: Rizo notices the ball and everyday progress accrues {'position': {'x': 32, 'y': 1}, 'walletDelta': 6}
+PASS 375: play state survives a routine redraw
+PASS 375: a real short drill credits existing rewards {'active': True, 'mode': 'power', 'score': 8, 'hits': 2, 'playerInputs': 2, 'power': {'streak': 2, 'best': 2, 'heat': 27, 'guard': False, 'reads': 0, 'call': 'hook', 'callsRead': 2, 'wrongCalls': 0}, 'spark': {'type': None, 'streak': 0, 'best': 0, 'avoided': 0, 'frenzy': False, 'frenzies': 0, 'stash': 0, 'banked': 0, 'banks': 0, 'lost': 0}, 'forage': {'lane': 0, 'streak': 0, 'best': 0, 'order': [], 'orderIndex': 0, 'ordersDone': 0, 'panic': False}, 'rush': {'jumpY': 0, 'airJumps': 0, 'streak': 0, 'clears': 0, 'parcel': False, 'parcelClears': 0, 'deliveries': 0}, 'memory': {'round': 0, 'mode': None, 'lives': 0, 'sequence': [], 'expected': []}, 'glide': {'y': 0, 'v': 0, 'wind': 0, 'hearts': 0,
+PASS 375: performance offers continue and a meaningful return
+PASS 375: take it home restores the Den with an earned keepsake
+PASS 375: earned Embers visibly build the home
+PASS 375: small games have one coherent library
+PASS 375: Pac-Man Rizo is honestly inside Training
+PASS 375: authored journeys are distinct destinations
+PASS 375: departure brings this Rizo into Dungeon
+PASS 375: Dungeon returns to Home and keeps the journey {'home': {'view': 'home', 'home': {'tier': 1, 'builtAt': 1791624911738, 'activity': {'care': 1, 'play': 1, 'training': 1, 'defense': 0}, 'trained': ['power'], 'routine': {'date': '2026-10-10', 'care': ['feed'], 'play': ['ball']}, 'lastReturn': {'source': 'dungeon', 'name': 'RIZO DUNGEON', 'embers': 0, 'at': 1791624915077}}, 'position': {'x': 32, 'y': 1}, 'reactions': []}, 'active': None, 'campaign': {'id': 'threshold-9f2bo9xenz', 'kind': 'proof', 'contentRevision': 'threshold-v4', 'petId': 'PET-9C6A1C5A35BD', 'petName': 'RIZO', 'status': 'active', 'chapterId': 'threshold'}}
+PASS 375: Home growth, training, and the journey survive reload
+PASS 375: complete loop has no page errors []
+PASS 390: Home fits without horizontal scrolling {'width': 390, 'overflow': False, 'scene': {'x': 20, 'y': 87.04638671875, 'width': 353, 'height': 350, 'right': 373, 'bottom': 437.04638671875}, 'pet': {'x': 117.65999603271484, 'y': 223.9154815673828, 'width': 157.67999267578125, 'height': 152.28001403808594, 'right': 275.3399887084961, 'bottom': 376.19549560546875}, 'nav': {'x': 8, 'y': 752, 'width': 374, 'height': 76, 'right': 382, 'bottom': 828}, 'navButtons': [{'id': 'home', 'x': 16.774005889892578, 'right': 131.88225173950195, 'y': 757.5506591796875, 'bottom': 816.4493408203125, 'width': 115.10824584960938, 'height': 58.898681640625}, {'id': 'arcade', 'x': 137.38050842285156, 'right': 252.60386657714844, 'y': 760.4509887695312, 'bottom
+PASS 390: Rizo and the room remain the first-screen center
+PASS 390: care, props, and primary navigation have phone-sized targets [{'id': 'denBed', 'width': 104, 'height': 44}, {'id': 'ball', 'width': 44, 'height': 44}, {'id': 'stump', 'width': 46, 'height': 44}, {'id': 'puddle', 'width': 78, 'height': 44}, {'id': 'bush', 'width': 46, 'height': 44}, {'id': 'feed', 'width': 82.57283020019531, 'height': 66.7130126953125}, {'id': 'play', 'width': 82, 'height': 66}, {'id': 'clean', 'width': 82.51582336425781, 'height': 66.6419677734375}, {'id': 'sleep', 'width': 82, 'height': 66}, {'id': 'home', 'width': 115.10824584960938, 'height': 58.898681640625}, {'id': 'arcade', 'width': 115.22335815429688, 'height': 59.09808349609375}, {'id': 'go', 'width': 114.9583740234375, 'height': 58.59954833984375}]
+PASS 390: Home, Train and Go are three even non-overlapping game buttons {'nav': {'x': 8, 'y': 752, 'width': 374, 'height': 76, 'right': 382, 'bottom': 828}, 'buttons': [{'id': 'home', 'x': 16.774005889892578, 'right': 131.88225173950195, 'y': 757.5506591796875, 'bottom': 816.4493408203125, 'width': 115.10824584960938, 'height': 58.898681640625}, {'id': 'arcade', 'x': 137.38050842285156, 'right': 252.60386657714844, 'y': 760.4509887695312, 'bottom': 819.549072265625, 'width': 115.22335815429688, 'height': 59.09808349609375}, {'id': 'go', 'x': 258.17706298828125, 'right': 373.13543701171875, 'y': 760.7002563476562, 'bottom': 819.2998046875, 'width': 114.9583740234375, 'height': 58.59954833984375}]}
+PASS 390: exactly three primary places ⌂
+HOME
+✦
+TRAIN
+↗
+GO
+PASS 390: physical feeding reaches Rizo without a teleport
+PASS 390: Play opens physical Den objects
+PASS 390: Rizo notices the ball and everyday progress accrues {'position': {'x': 32, 'y': 1}, 'walletDelta': 6}
+PASS 390: play state survives a routine redraw
+PASS 390: a real short drill credits existing rewards {'active': True, 'mode': 'power', 'score': 8, 'hits': 2, 'playerInputs': 2, 'power': {'streak': 2, 'best': 2, 'heat': 27, 'guard': False, 'reads': 0, 'call': 'jab', 'callsRead': 2, 'wrongCalls': 0}, 'spark': {'type': None, 'streak': 0, 'best': 0, 'avoided': 0, 'frenzy': False, 'frenzies': 0, 'stash': 0, 'banked': 0, 'banks': 0, 'lost': 0}, 'forage': {'lane': 0, 'streak': 0, 'best': 0, 'order': [], 'orderIndex': 0, 'ordersDone': 0, 'panic': False}, 'rush': {'jumpY': 0, 'airJumps': 0, 'streak': 0, 'clears': 0, 'parcel': False, 'parcelClears': 0, 'deliveries': 0}, 'memory': {'round': 0, 'mode': None, 'lives': 0, 'sequence': [], 'expected': []}, 'glide': {'y': 0, 'v': 0, 'wind': 0, 'hearts': 0,
+PASS 390: performance offers continue and a meaningful return
+PASS 390: take it home restores the Den with an earned keepsake
+PASS 390: earned Embers visibly build the home
+PASS 390: small games have one coherent library
+PASS 390: Pac-Man Rizo is honestly inside Training
+PASS 390: authored journeys are distinct destinations
+PASS 390: departure brings this Rizo into Dungeon
+PASS 390: Dungeon returns to Home and keeps the journey {'home': {'view': 'home', 'home': {'tier': 1, 'builtAt': 1791624922955, 'activity': {'care': 1, 'play': 1, 'training': 1, 'defense': 0}, 'trained': ['power'], 'routine': {'date': '2026-10-10', 'care': ['feed'], 'play': ['ball']}, 'lastReturn': {'source': 'dungeon', 'name': 'RIZO DUNGEON', 'embers': 0, 'at': 1791624926407}}, 'position': {'x': 32, 'y': 1}, 'reactions': []}, 'active': None, 'campaign': {'id': 'threshold-35cjounepe', 'kind': 'proof', 'contentRevision': 'threshold-v4', 'petId': 'PET-745D1F960520', 'petName': 'RIZO', 'status': 'active', 'chapterId': 'threshold'}}
+PASS 390: Home growth, training, and the journey survive reload
+PASS 390: complete loop has no page errors []
+PASS 430: Home fits without horizontal scrolling {'width': 430, 'overflow': False, 'scene': {'x': 20, 'y': 87.04493713378906, 'width': 393, 'height': 350, 'right': 413, 'bottom': 437.04493713378906}, 'pet': {'x': 137.66000366210938, 'y': 223.91403198242188, 'width': 157.67999267578125, 'height': 152.27999877929688, 'right': 295.3399963378906, 'bottom': 376.19403076171875}, 'nav': {'x': 8, 'y': 840, 'width': 414, 'height': 76, 'right': 422, 'bottom': 916}, 'navButtons': [{'id': 'home', 'x': 16.774211883544922, 'right': 145.22578048706055, 'y': 845.4982299804688, 'bottom': 904.5017700195312, 'width': 128.45156860351562, 'height': 59.0035400390625}, {'id': 'arcade', 'x': 150.72457885742188, 'right': 279.2754211425781, 'y': 848.386962890625, '
+PASS 430: Rizo and the room remain the first-screen center
+PASS 430: care, props, and primary navigation have phone-sized targets [{'id': 'denBed', 'width': 104, 'height': 44}, {'id': 'ball', 'width': 44, 'height': 44}, {'id': 'stump', 'width': 46, 'height': 44}, {'id': 'puddle', 'width': 78, 'height': 44}, {'id': 'bush', 'width': 46, 'height': 44}, {'id': 'feed', 'width': 92.57244873046875, 'height': 66.80029296875}, {'id': 'play', 'width': 92, 'height': 66}, {'id': 'clean', 'width': 92.51551818847656, 'height': 66.72052001953125}, {'id': 'sleep', 'width': 92, 'height': 66}, {'id': 'home', 'width': 128.45156860351562, 'height': 59.0035400390625}, {'id': 'arcade', 'width': 128.55084228515625, 'height': 59.22607421875}, {'id': 'go', 'width': 128.30194091796875, 'height': 58.66943359375}]
+PASS 430: Home, Train and Go are three even non-overlapping game buttons {'nav': {'x': 8, 'y': 840, 'width': 414, 'height': 76, 'right': 422, 'bottom': 916}, 'buttons': [{'id': 'home', 'x': 16.774211883544922, 'right': 145.22578048706055, 'y': 845.4982299804688, 'bottom': 904.5017700195312, 'width': 128.45156860351562, 'height': 59.0035400390625}, {'id': 'arcade', 'x': 150.72457885742188, 'right': 279.2754211425781, 'y': 848.386962890625, 'bottom': 907.613037109375, 'width': 128.55084228515625, 'height': 59.22607421875}, {'id': 'go', 'x': 284.8490295410156, 'right': 413.1509704589844, 'y': 848.665283203125, 'bottom': 907.334716796875, 'width': 128.30194091796875, 'height': 58.66943359375}]}
+PASS 430: exactly three primary places ⌂
+HOME
+✦
+TRAIN
+↗
+GO
+PASS 430: physical feeding reaches Rizo without a teleport
+PASS 430: Play opens physical Den objects
+PASS 430: Rizo notices the ball and everyday progress accrues {'position': {'x': 32, 'y': 1}, 'walletDelta': 6}
+PASS 430: play state survives a routine redraw
+PASS 430: a real short drill credits existing rewards {'active': True, 'mode': 'power', 'score': 8, 'hits': 2, 'playerInputs': 2, 'power': {'streak': 2, 'best': 2, 'heat': 27, 'guard': False, 'reads': 0, 'call': 'body', 'callsRead': 2, 'wrongCalls': 0}, 'spark': {'type': None, 'streak': 0, 'best': 0, 'avoided': 0, 'frenzy': False, 'frenzies': 0, 'stash': 0, 'banked': 0, 'banks': 0, 'lost': 0}, 'forage': {'lane': 0, 'streak': 0, 'best': 0, 'order': [], 'orderIndex': 0, 'ordersDone': 0, 'panic': False}, 'rush': {'jumpY': 0, 'airJumps': 0, 'streak': 0, 'clears': 0, 'parcel': False, 'parcelClears': 0, 'deliveries': 0}, 'memory': {'round': 0, 'mode': None, 'lives': 0, 'sequence': [], 'expected': []}, 'glide': {'y': 0, 'v': 0, 'wind': 0, 'hearts': 0,
+PASS 430: performance offers continue and a meaningful return
+PASS 430: take it home restores the Den with an earned keepsake
+PASS 430: earned Embers visibly build the home
+PASS 430: small games have one coherent library
+PASS 430: Pac-Man Rizo is honestly inside Training
+PASS 430: authored journeys are distinct destinations
+PASS 430: departure brings this Rizo into Dungeon
+PASS 430: Dungeon returns to Home and keeps the journey {'home': {'view': 'home', 'home': {'tier': 1, 'builtAt': 1791624933604, 'activity': {'care': 1, 'play': 1, 'training': 1, 'defense': 0}, 'trained': ['power'], 'routine': {'date': '2026-10-10', 'care': ['feed'], 'play': ['ball']}, 'lastReturn': {'source': 'dungeon', 'name': 'RIZO DUNGEON', 'embers': 0, 'at': 1791624936988}}, 'position': {'x': 32, 'y': 1}, 'reactions': []}, 'active': None, 'campaign': {'id': 'threshold-0xlundoa0x', 'kind': 'proof', 'contentRevision': 'threshold-v4', 'petId': 'PET-7CE1ED7262FA', 'petName': 'RIZO', 'status': 'active', 'chapterId': 'threshold'}}
+PASS 430: Home growth, training, and the journey survive reload
+PASS 430: complete loop has no page errors []
+PASS landscape: the three-place dock compacts without covering the play surface {'width': 844, 'overflow': False, 'scene': {'x': 62, 'y': 65.4695816040039, 'width': 723, 'height': 350, 'right': 785, 'bottom': 415.4695816040039}, 'pet': {'x': 357.3500061035156, 'y': 208.55148315429688, 'width': 132.29998779296875, 'height': 128.51998901367188, 'right': 489.6499938964844, 'bottom': 337.07147216796875}, 'nav': {'x': 172, 'y': 320, 'width': 500, 'height': 54, 'right': 672, 'bottom': 374}, 'navButtons': [{'id': 'home', 'x': 177.82968139648438, 'right': 338.1703186035156, 'y': 324.37237548828125, 'bottom': 369.62762451171875, 'width': 160.34063720703125, 'height': 45.2552490234375}, {'id': 'arcade', 'x': 341.7925109863281, 'right': 502.2074890136719, 'y': 325.23309326171875,
+PASS tapping reacts at the persistent Den location
+PASS a reaction survives a state-driven redraw {'view': 'home', 'home': {'tier': 0, 'builtAt': 0, 'activity': {'care': 0, 'play': 0, 'training': 0, 'defense': 0}, 'trained': [], 'routine': {'date': '', 'care': [], 'play': []}, 'lastReturn': None}, 'position': {'x': 65.5, 'y': 2}, 'reactions': ['tap-notice']}
+PASS reaction end keeps the same natural location
+PASS feeding does not teleport Rizo
+PASS the bed changes behavior at a real place
+PASS waking leaves Rizo where he rested
+PASS moving the ball makes Rizo follow the drop, once {'x': 61.00000051871237, 'y': 1}
+PASS repeated play can react without farming the payout
+PASS spatial interactions have no page errors []
+PASS 320: grown Rizos stay inside Home at both movement edges [True, True, True, True, True, True, True, True]
+PASS 375: grown Rizos stay inside Home at both movement edges [True, True, True, True, True, True, True, True]
+PASS 390: grown Rizos stay inside Home at both movement edges [True, True, True, True, True, True, True, True]
+PASS 430: grown Rizos stay inside Home at both movement edges [True, True, True, True, True, True, True, True]
+PASS warm: a structural room change is implemented
+PASS room: a structural room change is implemented
+PASS roof: a structural room change is implemented
+PASS home uses existing Embers, no new wallet resource {'embers': 1670, 'shards': 0}
+PASS Orbit is visible and honestly deferred, never purchasable
+PASS the rooftop survives reload under system reduced motion {'tier': 3, 'duration': '0s'}
+PASS failed primary save rolls back both the upgrade and cost
+PASS a failed mirror leaves the confirmed primary purchase intact
+PASS retrying an already built room cannot charge twice
+PASS home construction has no page errors []
+PASS the actual starting-build save migrates to state v23
+PASS existing identity, bond, resources, outfits, rooms, and settings survive
+PASS threshold-v3 facts/choices and Defense progress are byte-equivalent
+PASS valid Dungeon reward receipts, story marks, and unlocks are preserved
+PASS the room displays earned Dungeon and Defense accomplishments
+PASS Dungeon departure understands the preserved journey
+PASS Defense result names its return Home
+PASS Defense comes Home with its existing larger reward
+PASS the new return preserves the old best and Dungeon choices
+PASS a new generation keeps the home and earned hearth memory
+PASS migrated player loop has no page errors []
+
+115/115 Home / Train / Go browser checks passed
