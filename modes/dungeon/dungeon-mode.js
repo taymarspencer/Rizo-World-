@@ -730,7 +730,7 @@
           if (item.call) { item.call(); continue; }
           if (item.pose) { setPose(item.pose, item.ms); state.next += item.ms || 0; continue; }
           // A weighted line stays up longer; a quiet one is set smaller. Neither changes the words.
-          const ms = Math.max(1500, Math.round(barkMs(item.text) * (item.weight || 1) * pace));
+          const ms = Math.max(1600, Math.round(barkMs(item.text) * (item.weight || 1) * pace));
           if (item.speaker && npcs.has(item.speaker)) npcs.get(item.speaker).expr = item.expr;
           barks = barks.filter(entry => entry.id !== item.speaker);
           barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true, quiet: Boolean(item.quiet) });
