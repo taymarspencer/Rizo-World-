@@ -1849,7 +1849,9 @@
     line(ctx, -8, headY - 10, 3, headY - 11,
       P.cold[1], 1.4, profile.length * 37, 0);
     // The lamp on its pole, out in front. Up when he has seen something.
-    const raise = state === "spot" ? -9 : state === "watch-down" ? 24 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
+    const raise = state === "spot" ? -9 : state === "watch-down" ? 24
+      : state === "run" ? 4 + (o.moving ? Math.sin((o.stride || 0) * 1.9) * 1.2 : 0)
+      : state === "search" ? Math.sin(t / 350) * 2.4 : Math.sin(t / 900) * .8;
     if (state === "watch-down") {
       // Factory catwalk sentries peer over the railing at the moving floor.
       // Light geometry stays owned by the core; this is a drawing-only pose.
