@@ -912,7 +912,12 @@
     } else {
       drop(ctx,0,0,18,4);
       workLegs(ctx,-35,7,9,P.cloth[0],bob,P.ink);
-      if (!o.reaching) sleeve(ctx,[-16,-66,-25,-73,-17,-77],P.a.track,7,P.skin[0]);
+      // Every state needs two actual arms: previously the shoulder-to-hand
+      // shapes vanished completely when the grab overlay entered.
+      // Keep elbows close, with a clear single reaching arm on the near side.
+      sleeve(ctx, o.reaching || grab
+        ? [-16,-66,-21,-57,-15,-49]
+        : [-16,-66,-24,-54,-17,-43], P.a.track,7,P.skin[0]);
       // Heavy shoulder yoke and short, boxy track jacket; broad hips and
       // proper trouser knees. The white stripe is one continuous garment cue.
       cut(ctx,"M-10-78L-24-77L-28-67L-24-48L-18-34L18-34L25-51L25-71L14-78Z",P.a.track);
@@ -928,7 +933,9 @@
         line(ctx,-28,-59,-16,-59,P.a.denim,2);
         line(ctx,-26,-53,-23,-46,P.paper[0],1);
       } else cut(ctx,"M12-66Q26-62 29-54L31-40L20-37L14-44Z",P.paper[2],1.3);
-      if (!o.reaching) sleeve(ctx,[17,-67,23,-53,12,-45],P.a.track,8,P.skin[0]);
+      sleeve(ctx, o.reaching || grab
+        ? [17,-67,25,-55,31,-43]
+        : [17,-67,22,-54,15,-44], P.a.track,8,P.skin[0]);
       characterHead(ctx,"hood-cap",0,-82,{expr,look:o.look});
     }
     ctx.restore();
