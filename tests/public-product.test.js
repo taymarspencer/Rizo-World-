@@ -57,7 +57,10 @@ await test('production package makes World root and Play a distinct static entry
  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'rizo-routes-'));
  try {
   const out=path.join(temp,'site');const result=spawnSync('python3',['tools/build-site.py','--out',out],{cwd:ROOT,encoding:'utf8'});
-  assert.equal(result.status,0,result.stderr);const summary=JSON.parse(result.stdout);assert.equal(summary.files,166);assert.match(summary.fingerprint,/^[a-f0-9]{64}$/);
+  assert.equal(result.status,0,result.stderr);const summary=JSON.parse(result.stdout);assert.equal(summary.files,167);assert.match(summary.fingerprint,/^[a-f0-9]{64}$/);
+   const sprite=fs.readFileSync(path.join(out,'modes/dungeon/assets/keeper-sprite-atlas.png'));
+   assert.equal(sprite.subarray(0,8).toString('hex'),'89504e470d0a1a0a','game package includes Keeper sprite PNG');
+   assert.equal(sprite.readUInt32BE(16),480);assert.equal(sprite.readUInt32BE(20),360);
   assert.equal(fs.readFileSync(path.join(out,'index.html'),'utf8'),fs.readFileSync(path.join(ROOT,'world.html'),'utf8'));
   assert.equal(fs.readFileSync(path.join(out,'play.html'),'utf8'),fs.readFileSync(path.join(ROOT,'index.html'),'utf8'));
   assert(!fs.existsSync(path.join(out,'world.html')));assert(!fs.existsSync(path.join(out,'docs')));assert(!fs.existsSync(path.join(out,'tests')));assert(!fs.existsSync(path.join(out,'ads.txt')));
