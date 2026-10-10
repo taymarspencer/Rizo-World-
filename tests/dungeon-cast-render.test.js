@@ -42,6 +42,24 @@ function checkDraw(name, draw, minFills = 15, minStrokes = 12) {
 }
 
 try {
+  // World cutouts now follow Latch's scale hierarchy. This protects the
+  // art-direction contract: support NPCs remain compact, with head heights
+  // used by camera and speech bubbles matching the same render transform.
+  const world = Art.WORLD_SCALE;
+  for (const [kind, canonical] of Object.entries({
+    latch: 42, nell: 86, orr: 82, keeper: 100,
+    "hood-tall": 100, "hood-small": 76, "hood-cap": 88, collector: 80
+  })) {
+    const scale = world[kind];
+    assert.ok(scale > 0 && scale <= 1, kind + " must fit the world");
+    assert.equal(Art.HEIGHT[kind], Math.round(canonical * scale),
+      kind + " bubbles must align with displayed head");
+    checks++;
+  }
+  assert.ok(Art.HEIGHT.nell <= 60 && Art.HEIGHT.orr <= 60,
+    "friendly cast should stay Latch-adjacent in the game");
+  assert.equal(world.latch, 1, "Latch stays the unaltered scale bar");
+  assert.ok(world.keeper < 1 && world["hood-cap"] < 1, "large NPCs are toned down");
   for (const expr of ["work", "measuring", "listening", "amused", "irritated", "tired"]) {
     checkDraw("Nell " + expr, ctx => Art.nell(ctx, 160, 120, { t: 900, state: "work", expr, face: 1 }));
   }
