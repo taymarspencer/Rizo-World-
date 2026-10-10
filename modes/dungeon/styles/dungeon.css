@@ -156,6 +156,11 @@
 /* Testing and starting over: present, findable, never competing with RESUME. */
 .dungeon-card-tools{display:grid;padding-top:8px;border-top:1px dashed rgba(233,223,199,.22)}
 .dungeon-card-tools button.quiet{min-height:44px;padding:0 10px;border:1px solid rgba(233,223,199,.28);border-radius:0;background:transparent;color:#b9b09c;font:800 12px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;cursor:pointer}
+/* The pause menu has two secondary actions (watch intro + restart).
+   At 320px they must share one row or the last tap target falls off screen.
+   Keep each target 44px tall, without introducing scrolling. */
+.dungeon-card.is-menu .dungeon-card-tools{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.dungeon-card.is-menu .dungeon-card-tools button{min-width:0;white-space:normal;overflow-wrap:break-word;letter-spacing:.04em}
 .dungeon-card-tools button.quiet:disabled{opacity:.4;cursor:default}
 .dungeon-card-tools button:focus-visible,.dungeon-card-actions button:focus-visible{outline:3px solid var(--warm);outline-offset:2px}
 /* Menu cards (pause, restart) on a short screen: tighter, and side by side when
