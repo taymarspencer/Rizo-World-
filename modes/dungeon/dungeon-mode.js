@@ -735,8 +735,6 @@
           actor.walking = k < 1;
           if (k >= 1) actor.moveMs = 0;
         } else actor.walking = false;
-        // Footfalls follow distance, including the ease into a doorway.
-        actor.stride = (actor.stride || 0) + Math.hypot(actor.x - oldX, actor.y - oldY) / 7;
         // Work and conversation have a physical subject. Travel follows the
         // route; listening turns toward Rizo only while he is nearby. Neither
         // changes the simulation or steals his heading.
@@ -751,6 +749,9 @@
           const speed = actor.speed || 30;
           if (distance > 10) { actor.x += (dx / distance) * speed * dt; actor.y += (dy / distance) * speed * dt; actor.walking = true; actor.face = dx < 0 ? -1 : 1; }
         }
+        // Update the step phase AFTER movement, including authored chases:
+        // the feet follow actual traveled distance, not wall-clock sine loops.
+        actor.stride = (actor.stride || 0) + Math.hypot(actor.x - oldX, actor.y - oldY) / 7;
       }
       // Overheard talk waits with its line on screen while play is paused (a LOOK).
       barks = barks.filter(entry => entry.until > sceneTime || (entry.talk && ui !== "play"));
