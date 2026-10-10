@@ -65,7 +65,15 @@
     const conversation = [...barks].reverse().find(line => line.id !== actor.id &&
       actors.some(other => other.id === line.id && other.visible !== false &&
         near(other, 150)));
-    const other = conversation && actors.find(entry => entry.id === conversation.id);
+    // Portrait dialogue is even more important than ambient chatter. Everyone
+    // else in the room can acknowledge its *real* speaker while Rizo reads.
+    // Otherwise actors become mannequins the moment a dialogue box opens.
+    const portraitSpeaker = speaker && actors.find(other =>
+      other.visible !== false && other.id !== actor.id &&
+      (other.id === speaker || (speaker === "you" && other.kind === "keeper")) &&
+      near(other, 150));
+    const other = portraitSpeaker ||
+      (conversation && actors.find(entry => entry.id === conversation.id));
     let target = null, cue = "job", addressed = false, listening = false;
     const threatened = hood && flare && near(player, 125);
     if (threatened) { target = player; cue = "flinch"; }
