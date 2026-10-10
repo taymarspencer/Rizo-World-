@@ -48,11 +48,11 @@ try {
   check("silent worker does not stare indefinitely", () => {
     assert.equal(direct(nell, context()).cue, "job");
   });
-  check("incidental glance is intermittent and reproducible", () => {
-    const a = direct(nell, context({ t: 1000 }));
-    assert.equal(a.cue, "notice");
-    assert.deepEqual(a, direct(nell, context({ t: 1000 })));
+  check("quiet workers retain their task instead of making random eye movements", () => {
+    assert.equal(direct(nell, context({ t: 1000 })).cue, "job");
     assert.equal(direct(nell, context({ t: 3000 })).cue, "job");
+    assert.deepEqual(direct(nell, context({ t: 1000 })),
+      direct(nell, context({ t: 3000 })));
   });
   check("reduced motion suppresses unimportant glances", () => {
     assert.equal(direct(nell, context({ t: 1000, reduced: true })).cue, "job");
