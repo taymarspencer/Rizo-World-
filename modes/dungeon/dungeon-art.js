@@ -812,7 +812,9 @@
   // a single sprite atlas instead of re-sculpting body polygons per scene.
   // The image is 480 × 360, organized in a 4-column × 2-row grid.
   const KEEPER_ATLAS = Object.freeze({
-    src: "https://cdn.shopify.com/s/files/1/0279/0647/4062/files/rizo-dungeon-you-keeper-atlas-480x360.webp?v=1791675635",
+    src: typeof document === "object" && document.currentScript?.src
+      ? new URL("assets/keeper-sprite-atlas.png", document.currentScript.src).href
+      : "modes/dungeon/assets/keeper-sprite-atlas.png",
     columns: 4, rows: 2, cellW: 120, cellH: 180,
     // At the existing world draw scale: 78 × 117 native world units.
     width: 78, height: 117
@@ -834,8 +836,8 @@
     if (keeperImage || keeperImageState === "error" || typeof Image !== "function") return;
     keeperImageState = "loading";
     const img = new Image();
-    // Without this, an externally hosted atlas taints the game canvas and
-    // screenshots/save thumbnails stop working. Shopify CDN serves CORS.
+    // A bundled same-origin asset keeps screenshots, offline play and
+    // save thumbnails functional without contacting another provider.
     img.crossOrigin = "anonymous";
     img.decoding = "async";
     img.onload = () => {
