@@ -42,6 +42,68 @@
   const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-mark="boss" viewBox="0 0 40 40" aria-hidden="true">${Art.markSvg("#eef5f9", "#ffffff", 2)}</svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
+  // Presentation-only stage directions. Actors follow the actual dialogue,
+  // nearby speakers and their assigned jobs; no scripted telepathy, hidden
+  // player tracking, or changes to collisions/enemy logic. Pure so QA can
+  // verify the priority of every response without booting the whole scene.
+  const bounded = n => Math.max(-1, Math.min(1, n));
+  function performanceForActor(actor, frame = {}) {
+    const { player, actors = [], barks = [], speaker = "", t = 0,
+      reduced = false, flare = false } = frame;
+    const still = { look: { x: 0, y: 0 }, addressed: false,
+      listening: false, startled: false, cue: "job" };
+    if (!actor || actor.visible === false || !player) return still;
+    const near = (target, radius) => target && Math.hypot(target.x - actor.x, target.y - actor.y) <= radius;
+    const liveSpeech = barks.find(line => line.id === actor.id);
+    const reading = speaker === actor.id ||
+      (actor.kind === "keeper" && speaker === "you");
+    const speakingNow = Boolean(liveSpeech || reading);
+    const warm = ["keeper", "nell", "orr", "latch"].includes(actor.kind);
+    const hood = ["hood-tall", "hood-small", "hood-cap"].includes(actor.kind);
+    // The observer looks at the actual current speaker, not always at Rizo.
+    // This is only relevant when close and available, never during travel.
+    const conversation = [...barks].reverse().find(line => line.id !== actor.id &&
+      actors.some(other => other.id === line.id && other.visible !== false &&
+        near(other, 150)));
+    const other = conversation && actors.find(entry => entry.id === conversation.id);
+    let target = null, cue = "job", addressed = false, listening = false;
+    const threatened = hood && flare && near(player, 125);
+    if (threatened) { target = player; cue = "flinch"; }
+    else if (actor.state === "chase" && near(player, 160)) {
+      target = player; cue = "pursue";
+    } else if (speakingNow && near(player, 195)) {
+      target = player; cue = "address"; addressed = true;
+    } else if (!actor.walking && other) {
+      target = other; cue = "listen"; listening = true;
+    } else if (actor.walking) {
+      const dest = Number.isFinite(actor.toX) && Number.isFinite(actor.toY)
+        ? { x: actor.toX, y: actor.toY } : null;
+      if (dest && !near(dest, 6)) { target = dest; cue = "travel"; }
+    } else {
+      // The underground residents notice a rare flame, but they are also
+      // occupied people. Gaze comes and goes in long held, deterministic
+      // beats rather than locking onto the player on every idle frame.
+      const phase = [...String(actor.id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 1900;
+      const window = warm ? 1900 : hood ? 700 : 0;
+      const notice = window > 0 && (t + phase) % 6500 < window;
+      if (notice && near(player, warm ? 108 : 72)) {
+        target = player; cue = "notice";
+      }
+    }
+    // Reduced motion removes incidental glances, but preserves meaningful
+    // speech, chase and danger directions.
+    if (reduced && (cue === "notice" || cue === "travel")) {
+      target = null; cue = "job";
+    }
+    return {
+      look: target ? {
+        x: bounded((target.x - actor.x) / 42) * (actor.face || 1),
+        y: bounded((target.y - actor.y + (cue === "travel" ? 0 : 42)) / 65)
+      } : still.look,
+      addressed, listening, startled: Boolean(threatened), cue
+    };
+  }
+
   function deviceMarkup() {
     return `<div class="dungeon-device" data-phase="enter" data-shell="locked">
   <div class="dungeon-shell">
@@ -328,28 +390,31 @@
     }
 
     // ===== ACTORS (Art cutouts; feet at x,y) =====
-    let extrasTime = 0, lastRoom = {}, speaking = new Set(), lastBarks = [], lastNpcs = [], crewRizo = { x: 0, y: 0 };
-    const walkBob = (actor, time) => (actor.walking && !reducedMotion ? Math.sin(time / 110) * 2 : 0);
+    let extrasTime = 0, lastRoom = {}, speaking = new Set(), lastBarks = [], lastNpcs = [], lastFlare = false, crewRizo = { x: 0, y: 0 };
+    // Feet move with measured distance, not a free-running global clock.
+    // Stopping mid-step now plants the feet instead of sliding in place.
+    const walkBob = actor => (actor.walking && !reducedMotion
+      ? Math.sin((actor.stride || 0) * 1.9) * 2 : 0);
     function paintNpc(actor, time) {
       const t = reducedMotion ? 0 : time;
-      const closeToRizo = Math.hypot(actor.x - crewRizo.x, actor.y - crewRizo.y) < 140;
-      const speakingToRizo = !el.dialogue.hidden &&
-        (el.dialogue.dataset.speaker === actor.id ||
-          (el.dialogue.dataset.speaker === "you" && actor.kind === "keeper"));
+      const acting = performanceForActor(actor, {
+        player: crewRizo, actors: lastNpcs, barks: lastBarks,
+        speaker: !el.dialogue.hidden ? el.dialogue.dataset.speaker : "",
+        t: extrasTime, reduced: reducedMotion,
+        flare: lastFlare
+      });
       const o = {
-        face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state,
+        face: actor.face || 1, bob: walkBob(actor), t, state: actor.state,
         expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated,
-        addressed: speakingToRizo, look: closeToRizo
-          ? { x: Math.max(-1, Math.min(1, (crewRizo.x - actor.x) / 40)) * (actor.face || 1),
-              y: Math.max(-1, Math.min(1, (crewRizo.y - actor.y + 45) / 60)) }
-          : { x: 0, y: 0 }
+        addressed: acting.addressed, listening: acting.listening,
+        look: acting.look
       };
       switch (actor.kind) {
         case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0 }); break;
         case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
         case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
         case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;
-        case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, reaching: actor.kind === "hood-cap" && Boolean(lastRoom.hands), flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
+        case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, reaching: actor.kind === "hood-cap" && Boolean(lastRoom.hands), flinch: Boolean((actor.flinchUntil && extrasTime < actor.flinchUntil) || acting.startled) }); break;
         case "van-seat": case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y, crewOptions(actor, t)); break;
         case "taillights": {
           // Far off they are two red points; braking, they flare.
@@ -365,7 +430,7 @@
         case "nell": Art.nell(ctx, actor.x, actor.y, o); break;
         case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
         // v0.5: a collector as a figure in a scene (held at the counter by Nell).
-        case "collector": Art.collector(ctx, actor.x, actor.y, { id: actor.id, face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor, time), t }); break;
+        case "collector": Art.collector(ctx, actor.x, actor.y, { id: actor.id, face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor), t }); break;
         default: break;
       }
     }
@@ -756,6 +821,7 @@
       if (talker && talker !== crewTalk.current) { crewTalk.previous = crewTalk.current; crewTalk.current = talker; }
       const p = sim.player;
       crewRizo = { x: pos.x, y: pos.y };
+      lastFlare = p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active";
       follow(pos.x, pos.y, geo, dt, extras.peek, p.moving ? { x: p.fx || 0, y: p.fy || 0 } : null);
       directConversation(geo, pos, extras);
       const shake = extras.shake && !reducedMotion ? extras.shake * 2 : 0;
@@ -1135,5 +1201,5 @@
     return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
-  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });
+  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor });
 });
