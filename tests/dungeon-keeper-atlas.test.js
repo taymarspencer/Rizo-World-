@@ -68,7 +68,10 @@ function canvas() {
     assert.equal(sx,(frame%4)*120);
     assert.equal(sy,Math.floor(frame/4)*180);
     assert.equal(sw,120);assert.equal(sh,180);
-    assert.equal(dx,-39);assert.equal(dy,-117);
+    // Frame-by-frame torso registration removes x jitter; idle/look/reach
+    // frames have padded bottoms, but their shoes still touch world floor.
+    assert.equal(dx,-39+[-1,4,10,10,0,-1,0,2][frame]);
+    assert.equal(dy,-117+(frame<4?0:9));
     assert.equal(dw,78);assert.equal(dh,117);
     assert.equal(depth,0,"balanced Canvas state");
     if(frame<4) assert.ok(transforms.some(x=>x[0]===-1),
