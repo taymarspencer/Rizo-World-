@@ -105,6 +105,16 @@
     beat(step, play) { if (step % 8 === 0) play(31, 2.4, 0.022, 0, "triangle"); if (step % 8 === 4) play(30, 1.3, 0.011, 0, "triangle"); if (step % 16 === 10) play(55, 0.5, 0.009, 0, "sine"); dangerLayer(step, play); } });
   // Outside there is almost no music: rain, a hum, one low note now and then.
   const STREET_TRACK = Object.freeze({ id: "dungeon-street", tempo: 1400, lead: [null, null, null, null, null, null, null, null], bass: [31, null, null, null, null, null, null, null, 33, null, null, null, null, null, null, null], wave: "sine" });
+  // A small original five-note motif introduces the creature's warmth
+  // before the same night turns it into danger. No samples, licensed themes,
+  // or constant busy accompaniment; the player can hear the silences.
+  const PROLOGUE_LEAD = [57, null, 60, null, 64, null, 62, null, 57, null, null, null, 55, null, null, null];
+  const PROLOGUE_TRACK = Object.freeze({ id: "dungeon-little-flame", tempo: 690, lead: PROLOGUE_LEAD, bass: [33, null, null, null, null, null, null, null], wave: "sine",
+    beat(step, play) {
+      const melody = PROLOGUE_LEAD[step % PROLOGUE_LEAD.length];
+      if (melody != null) play(melody, 1.3, .018, 0, "sine");
+      if (step % 8 === 0) play(step % 16 === 0 ? 33 : 36, 2.1, .009, 0, "triangle");
+    } });
   // Designed silence: the mode keeps the music, and plays nothing.
   const SILENT_TRACK = Object.freeze({ id: "dungeon-silence", tempo: 2000, lead: [null], bass: [null], wave: "sine" });
   // The headlights: one held low tone, no melody.
@@ -3474,9 +3484,10 @@
       view.dialogue(null);
       view.choice(null);
       view.prologue(PROLOGUE_BEATS[0], 0, PROLOGUE_BEATS.length, pet);
-      // The real soundtrack can resume in the car. The first sound here is
-      // triggered by a user's next/skip gesture, never browser-blocked autoplay.
-      setMusic(SILENT_TRACK);
+      // The score is original and respects the host's music/mute setting.
+      // On browsers blocking autoplay, the first CONTINUE gesture unlocks the
+      // short responding notes; gameplay still works perfectly without audio.
+      setMusic(PROLOGUE_TRACK);
     }
     function advancePrologue(skip = false) {
       if (!intro) return;
