@@ -712,10 +712,9 @@
     for (const p of headParts(who, o.expr || "neutral")) {
       ctx.save();
       if (p.gaze) {
-          // Eyes, not whole heads, follow the little light when a character
-          // is actually close enough to see him. World sprites need a full
-          // readable pixel of travel; dialogue portraits keep their fixed gaze.
-          ctx.translate((o.look?.x || 0) * 1.5, (o.look?.y || 0) * .85);
+          // A quiet quarter-pixel glance only when the story asks for it; no
+          // exaggerated pupil sliding over an otherwise still character.
+          ctx.translate((o.look?.x || 0) * .55, (o.look?.y || 0) * .32);
         }
       cut(ctx, p.d, p.fill, p.width, p.stroke); ctx.restore();
     }
@@ -775,12 +774,14 @@
     drop(ctx, x, y, 14, 3.6);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (state === "look-back") ctx.rotate(-0.055);
-    const step = o.walking ? Math.sin(o.stride || 0) : 0;
+    // One gait clock for hips, feet and sleeves. Dividing them across sine
+    // waves made the arms swing while the planted leg was standing still.
+    const step = o.walking ? Math.sin((o.stride || 0) * 1.9) : 0;
     // Bent knees and alternating planted heels; no sliding trouser columns.
     for (const side of [-1, 1]) {
       const swing = step * side, hip = side * 4.5;
-      const heel = hip + swing * 5.5, knee = hip + swing * 3;
-      const lift = Math.max(0, swing) * 3;
+      const heel = hip + swing * 3.8, knee = hip + swing * 2.1;
+      const lift = Math.max(0, swing) * 2.4;
       shape(ctx, [hip - 3, -30, hip + 3, -30, knee + 3, -15,
         heel + 2.8, -3 - lift, heel - 2.8, -3 - lift, knee - 3, -15],
         P.a.denim, { ink: 1.1, amp: 0.12 });
@@ -804,7 +805,7 @@
       cut(ctx, "M-11-70Q-17-72-17-79L-12-82L-8-76Z", P.wood[2], 1.2);
       oval(ctx, -14, -80, 2.7, 2.3, P.skin[1], true, .9);
     } else {
-      const swing = step * 3;
+      const swing = step * 1.4;
       cut(ctx, `M-13-69Q-20-68-20-61L${-19-swing}-51L${-14-swing}-42L${-8-swing}-45L${-12-swing}-53L-10-63Z`, P.wood[1], 1.2);
       oval(ctx, -11 - swing, -44, 3, 2.8, P.skin[1], true, .9);
     }
@@ -1261,18 +1262,14 @@
     // Face strip: skin between collar and brim; the eyes carry the expression.
     oval(ctx, 1, -31 + lift, 5.4, 4.4, P.skin[2], true, 1.1);
     const ey = -31.6 + lift;
-    // Latch keeps his distinctive narrow eye-strip design. His eyes now
-    // acknowledge a nearby companion or speaker without moving his cap,
-    // satchel, pinned coat or altering his canonical expressions.
-    ctx.save();
-    if (o.look && !o.pinned) ctx.translate((o.look.x || 0) * .95, (o.look.y || 0) * .35);
+    // His narrow eye strip is intentional. Do not puppet the eyes around
+    // every frame; the existing startled/soft/dry expressions do the acting.
     ctx.strokeStyle = P.ink; ctx.fillStyle = P.ink; ctx.lineWidth = 1; ctx.lineCap = "round";
     if (expr === "startled") { oval(ctx, -0.8, ey, 1.4, 1.5, P.paper[3], true, 0.7); oval(ctx, 3.4, ey, 1.4, 1.5, P.paper[3], true, 0.7); oval(ctx, -0.6, ey, 0.6, 0.6, P.ink); oval(ctx, 3.6, ey, 0.6, 0.6, P.ink); }
     else if (expr === "soft") { ctx.beginPath(); ctx.arc(-0.8, ey - 0.4, 1.1, 0.2, Math.PI - 0.2); ctx.moveTo(4.5, ey - 0.4); ctx.arc(3.4, ey - 0.4, 1.1, 0.2, Math.PI - 0.2); ctx.stroke(); }
     else if (expr === "dry") { line(ctx, -2, ey, 0.4, ey, P.ink, 1); ctx.beginPath(); ctx.arc(3.4, ey + 0.6, 1.2, Math.PI + 0.3, -0.3); ctx.stroke(); }
     else if (expr === "urgent") { line(ctx, -2.2, ey - 1.4, 0.4, ey - 0.4, P.ink, 1); line(ctx, 5, ey - 1.4, 2.4, ey - 0.4, P.ink, 1); oval(ctx, -0.8, ey + 0.6, 0.7, 0.7, P.ink); oval(ctx, 3.6, ey + 0.6, 0.7, 0.7, P.ink); }
     else { line(ctx, -2, ey, 0.4, ey, P.ink, 1.1); line(ctx, 2.4, ey, 4.8, ey, P.ink, 1.1); }
-    ctx.restore();
     // The collar: two stiff paper flaps up past the chin, a brass clasp at the throat.
     shape(ctx, [-6, -26 + low, -7, -35 + low, -1, -29.5 + low, 0.5, -25 + low], P.paper[3], { ink: 1.2, seed: 71, amp: 0.25 });
     shape(ctx, [8, -26 + low, 8.6, -35.5 + low, 2.6, -29.5 + low, 1, -25 + low], P.paper[2], { ink: 1.2, seed: 72, amp: 0.25 });
