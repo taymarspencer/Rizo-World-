@@ -889,9 +889,10 @@
     if(o.flinch) ctx.rotate(-.065);
     if(kind==="hood-tall") {
       compactLegs(ctx,-38,6.2,7.2,bob,P.cloth[1],P.ink,P.a.sock);
-      sleeve(ctx,[-11,-62,-17,-47,-8,-39],P.cloth[1],5.4,P.skin[1]);
+      // Arms descend to opposite sides, not crossed into the same sternum.
+      sleeve(ctx,[-12,-62,-21,-49,-17,-37],P.cloth[1],5.6,P.skin[1]);
       actorGarment(ctx,kind,0,-67,.78);
-      sleeve(ctx,grab?[10,-63,18,-50,25,-44]:[10,-63,15,-49,6,-39],P.cloth[2],5.6,P.skin[1]);
+      sleeve(ctx,grab?[11,-63,19,-50,29,-42]:[11,-63,21,-49,17,-37],P.cloth[2],5.7,P.skin[1]);
       characterHead(ctx,kind,0,-78,{expr,look:o.look,tilt:.035});
     } else if(kind==="hood-small") {
       compactLegs(ctx,-22,6.2,7.2,bob,P.cloth[1],P.a.white);
@@ -1058,14 +1059,16 @@
       if(tall) cut(ctx,`M${heel-3} -8h7v5h-7Z`,P.a.sock,.6);
       oval(ctx,heel+2,-2.5,tall?5:small?4.6:5.5,2.4,small?P.a.white:P.ink,true,.8);
     }
-    const left=driver?[-12,shoulderY+3,-24,-43,-30,-49]:tall?[-11,shoulderY+3,-18,-28,-9,-25]:[-15,shoulderY+3,-22,-23,-14,-19];
+    const left=driver?[-12,shoulderY+3,-24,-32,-33,-31]
+      :tall?[-11,shoulderY+3,-20,-30,-18,-23]
+      :[-15,shoulderY+3,-22,-23,-14,-19];
     sleeve(ctx,left,shirt,5.8,P.skin[driver||cap?0:1]);
     // Tailor the same garment to its seated shoulder/hip distance. Tall's
     // previous coat reached BEHIND the floor and swallowed both knees.
     actorGarment(ctx,who,0,shoulderY,tall?.55:small?.9:cap?.86:.84);
     const age=k.talking?k.talk:0;
     let right;
-    if(driver) right=[12,shoulderY+3,7,-43,-14,-50];
+    if(driver) right=[12,shoulderY+3,0,-32,-18,-31];
     else if(small) right=[14,shoulderY+3,21,-24,18,k.phone? -39:-23-age*4];
     else if(cap&&k.point) right=[19,shoulderY+3,28,-29,34,-34];
     else right=[cap?19:10,shoulderY+3,cap?25:17,-25,cap?16:10,-20-age*5];
@@ -1076,9 +1079,11 @@
       // No duplicate skin oval: the phone-holding sleeve already has a hand.
     }
     if(driver) {
-      oval(ctx,-26,-50,12,7,null,true,2.2);
-      line(ctx,-36,-50,-16,-50,P.metal[1],1.8,0,0);
-      line(ctx,-26,-50,-26,-44,P.metal[1],1.8,0,0);
+      // A steering wheel sits below the chin and BETWEEN the two hands.
+      // At neck height the old loop read as a disembodied third arm.
+      oval(ctx,-26,-32,12,7,null,true,2.2);
+      line(ctx,-36,-32,-16,-32,P.metal[1],1.8,0,0);
+      line(ctx,-26,-32,-26,-26,P.metal[1],1.8,0,0);
     }
     characterHead(ctx,who,hx,hy,{expr:k.still?"scared":k.quiet?"quiet":"neutral",look:k.look,tilt:k.quiet?.1:k.talking?-age*.08:0});
     ctx.restore();
