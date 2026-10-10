@@ -115,6 +115,19 @@
   // those presentation paths, rather than checking it inconsistently.
   const visibleActors = actors => (actors || []).filter(actor => actor && actor.visible !== false);
 
+  // World sprites can receive a short CSS optical camera push. Speech and HUD
+  // stay outside that plane so their text remains legible. Project only
+  // speech-anchor coordinates through the *current* transformed bounds,
+  // including the easing frames; don't let bubbles jump ahead of a zoom.
+  const projectStagePoint = (point, stage, screen, cssWidth) => {
+    const outerScale = screen.width / Math.max(1, cssWidth);
+    const zoom = stage.width / Math.max(1, screen.width);
+    return [
+      (stage.left - screen.left) / Math.max(.001, outerScale) + point[0] * zoom,
+      (stage.top - screen.top) / Math.max(.001, outerScale) + point[1] * zoom
+    ];
+  };
+
   // Rendering tracks actual footsteps separately from pursuit AI. No global
   // clock can animate a planted foot, and a scripted offscreen teleport is
   // not mistaken for twenty steps of running.
@@ -1157,7 +1170,15 @@
     function renderBarks(list, actors, rizo) {
       if (!list.length && !barkNodes.size) return;
       const seen = new Set();
-      const occupied = [rizo];
+      const screenBounds = el.screen.getBoundingClientRect();
+      const stageBounds = el.worldstage.getBoundingClientRect();
+      const cssWidth = el.screen.offsetWidth || metrics.cssW;
+      const project = (x, y) => projectStagePoint(
+        toScreen(x, y), stageBounds, screenBounds, cssWidth);
+      const stageZoom = stageBounds.width / Math.max(1, screenBounds.width);
+      const [rx, ry] = projectStagePoint(
+        [rizo.x, rizo.y], stageBounds, screenBounds, cssWidth);
+      const occupied = [{ x: rx, y: ry, w: rizo.w * stageZoom, h: rizo.h * stageZoom }];
       // Dialogue may cover a hem or the floor; it should not erase the new
       // faces. Use the existing head-height contracts for standing/seated
       // actors, including Latch, when choosing a bubble attachment.
@@ -1166,7 +1187,7 @@
         const seated = ["van-seat", "driver-seat", "passenger-seat"].includes(actor.kind);
         const h = seated ? Art.CREW_HEIGHT[actor.id] : Art.HEIGHT[actor.kind];
         if (!h || actor.kind === "van" || actor.kind === "porter") continue;
-        const [hx, hy] = toScreen(actor.x, actor.y - h);
+        const [hx, hy] = project(actor.x, actor.y - h);
         const w = Math.min(34, h * .7) * metrics.scale, height = Math.min(30, h * .6) * metrics.scale;
         occupied.push({ x: hx - w / 2, y: hy, w, h: height });
       }
@@ -1191,7 +1212,7 @@
           ? (Art.HEIGHT[actor.kind] || 54) + 4
           : actor.barkLift * worldScale;
         // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.
-        let [x, y] = toScreen(actor.x + (actor.barkDx || 0), actor.y - lift);
+        let [x, y] = project(actor.x + (actor.barkDx || 0), actor.y - lift);
         const width = node.offsetWidth || 120, height = node.offsetHeight || 30, edge = 8;
         const off = x < 0 || x > metrics.cssW || y < height + 30 || y > metrics.cssH - 10;
         // Try the natural head position first, then beside it. Clamp each
@@ -1213,7 +1234,7 @@
         if (node.dataset.tail !== String(tail)) { node.dataset.tail = String(tail); node.style.setProperty("--tail", `${tail}px`); }
         x = best.x; y = best.y; occupied.push(best.bounds);
         node.classList.toggle("is-edge", off);
-        node.classList.toggle("is-below", y > toScreen(actor.x, actor.y)[1]);
+        node.classList.toggle("is-below", y > project(actor.x, actor.y)[1]);
         node.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -100%)`;
       }
       for (const [id, node] of barkNodes) if (!seen.has(id)) { node.remove(); barkNodes.delete(id); }
@@ -1356,5 +1377,5 @@
     return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, prologue, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
-  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall, visibleActors, nextRunnerMotion });
+  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall, visibleActors, nextRunnerMotion, projectStagePoint });
 });
