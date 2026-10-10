@@ -13,7 +13,7 @@ try {
   globalThis.RizoDungeonScenery = {};
   delete require.cache[require.resolve("../modes/dungeon/dungeon-view.js")];
   require("../modes/dungeon/dungeon-view.js");
-  const { performanceForActor: direct, footfall } = globalThis.RizoDungeonView;
+  const { performanceForActor: direct, footfall, visibleActors, nextRunnerMotion } = globalThis.RizoDungeonView;
   const nell = { id: "nell", kind: "nell", x: 90, y: 120, face: 1, state: "work", walking: false, visible: true };
   const orr = { id: "orr", kind: "orr", x: 115, y: 112, face: -1, state: "tray", walking: false, visible: true };
   const small = { id: "hood-small", kind: "hood-small", x: 80, y: 145, face: 1, state: "search", walking: false, visible: true };
@@ -119,6 +119,53 @@ try {
   });
   check("reduced motion plants feet", () => {
     assert.equal(footfall({ walking: true, stride: 3 }, true), 0);
+  });
+  check("scene exits remove hidden cast without altering visible identity", () => {
+    assert.deepEqual(visibleActors([nell, { ...orr, visible: false }, small]).map(x => x.id),
+      ["nell", "hood-small"]);
+  });
+  check("hidden Latch stays absent until the scripted alcove reveal", () => {
+    const hiddenLatch = { id: "latch", kind: "latch", visible: false };
+    assert.deepEqual(visibleActors([hiddenLatch]), []);
+    assert.equal(direct(hiddenLatch, context()).cue, "job");
+    assert.deepEqual(visibleActors([{ ...hiddenLatch, visible: true }]).map(x => x.id), ["latch"]);
+  });
+  check("cast selection safely handles null and unspecified visibility", () => {
+    assert.deepEqual(visibleActors(null), []);
+    assert.deepEqual(visibleActors([null, { id: "narrator" }]).map(x => x.id), ["narrator"]);
+  });
+  check("runner starts with feet planted before taking a real step", () => {
+    const p = nextRunnerMotion(null, { x: 100, y: 100, state: "run" }, 150, "play");
+    assert.equal(p.moving, false);
+    assert.equal(p.stride, 0);
+  });
+  check("runner steps follow traveled distance and pause when blocked", () => {
+    const runner = (x, y) => ({ x, y, state: "run" });
+    const start = nextRunnerMotion(null, runner(100, 100), 100, "play");
+    const moving = nextRunnerMotion(start, runner(107, 100), 130, "play");
+    assert.equal(moving.moving, true);
+    assert.equal(moving.stride, 1);
+    const planted = nextRunnerMotion(moving, runner(107, 100), 270, "play");
+    assert.equal(planted.moving, false);
+    assert.equal(planted.stride, 1);
+  });
+  check("runner does not jiggle during pause or after being caught", () => {
+    const start = nextRunnerMotion(null, { x: 100, y: 100, state: "run" }, 100, "play");
+    const moving = nextRunnerMotion(start, { x: 107, y: 100, state: "run" }, 130, "play");
+    assert.equal(nextRunnerMotion(moving, { x: 108, y: 100, state: "run" }, 150, "down").moving, false);
+    assert.equal(nextRunnerMotion(moving, { x: 108, y: 100, state: "caught" }, 150, "play").moving, false);
+  });
+  check("offscreen detour teleports do not generate giant running steps", () => {
+    const before = nextRunnerMotion(null, { x: 110, y: 220, state: "run" }, 100, "play");
+    const after = nextRunnerMotion(before, { x: 300, y: 70, state: "run" }, 130, "play");
+    assert.equal(after.stride, before.stride);
+    assert.equal(after.moving, false);
+  });
+  check("rewound runner clock safely resets prior stride", () => {
+    const previous = { x: 100, y: 100, state: "run", t: 500, stride: 20, lastMoved: 500 };
+    const pose = nextRunnerMotion(previous, { x: 101, y: 100, state: "run" }, 0, "play");
+    assert.equal(pose.stride, 0);
+    assert.equal(pose.moving, false);
   });
   check("missing optional acting state is safe", () => {
     assert.equal(footfall(null), 0);
