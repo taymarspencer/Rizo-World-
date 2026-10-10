@@ -457,6 +457,21 @@
     // Feet move with measured distance, not a free-running global clock.
     // Stopping mid-step now plants the feet instead of sliding in place.
     const walkBob = actor => footfall(actor, reducedMotion);
+    // One scale rule for scripted collectors AND the same collector as an
+    // active enemy. Otherwise the character suddenly gains 20% height on
+    // entering gameplay. Every sprite stays anchored at its original feet.
+    function drawWorldActor(kind, x, y, draw) {
+      const scale = Art.WORLD_SCALE?.[kind] ?? 1;
+      ctx.save();
+      try {
+        if (scale !== 1) {
+          ctx.translate(x, y);
+          ctx.scale(scale, scale);
+          ctx.translate(-x, -y);
+        }
+        draw();
+      } finally { ctx.restore(); }
+    }
     function paintNpc(actor, time) {
       if (!actor || actor.visible === false) return;
       const t = reducedMotion ? 0 : time;
@@ -472,17 +487,9 @@
         addressed: acting.addressed, listening: acting.listening,
         look: acting.look
       };
-      // Reduce WORLD actors around their planted feet, not their geometric
-      // center. This makes helpful NPCs Latch-sized without squashing bones,
-      // adding limb pieces, or changing pathfinding, comic or portrait art.
-      // The carrier, van cabin and canonical Rizo stay at their own scale.
-      ctx.save();
-      const actorScale = Art.WORLD_SCALE?.[actor.kind] ?? 1;
-      if (actorScale !== 1) {
-        ctx.translate(actor.x, actor.y);
-        ctx.scale(actorScale, actorScale);
-        ctx.translate(-actor.x, -actor.y);
-      }
+      // Comics keep the authored close-up; the world and all encounter
+      // appearances share the same compact physical scale.
+      drawWorldActor(actor.kind, actor.x, actor.y, () => {
       switch (actor.kind) {
         case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0 }); break;
         case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
@@ -507,7 +514,7 @@
         case "collector": Art.collector(ctx, actor.x, actor.y, { id: actor.id, face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor), moving: Boolean(actor.walking && !reducedMotion), stride: actor.stride || 0, t }); break;
         default: break;
       }
-      ctx.restore();
+      });
     }
 
     // The van crew: who each of them is looking at, as a world point. Whoever
@@ -599,15 +606,19 @@
         Art.cooler(ctx, cx, cy, { wobble: enemy.state === "windup" && !reducedMotion ? Math.sin(sim.t / 40) * 1.2 : 0 });
       } else if (enemy.kind === "collector") {
         const walking = enemy.state === "patrol" && sim.t >= (enemy.pauseUntil || 0);
-        Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1, state: sim.roomId === "factory" && walking ? "watch-down" : enemy.state, bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t });
+        drawWorldActor("collector", x, y, () =>
+          Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1,
+            state: sim.roomId === "factory" && walking ? "watch-down" : enemy.state,
+            bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t }));
       } else if (enemy.kind === "runner") {
         // On his trail: not drawn until it is through the door, or while it goes round.
         if (enemy.state === "waiting" || enemy.state === "detour") return;
         const pose = runnerPose(enemy, sim);
-        Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1,
-          state: enemy.state === "caught" ? "grab" : "run",
-          bob: pose.moving && !reducedMotion ? Math.sin(pose.stride * 1.9) * 2 : 0,
-          moving: pose.moving && !reducedMotion, stride: pose.stride, t });
+        drawWorldActor("collector", x, y, () =>
+          Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1,
+            state: enemy.state === "caught" ? "grab" : "run",
+            bob: pose.moving && !reducedMotion ? Math.sin(pose.stride * 1.9) * 2 : 0,
+            moving: pose.moving && !reducedMotion, stride: pose.stride, t }));
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
