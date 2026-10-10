@@ -24,13 +24,7 @@ jobs:
             -o modes/dungeon/assets/keeper-sprite-atlas.png
           file modes/dungeon/assets/keeper-sprite-atlas.png
           echo "c0d09bd5f28226f49d4cb72f2475dbfa8b997f692d50f688b229104817fda5ae  modes/dungeon/assets/keeper-sprite-atlas.png" | sha256sum -c -
-          python3 - <<'PY'
-          from pathlib import Path
-          image = Path("modes/dungeon/assets/keeper-sprite-atlas.png").read_bytes()
-          assert 10000 < len(image) < 500000, "unexpected asset size"
-          assert image[:8] == b"\\x89PNG\\r\\n\\x1a\\n", "not a PNG image"
-          print(f"Vendoring {len(image):,} bytes with valid PNG header")
-          PY
+
       - name: Preserve binary artwork in Git history
         shell: bash
         run: |
