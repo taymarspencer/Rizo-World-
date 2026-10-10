@@ -880,7 +880,7 @@
   function hood(ctx, kind, x, y, o = {}) {
     const bob = o.bob || 0, grab = o.state === "grab";
     ctx.save(); ctx.translate(x,y);
-    if (o.flinch) ctx.rotate(-.14*(o.face || 1));
+    if (o.flinch) ctx.rotate(-.075*(o.face || 1));
     ctx.scale(o.face || 1,1);
     const scared = Boolean(o.flinch), expr = scared ? "scared" : o.state === "phone-away" ? "quiet" : "neutral";
     if (kind === "hood-tall") {
@@ -1345,7 +1345,7 @@
     const planted = ["brace", "support", "lift"].includes(state);
     const expr = state === "tired" ? "tired" : o.expr || (state === "listen" ? "listening" : "work");
     const quiet = !walking && !["support", "lift", "brace"].includes(state);
-    const breath = quiet ? Math.sin(t / 920) * 0.45 : 0;
+    const breath = quiet ? Math.sin(t / 1200) * 0.27 : 0;
     drop(ctx, x, y, 15, 3.8);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (seated) {
@@ -1377,7 +1377,9 @@
     const slump = state === "tired" ? 3 : 0;
     ctx.translate(0, slump);
     const arms = NELL_ARMS[state];
-    const swing = walking ? Math.sin(t / 110) * 3 : 0;
+    // Legs and sleeves follow the same travel phase: no independent
+    // fast arm oscillator while the worker glides toward a job.
+    const swing = walking ? bob * .7 : 0;
     const far = arms[1].map((value, index) => (index >= 2 && index % 2 === 0 && state === "walk" ? value + swing : value));
     sleeve(ctx, far, P.service[0], 6.3, P.skin[0]);
 
@@ -1828,7 +1830,7 @@
     // immediate lock when SPOT occurs, and a forward drive during RUN.
     // This changes no detection cone or enemy timing—only the actor's pose.
     const headIntent = state === "search"
-      ? (t ? Math.sin(t / 570 + (gatherer ? .9 : .1)) * .14 : 0)
+      ? (t ? Math.sin(t / 950 + (gatherer ? .9 : .1)) * .065 : 0)
       : state === "watch-down" ? .13
       : state === "spot" ? -.17
       : state === "grab" ? -.12
