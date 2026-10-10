@@ -613,6 +613,11 @@
   if (typeof Art.onKeeperImageChange === "function") {
     Art.onKeeperImageChange(state => {
       document.documentElement.dataset.labKeeperSprite = state;
+      // A fallback measurement cached during image loading is NOT a measure
+      // of the new sprite. Recompute layouts after decode so the lab and
+      // gameplay have identical dimensions at all phone widths.
+      measures.clear();
+      render();
       for (const handle of stages) handle.draw(performance.now());
     });
     document.documentElement.dataset.labKeeperSprite = Art.keeperSpriteStatus();
