@@ -36,7 +36,7 @@ try {
     const act = direct(orr, context({ speaker: "nell", player: far }));
     assert.equal(act.cue, "listen");
     assert.equal(act.listening, true);
-    assert.ok(act.look.x > 0 === false, "Orr faces Nell using mirrored local gaze");
+    assert.ok(act.look.x > 0, "Orr faces Nell using mirrored local gaze");
   });
   check("portrait speaking actor gets priority over listening", () => {
     assert.equal(direct(nell, context({ speaker: "nell" })).cue, "address");
