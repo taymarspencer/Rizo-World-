@@ -861,6 +861,13 @@
     if (o.addressed || o.front) return 7;
     return 4;
   }
+  // The painted frames were authored with slightly different horizontal
+  // centers. Fix that ONCE here, instead of allowing a left/right body wobble
+  // or editing every animation frame and its masks independently.
+  // Top row feet touch the frame edge; bottom row has 14px transparent sole
+  // padding. These offsets keep feet planted on the game's drop shadow.
+  const KEEPER_FRAME_OFFSET_X = Object.freeze([-1, 4, 10, 10, 0, -1, 0, 2]);
+  const KEEPER_FRAME_OFFSET_Y = Object.freeze([0, 0, 0, 0, 9, 9, 9, 9]);
   function keeperSprite(ctx, x, y, o = {}) {
     if (!keeperImage || keeperImageState !== "ready" || typeof ctx.drawImage !== "function") return false;
     const frame = keeperSpriteFrame(o);
@@ -872,7 +879,8 @@
     // bitmaps in one single pass: no extra arms, knees or overlay limbs.
     ctx.drawImage(keeperImage, (frame % columns) * cellW,
       Math.floor(frame / columns) * cellH, cellW, cellH,
-      -width / 2, -height, width, height);
+      -width / 2 + KEEPER_FRAME_OFFSET_X[frame],
+      -height + KEEPER_FRAME_OFFSET_Y[frame], width, height);
     ctx.restore();
     return true;
   }
