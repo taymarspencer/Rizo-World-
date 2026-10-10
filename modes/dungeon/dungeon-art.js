@@ -892,7 +892,8 @@
       cut(ctx,"M-14-59L-12-64L-3-58L7-63L14-58L7-49L-6-50Z",P.cloth[0],1.1);
       cut(ctx,"M-3-51L2-49L5-26L0-24Z",P.a.maroonLight,0);
       line(ctx,1,-51,3,-27,P.inkSoft,1.6);
-      cut(ctx,"M-22-44Q-8-39-2-42M5-43Q13-40 20-44M-18-31Q0-27 17-32",null,1.2,P.inkSoft);
+      // One padded shoulder line, not three near-parallel ink scratches.
+      cut(ctx,"M-21-43Q-9-39-1-42M5-43Q12-40 20-43",null,1.2,P.inkSoft);
       cut(ctx,"M-19-39L-9-36L-10-29L-17-30Z",P.cloth[0],1);
       if (o.state === "phone-dropped") sleeve(ctx,[11,-50,12,-39,4,-32],P.a.maroon,6,P.skin[1]);
       else {
@@ -1389,9 +1390,8 @@
     // The broad tape gives the jacket one readable diagonal, then hangs free.
     cut(ctx,"M-13-59Q-11-66-7-61L0-43L5-34L3-30",null,4.7,P.ink);
     cut(ctx,"M-13-59Q-11-66-7-61L0-43L5-34L3-30",null,3.1,P.paper[2]);
-    line(ctx,-7,-55,-4,-56,P.inkSoft,.8);
-    line(ctx,-4,-48,-1,-49,P.inkSoft,.8);
-    line(ctx,0,-40,3,-41,P.inkSoft,.8);
+    // The diagonal strap is the read. Individual <1px stitch scratches on
+    // top of it fought the silhouette at 320px; the repaired pocket remains.
 
     // Holding a board steady for him: out in front at her hands, where it
     // meets whatever she is holding (the table's support, the grille, the press).
@@ -1409,12 +1409,11 @@
     const near = arms[0].map((value, index) => (index >= 2 && index % 2 === 0 && state === "walk" ? value - swing : value));
     sleeve(ctx, near, P.service[2], 6.5, P.skin[1]);
     limb(ctx, near.slice(2), P.skin[1], 4.2, P.skin[1]);
-    const cx = (near[2] + near[4]) / 2, cy = (near[3] + near[5]) / 2;
-    oval(ctx, cx, cy, 2.5, 1.7, P.wood[2], true, 0.8);
-    oval(ctx, near[2], near[3], 2.9, 2.3, P.service[3], true, 0.8);
-    // Palm and thumb wrap around the job, rather than ending in a joint bead.
-    oval(ctx, near[4] + 1, near[5], 2.9, 2.1, P.skin[1], true, .8);
-    line(ctx, near[4] - 1, near[5] - 1, near[4] + 1.4, near[5] - 2.4, P.skin[0], 1.1);
+    // At phone scale a chain of dark joint discs looked mechanical. Keep one
+    // rolled cuff and one believable palm; the sleeve already defines elbow.
+    oval(ctx, near[2], near[3], 3.2, 2.4, P.service[3], true, 0.9);
+    oval(ctx, near[4] + 1, near[5], 3, 2.4, P.skin[1], true, 0.85);
+    line(ctx, near[4] - 1, near[5] - 1, near[4] + 2, near[5] - 2, P.skin[0], 1.2);
 
     // Broad cheek, open eye plane and a swept tied wrap: the warm face is
     // legible at the same camera distance as her work. Every expression is
@@ -1460,15 +1459,16 @@
     cut(ctx,"M-18-52L-11-55L-9-36L-14-22Q-23-24-21-37Z",P.wood[2],0);
     cut(ctx,"M-9-59L-4-60L0-54L8-59L11-55L5-49L-2-50Z",P.paper[1],1);
     cut(ctx,"M-11-52L8-52L16-38L18-18L-17-18L-18-35Z",P.paper[2],1.3);
-    cut(ctx,"M-12-48L-7-49L-7-33L-10-19L-17-19L-18-34Z",P.paper[0],0);
-    cut(ctx,"M-7-50L6-50L9-35L-9-35Z",P.paper[1],.9);
-    cut(ctx,"M-18-34Q-3-37 17-33L17-30L-18-30Z",P.wood[1],1);
-    cut(ctx,"M-5-27L11-27L10-21L-4-21Z",P.paper[0],.9);
-    line(ctx,-3,-25,9,-25,P.paper[3],1);
-    line(ctx,4,-20,4,-18,P.wood[2],1.2);
+    // One clear bib, one offset shadow and a broad waist band. The old
+    // stack of five pale apron patches collapsed into noise in the room.
+    cut(ctx,"M-12-48L-7-49L-7-34L-14-20L-17-19L-18-34Z",P.paper[0],0);
+    cut(ctx,"M-5-49L7-49L9-35L-8-35Z",P.paper[1],0);
+    cut(ctx,"M-18-34Q-3-37 17-33L17-29L-18-29Z",P.wood[1],1);
+    cut(ctx,"M-5-27L11-27L10-21L-4-21Z",P.paper[0],0.9);
     // The long striped kitchen towel has its own mass on his low shoulder.
     cut(ctx,"M7-62Q15-66 19-59L17-42L13-33L6-35L8-47Z",P.paper[3],1.2);
-    for(const sy of [-55,-48,-41]) line(ctx,9,sy,16,sy+1,P.a.red,1.2);
+    // Two stripes survive at world scale; three fine ones read as static.
+    for(const sy of [-53,-42]) line(ctx,9,sy,16,sy+1,P.a.red,1.65);
     oval(ctx,-18,-29,2.7,2.7,null,true,1);
     line(ctx,-18,-26,-20,-19,P.metal[2],1.6);
     oval(ctx,-20,-17,2.8,3.4,P.metal[2],true,.9);
@@ -1484,9 +1484,8 @@
       oval(ctx, 11, -54.2, 3, 1.2, P.ember[1]);
       oval(ctx, 26, -54.2, 3, 1.2, P.ember[1]);
       shape(ctx, [18, -56, 25, -56, 28, -52, 20, -51], P.paper[1], { ink: 0.7, seed: 101, amp: 0.25 });
-      ctx.save();ctx.globalAlpha=.45;
-      for(const px of [10,26]) { const sway=Math.sin(t/700+px)*.8; line(ctx,px,-57,px-1+sway,-61,P.paper[3],.85);line(ctx,px-1+sway,-61,px+sway,-64,P.paper[3],.7); }
-      ctx.restore();
+      // The two warm dishes and the tray edge tell the story without
+      // hairline steam fighting Orr's silhouette at native phone scale.
     } else if (state === "carry") {
       sleeve(ctx, [6, -56, 10, -45, 8, -35], P.a.mustard, 7, P.skin[0]);
       box(ctx, 4, -43, 5, 27, P.metal[1], { ink: 1.1, amp: 0.2, seed: 102 });
@@ -1775,15 +1774,22 @@
     } else {
       cut(ctx,"M-9-63L-22-60L-22-45L-18-30L17-30L21-46L21-60L9-63Z",P.metal[1]);
       cut(ctx,"M-20-57L-13-57L-10-33L-17-31L-21-45Z",P.metal[0],0);
-      cut(ctx,"M-15-58H14V-48H-15Z",P.metal[2],1);
+      // The factory silhouette gets ONE cold chest bar and a single apron
+      // plate. The earlier nested armor patches resembled background rails.
+      cut(ctx,"M-15-58H14V-49H-15Z",P.metal[2],1);
       cut(ctx,"M-11-48L12-48L15-31L-14-31Z",P.metal[0],1.2);
-      cut(ctx,"M-8-44H9V-39H-8Z",P.metal[1],.9);
       cut(ctx,"M-18-35H17V-29H-18Z",P.suit[1],1);
     }
     line(ctx,-11,-60,7,-38,P.suit[0],3.4);
     line(ctx,-11,-60,7,-38,P.metal[2],1.35);
     mark(ctx,gatherer ? 7 : 5,-47,8,P.cold[2]);
     characterHead(ctx,`collector-${profile}`,1,gatherer ? -61 : -67,{tilt:runner ? -.1 : 0});
+    // A tiny real metal edge below the helmet rim defines the dark figure
+    // against the factory's identical charcoal railings. Not a fake glow,
+    // giant outline, or a gameplay "spotted" indicator.
+    const headY = gatherer ? -61 : -67;
+    line(ctx, -8, headY - 10, 3, headY - 11,
+      P.cold[1], 1.4, profile.length * 37, 0);
     // The lamp on its pole, out in front. Up when he has seen something.
     const raise = state === "spot" ? -9 : state === "watch-down" ? 24 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
     if (state === "watch-down") {
