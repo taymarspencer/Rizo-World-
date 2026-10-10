@@ -770,7 +770,30 @@
       oval(ctx, wx-bx*1.8, wy-by*1.8, 1.2, 1.6, hand);
     }
   }
-  function youCoat(ctx) { characterBody(ctx,"you",0,-73); }
+  // Reuse the approved head/garment cutouts, but tailor *world* garments to
+  // leg length. Previously the coat covered 50 of YOU's 100 body units,
+  // leaving two 30px matchsticks where thighs and knees should be.
+  // Portraits keep the same underlying garment paths at a closer camera crop.
+  function actorGarment(ctx, who, x, y, vertical = 1) {
+    ctx.save(); ctx.translate(x,y); ctx.scale(1,vertical);
+    paintParts(ctx,garmentParts(who)); ctx.restore();
+  }
+  function youCoat(ctx) { actorGarment(ctx,"you",0,-73,.72); }
+  // Exactly the same planted hip, knee, heel and boot construction indoors
+  // and outdoors. The stride value comes from movement (zero means still).
+  function keeperLegs(ctx, step = 0) {
+    for(const side of [-1,1]) {
+      const gait=side*step, hip=side*7.2;
+      const knee=hip+gait*2.8, heel=hip+gait*5.1;
+      const lift=Math.max(0,gait)*2.3;
+      shape(ctx,[hip-4.3,-45,hip+4.3,-45,knee+3.8,-23,
+        heel+3.8,-4-lift,heel-3.8,-4-lift,knee-3.8,-23],
+        P.a.denim,{ink:1.1,amp:.12});
+      // A small knee fold, not a second limb.
+      line(ctx,knee-2,-22,knee+3,-20,P.cloth[2],.65,hip,.07);
+      oval(ctx,heel+side*1.5,-2-lift,5.8,2.65,P.ink,true,.8);
+    }
+  }
   // The umbrella is ONE asset in the game's own cutout language. The world
   // actor and SVG portrait render these identical shapes; no new renderer,
   // external model, animation engine, download or duplicated illustration.
@@ -791,14 +814,7 @@
     ctx.save(); ctx.translate(x,y); ctx.scale(o.face || 1,1);
     if(state === "look-back") ctx.rotate(-.055);
     const step = o.walking ? Math.sin((o.stride || 0)*1.9) : 0;
-    for(const side of [-1,1]) {
-      const swing=step*side, hip=side*4.5, heel=hip+swing*3.8, knee=hip+swing*2.1;
-      const lift=Math.max(0,swing)*2.4;
-      shape(ctx,[hip-3,-30,hip+3,-30,knee+3,-15,
-        heel+2.8,-3-lift,heel-2.8,-3-lift,knee-3,-15],
-        P.a.denim,{ink:1.1,amp:.12});
-      oval(ctx,heel+1.5,-2-lift,4.6,2.3,P.ink,true,.8);
-    }
+    keeperLegs(ctx,step);
     ctx.translate(0,o.walking ? -Math.abs(step)*.9 : 0);
     // Same source that supplies the close-up portrait: no bespoke copy here.
     youCoat(ctx);
@@ -809,21 +825,22 @@
     // All arms use the existing joint/sleeve primitive. The hand is part of
     // the sleeve, not a second floating ellipse or an extra overlay limb.
     if(state === "door") {
-      sleeve(ctx,[-15,-68,-23,-73,-15,-80],P.wood[2],6.5,P.skin[1]);
+      sleeve(ctx,[-16,-68,-25,-75,-24,-84],P.wood[2],6.4,P.skin[1]);
     } else if(state === "look-back") {
-      sleeve(ctx,[-15,-68,-23,-63,-21,-56],P.wood[1],6.5,P.skin[1]);
+      sleeve(ctx,[-16,-68,-24,-60,-22,-52],P.wood[1],6.4,P.skin[1]);
     } else {
-      sleeve(ctx,[-15,-68,-22,-58+step*1.2,-13-step*3,-43],
-        P.wood[1],6.5,P.skin[1]);
+      sleeve(ctx,[-16,-68,-22,-56+step*1.2,-14-step*3,-43],
+        P.wood[1],6.4,P.skin[1]);
     }
     // Umbrella arm and grip remain physically connected during every pose.
-    sleeve(ctx,[14,-68,18,-62,7,-58],P.wood[2],7,P.skin[1]);
-    line(ctx,7,-58,5,-101,P.ink,1.5,15,.1);
-    keeperCanopy(ctx,5,-109);
+    sleeve(ctx,[16,-68,23,-60,19,-59],P.wood[2],6.7,P.skin[1]);
+    // Shaft stays to the right of his face rather than crossing his eyes.
+    line(ctx,19,-59,13,-101,P.ink,1.5,15,.1);
+    keeperCanopy(ctx,13,-109);
     for(let i=0;i<3;i++) {
       const k=((t/700)+i*.37)%1, dx=[-22,28,9][i];
       ctx.globalAlpha=.8*(1-k);
-      rect(ctx,P.wet[3],dx+5,-101+k*14,.9,2.2);
+      rect(ctx,P.wet[3],dx+13,-101+k*14,.9,2.2);
       ctx.globalAlpha=1;
     }
     ctx.restore();
@@ -871,37 +888,34 @@
     ctx.save();ctx.translate(x,y);ctx.scale(o.face||1,1);
     if(o.flinch) ctx.rotate(-.065);
     if(kind==="hood-tall") {
-      compactLegs(ctx,-27,4.5,6,bob,P.cloth[1],P.ink,P.a.sock);
+      compactLegs(ctx,-38,6.2,7.2,bob,P.cloth[1],P.ink,P.a.sock);
       sleeve(ctx,[-11,-62,-17,-47,-8,-39],P.cloth[1],5.4,P.skin[1]);
-      characterBody(ctx,kind,0,-67);
+      actorGarment(ctx,kind,0,-67,.78);
       sleeve(ctx,grab?[10,-63,18,-50,25,-44]:[10,-63,15,-49,6,-39],P.cloth[2],5.6,P.skin[1]);
       characterHead(ctx,kind,0,-78,{expr,look:o.look,tilt:.035});
     } else if(kind==="hood-small") {
-      compactLegs(ctx,-18,5.5,7,bob,P.cloth[1],P.a.white);
+      compactLegs(ctx,-22,6.2,7.2,bob,P.cloth[1],P.a.white);
       sleeve(ctx,[-15,-36,-21,-27,-14,-21],P.a.maroon,6,P.skin[1]);
-      characterBody(ctx,kind,0,-37);
+      actorGarment(ctx,kind,0,-37,.92);
       const off=o.state==="phone-dropped", away=o.state==="phone-away";
       const arm=off?[14,-37,18,-28,8,-23]:[14,-37,away?17:21,away?-27:-31,20,-38];
       sleeve(ctx,arm,P.a.maroon,6.2,P.skin[1]);
       if(!off) {
         cut(ctx,"M18-44H24V-34H18Z",P.ink,1);
         cut(ctx,"M19.3-42.5H22.7V-36H19.3Z",o.phoneOff?P.cloth[2]:P.fluoro[2],0);
-        oval(ctx,19,-36,1.6,1.2,P.skin[1],true,.7);
+        // The existing sleeve hand grips the phone; no extra third hand.
       }
       characterHead(ctx,kind,0,-53,{expr,look:o.look});
     } else {
-      compactLegs(ctx,-28,7,8,bob,P.cloth[0],P.ink);
-      sleeve(ctx,[-20,-48,-25,-38,-18,-31],P.a.track,6.5,P.skin[0]);
-      characterBody(ctx,"hood-cap",0,-52);
-      if(!grab) {
-        cut(ctx,"M-18-54Q-29-55-30-43L-29-31L-17-28L-13-36L-14-50Z",P.paper[2],1.2);
-        line(ctx,-28,-41,-16,-39,P.a.denim,1.8,0,0);
-        cut(ctx,"M-27-38L-20-37L-23-31Z",P.paper[1],0);
-      } else {
-        cut(ctx,"M15-49Q27-47 30-36L31-25L21-24L16-33Z",P.paper[2],1.2);
-        line(ctx,19,-40,28,-35,P.paper[0],1,0,0);
-      }
-      sleeve(ctx,o.reaching||grab?[19,-48,25,-46,31,-43]:[19,-48,25,-37,17,-31],P.a.track,7,P.skin[0]);
+      compactLegs(ctx,-32,8,8.5,bob,P.cloth[0],P.ink);
+      // One left arm, one right arm. The old paper-coloured shapes created
+      // apparent third limbs (especially during the passenger-door grab).
+      sleeve(ctx,[-20,-49,-26,-41,-21,-31],P.a.track,6.6,P.skin[0]);
+      actorGarment(ctx,"hood-cap",0,-52,.91);
+      const rightArm=grab?[19,-49,28,-36,32,-25]
+        :o.reaching?[19,-49,28,-42,35,-40]
+        :[19,-49,25,-38,17,-31];
+      sleeve(ctx,rightArm,P.a.track,7,P.skin[0]);
       characterHead(ctx,"hood-cap",0,-68,{expr,look:o.look});
     }
     ctx.restore();
@@ -1038,15 +1052,17 @@
     const shoulderY=hy+17, top=small?-20:cap?-23:driver?-27:-25;
     // The tall passenger stretches a shin; Cap sits planted; Small's shoes dangle.
     for(const side of [-1,1]) {
-      const sx=side*(cap?9:5), knee=sx+(tall?-12:driver?-9:0), heel=knee+(tall?-8:driver?-4:side*2);
-      cut(ctx,`M${sx-3} ${top}Q${knee-4} ${top+6} ${knee-3} ${top+12}L${heel-3} -4L${heel+4} -4L${knee+4} ${top+10}L${sx+4} ${top}Z`,leg,1.1);
+      const sx=side*(cap?10:small?7:7), knee=sx+side*(tall?4:cap?4:3);
+      const heel=knee+side*(tall?3:small?1:2);
+      cut(ctx,`M${sx-3.5} ${top}Q${knee-4} ${top+6} ${knee-3.5} ${top+12}L${heel-3.5} -4L${heel+4} -4L${knee+4} ${top+10}L${sx+3.5} ${top}Z`,leg,1.1);
       if(tall) cut(ctx,`M${heel-3} -8h7v5h-7Z`,P.a.sock,.6);
       oval(ctx,heel+2,-2.5,tall?5:small?4.6:5.5,2.4,small?P.a.white:P.ink,true,.8);
     }
     const left=driver?[-12,shoulderY+3,-24,-43,-30,-49]:tall?[-11,shoulderY+3,-18,-28,-9,-25]:[-15,shoulderY+3,-22,-23,-14,-19];
     sleeve(ctx,left,shirt,5.8,P.skin[driver||cap?0:1]);
-    ctx.save();ctx.translate(0,shoulderY);if(tall)ctx.scale(1,.65);
-    characterBody(ctx,who,0,0);ctx.restore();
+    // Tailor the same garment to its seated shoulder/hip distance. Tall's
+    // previous coat reached BEHIND the floor and swallowed both knees.
+    actorGarment(ctx,who,0,shoulderY,tall?.55:small?.9:cap?.86:.84);
     const age=k.talking?k.talk:0;
     let right;
     if(driver) right=[12,shoulderY+3,7,-43,-14,-50];
@@ -1057,7 +1073,7 @@
     if(small&&k.phone) {
       cut(ctx,"M16-46H23V-36H16Z",P.ink,1);
       cut(ctx,"M17.3-44.5H21.7V-38H17.3Z",k.phone==="call"?P.cold[3]:P.fluoro[2],0);
-      oval(ctx,17,-38,1.5,1.2,P.skin[1],true,.7);
+      // No duplicate skin oval: the phone-holding sleeve already has a hand.
     }
     if(driver) {
       oval(ctx,-26,-50,12,7,null,true,2.2);
@@ -1789,7 +1805,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
-    keeper, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
+    keeper, keeperLegs, sleeve, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
     mark, markSvg, callingCard, collector, collectorProfile, jar, jarLight, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });
