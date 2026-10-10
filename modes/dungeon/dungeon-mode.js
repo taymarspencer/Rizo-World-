@@ -3413,7 +3413,7 @@
         actorLight: actorLightNow(),
         thought: thoughtNow(),
         focus: target,
-        cinematic: ui === "scene" && !comic?.playing()
+        cinematic: Boolean(scene && !scene.control && !comic?.playing())
       });
       // The phone's screen up close: only the caller's symbol, and a call timer once connected.
       const phone = sim.roomId === "roadside" ? room.phone : null;
