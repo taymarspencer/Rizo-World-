@@ -181,6 +181,32 @@ try {
     checkDraw("YOU car " + state, ctx => Art.youSeated(ctx, 120, 180,
       {t:900, state}), 9, 10);
   }
+  // Proportions are one rig across the exterior and storefront, rather
+  // than two independently maintained drawings of YOU's tiny old legs.
+  checkDraw("Keeper planted legs", ctx => Art.keeperLegs(ctx, 0), 4, 4);
+  checkDraw("Keeper walking legs", ctx => Art.keeperLegs(ctx, .85), 4, 4);
+  // Door reach must be represented by one attached arm, not a paper-coloured
+  // phantom limb plus another green sleeve. Regress every visible pose.
+  for(const kind of ["hood-tall","hood-small","hood-cap"]) {
+    for(const [state, extra] of [
+      ["stand",{}],
+      ["reaching",{reaching:true}],
+      ["grab",{state:"grab",reaching:true}],
+      ["back-facing",{face:-1,bob:1}],
+    ]) {
+      checkDraw("Robber anatomy " + kind + "/" + state, ctx =>
+        Art.hood(ctx, kind, 120, 180, {t:900,...extra}));
+    }
+    for(const [pose, extra] of [
+      ["quiet",{quiet:true}],
+      ["talking",{talking:true,talkAge:500}],
+      ["frozen",{state:"freeze"}],
+      ["phone-or-point",kind==="hood-small"?{phone:"call"}:{point:true}],
+    ]) {
+      checkDraw("Van robber anatomy " + kind + "/" + pose, ctx =>
+        Art.seated(ctx,"van-seat",120,180,{who:kind,t:1100,...extra}));
+    }
+  }
   assert.ok(Art.PORTRAITS.orr.serving.includes("<svg"), "Orr has a portrait");
   assert.notEqual(Art.PORTRAITS.orr.serving, Art.PORTRAITS.orr.dry, "Orr's emotional reads differ");
   assert.notEqual(Art.PORTRAITS.driver.neutral, Art.PORTRAITS.driver.scared, "Driver's emotional reads differ");
