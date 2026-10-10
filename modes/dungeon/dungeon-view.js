@@ -95,10 +95,19 @@
     if (reduced && (cue === "notice" || cue === "travel")) {
       target = null; cue = "job";
     }
+    // Actual heads are not at characters' feet. When two NPCs speak, they
+    // meet each other's eyes; when they address small Rizo, they naturally
+    // glance down to his flame. Movement still follows the destination.
+    const eyeHeight = (kind) => Art.HEIGHT?.[kind] ?? 70;
+    const targetIsCast = target && target !== player && cue === "listen";
+    const lookY = cue === "travel" ? target?.y :
+      targetIsCast ? target.y - eyeHeight(target.kind) * .72 :
+      target ? target.y - 11 : 0;
+    const originY = cue === "travel" ? actor.y : actor.y - eyeHeight(actor.kind) * .72;
     return {
       look: target ? {
         x: bounded((target.x - actor.x) / 42) * (actor.face || 1),
-        y: bounded((target.y - actor.y + (cue === "travel" ? 0 : 42)) / 65)
+        y: bounded((lookY - originY) / 65)
       } : still.look,
       addressed, listening, startled: Boolean(threatened), cue
     };
