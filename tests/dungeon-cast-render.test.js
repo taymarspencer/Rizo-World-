@@ -53,6 +53,14 @@ try {
       checkDraw(kind + "/" + state, ctx => Art.hood(ctx, kind, 120, 180, { t: 900, state, face: 1 }));
     }
   }
+  // Both arms must still be present when the passenger-door grab overlay
+  // changes Cap's rendering; this was an actual missing-limb defect.
+  checkDraw("Cap reaches through the passenger door", ctx =>
+    Art.hood(ctx, "hood-cap", 120, 180,
+      { state: "idle", reaching: true, t: 700, face: 1 }));
+  checkDraw("Cap holds after grabbing", ctx =>
+    Art.hood(ctx, "hood-cap", 120, 180,
+      { state: "grab", reaching: true, t: 950, face: -1 }));
   for (const profile of ["marshal", "gatherer", "runner", "sentry"]) {
     for (const state of ["patrol", "watch-down"]) {
       checkDraw("collector " + profile + "/" + state, ctx => Art.collector(ctx, 120, 180, { profile, state, t: 900, face: -1 }));
