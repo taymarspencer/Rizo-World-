@@ -1,0 +1,15 @@
+PASS there is one file per game plus the shared kit
+PASS breaker.js stays inside its run
+PASS forage.js stays inside its run
+PASS glide.js stays inside its run
+PASS kit.js stays inside its run
+PASS maze.js stays inside its run
+PASS memory.js stays inside its run
+PASS power.js stays inside its run
+PASS rhythm.js stays inside its run
+PASS rush.js stays inside its run
+PASS spark.js stays inside its run
+PASS walk.js stays inside its run
+PASS each game registers exactly once, under its file name
+
+13/13 training boundary checks passed

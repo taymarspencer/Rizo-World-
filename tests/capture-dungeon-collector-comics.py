@@ -21,7 +21,7 @@ beats = ['rows:arrived','rows:met','rows:meal','rows:screen','rows:boundary']
 results = []
 with sync_playwright() as pw:
     browser = pw.chromium.launch()
-    for width, height in [(320,568),(390,844)]:
+    for width, height in [(320,568),(390,844),(430,932)]:
         for name in ['window-comic','chute-comic']:
             ctx = browser.new_context(viewport={'width':width,'height':height},has_touch=True,
                 is_mobile=True,device_scale_factor=2,service_workers='block',reduced_motion='reduce')

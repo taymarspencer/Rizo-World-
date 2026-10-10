@@ -1,0 +1,26 @@
+{
+  "latch": {
+    "unchanged": true,
+    "sha256": "5cf6be729feb1df6be49214f7a3e217d8f54120169da1f2fa7f9b49ecde40aac"
+  },
+  "latchPortrait": {
+    "unchanged": true,
+    "sha256": "021513fca23945e469feeae16d9d9e0d9a3422b55d340a1a9f321cadb9458be9"
+  },
+  "flame": {
+    "unchanged": true,
+    "sha256": "8d89e1818c7b872cbb8da38aa24e5be53b6de38879246578ce65ffcfca76444c"
+  },
+  "jar": {
+    "unchanged": true,
+    "sha256": "861463e20f02f0546084e5463c1acd18b7de36d725b23ae301c5c8bdf2b46542"
+  },
+  "draftling": {
+    "unchanged": true,
+    "sha256": "d31902e975babd4dc56aeea88eaf37bddc67d92d9f24b3d603a25911f852086d"
+  },
+  "needle": {
+    "unchanged": true,
+    "sha256": "4c2da4cd164f47eec3b9f99bf4065e880b3f8e92cf7d9cdb1bc840f6204a4d4b"
+  }
+}

@@ -1,0 +1,16 @@
+PASS 320 van-crew
+PASS 320 intake-crew
+PASS 320 row-collector
+PASS 320 hall-runner
+PASS 320 nell-lift
+PASS 390 van-crew
+PASS 390 intake-crew
+PASS 390 row-collector
+PASS 390 hall-runner
+PASS 390 nell-lift
+PASS 430 van-crew
+PASS 430 intake-crew
+PASS 430 row-collector
+PASS 430 hall-runner
+PASS 430 nell-lift
+15/15 captures without errors or horizontal overflow

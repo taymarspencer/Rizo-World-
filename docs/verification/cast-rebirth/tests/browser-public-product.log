@@ -1,0 +1,152 @@
+PASS 320px world: static content, one H1 and no horizontal overflow
+PASS 320px world: images have loaded and links are named
+PASS 320px about: static content, one H1 and no horizontal overflow
+PASS 320px about: images have loaded and links are named
+PASS 320px journal: static content, one H1 and no horizontal overflow
+PASS 320px journal: images have loaded and links are named
+PASS 320px support: static content, one H1 and no horizontal overflow
+PASS 320px support: images have loaded and links are named
+PASS 320px privacy: static content, one H1 and no horizontal overflow
+PASS 320px privacy: images have loaded and links are named
+PASS 320px terms: static content, one H1 and no horizontal overflow
+PASS 320px terms: images have loaded and links are named
+PASS 320px public page scrolls normally and keeps selectable copy
+PASS 320px public primary navigation has 44px touch height
+PASS 375px world: static content, one H1 and no horizontal overflow
+PASS 375px world: images have loaded and links are named
+PASS 375px about: static content, one H1 and no horizontal overflow
+PASS 375px about: images have loaded and links are named
+PASS 375px journal: static content, one H1 and no horizontal overflow
+PASS 375px journal: images have loaded and links are named
+PASS 375px support: static content, one H1 and no horizontal overflow
+PASS 375px support: images have loaded and links are named
+PASS 375px privacy: static content, one H1 and no horizontal overflow
+PASS 375px privacy: images have loaded and links are named
+PASS 375px terms: static content, one H1 and no horizontal overflow
+PASS 375px terms: images have loaded and links are named
+PASS 375px public page scrolls normally and keeps selectable copy
+PASS 375px public primary navigation has 44px touch height
+PASS 390px world: static content, one H1 and no horizontal overflow
+PASS 390px world: images have loaded and links are named
+PASS 390px about: static content, one H1 and no horizontal overflow
+PASS 390px about: images have loaded and links are named
+PASS 390px journal: static content, one H1 and no horizontal overflow
+PASS 390px journal: images have loaded and links are named
+PASS 390px support: static content, one H1 and no horizontal overflow
+PASS 390px support: images have loaded and links are named
+PASS 390px privacy: static content, one H1 and no horizontal overflow
+PASS 390px privacy: images have loaded and links are named
+PASS 390px terms: static content, one H1 and no horizontal overflow
+PASS 390px terms: images have loaded and links are named
+PASS 390px public page scrolls normally and keeps selectable copy
+PASS 390px public primary navigation has 44px touch height
+PASS 430px world: static content, one H1 and no horizontal overflow
+PASS 430px world: images have loaded and links are named
+PASS 430px about: static content, one H1 and no horizontal overflow
+PASS 430px about: images have loaded and links are named
+PASS 430px journal: static content, one H1 and no horizontal overflow
+PASS 430px journal: images have loaded and links are named
+PASS 430px support: static content, one H1 and no horizontal overflow
+PASS 430px support: images have loaded and links are named
+PASS 430px privacy: static content, one H1 and no horizontal overflow
+PASS 430px privacy: images have loaded and links are named
+PASS 430px terms: static content, one H1 and no horizontal overflow
+PASS 430px terms: images have loaded and links are named
+PASS 430px public page scrolls normally and keeps selectable copy
+PASS 430px public primary navigation has 44px touch height
+PASS public skip link is first and visible on focus
+PASS skip link puts keyboard focus on the content
+PASS public reduced-motion view removes decorative rotation
+PASS public page still has no horizontal overflow with prose doubled in size
+PASS deep missing URL is a real 404 with working root assets
+PASS unconfigured ads.txt is missing rather than fabricated seller data or game HTML
+PASS 320px first arrival has an exit to World and no install gate
+PASS 320px Den has no horizontal page overflow
+PASS 320px food sheet locks background and contains focus
+PASS 320px sheet keyboard stays out of the background
+PASS 320px sheet closes and releases the background
+PASS 320px ordinary care works without ads
+PASS 320px House preserves resident and active Rizo identities
+PASS 320px Dungeon physical controls remain inside viewport and at least 44px
+PASS 320px Dungeon alone holds page scroll and selection
+PASS 320px Dungeon still moves and flares together
+PASS 320px Dungeon rotates to landscape with usable controls
+PASS 320px Dungeon pause opens without quitting
+PASS 320px Dungeon return releases page and background while retaining pet
+PASS 320px Defense initializes and its primary controls fit
+PASS 320px Defense primary controls also fit after rotation
+PASS 320px Defense still places a Rizo and starts combat
+PASS 320px Defense menu holds its battlefield and keyboard focus
+PASS 320px Arcade still starts and ad lifecycle holds its clock
+PASS 320px a local ad lifecycle event mutes/holds without touching Google
+PASS 320px uncertain ad completion requires explicit Resume
+PASS 320px play surfaces have no JavaScript exceptions or ad SDK
+PASS 375px first arrival has an exit to World and no install gate
+PASS 375px Den has no horizontal page overflow
+PASS 375px food sheet locks background and contains focus
+PASS 375px sheet keyboard stays out of the background
+PASS 375px sheet closes and releases the background
+PASS 375px ordinary care works without ads
+PASS 375px House preserves resident and active Rizo identities
+PASS 375px Dungeon physical controls remain inside viewport and at least 44px
+PASS 375px Dungeon alone holds page scroll and selection
+PASS 375px Dungeon still moves and flares together
+PASS 375px Dungeon rotates to landscape with usable controls
+PASS 375px Dungeon pause opens without quitting
+PASS 375px Dungeon return releases page and background while retaining pet
+PASS 375px Defense initializes and its primary controls fit
+PASS 375px Defense primary controls also fit after rotation
+PASS 375px Defense still places a Rizo and starts combat
+PASS 375px Defense menu holds its battlefield and keyboard focus
+PASS 375px Arcade still starts and ad lifecycle holds its clock
+PASS 375px a local ad lifecycle event mutes/holds without touching Google
+PASS 375px uncertain ad completion requires explicit Resume
+PASS 375px play surfaces have no JavaScript exceptions or ad SDK
+PASS 390px first arrival has an exit to World and no install gate
+PASS 390px Den has no horizontal page overflow
+PASS 390px food sheet locks background and contains focus
+PASS 390px sheet keyboard stays out of the background
+PASS 390px sheet closes and releases the background
+PASS 390px ordinary care works without ads
+PASS 390px House preserves resident and active Rizo identities
+PASS 390px Dungeon physical controls remain inside viewport and at least 44px
+PASS 390px Dungeon alone holds page scroll and selection
+PASS 390px Dungeon still moves and flares together
+PASS 390px Dungeon rotates to landscape with usable controls
+PASS 390px Dungeon pause opens without quitting
+PASS 390px Dungeon return releases page and background while retaining pet
+PASS 390px Defense initializes and its primary controls fit
+PASS 390px Defense primary controls also fit after rotation
+PASS 390px Defense still places a Rizo and starts combat
+PASS 390px Defense menu holds its battlefield and keyboard focus
+PASS 390px Arcade still starts and ad lifecycle holds its clock
+PASS 390px a local ad lifecycle event mutes/holds without touching Google
+PASS 390px uncertain ad completion requires explicit Resume
+PASS 390px play surfaces have no JavaScript exceptions or ad SDK
+PASS 430px first arrival has an exit to World and no install gate
+PASS 430px Den has no horizontal page overflow
+PASS 430px food sheet locks background and contains focus
+PASS 430px sheet keyboard stays out of the background
+PASS 430px sheet closes and releases the background
+PASS 430px ordinary care works without ads
+PASS 430px House preserves resident and active Rizo identities
+PASS 430px Dungeon physical controls remain inside viewport and at least 44px
+PASS 430px Dungeon alone holds page scroll and selection
+PASS 430px Dungeon still moves and flares together
+PASS 430px Dungeon rotates to landscape with usable controls
+PASS 430px Dungeon pause opens without quitting
+PASS 430px Dungeon return releases page and background while retaining pet
+PASS 430px Defense initializes and its primary controls fit
+PASS 430px Defense primary controls also fit after rotation
+PASS 430px Defense still places a Rizo and starts combat
+PASS 430px Defense menu holds its battlefield and keyboard focus
+PASS 430px Arcade still starts and ad lifecycle holds its clock
+PASS 430px a local ad lifecycle event mutes/holds without touching Google
+PASS 430px uncertain ad completion requires explicit Resume
+PASS 430px play surfaces have no JavaScript exceptions or ad SDK
+PASS visited public World remains available offline
+PASS unknown offline navigation does not impersonate the game
+PASS the actual game still opens offline
+PASS default product attempted zero external ad, analytics, font or other requests
+
+150/150 public product checks passed; Chromium only; evidence: /tmp/rizo-release-evidence/public-product

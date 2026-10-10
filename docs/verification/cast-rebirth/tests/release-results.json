@@ -1,0 +1,473 @@
+[
+  {
+    "suite": "whitespace",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.0,
+    "summary": []
+  },
+  {
+    "suite": "ads-boundary.test.js",
+    "command": [
+      "node",
+      "tests/ads-boundary.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "14/14 advertising boundary checks passed"
+    ]
+  },
+  {
+    "suite": "core-contracts.test.js",
+    "command": [
+      "node",
+      "tests/core-contracts.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "28/28 core contract checks passed"
+    ]
+  },
+  {
+    "suite": "defense-core.test.js",
+    "command": [
+      "node",
+      "tests/defense-core.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "32/32 core tests passed."
+    ]
+  },
+  {
+    "suite": "dungeon-actor-direction.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-actor-direction.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "Dungeon actor direction: 39 checks passed"
+    ]
+  },
+  {
+    "suite": "dungeon-cast-render.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-cast-render.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "Dungeon cast art: 63 render smoke checks passed"
+    ]
+  },
+  {
+    "suite": "dungeon-core.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-core.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.3,
+    "summary": [
+      "86/86 dungeon core checks passed"
+    ]
+  },
+  {
+    "suite": "dungeon-input.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-input.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "26/26 dungeon input checks passed"
+    ]
+  },
+  {
+    "suite": "dungeon-kit.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-kit.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "6/6 dungeon kit checks passed"
+    ]
+  },
+  {
+    "suite": "home-core.test.js",
+    "command": [
+      "node",
+      "tests/home-core.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "9/9 home rule checks passed"
+    ]
+  },
+  {
+    "suite": "mode-host.test.js",
+    "command": [
+      "node",
+      "tests/mode-host.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "11/11 mode host checks passed"
+    ]
+  },
+  {
+    "suite": "public-product.test.js",
+    "command": [
+      "node",
+      "tests/public-product.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.2,
+    "summary": [
+      "8/8 public product contract checks passed"
+    ]
+  },
+  {
+    "suite": "release-integrity.test.js",
+    "command": [
+      "node",
+      "tests/release-integrity.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "7/7 release integrity checks passed"
+    ]
+  },
+  {
+    "suite": "service-worker-policy.test.js",
+    "command": [
+      "node",
+      "tests/service-worker-policy.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.2,
+    "summary": [
+      "10/10 service-worker policy checks passed"
+    ]
+  },
+  {
+    "suite": "training-boundaries.test.js",
+    "command": [
+      "node",
+      "tests/training-boundaries.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "13/13 training boundary checks passed"
+    ]
+  },
+  {
+    "suite": "worker-b-economy.test.js",
+    "command": [
+      "node",
+      "tests/worker-b-economy.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "9/9 Worker B economy tests passed."
+    ]
+  },
+  {
+    "suite": "worker-j-defense-guard.test.js",
+    "command": [
+      "node",
+      "tests/worker-j-defense-guard.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1,
+    "summary": [
+      "7/7 Worker J guard tests passed."
+    ]
+  },
+  {
+    "suite": "browser-dungeon-character-lab",
+    "command": [
+      "python",
+      "tests/browser-dungeon-character-lab.py",
+      "--evidence",
+      "/tmp/rizo-release-evidence/browser-dungeon-character-lab"
+    ],
+    "exit": 0,
+    "seconds": 39.8,
+    "summary": [
+      "125/125 passed"
+    ]
+  },
+  {
+    "suite": "browser-home-world",
+    "command": [
+      "python",
+      "tests/browser-home-world.py"
+    ],
+    "exit": 0,
+    "seconds": 59.4,
+    "summary": [
+      "115/115 Home / Train / Go browser checks passed"
+    ]
+  },
+  {
+    "suite": "browser-home-alive",
+    "command": [
+      "python",
+      "tests/browser-home-alive.py"
+    ],
+    "exit": 0,
+    "seconds": 46.8,
+    "summary": []
+  },
+  {
+    "suite": "browser-visual-uphaul",
+    "command": [
+      "python",
+      "tests/browser-visual-uphaul.py"
+    ],
+    "exit": 0,
+    "seconds": 37.6,
+    "summary": [
+      "72/72 visual uphaul checks passed"
+    ]
+  },
+  {
+    "suite": "browser-dungeon",
+    "command": [
+      "python",
+      "tests/browser-dungeon.py"
+    ],
+    "exit": 0,
+    "seconds": 599.4,
+    "summary": [
+      "PASS Scene 1 holds until 20 s have passed even after every reaction",
+      "390/390 dungeon checks passed"
+    ]
+  },
+  {
+    "suite": "browser-dungeon-controls",
+    "command": [
+      "python",
+      "tests/browser-dungeon-controls.py"
+    ],
+    "exit": 0,
+    "seconds": 309.9,
+    "summary": [
+      "185/185 dungeon controls checks passed"
+    ]
+  },
+  {
+    "suite": "browser-dungeon-cohesion",
+    "command": [
+      "python",
+      "tests/browser-dungeon-cohesion.py",
+      "--evidence",
+      "/tmp/rizo-release-evidence/browser-dungeon-cohesion"
+    ],
+    "exit": 0,
+    "seconds": 150.3,
+    "summary": [
+      "69/69 cohesion checks passed"
+    ]
+  },
+  {
+    "suite": "browser-dungeon-depth",
+    "command": [
+      "python",
+      "tests/browser-dungeon-depth.py",
+      "--evidence",
+      "/tmp/rizo-release-evidence/browser-dungeon-depth"
+    ],
+    "exit": 1,
+    "seconds": 174.6,
+    "summary": [
+      "43/45 depth checks passed"
+    ]
+  },
+  {
+    "suite": "browser-dungeon-gamefeel",
+    "command": [
+      "python",
+      "tests/browser-dungeon-gamefeel.py",
+      "--evidence",
+      "/tmp/rizo-release-evidence/browser-dungeon-gamefeel"
+    ],
+    "exit": 0,
+    "seconds": 152.2,
+    "summary": [
+      "63/63 game-feel checks passed"
+    ]
+  },
+  {
+    "suite": "browser-dungeon-escape",
+    "command": [
+      "python",
+      "tests/browser-dungeon-escape.py",
+      "--evidence",
+      "/tmp/rizo-release-evidence/browser-dungeon-escape"
+    ],
+    "exit": 0,
+    "seconds": 204.0,
+    "summary": [
+      "PASS saved at the door: continuation, the escape fact, ESCAPE 5/5 on the shelf",
+      "88/88 escape checks passed"
+    ]
+  },
+  {
+    "suite": "browser-dungeon-reading",
+    "command": [
+      "python",
+      "tests/browser-dungeon-reading.py"
+    ],
+    "exit": 0,
+    "seconds": 83.4,
+    "summary": [
+      "60/60 reading checks passed"
+    ]
+  },
+  {
+    "suite": "save-safety",
+    "command": [
+      "python",
+      "tests/save-safety.py"
+    ],
+    "exit": 0,
+    "seconds": 55.1,
+    "summary": [
+      "37/37 save-safety checks passed"
+    ]
+  },
+  {
+    "suite": "browser-defense-integration",
+    "command": [
+      "python",
+      "tests/browser-defense-integration.py"
+    ],
+    "exit": 1,
+    "seconds": 52.7,
+    "summary": [
+      "77/78 browser integration checks passed"
+    ]
+  },
+  {
+    "suite": "mode-contract",
+    "command": [
+      "python",
+      "tests/mode-contract.py"
+    ],
+    "exit": 0,
+    "seconds": 7.3,
+    "summary": [
+      "25/25 mode-contract checks passed"
+    ]
+  },
+  {
+    "suite": "training-contract",
+    "command": [
+      "python",
+      "tests/training-contract.py"
+    ],
+    "exit": 0,
+    "seconds": 5.9,
+    "summary": [
+      "22/22 training-contract checks passed"
+    ]
+  },
+  {
+    "suite": "browser-launch-recovery",
+    "command": [
+      "python",
+      "tests/browser-launch-recovery.py"
+    ],
+    "exit": 0,
+    "seconds": 2.5,
+    "summary": [
+      "5/5 launch recovery checks passed"
+    ]
+  },
+  {
+    "suite": "browser-v88-training-fixes",
+    "command": [
+      "python",
+      "tests/browser-v88-training-fixes.py"
+    ],
+    "exit": 0,
+    "seconds": 14.8,
+    "summary": [
+      "13/13 training fix checks passed"
+    ]
+  },
+  {
+    "suite": "browser-v88-authored",
+    "command": [
+      "python",
+      "tests/browser-v88-authored.py"
+    ],
+    "exit": 0,
+    "seconds": 33.4,
+    "summary": [
+      "25/25 authored arcade browser checks passed"
+    ]
+  },
+  {
+    "suite": "browser-v87-arcade-freeze",
+    "command": [
+      "python",
+      "tests/browser-v87-arcade-freeze.py"
+    ],
+    "exit": 1,
+    "seconds": 84.7,
+    "summary": [
+      "65/66 v87 arcade freeze checks passed"
+    ]
+  },
+  {
+    "suite": "browser-public-product",
+    "command": [
+      "python",
+      "tests/browser-public-product.py",
+      "--directory",
+      "/tmp/rizo-cast-final-site",
+      "--evidence",
+      "/tmp/rizo-release-evidence/public-product"
+    ],
+    "exit": 0,
+    "seconds": 49.6,
+    "summary": [
+      "150/150 public product checks passed; Chromium only; evidence: /tmp/rizo-release-evidence/public-product"
+    ]
+  },
+  {
+    "suite": "browser-world-first",
+    "command": [
+      "python",
+      "tests/browser-world-first.py",
+      "--directory",
+      "/tmp/rizo-cast-final-site"
+    ],
+    "exit": 0,
+    "seconds": 18.5,
+    "summary": [
+      "77/77 World-first routing checks passed; Chromium only"
+    ]
+  }
+]

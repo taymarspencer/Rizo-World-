@@ -222,8 +222,10 @@
       A.cut(ctx,"M-9-93Q-6-97-2-95M1-97Q5-98 8-93",null,1.4,P.wood[1]);
     } else A.characterHead(ctx,"you",0,-84);
     const lift = o.reach ? 12 : o.counter ? 5 : 0;
-    shape(ctx, [10, -70, 15, -68, 19, -56 - lift, 14, -50 - lift, 9, -55 - lift, 12, -59 - lift], P.wood[2], { ink: 1.1, amp: 0.1 });
-    if (o.reach) oval(ctx, 17, -61 - lift, 2.5, 2.3, P.skin[1], true, 0.8);
+    if (!o.wave) {
+      shape(ctx, [10, -70, 15, -68, 19, -56 - lift, 14, -50 - lift, 9, -55 - lift, 12, -59 - lift], P.wood[2], { ink: 1.1, amp: 0.1 });
+      if (o.reach) oval(ctx, 17, -61 - lift, 2.5, 2.3, P.skin[1], true, 0.8);
+    }
     // Checking on the car: one hand up, a small wave.
     if (o.wave) {
       // One restrained greeting, settled hand for the rest of the beat.

@@ -1,0 +1,27 @@
+PASS Forest Lunch opens with exactly one 3-choice row {'rows': 1, 'mistakes': 0, 'nextIn': 0, 'drops': [{'lane': 2, 'food': 'meat', 'y': 141.17864864870725, 'rare': False, 'good': True}, {'lane': 0, 'food': 'fruit', 'y': 141.17864864870725, 'rare': False, 'good': True}, {'lane': 1, 'food': None, 'y': 141.17864864870725, 'rare': False, 'good': False}]}
+PASS Forest Lunch row contains exactly one requested food wanted=meat drops=[{'lane': 2, 'food': 'meat', 'y': 141.17864864870725, 'rare': False, 'good': True}, {'lane': 0, 'food': 'fruit', 'y': 141.17864864870725, 'rare': False, 'good': True}, {'lane': 1, 'food': None, 'y': 141.17864864870725, 'rare': False, 'good': False}]
+PASS Forest Lunch touch catches the requested food {'lane': 2, 'streak': 0, 'best': 1, 'order': ['meat', 'fruit', 'meat'], 'orderIndex': 1, 'ordersDone': 0, 'panic': False}
+PASS Forest Lunch never backlogs stale rows
+PASS Forest Lunch freezes with shared pause
+PASS Courier route guarantees a package pickup ['prism', 'stump', 'flame', 'stump', 'flame', 'depot']
+PASS Courier route has two obstacles and a delivery door ['prism', 'stump', 'flame', 'stump', 'flame', 'depot']
+PASS Courier completes a real pickup-to-door delivery {'route': 2, 'parcel': True, 'tips': 3, 'deliveries': 1, 'lost': 0, 'clears': 1, 'lives': 3, 'objects': [{'type': 'tall', 'x': 199.651799999999, 'handled': False}, {'type': 'flame', 'x': 199.651799999999, 'handled': False}, {'type': 'depot', 'x': 529.6517999999976, 'handled': False}]}
+PASS Courier freezes with shared pause
+PASS Courier restart resets the run {'active': True, 'mode': 'rush', 'score': 0, 'lives': 3, 'maxLives': 3, 'endReason': '', 'paused': False, 'quitConfirmed': False, 'rhythmReady': False} {'route': 1, 'parcel': False, 'tips': 0, 'deliveries': 0, 'lost': 0, 'clears': 0, 'lives': 3, 'objects': [{'type': 'prism', 'x': 249.7140000000002, 'handled': False}, {'type': 'stump', 'x': 489.7140000000002, 'handled': False}, {'type': 'flame', 'x': 489.7140000000002, 'handled': False}, {'type': 'stump', 'x': 819.7140000000004, 'handled': False}, {'type': 'flame', 'x': 819.7140000000004, 'handled': False}, {'type': 'depot', 'x': 1149.7140000000009, 'handled': False}]}
+PASS Rain Walk discovery 1 is reachable
+PASS Rain Walk remembers unique find 1 [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}]
+PASS Rain Walk discovery 2 is reachable
+PASS Rain Walk remembers unique find 2 [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}, {'label': 'TINY FRIEND', 'icon': '🐛'}]
+PASS Rain Walk discovery 3 is reachable
+PASS Rain Walk remembers unique find 3 [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}, {'label': 'TINY FRIEND', 'icon': '🐛'}, {'label': 'LOST EMBER', 'icon': '✦'}]
+PASS Rain Walk first fork stops the trail and counts down {'notes': [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}, {'label': 'TINY FRIEND', 'icon': '🐛'}, {'label': 'LOST EMBER', 'icon': '✦'}], 'choices': [], 'ending': '', 'encounter': None, 'paused': True, 'decisionIn': 6356.599853515625, 'autoPicks': 0}
+PASS Rain Walk route reaches its authored ruins encounter {'notes': [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}, {'label': 'TINY FRIEND', 'icon': '🐛'}, {'label': 'LOST EMBER', 'icon': '✦'}], 'choices': ['deep', 'ruins'], 'ending': '', 'encounter': 'ruins', 'paused': True, 'decisionIn': 6379.099853515625, 'autoPicks': 0}
+PASS Rain Walk encounter survives background freeze {'before': {'notes': [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}, {'label': 'TINY FRIEND', 'icon': '🐛'}, {'label': 'LOST EMBER', 'icon': '✦'}], 'choices': ['deep', 'ruins'], 'ending': '', 'encounter': 'ruins', 'paused': True, 'decisionIn': 6375.5, 'autoPicks': 0}, 'after': {'notes': [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}, {'label': 'TINY FRIEND', 'icon': '🐛'}, {'label': 'LOST EMBER', 'icon': '✦'}], 'choices': ['deep', 'ruins'], 'ending': '', 'encounter': 'ruins', 'paused': True, 'decisionIn': 6375.499755859375, 'autoPicks': 0}}
+PASS Rain Walk 3-find bold ending pays off the route {'notes': [{'label': 'CRUNCHY LEAF', 'icon': '🍂'}, {'label': 'TINY FRIEND', 'icon': '🐛'}, {'label': 'LOST EMBER', 'icon': '✦'}], 'choices': ['deep', 'ruins'], 'ending': 'YOUR SHADOW SAYS THANK YOU', 'encounter': 'ruins', 'paused': False, 'decisionIn': 0, 'autoPicks': 0}
+PASS Rain Walk lets Rizo choose when the player does not {'notes': [], 'choices': ['deep'], 'ending': '', 'encounter': None, 'paused': False, 'decisionIn': 0, 'autoPicks': 1}
+PASS forage boots at desktop viewport
+PASS rush boots at desktop viewport
+PASS walk boots at desktop viewport
+PASS No browser runtime errors in authored pass
+
+25/25 authored arcade browser checks passed

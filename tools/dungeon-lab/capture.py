@@ -5,9 +5,9 @@
 
 Every shot is a lab URL, so any image can be reopened live: serve the repo
 (python3 tools/dungeon-lab/serve.py) and paste the hash after
-/tools/dungeon-lab/. Pages render at 2 device pixels per CSS pixel, the
-Dungeon canvas's own cap on phones, so "actual size" shots are what a phone
-draws, pixel for pixel.
+/tools/dungeon-lab/. Pages render with the Dungeon's 2x canvas backing store.
+Screenshots use CSS pixels, matching the mobile gameplay evidence: a 1x
+sheet keeps each character's displayed phone size rather than enlarging it.
 """
 import argparse
 import functools
@@ -31,8 +31,9 @@ SHOTS = {
     "inspect-latch": "v=inspect&c=latch&w=both&p=390&z=3&b=below&a=0",
     **{f"sheet-{c}": f"v=sheet&c={c}&p=390&z=1&b={b}&a=0" for c, b in [
         ("rizo", "below"), ("latch", "below"), ("nell", "hearth"), ("orr", "hearth"), ("porter", "below"),
-        ("hood-tall", "outside"), ("hood-small", "outside"), ("hood-cap", "outside"), ("keeper", "outside"),
-        ("you-seated", "outside"), ("van-crew", "outside"), ("draftling", "below"), ("needle", "below")]},
+        ("hood-tall", "outside"), ("hood-small", "outside"), ("hood-cap", "outside"), ("driver", "outside"), ("keeper", "outside"),
+        ("collector-marshal", "below"), ("collector-gatherer", "below"), ("collector-runner", "below"), ("collector-sentry", "below"),
+        ("you-seated", "outside"), ("van-crew", "outside"), ("coat", "below"), ("boss", "below"), ("draftling", "below"), ("needle", "below")]},
     **{f"sheet-{c}-x3": f"v=sheet&c={c}&p=390&z=3&b=neutral&a=0" for c in ["latch", "nell", "orr", "porter"]},
 }
 
@@ -67,12 +68,17 @@ def main():
             page.evaluate("h => { location.hash = h; }", frag)
             page.wait_for_timeout(1600 if "rizo" in name or "lineup" in name or name == "phones" else 500)
             main = page.locator(".lab-main")
-            png = out / f"{name}.png"
-            main.screenshot(path=str(png))
-            if args.format == "webp":
-                from PIL import Image  # lossless: every pixel as captured, about half the size of the PNG
-                Image.open(png).convert("RGB").save(out / f"{name}.webp", "WEBP", lossless=True, quality=100, method=4)
-                png.unlink()
+            captures = {name: main}
+            if name in {"lineup-320", "lineup-390"}:
+                for index, mode in enumerate(["color", "warm", "values", "silhouette"]):
+                    captures[f"{name}-{mode}"] = main.locator(".lab-stage").nth(index)
+            for label, node in captures.items():
+                png = out / f"{label}.png"
+                node.screenshot(path=str(png), scale="css")
+                if args.format == "webp":
+                    from PIL import Image  # lossless: every captured pixel is retained
+                    Image.open(png).convert("RGB").save(out / f"{label}.webp", "WEBP", lossless=True, quality=100, method=4)
+                    png.unlink()
             print(f"{name}.{args.format}  #{frag}")
         browser.close()
     server.shutdown()

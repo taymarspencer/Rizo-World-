@@ -65,9 +65,9 @@ test("the six rooms connect as specified, with a real hearth–queue shortcut", 
 });
 
 test("Orr presentation exposes distinct service, irritated, and dry reads", () => {
-  assert.strictEqual(Art.HEIGHT.orr, 55, "speech/staging height follows Orr's compact world silhouette");
+  assert.strictEqual(Art.HEIGHT.orr, 43, "speech/staging height follows Orr's new Latch-sized hearth-dweller silhouette");
   assert.strictEqual(Math.round(82 * Art.WORLD_SCALE.orr), Art.HEIGHT.orr,
-    "the 82-unit hand-authored Orr remains full-size in portraits but his displayed head matches the world scale");
+    "Orr's legacy actor coordinates and world scale match his displayed head contract");
   assert.deepStrictEqual(Object.keys(Content.PORTRAITS.orr).sort(), ["dry", "irritated", "serving"]);
   assert.strictEqual(new Set(Object.values(Content.PORTRAITS.orr)).size, 3, "each Orr expression has distinct portrait art");
   assert.ok(Object.values(Content.PORTRAITS.orr).every(svg => svg.startsWith("<svg") && svg.length > 900), "Orr portraits are complete authored SVGs");

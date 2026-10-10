@@ -1,0 +1,278 @@
+[
+  {
+    "suite": "before-mobile",
+    "command": [
+      "python",
+      "tests/capture-dungeon-character-art.py",
+      "--directory",
+      "/tmp/rizo-cast-before-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/before"
+    ],
+    "exit": 0,
+    "seconds": 362.1
+  },
+  {
+    "suite": "after-mobile",
+    "command": [
+      "python",
+      "tests/capture-dungeon-character-art.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after"
+    ],
+    "exit": 0,
+    "seconds": 347.2
+  },
+  {
+    "suite": "opening",
+    "command": [
+      "python",
+      "tests/capture-dungeon-opening-direction.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after/opening"
+    ],
+    "exit": 0,
+    "seconds": 112.7
+  },
+  {
+    "suite": "comics",
+    "command": [
+      "python",
+      "tests/capture-dungeon-collector-comics.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after/comics"
+    ],
+    "exit": 0,
+    "seconds": 19.6
+  },
+  {
+    "suite": "after-lab",
+    "command": [
+      "python",
+      "tools/dungeon-lab/capture.py",
+      "--out",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after/lab",
+      "--only",
+      "lineup-320,lineup-390,portraits,sheet-nell,sheet-orr,sheet-porter,sheet-van-crew,sheet-hood-tall,sheet-hood-small,sheet-hood-cap,sheet-driver,sheet-keeper,sheet-collector-marshal,sheet-collector-gatherer,sheet-collector-runner,sheet-collector-sentry,sheet-coat,sheet-boss,sheet-draftling,sheet-needle",
+      "--format",
+      "png"
+    ],
+    "exit": 0,
+    "seconds": 20.1
+  },
+  {
+    "suite": "before-lab",
+    "command": [
+      "python",
+      "/tmp/rizo-cast-baseline/tools/dungeon-lab/capture.py",
+      "--out",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/before/lab",
+      "--only",
+      "lineup-320,lineup-390,portraits,sheet-nell,sheet-orr,sheet-porter,sheet-van-crew,sheet-hood-tall,sheet-hood-small,sheet-hood-cap,sheet-driver,sheet-keeper,sheet-collector-marshal,sheet-collector-gatherer,sheet-collector-runner,sheet-collector-sentry,sheet-coat,sheet-boss,sheet-draftling,sheet-needle",
+      "--format",
+      "png"
+    ],
+    "exit": 0,
+    "seconds": 20.8
+  },
+  {
+    "suite": "ads-boundary.test.js",
+    "command": [
+      "node",
+      "tests/ads-boundary.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "core-contracts.test.js",
+    "command": [
+      "node",
+      "tests/core-contracts.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "defense-core.test.js",
+    "command": [
+      "node",
+      "tests/defense-core.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "dungeon-actor-direction.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-actor-direction.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "dungeon-cast-render.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-cast-render.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "dungeon-core.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-core.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.3
+  },
+  {
+    "suite": "dungeon-input.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-input.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "dungeon-kit.test.js",
+    "command": [
+      "node",
+      "tests/dungeon-kit.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "home-core.test.js",
+    "command": [
+      "node",
+      "tests/home-core.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "mode-host.test.js",
+    "command": [
+      "node",
+      "tests/mode-host.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "public-product.test.js",
+    "command": [
+      "node",
+      "tests/public-product.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.3
+  },
+  {
+    "suite": "release-integrity.test.js",
+    "command": [
+      "node",
+      "tests/release-integrity.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "service-worker-policy.test.js",
+    "command": [
+      "node",
+      "tests/service-worker-policy.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "training-boundaries.test.js",
+    "command": [
+      "node",
+      "tests/training-boundaries.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "worker-b-economy.test.js",
+    "command": [
+      "node",
+      "tests/worker-b-economy.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "worker-j-defense-guard.test.js",
+    "command": [
+      "node",
+      "tests/worker-j-defense-guard.test.js"
+    ],
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "suite": "depth",
+    "command": [
+      "python",
+      "tests/browser-dungeon-depth.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/tmp/rizo-final-depth"
+    ],
+    "exit": 0,
+    "seconds": 123.9
+  },
+  {
+    "suite": "character-lab",
+    "command": [
+      "python",
+      "tests/browser-dungeon-character-lab.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/tmp/rizo-final-lab"
+    ],
+    "exit": 0,
+    "seconds": 42.2
+  },
+  {
+    "suite": "dungeon",
+    "command": [
+      "python",
+      "tests/browser-dungeon.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site"
+    ],
+    "exit": 0,
+    "seconds": 542.7
+  },
+  {
+    "suite": "public-product",
+    "command": [
+      "python",
+      "tests/browser-public-product.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/tmp/rizo-final-public"
+    ],
+    "exit": 0,
+    "seconds": 34.6
+  }
+]

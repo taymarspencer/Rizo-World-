@@ -1,0 +1,65 @@
+PASS 320×568: every touch on the pad, keys, HUD and screen is the game's (touchstart cancelled: no OS selection, loupe or edit menu)
+PASS 320×568: hammering the pad leaves no selection and opens no context menu
+PASS 320×568: the pause and restart cards fit the screen, answers still finger-sized
+PASS 320×568: no page errors
+PASS 375×812: every touch on the pad, keys, HUD and screen is the game's (touchstart cancelled: no OS selection, loupe or edit menu)
+PASS 375×812: hammering the pad leaves no selection and opens no context menu
+PASS 375×812: the pause and restart cards fit the screen, answers still finger-sized
+PASS 375×812: no page errors
+PASS 390×844: every touch on the pad, keys, HUD and screen is the game's (touchstart cancelled: no OS selection, loupe or edit menu)
+PASS 390×844: hammering the pad leaves no selection and opens no context menu
+PASS 390×844: the pause and restart cards fit the screen, answers still finger-sized
+PASS the dialogue box: a long tap is NEXT and still no OS gesture
+PASS a selection that appears anyway is cleared at once (its edit menu goes with it)
+PASS selectstart fired at a Text node (how WebKit fires it) is refused
+PASS the context menu stays shut; the page root is unselectable and the Rizo's image cannot be lifted
+PASS panel buttons keep their native touch: RESUME by finger works
+PASS after GO HOME the Hub is untouched: no lock, its selection and touches are its own
+PASS 390×844: no page errors
+PASS 430×932: every touch on the pad, keys, HUD and screen is the game's (touchstart cancelled: no OS selection, loupe or edit menu)
+PASS 430×932: hammering the pad leaves no selection and opens no context menu
+PASS 430×932: the pause and restart cards fit the screen, answers still finger-sized
+PASS 430×932: no page errors
+PASS 844×390: every touch on the pad, keys, HUD and screen is the game's (touchstart cancelled: no OS selection, loupe or edit menu)
+PASS 844×390: hammering the pad leaves no selection and opens no context menu
+PASS 844×390: the pause and restart cards fit the screen, answers still finger-sized
+PASS 844×390: no page errors
+PASS choice buttons keep their native touch: GO by finger is picked
+PASS (fixture) a deep journey: below, the Rows, the knot, its mark and receipt
+PASS MENU offers RESTART DUNGEON, set apart below RESUME and GO HOME, finger-sized
+PASS it asks first; KEEP MY JOURNEY is the focused answer and the card says what stays
+PASS KEEP MY JOURNEY changes nothing and returns to the pause menu
+PASS MENU on the question is also “keep my journey”
+PASS confirmed: back in the parked car, the opening fading in from black, silent, shell open, no panel
+PASS a new campaign for the same Rizo: story, rooms, Latch, hearths, journal and completion all fresh
+PASS the player's Dungeon settings are kept
+PASS nothing else in the save changes: pet, Home, wallet, training, wardrobe, receipts, story marks, other modes
+PASS what was earned stays earned: the First Knot, the shared-hearth mark and the old receipt
+PASS the stored journey is exactly the one being played
+PASS the opening plays from the start: control in the parked car with YOU beside him
+PASS the shelf reads OUTSIDE again, no badge
+PASS after a reload it resumes in the car on the new journey (nothing old comes back)
+PASS a refused save restarts nothing: it says so, the journey and the other tab's save are untouched
+PASS while this tab is not saving, RESTART DUNGEON waits (disabled) like RESUME
+PASS no page errors around restarting
+PASS a journey that reached home offers RESTART DUNGEON beside GO THROUGH THE DOOR
+PASS keeping it returns to that same panel
+PASS restarting it begins the opening in the car, journey active again
+PASS no page errors restarting a completed journey
+PASS arriving at the hearth: it registers at once, but its banner does not play under Latch's line
+PASS 390×844: SIT / GO keeps Latch's question with it (“Seat's dry.”), inside the screen, buttons under it, finger-sized
+PASS moving between answers keeps the question in place
+PASS while SIT / GO waits, the banner still waits too
+PASS SIT: he walks to the bench at about his own pace (walking pose), not a glide across the room
+PASS the hearth's banner plays once the line and choice have closed (on the walk to the seat)
+PASS SIT still settles him on the bench beside Latch
+PASS 390×844: no page errors at the hearth
+PASS 320×568: SIT / GO keeps Latch's question with it (“Seat's dry.”), inside the screen, buttons under it, finger-sized
+PASS 320×568: no page errors at the hearth
+PASS 844×390: SIT / GO keeps Latch's question with it (“Seat's dry.”), inside the screen, buttons under it, finger-sized
+PASS 844×390: no page errors at the hearth
+PASS the wrap's three answers keep Nell's question with them (“Wear it, or take it folded.”)
+PASS picking still commits the choice and closes the question with it
+PASS no page errors in the Rows
+
+63/63 game-feel checks passed

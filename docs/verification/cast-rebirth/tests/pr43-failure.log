@@ -1,0 +1,9 @@
+GitHub Actions run: https://github.com/taymarspencer/Rizo-World-/actions/runs/38037326476
+Job: 114170855220; PR #43 merged head 48f308de73a424f7a2d8ebb28ef54590c15d9945
+Original unmodified CI log excerpt:
+2026-10-10T08:20:03.3094984Z ##[endgroup]
+2026-10-10T08:20:30.0263533Z PASS the van has its own sound: engine and road under the floor, not the street
+2026-10-10T08:20:30.0274044Z FAIL the Boss line is given more room than a joke of its length (held on screen longer) (5049.999999999949, 4100)
+2026-10-10T08:20:30.0276905Z PASS when the joke dies: wipers only, nobody talks, the music stops
+2026-10-10T08:20:30.0281880Z PASS he feels it before anyone says so: his flame pulls in (fear)
+2026-10-10T08:21:59.0992228Z 44/45 depth checks passed

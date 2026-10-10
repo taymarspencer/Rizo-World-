@@ -1,0 +1,1 @@
+PASS node --check on 34 release JavaScript files

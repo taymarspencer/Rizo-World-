@@ -1,0 +1,27 @@
+PASS the mode sees its pet as a snapshot of the real one
+PASS the snapshot is frozen: the mode cannot edit the pet
+PASS the mode renders pets through petMarkup()
+PASS the first slice migration ran once with schema 0 {'runs': 0, 'from': 0}
+PASS run storage round-trips
+PASS the mode mounts into the shared stage (frozen stage object, header set)
+PASS a mode modal's onClose runs once on a player close, never on a silent close 10
+PASS mode settings start at their declared defaults {'loud': False, 'size': 'm'}
+PASS awards land in the hub under hub rules {'embers': 250, 'heat': 12, 'pets': {'PET-185C9BBAD8A4': {'xp': 40, 'bond': 2, 'skills': {'speed': 1, 'power': 4}}}, 'active': {'energy': -8, 'hunger': -3, 'mood': 0}}
+PASS clamped awards apply exactly their ceiling {'embers': 375, 'xp': 2540.00002464275, 'power': 39.000000818277776, 'speed': 11, 'energy': 71.99993475, 'hunger': 76.99991299999999, 'games': 1, 'heat': 12, 'played': 1}
+PASS active-pet costs and the completed run are applied {'embers': 375, 'xp': 2540.00002464275, 'power': 39.000000818277776, 'speed': 11, 'energy': 71.99993475, 'hunger': 76.99991299999999, 'games': 1, 'heat': 12, 'played': 1}
+PASS awards for pets the player does not own are ignored
+PASS abusive awards are clamped instead of trusted {'embers': 0, 'heat': 0, 'pets': {'PET-185C9BBAD8A4': {'xp': 2000, 'bond': 0, 'skills': {'power': 25}}}, 'active': {'energy': 0, 'hunger': 0, 'mood': 0}}
+PASS oversized slices are refused
+PASS the hub reads a mode's public summary from its slice {'best': 1, 'bestLabel': '1', 'badge': {'text': 'P1', 'title': 'probe'}}
+PASS only one mode runs at a time
+PASS exit stops the mode and returns to the hub exactly once {'first': True, 'again': False, 'stopped': True, 'active': None, 'overlayHidden': True}
+PASS a mode's declared settings appear in the Journal {'toggle': True, 'choice': True}
+PASS Journal setting changes are stored in the mode's slice {'size': 's', 'loud': True}
+PASS the slice is saved inside the signed v2 save {'defense': {'schema': 1, 'data': {'records': {'best': 0, 'maps': {}, 'milestones': [], 'perfectMaps': [], 'history': [], 'mastery': {}, 'contracts': []}, 'settings': {'signatures': True, 'autoStart': False, 'fx': 'auto', 'uiScale': 'standard', 'waveIntel': 'simple'}, 'crew': {'ids': [], 'configured': False}, 'school': {'dismissed': False, 'completed': [], 'replay': False}, 'introSeen': False, 'mapIntrosSeen': []}}, 'dungeon': {'schema': 1, 'data': {}}, 'probe': {'schema': 1, 'data': {'runs': 1, 'last': 'first', 'settings': {'size': 's', 'loud': True}}}}
+PASS an unregistered mode's slice survives a reload untouched {'schema': 1, 'data': {'runs': 1, 'last': 'first', 'settings': {'size': 's', 'loud': True}}}
+PASS no page errors
+PASS the hub boots with no mode files at all
+PASS a missing mode shows as unavailable instead of breaking Go UNAVAILABLE
+PASS a missing mode's slice is saved back untouched {'schema': 1, 'data': {'records': {'best': 0, 'maps': {}, 'milestones': [], 'perfectMaps': [], 'history': [], 'mastery': {}, 'contracts': []}, 'settings': {'sig
+
+25/25 mode-contract checks passed

@@ -252,8 +252,23 @@ with sync_playwright() as p:
     for speed in (1, 2):
         page,errors=new_page(browser,True)
         start_defense(page)
-        page.evaluate(f'RizoRuntimeQA.defensePlaceNextForQA();const p=RizoRuntimeQA.defenseNearestProgressForQA();RizoRuntimeQA.defenseSetRunForQA({{wave:1,phase:"combat"}});RizoRuntimeQA.defenseSetSpeedForQA({speed});const e=RizoRuntimeQA.defenseSpawnForQA("shell",p.progress,100000000,100000000);RizoRuntimeQA.defenseSetEnemyStatusForQA(e.id,{{root:100}});for(let i=0;i<200;i++)RizoRuntimeQA.defenseTickForQA(.01)')
-        scan_samples[speed]=page.evaluate('RizoRuntimeQA.defenseSnapshotForQA()')
+        # The page runs a live RAF during setup. Compare the clocks over the
+        # exact controlled interval, in one evaluate call, rather than compare
+        # absolute clocks from separately scheduled page startups.
+        scan_samples[speed]=page.evaluate(f'''(()=>{{
+            RizoRuntimeQA.defensePlaceNextForQA();
+            const p=RizoRuntimeQA.defenseNearestProgressForQA();
+            RizoRuntimeQA.defenseSetRunForQA({{wave:1,phase:"combat"}});
+            RizoRuntimeQA.defenseSetSpeedForQA({speed});
+            const e=RizoRuntimeQA.defenseSpawnForQA("shell",p.progress,100000000,100000000);
+            RizoRuntimeQA.defenseSetEnemyStatusForQA(e.id,{{root:100}});
+            const before=RizoRuntimeQA.defenseSnapshotForQA();
+            for(let i=0;i<200;i++)RizoRuntimeQA.defenseTickForQA(.01);
+            const after=RizoRuntimeQA.defenseSnapshotForQA();
+            return {{...after,realClock:after.realClock-before.realClock,
+                simulationClock:after.simulationClock-before.simulationClock,
+                targetScans:after.targetScans-before.targetScans}};
+        }})()''')
         record(f'{speed}x scheduler sample has no runtime errors',not errors,'; '.join(errors[:3]))
         page.close()
     scans_1x=scan_samples[1]['targetScans'];scans_2x=scan_samples[2]['targetScans']

@@ -1,0 +1,143 @@
+{
+  "output": "/tmp/rizo-world-first-idc3em1f/rc1-site",
+  "files": 160,
+  "build": "v92-release-candidate-1",
+  "ads_txt": false
+}
+PASS 320px fresh / is static World with no overflow
+PASS 320px fresh World loads no game runtime or worker
+PASS 320px World canonical and Play anchor are explicit
+PASS 320px primary Play is an unclipped 44px tap target
+PASS 320px skip link moves keyboard focus into main
+PASS 320px keyboard Play has visible focus
+PASS 320px keyboard Play enters the existing game at /play
+PASS 320px direct Play refresh retains the signed pet
+PASS 320px World return and shared Play keep the same pet
+PASS 320px transition has no runtime exceptions or ad SDK
+PASS 375px fresh / is static World with no overflow
+PASS 375px fresh World loads no game runtime or worker
+PASS 375px World canonical and Play anchor are explicit
+PASS 375px primary Play is an unclipped 44px tap target
+PASS 375px skip link moves keyboard focus into main
+PASS 375px keyboard Play has visible focus
+PASS 375px keyboard Play enters the existing game at /play
+PASS 375px direct Play refresh retains the signed pet
+PASS 375px World return and shared Play keep the same pet
+PASS 375px transition has no runtime exceptions or ad SDK
+PASS 390px fresh / is static World with no overflow
+PASS 390px fresh World loads no game runtime or worker
+PASS 390px World canonical and Play anchor are explicit
+PASS 390px primary Play is an unclipped 44px tap target
+PASS 390px skip link moves keyboard focus into main
+PASS 390px keyboard Play has visible focus
+PASS 390px keyboard Play enters the existing game at /play
+PASS 390px direct Play refresh retains the signed pet
+PASS 390px World return and shared Play keep the same pet
+PASS 390px transition has no runtime exceptions or ad SDK
+PASS 430px fresh / is static World with no overflow
+PASS 430px fresh World loads no game runtime or worker
+PASS 430px World canonical and Play anchor are explicit
+PASS 430px primary Play is an unclipped 44px tap target
+PASS 430px skip link moves keyboard focus into main
+PASS 430px keyboard Play has visible focus
+PASS 430px keyboard Play enters the existing game at /play
+PASS 430px direct Play refresh retains the signed pet
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 51718)
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 51736)
+Traceback (most recent call last):
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/workspace/scratch/ea60b678d5c0/rizo-world/tests/browser-world-first.py", line 41, in __init__
+    super().__init__(*args,directory=str(phase['directory']),**kwargs)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 676, in __init__
+    super().__init__(*args, **kwargs)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 766, in __init__
+    self.handle()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 440, in handle
+    self.handle_one_request()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 428, in handle_one_request
+    method()
+  File "/workspace/scratch/ea60b678d5c0/rizo-world/tests/browser-world-first.py", line 46, in do_GET
+    super().do_GET()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 683, in do_GET
+    self.copyfile(f, self.wfile)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 882, in copyfile
+    shutil.copyfileobj(source, outputfile)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/shutil.py", line 204, in copyfileobj
+    fdst_write(buf)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+Traceback (most recent call last):
+BrokenPipeError: [Errno 32] Broken pipe
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+----------------------------------------
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/workspace/scratch/ea60b678d5c0/rizo-world/tests/browser-world-first.py", line 41, in __init__
+    super().__init__(*args,directory=str(phase['directory']),**kwargs)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 676, in __init__
+    super().__init__(*args, **kwargs)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 766, in __init__
+    self.handle()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 440, in handle
+    self.handle_one_request()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 428, in handle_one_request
+    method()
+  File "/workspace/scratch/ea60b678d5c0/rizo-world/tests/browser-world-first.py", line 46, in do_GET
+    super().do_GET()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 683, in do_GET
+    self.copyfile(f, self.wfile)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/http/server.py", line 882, in copyfile
+    shutil.copyfileobj(source, outputfile)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/shutil.py", line 204, in copyfileobj
+    fdst_write(buf)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+PASS 430px World return and shared Play keep the same pet
+PASS 430px transition has no runtime exceptions or ad SDK
+PASS HTTP /index.html converges once and retains query
+PASS HTTP /index converges once and retains query
+PASS HTTP /game converges once and retains query
+PASS HTTP /play.html converges once and retains query
+PASS HTTP /play/ converges once and retains query
+PASS HTTP /world.html converges once and retains query
+PASS HTTP /world converges once and retains query
+PASS HTTP /world/ converges once and retains query
+PASS canonical / is a real static 200
+PASS canonical /play is a real static 200
+PASS canonical /about is a real static 200
+PASS canonical /journal is a real static 200
+PASS canonical /support is a real static 200
+PASS canonical /privacy is a real static 200
+PASS canonical /terms is a real static 200
+PASS missing online route has authored real 404
+PASS non-public /docs/ARCHITECTURE.md is absent
+PASS non-public /tests/browser-world-first.py is absent
+PASS non-public /_headers is absent
+PASS non-public /_redirects is absent
+PASS non-public /ads.txt is absent
+PASS upgrade starts with exact RC1 runtime and its real worker cache
+PASS missing required Play rejects RC2 takeover and preserves RC1 cache
+PASS complete RC2 takes over and retires the old game-root cache
+PASS upgraded / is World, never the cached RC1 game
+PASS upgraded PWA start enters RC2 with existing pet and save keys
+PASS PWA identity and root scope stay stable; start deliberately opens Play
+PASS offline /?entry=cold-world serves the intended current shell
+PASS offline /play?source=pwa serves the intended current shell
+PASS offline /index.html?source=pwa serves the intended current shell
+PASS offline /play/ serves the intended current shell
+PASS offline /world.html serves the intended current shell
+PASS offline public policy query uses its own cached page
+PASS unknown offline /unknown/deep/ stays 503 without either shell
+PASS unknown offline /unknown/index.html stays 503 without either shell
+PASS unknown offline /ads.txt stays 503 without either shell
+PASS World-first pass makes zero third-party requests
+
+77/77 World-first routing checks passed; Chromium only

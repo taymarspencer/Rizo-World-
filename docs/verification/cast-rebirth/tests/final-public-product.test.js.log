@@ -1,0 +1,10 @@
+PASS default bootstrap cannot load ads even if another script grants nominal consent
+PASS unverified account and unresolved or throwing permission keep configured integration closed
+PASS published routes have distinct titles, rizo.world canonicals, metadata and static content
+PASS public navigation and fragment links resolve to actual files/sections
+PASS sitemap names existing public content, without invented ads.txt or development pages
+PASS production package makes World root and Play a distinct static entry with stable PWA identity
+PASS overlapping Cloudflare rules never emit duplicate MIME headers
+PASS public text and focus colors have readable contrast on the ink surface
+
+8/8 public product contract checks passed

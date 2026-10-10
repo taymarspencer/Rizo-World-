@@ -1,0 +1,61 @@
+PASS 320: reveal instruction
+PASS 320: one tap reveals without closing
+PASS 320: reveal keeps card height
+PASS 320: cue does not overlap text
+PASS 320: card stays within game
+PASS 320: touch closes reading
+PASS 320: rowsFurtherUp uses its authored portrait expression
+PASS 320: rowsFurtherUp card fits
+PASS 320: rowsCatchAsk uses its authored portrait expression
+PASS 320: rowsCatchAsk card fits
+PASS 320: rowsMeal uses its authored portrait expression
+PASS 320: rowsMeal card fits
+PASS 320: every comic exact completion and skip, reduced=False
+PASS 320: every comic exact completion and skip, reduced=True
+PASS 320: no page errors
+PASS 375: reveal instruction
+PASS 375: one tap reveals without closing
+PASS 375: reveal keeps card height
+PASS 375: cue does not overlap text
+PASS 375: card stays within game
+PASS 375: touch closes reading
+PASS 375: rowsFurtherUp uses its authored portrait expression
+PASS 375: rowsFurtherUp card fits
+PASS 375: rowsCatchAsk uses its authored portrait expression
+PASS 375: rowsCatchAsk card fits
+PASS 375: rowsMeal uses its authored portrait expression
+PASS 375: rowsMeal card fits
+PASS 375: every comic exact completion and skip, reduced=False
+PASS 375: every comic exact completion and skip, reduced=True
+PASS 375: no page errors
+PASS 390: reveal instruction
+PASS 390: one tap reveals without closing
+PASS 390: reveal keeps card height
+PASS 390: cue does not overlap text
+PASS 390: card stays within game
+PASS 390: touch closes reading
+PASS 390: rowsFurtherUp uses its authored portrait expression
+PASS 390: rowsFurtherUp card fits
+PASS 390: rowsCatchAsk uses its authored portrait expression
+PASS 390: rowsCatchAsk card fits
+PASS 390: rowsMeal uses its authored portrait expression
+PASS 390: rowsMeal card fits
+PASS 390: every comic exact completion and skip, reduced=False
+PASS 390: every comic exact completion and skip, reduced=True
+PASS 390: no page errors
+PASS 430: reveal instruction
+PASS 430: one tap reveals without closing
+PASS 430: reveal keeps card height
+PASS 430: cue does not overlap text
+PASS 430: card stays within game
+PASS 430: touch closes reading
+PASS 430: rowsFurtherUp uses its authored portrait expression
+PASS 430: rowsFurtherUp card fits
+PASS 430: rowsCatchAsk uses its authored portrait expression
+PASS 430: rowsCatchAsk card fits
+PASS 430: rowsMeal uses its authored portrait expression
+PASS 430: rowsMeal card fits
+PASS 430: every comic exact completion and skip, reduced=False
+PASS 430: every comic exact completion and skip, reduced=True
+PASS 430: no page errors
+60/60 reading checks passed

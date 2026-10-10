@@ -61,11 +61,11 @@
       ]
     },
     {
-      id: "nell", name: "Nell", role: "the Mending Rows mender: work coat, apron, strap, head wrap", shell: "locked", units: Art.HEIGHT.nell, portraits: "nell", world: Art.nell, exprs: ["work", "measuring", "listening", "amused", "irritated", "tired"],
+      id: "nell", name: "Nell", role: "the mender: wool fringe, asymmetric yarn knot, bell coat and two useful mitts", shell: "locked", units: Art.HEIGHT.nell, portraits: "nell", world: Art.nell, exprs: ["work", "measuring", "listening", "amused", "irritated", "tired"],
       states: NELL_STATES.map(state => ({ id: state, o: { state }, walk: state === "walk" }))
     },
     {
-      id: "orr", name: "Orr", role: "the kitchen runner: low cap, towel shoulder, apron, an oversized tray", shell: "locked", units: Art.HEIGHT.orr, portraits: "orr", world: Art.orr, exprs: ["serving", "irritated", "dry"],
+      id: "orr", name: "Orr", role: "the cook: a broad hearth dweller, heavy lids, oven mitts and a towel tucked into his low cap", shell: "locked", units: Art.HEIGHT.orr, portraits: "orr", world: Art.orr, exprs: ["serving", "irritated", "dry"],
       states: [{ id: "tray", o: { state: "tray" } }, { id: "carry (leaving with the tray)", o: { state: "carry" } }, { id: "walking (carry)", o: { state: "carry" }, walk: true }, { id: "hands free", o: { state: "serving" } }]
     },
     {
@@ -154,8 +154,21 @@
       states: [{ id: "idle", o: {} }, { id: "indicate", o: { state: "indicate" } }, { id: "pulse", o: { state: "pulse" } }, { id: "recover", o: { state: "recover" } }, { id: "hit (flash)", o: { flash: true } }]
     }
   ];
+  CAST.push({id:"driver",name:"Driver (seated)",role:"the long-nosed driver in his shearling work coat",shell:"open",units:Art.CREW_HEIGHT.driver,portraits:"driver",facing:false,
+    world:(ctx,x,y,o)=>Art.seated(ctx,"driver-seat",x,y,{...o,who:"driver"}),states:[{id:"at the wheel",o:{}}]});
+  for(const profile of ["marshal","gatherer","runner","sentry"]) CAST.push({
+    id:`collector-${profile}`,name:`Collector ${profile}`,role:`the organization's ${profile}; the actual encounter silhouette`,shell:"locked",units:Art.HEIGHT.collector,enemy:true,
+    world:(ctx,x,y,o)=>Art.collector(ctx,x,y,{...o,id:({marshal:"queue-held",gatherer:"row-collector",runner:"hall-runner",sentry:"factory-sentry"})[profile],profile}),states:[{id:"patrol",o:{}}]
+  });
   const BY_ID = Object.fromEntries(CAST.map(entry => [entry.id, entry]));
-  const LINEUP = ["rizo", "latch", "nell", "orr", "porter", "hood-tall", "hood-small", "hood-cap", "keeper"];
+  const LINEUP = ["rizo", "latch", "nell", "orr", "porter", "hood-tall", "hood-small", "hood-cap", "driver", "keeper", "collector-marshal", "collector-gatherer", "collector-runner", "collector-sentry"];
+  // The game applies a feet-anchored transform before calling its painters.
+  // The lab used to omit it, so a supposedly native lineup overstated NPC size.
+  function paintWorld(entry, ctx, x, y, o) {
+    const kind=entry.id.startsWith("collector-")?"collector":entry.id;
+    const s=Art.WORLD_SCALE[kind]??1;
+    ctx.save();ctx.translate(x,y);ctx.scale(s,s);entry.world(ctx,0,0,o);ctx.restore();
+  }
   const SPEAKER_NAME = key => Content.SPEAKERS?.[key]?.name || key.toUpperCase();
 
   // ===== BACKDROPS: the game's own materials and light pass =====
@@ -247,7 +260,7 @@
         const state = entry.states.find(s => s.id === item.s) || entry.states[0];
         const o = { ...state.o, face: item.f, t, bob: state.walk ? walkBob(t) : 0 };
         if (entry.exprs) o.expr = item.e || state.expr || entry.exprs[0];
-        try { entry.world(target, item.x, item.y, o); } catch (error) { target.fillStyle = "#f0f"; target.fillRect(item.x - 4, item.y - 20, 8, 20); }
+        try { paintWorld(entry, target, item.x, item.y, o); } catch (error) { target.fillStyle = "#f0f"; target.fillRect(item.x - 4, item.y - 20, 8, 20); }
       }
       if (silhouette) { target.globalCompositeOperation = "source-in"; target.fillStyle = "#111"; target.fillRect(0, 0, W, H); target.globalCompositeOperation = "source-over"; }
     }
@@ -331,7 +344,7 @@
     const state = entry.states.find(s => s.id === stateId) || entry.states[0];
     const o = { ...state.o, face, t: FIXED_T, bob: 0 };
     if (entry.exprs) o.expr = expr || state.expr || entry.exprs[0];
-    entry.world(ctx, 100, 150, o);
+    paintWorld(entry, ctx, 100, 150, o);
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     let minX = Infinity, minY = Infinity, maxX = -1, maxY = -1;
     const counts = new Map();
@@ -567,7 +580,7 @@
       block.append(grid);
       main.append(block);
     }
-    main.append(h("p", { class: "lab-note" }, "46 px is the smallest a portrait appears in play (phones 340 px wide or less); 56 px everywhere else. The Keeper (YOU) is never given a face."));
+    main.append(h("p", { class: "lab-note" }, "46 px is the smallest a portrait appears in play (phones 340 px wide or less); 56 px everywhere else. YOU keeps the same curls, beard and camel coat across scenes."));
   }
 
   function render() {

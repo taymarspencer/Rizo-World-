@@ -1,0 +1,71 @@
+[
+  {
+    "suite": "before-mobile",
+    "command": [
+      "python",
+      "tests/capture-dungeon-character-art.py",
+      "--directory",
+      "/tmp/rizo-cast-before-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/before",
+      "--only",
+      "van-crew,nell-lift,row-collector,hall-runner,intake-crew"
+    ],
+    "exit": 0,
+    "seconds": 50.0
+  },
+  {
+    "suite": "after-mobile",
+    "command": [
+      "python",
+      "tests/capture-dungeon-character-art.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after",
+      "--only",
+      "nell-lift,van-talk-tall,van-talk-driver,nell-fix,row-collector"
+    ],
+    "exit": 0,
+    "seconds": 64.5
+  },
+  {
+    "suite": "before-opening",
+    "command": [
+      "python",
+      "tests/capture-dungeon-opening-direction.py",
+      "--directory",
+      "/tmp/rizo-cast-before-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/before/opening"
+    ],
+    "exit": 0,
+    "seconds": 107.3
+  },
+  {
+    "suite": "before-comics",
+    "command": [
+      "python",
+      "tests/capture-dungeon-collector-comics.py",
+      "--directory",
+      "/tmp/rizo-cast-before-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/before/comics"
+    ],
+    "exit": 0,
+    "seconds": 19.3
+  },
+  {
+    "suite": "after-comics",
+    "command": [
+      "python",
+      "tests/capture-dungeon-collector-comics.py",
+      "--directory",
+      "/tmp/rizo-cast-final-v2-site",
+      "--evidence",
+      "/workspace/scratch/ea60b678d5c0/rizo-world/docs/verification/cast-rebirth/after/comics"
+    ],
+    "exit": 0,
+    "seconds": 18.8
+  }
+]

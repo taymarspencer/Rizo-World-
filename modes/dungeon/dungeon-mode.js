@@ -2544,7 +2544,7 @@
             talk([
               { hold: 500 },
               ...L.vanCooler, { hold: 500 },
-              ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
+              ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.5), ...L.vanNumber.slice(4),
               // What he wants, said once, as a fear joke. Why he wants it stays unsaid.
               { hold: 300 }, ...L.vanEvery.slice(0, 1), weighted(L.vanEvery[1], 1.3), ...L.vanEvery.slice(2),
               // The job has a clock. Missing the check-in turns "Boss" from

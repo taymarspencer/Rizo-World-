@@ -1,0 +1,68 @@
+PASS lost signal: manual pause advances no round round 0 -> 0
+PASS lost signal: manual pause advances no sequence [] -> []
+PASS lost signal: manual pause disarms every scheduled job 0 armed of 1, holds=['menu']
+PASS lost signal: manual pause resumes the sequence round 0 -> 1
+PASS lost signal: background advances no round round 0 -> 0
+PASS lost signal: background advances no sequence [] -> []
+PASS lost signal: background disarms every scheduled job 0 armed of 1, holds=['background']
+PASS lost signal: background resumes the sequence round 0 -> 1
+PASS lost signal: ad break advances no round round 0 -> 0
+PASS lost signal: ad break advances no sequence [] -> []
+PASS lost signal: ad break disarms every scheduled job 0 armed of 1, holds=['ad']
+PASS lost signal: ad break resumes the sequence round 0 -> 1
+PASS a held job banks only the delay it had left 694ms left
+PASS a held job does not fire no matter how long the hold lasts fired=False after 1.5s held
+PASS the banked delay does not drain during the hold 694 -> 694
+PASS the released job is still waiting out its remainder fired=False at +400ms
+PASS the released job fires once its remainder elapses fired=True count=1
+PASS stacked ad + background register two holds ['ad', 'background']
+PASS background ending during an ad does not release the queue fired=False holds=['ad']
+PASS the last hold to lift releases the queue exactly once count=1
+PASS an ad ending while still backgrounded does not release the queue fired=False holds=['background']
+PASS the Lost Signal round is still frozen behind the background hold
+PASS lifting the final background hold releases it exactly once count=1
+PASS rhythm: countdown has not finished yet (manual pause)
+PASS rhythm: manual pause does not run the countdown out
+PASS rhythm: countdown completes after manual pause lifts
+PASS rhythm: countdown has not finished yet (background)
+PASS rhythm: background does not run the countdown out
+PASS rhythm: countdown completes after background lifts
+PASS rhythm: countdown has not finished yet (ad break)
+PASS rhythm: ad break does not run the countdown out
+PASS rhythm: countdown completes after ad break lifts
+PASS ember forge: a pending wall rebuild does not land while paused armed jobs=0
+PASS ember forge: the wall rebuild lands after resume level 1 -> 2
+PASS ember forge buffs survive manual pause {'breakerBoostUntil': 36, 'breakerPierceUntil': 36}
+PASS ember forge buffs survive background {'breakerBoostUntil': 51, 'breakerPierceUntil': 51}
+PASS ember forge buffs survive ad break {'breakerBoostUntil': 38, 'breakerPierceUntil': 38}
+PASS skybound thermal + i-frames survive a pause thermal 4196 -> 4157
+PASS an already-expired deadline is not resurrected by a hold
+PASS power: no game state advances across a 1.3s pause
+PASS spark: no game state advances across a 1.3s pause
+PASS forage: no game state advances across a 1.3s pause
+PASS rush: no game state advances across a 1.3s pause
+PASS walk: no game state advances across a 1.3s pause
+PASS memory: no game state advances across a 1.3s pause
+PASS glide: no game state advances across a 1.3s pause
+PASS breaker: no game state advances across a 1.3s pause
+PASS maze: no game state advances across a 1.3s pause
+PASS rhythm: the song is live before the manual pause hold
+PASS rhythm: no chart state advances across a manual pause hold
+FAIL rhythm: song position is credited across a manual pause hold elapsed 0.59s -> 0.87s
+PASS rhythm: the song is live before the background hold
+PASS rhythm: no chart state advances across a background hold
+PASS rhythm: song position is credited across a background hold elapsed 0.55s -> 0.63s
+PASS rhythm: the song is live before the ad break hold
+PASS rhythm: no chart state advances across a ad break hold
+PASS rhythm: song position is credited across a ad break hold elapsed 0.52s -> 0.59s
+PASS defense: a manual pause holds its scheduled callbacks armed=0 of 1
+PASS defense: the simulation clock does not advance while paused 0 -> 0
+PASS defense: resume re-arms them
+PASS defense: the run leaves the paused phase on resume planning
+PASS defense run clock is untouched by the shared freeze
+PASS ending a run cancels its queue instead of leaking timers
+PASS no training game reads a wall clock (every deadline is on the run clock) {}
+PASS run-clock deadlines are discoverable on the board ['breakerBoostUntil', 'breakerPierceUntil', 'breakerResetAt']
+PASS no page errors across the freeze suite
+
+65/66 v87 arcade freeze checks passed

@@ -1,0 +1,9 @@
+PASS page, boot shell, runtime and service worker carry one build marker
+PASS every script and stylesheet the page loads is a required, network-first shell file
+PASS every required shell file exists and is also in the full shell
+PASS core modules load before anything that depends on them
+PASS each game mode's files load after the core and before the hub
+PASS training games load after the contract and the kit, and before the hub
+PASS no file a mode owns is left at its pre-v88 root path
+
+7/7 release integrity checks passed

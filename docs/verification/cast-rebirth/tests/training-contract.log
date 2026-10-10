@@ -1,0 +1,24 @@
+PASS the game sees a frozen snapshot of its pet
+PASS the run board carries the runner's fields ['active', 'endAt', 'endReason', 'entities', 'hits', 'lives', 'maxLives', 'mode', 'playerInputs', 'score']
+PASS hearts come from the definition [3, 3]
+PASS the game draws its Rizo through petMarkup()
+PASS per-game memory is written, and capped at 4 KB
+PASS run.every jobs fire on the run clock 2
+PASS a paused run's clock stands still ({'jobs': 2, 'now': 1791626829591.3, 'left': 19779.800048828125}, {'jobs': 2, 'now': 1791626829591.2998, 'left': 19779.80029296875})
+PASS a paused run fires no jobs (2, 2)
+PASS resuming re-arms the jobs
+PASS run.end() ends the run at once, and stop() runs exactly once modal-card arcade-result minigame-result-probe arcade-no-credit
+PASS a warm-up run spends and earns nothing ({'embers': 100, 'xp': 500, 'speed': 10, 'power': 10, 'energy': 90, 'hunger': 60, 'mood': 50, 'bond': 10, 'hype': 0, 'games': 0, 'best': 0, 'shadow': False, 'treasures': 0, 'memory': None, 'played': 0}, {'embers': 100, 'xp': 500, 'speed': 10, 'power': 10, 'energy': 90, 'hunger': 60, 'mood': 50, 'bond': 10, 'hype': 0, 'games': 0, 'best': 0, 'shadow': False, 'treasures': 0, 'memory': {'bag': ['a', 'b']}, 'played': 0})
+PASS a finished run leaves no jobs behind
+PASS Energy, XP and Embers move by exactly the conversion ({'game': 'probe', 'qualified': True, 'reason': 'timeup', 'performance': 1, 'skills': {'speed': 3.75, 'power': 1.25}, 'xp': 35, 'bond': 2, 'mood': 10, 'hype': 7.5, 'hunger': -6, 'embers': 50, 'energy': -10, 'alignment': 1}, {'embers': 100, 'xp': 500, 'speed': 10, 'power': 10, 'energy': 90, 'hunger': 60, 'mood': 50, 'bond': 10, 'hype': 0, 'games': 0, 'best': 0, 'shadow': False, 'treasures': 0, 'memory': {'bag': ['a', 'b']}, 'played': 0}, {'embers': 175, 'xp': 535.0002069155, 'speed': 13.75, 'power': 11.25, 'energy': 79.99944675, 'hunger': 53.999262333333334, 'mood': 59.99971722777778, 'bond': 12.000049177777777, 'hype': 7.5, 'games': 1, 'best': 40, 'shadow': False, 'treasures': 1, 'memory': {'bag': ['a', 'b']}, 'played': 1})
+PASS skills grow by the conversion's split {'speed': 3.75, 'power': 1.25}
+PASS bond, mood, hunger and hype follow the game's care weights {'game': 'probe', 'qualified': True, 'reason': 'timeup', 'performance': 1, 'skills': {'speed': 3.75, 'power': 1.25}, 'xp': 35, 'bond': 2, 'mood': 10, 'hype': 7.5, 'hunger': -6, 'embers': 50, 'energy': -10, 'alignment': 1}
+PASS the best score, games played and care history are recorded
+PASS a declared treasure find is honoured
+PASS an undeclared rare find is refused even at 100% odds
+PASS the per-game memory is saved with the pet's save {'bag': ['a', 'b']}
+PASS the results screen shows the game's stats, voice and the growth {'stats': 'PROBE SCORE\n40', 'line': 'THE PROBE CAME HOME.', 'gains': '+3.8 SPEED • +1.3 POWER • +35 XP • +50 R • +2.0 BOND'}
+PASS a game that fails to start spends nothing and leaves no run False
+PASS no page errors
+
+22/22 training-contract checks passed
