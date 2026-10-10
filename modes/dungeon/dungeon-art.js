@@ -1031,7 +1031,10 @@
       // Bodies sway with the van; frozen, they hold themselves rigid against it.
       lean: ride.surge * (still ? 0.6 : 1.8) + (still ? 0 : ride.shiver * 0.3),
       hop: -(o.bump || 0) * 3.4,
-      talk: o.talking && !still && t ? Math.sin(t / 95) * 0.8 + Math.sin(t / 37) * 0.3 : 0,
+      // One articulated emphasis per turn, rather than a hand flapping with
+      // multiple fast oscillators all the time somebody is speaking.
+      talk: o.talking && !still && t && Number.isFinite(o.talkAge)
+        ? Math.sin(Math.PI * Math.min(1, o.talkAge / 1200)) * 1.1 : 0,
       talking: Boolean(o.talking) && !still,
       idle: still || !t ? 0 : Math.sin(t / 1100 + x * 0.1) * 0.4
     };
@@ -1361,7 +1364,12 @@
     }
     if (state === "work" || state === "fix") {
       const cy = state === "fix" ? -50 : -49;
-      const lift = state === "work" ? Math.sin(t / 410) * 1.15 : 0;
+      // A real worker takes a stitch, draws the thread through, then checks
+      // the material. One brief wrist action followed by a deliberate pause.
+      // The tool is always visibly in her hand, never an endless buzzing loop.
+      const stitch = (t % 3300) / 3300;
+      const lift = state === "work" && stitch < 0.29
+        ? Math.sin(Math.PI * stitch / 0.29) * 1.15 : 0;
       // A folded repair in her hands: patched corner, seam, needle and loose
       // thread. At small scale this becomes one pale rectangle plus red seam.
       shape(ctx, [7, cy - 2, 24, cy - 1, 23, cy + 11, 8, cy + 10], P.paper[1], { ink: 0.9, amp: 0.3, seed: 79 });
@@ -1504,7 +1512,9 @@
     // Wide jaw, a proper nose and a blunt beard under the soft patched cap.
     // The cap stays low, but it no longer consumes his entire face.
     const headTilt = expr === "dry" ? -.16 : expr === "irritated" ? .13 : carrying ? .12 : free ? -.09 : -.045;
-    characterHead(ctx,"orr",1,-63,{expr,tilt:headTilt+(o.addressed ? .045 : 0),look:o.look});
+    characterHead(ctx,"orr",1,-63,{expr,
+      tilt:headTilt+(o.addressed ? .065 : o.listening ? -.075 : 0),
+      look:o.look});
     ctx.restore();
     ctx.restore();
   }
@@ -1787,7 +1797,19 @@
     line(ctx,-11,-60,7,-38,P.suit[0],3.4);
     line(ctx,-11,-60,7,-38,P.metal[2],1.35);
     mark(ctx,gatherer ? 7 : 5,-47,8,P.cold[2]);
-    characterHead(ctx,`collector-${profile}`,1,gatherer ? -61 : -67,{tilt:runner ? -.1 : 0});
+    // Collector behavior has a legible head direction: methodical scanning
+    // during SEARCH, a committed downward watch from factory rails, an
+    // immediate lock when SPOT occurs, and a forward drive during RUN.
+    // This changes no detection cone or enemy timing—only the actor's pose.
+    const headIntent = state === "search"
+      ? (t ? Math.sin(t / 570 + (gatherer ? .9 : .1)) * .14 : 0)
+      : state === "watch-down" ? .13
+      : state === "spot" ? -.17
+      : state === "grab" ? -.12
+      : state === "run" ? -.15 : 0;
+    characterHead(ctx,`collector-${profile}`,1,gatherer ? -61 : -67,{
+      tilt:headIntent + (runner && state === "patrol" ? -.06 : 0)
+    });
     // A tiny real metal edge below the helmet rim defines the dark figure
     // against the factory's identical charcoal railings. Not a fake glow,
     // giant outline, or a gameplay "spotted" indicator.
