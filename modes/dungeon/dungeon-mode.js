@@ -714,7 +714,7 @@
     // keeps moving; nobody has to press through it. Its clock only runs while
     // the player is in play, so a LOOK never hides a line: the talk waits, and
     // the line on screen stays up. Items: a line, { hold }, { pose, ms }, { call }.
-    function talk(items) {
+    function talk(items, { pace = 1, gapMs = TALK_GAP_MS } = {}) {
       let state = null;
       return S.until(() => {
         if (!state) state = { index: 0, clock: 0, next: 0, last: sceneTime };
@@ -730,11 +730,11 @@
           if (item.call) { item.call(); continue; }
           if (item.pose) { setPose(item.pose, item.ms); state.next += item.ms || 0; continue; }
           // A weighted line stays up longer; a quiet one is set smaller. Neither changes the words.
-          const ms = Math.round(barkMs(item.text) * (item.weight || 1));
+          const ms = Math.max(1500, Math.round(barkMs(item.text) * (item.weight || 1) * pace));
           if (item.speaker && npcs.has(item.speaker)) npcs.get(item.speaker).expr = item.expr;
           barks = barks.filter(entry => entry.id !== item.speaker);
           barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true, quiet: Boolean(item.quiet) });
-          state.next += ms + TALK_GAP_MS;
+          state.next += ms + gapMs;
         }
         return state.index >= items.length && state.clock >= state.next;
       });
@@ -2528,35 +2528,35 @@
             S.wait(1000),
             // Movement one: idiots doing a job. "Boss" is said once, lightly, and lands.
             talk([
-              ...L.vanArgue, { hold: 1000 },
-              weighted(L.vanTouch[0], 1.5), { hold: 300 }, ...L.vanTouch.slice(1), { pose: "look-up", ms: 1500 },
+              ...L.vanArgue, { hold: 550 },
+              weighted(L.vanTouch[0], 1.5), { hold: 200 }, ...L.vanTouch.slice(1), { pose: "look-up", ms: 900 },
               { call: () => { room.phoneLight = "film"; } }, ...L.vanFilm, { call: () => { room.phoneLight = null; } },
-              { hold: 1000 }
-            ]),
+              { hold: 450 }
+            ], { pace: .91, gapMs: 180 }),
             // The pothole: the cooler slides, and Tuck is learned here, as before.
             S.call(() => vanBump()),
             S.until(() => room.cargoResolved),
-            S.wait(900),
+            S.wait(600),
             S.call(() => { if (!room.dodged) { room.cargoResolved = false; vanBump(); } }),
             S.until(() => room.cargoResolved),
             // Movement two: the number nobody says. Then a phone nobody answers.
             // Movement three: the humor dies. The screen faces the cabin, not us.
             talk([
-              { hold: 900 },
-              ...L.vanCooler, { hold: 1000 },
+              { hold: 500 },
+              ...L.vanCooler, { hold: 500 },
               ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
               // What he wants, said once, as a fear joke. Why he wants it stays unsaid.
-              { hold: 500 }, ...L.vanEvery.slice(0, 1), weighted(L.vanEvery[1], 1.3), ...L.vanEvery.slice(2),
+              { hold: 300 }, ...L.vanEvery.slice(0, 1), weighted(L.vanEvery[1], 1.3), ...L.vanEvery.slice(2),
               // The job has a clock. Missing the check-in turns "Boss" from
               // vague talk into pressure that can reach the van.
-              { hold: 650 }, ...L.vanCheckin,
+              { hold: 450 }, ...L.vanCheckin,
               // Nobody laughs. Wipers only. He feels the joke end before anyone says so.
-              { call: () => { vanHush("wipers"); flameMood("fear", 2800); } }, { hold: 2600 },
+              { call: () => { vanHush("wipers"); flameMood("fear", 2200); } }, { hold: 1700 },
               quietly(L.vanAsk[0]),
               // Nobody answers. Rain.
-              { call: () => vanHush("rain") }, { hold: 2200 },
+              { call: () => vanHush("rain") }, { hold: 1400 },
               // His phone: cold light fills the van, and everyone freezes. The ring is his presence.
-              { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); vanHush("phone"); vanFreeze(true); flameMood("fear", 9000); } }, { hold: 1200 },
+              { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); vanHush("phone"); vanFreeze(true); flameMood("fear", 9000); } }, { hold: 1000 },
               weighted(L.vanPhone[0], 1.4), L.vanPhone[1], L.vanPhone[2],
               // Small starts to lift the phone. Tall physically stops the answer.
               { call: () => {
@@ -2565,17 +2565,17 @@
                   if (tall) tall.state = "stop-phone";
                   sound("cloth");
                 } },
-              L.vanPhone[3], { hold: 1100 },
-              { call: () => { vanFreeze(true); setPose("tremble", 4000); } }, { hold: 2900 },
+              L.vanPhone[3], { hold: 750 },
+              { call: () => { vanFreeze(true); setPose("tremble", 2700); } }, { hold: 1850 },
               // It goes dark. In the silence he looks at the one who's scared: they are afraid too.
-              { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 1200 },
-              { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("stare", 1800); } }, { hold: 1800 },
+              { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 850 },
+              { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("stare", 1350); } }, { hold: 1200 },
               weighted(L.vanLost[0], 1.3), ...L.vanLost.slice(1),
               // The capped one's only words. Everyone turns to him. He looks back. Rain only.
-              { call: () => vanHush("rain") }, { hold: 400 },
-              weighted(L.vanListening[0], 1.4), { call: () => { vanStare(true); setPose("stare", 3000); flameMood("fear", 3000); } }, { hold: 3000 },
+              { call: () => vanHush("rain") }, { hold: 250 },
+              weighted(L.vanListening[0], 1.4), { call: () => { vanStare(true); setPose("stare", 2200); flameMood("fear", 2200); } }, { hold: 1900 },
               { call: () => vanStare(false) }
-            ]),
+            ], { pace: .91, gapMs: 180 }),
             S.call(() => { vanHush(null); setTransient("vanDoorLoose", true); room.doorLoose = true; sound("door"); room.shake = sceneTime; room.looseAt = sceneTime; }),
             S.until(() => inZone("van-door-zone") || sceneTime - room.looseAt > BEAT.GAP_AUTO_MS),
             // At the gap: black and rushing rain. He leans back; a held push carries him through.
