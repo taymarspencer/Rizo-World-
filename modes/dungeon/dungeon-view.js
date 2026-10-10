@@ -148,6 +148,24 @@
         <div class="dungeon-dialogue" data-dungeon-ui hidden role="dialog" aria-live="polite"><div class="dungeon-portrait" aria-hidden="true"></div><div class="dungeon-speech"><b class="dungeon-speaker"></b><p class="dungeon-line"><span class="dungeon-line-text"></span></p></div><span class="dungeon-more" aria-hidden="true"></span></div>
         <div class="dungeon-choice" data-dungeon-ui hidden role="group" aria-label="Choose"></div>
         <div class="dungeon-fade" aria-hidden="true"></div>
+        <section class="dungeon-prologue" hidden role="dialog" aria-modal="true" aria-label="A little flame — story opening">
+          <div class="dungeon-prologue-art" aria-hidden="true">
+            <i class="dungeon-prologue-night"></i>
+            <i class="dungeon-prologue-window"></i>
+            <i class="dungeon-prologue-person"></i>
+            <i class="dungeon-prologue-glass"></i>
+            <div class="dungeon-prologue-pet"></div>
+          </div>
+          <div class="dungeon-prologue-story">
+            <span class="dungeon-prologue-chapter">RIZO DUNGEON · BEFORE THE RAIN</span>
+            <p class="dungeon-prologue-line"></p>
+            <span class="dungeon-prologue-progress" aria-hidden="true"></span>
+            <div class="dungeon-prologue-actions">
+              <button type="button" data-prologue-action="skip" aria-label="Skip introduction">SKIP</button>
+              <button type="button" data-prologue-action="next" class="primary">CONTINUE ▸</button>
+            </div>
+          </div>
+        </section>
         <canvas class="dungeon-fallfx" aria-hidden="true"></canvas>
         <div class="dungeon-phone" hidden aria-hidden="true"></div>
         <div class="dungeon-panel" data-dungeon-ui hidden role="dialog" aria-modal="false"></div>
@@ -175,7 +193,7 @@
       actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), objective: $(".dungeon-objective"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
       prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), lineText: $(".dungeon-line-text"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
-      fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), dpad: $(".dungeon-dpad"),
+      fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), prologue: $(".dungeon-prologue"), dpad: $(".dungeon-dpad"),
       thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"), front: $(".dungeon-front"),
       keys: { primary: $('[data-dungeon-key="primary"]'), secondary: $('[data-dungeon-key="secondary"]'), system: $('[data-dungeon-key="system"]') }
     };
@@ -1230,10 +1248,31 @@
       el.device.classList.add("panel-open");
       el.panel.querySelector("button")?.focus({ preventScroll: true });
     }
+    function prologue(beat, index = 0, total = 1, pet = null) {
+      const stage = el.prologue;
+      if (!beat) {
+        stage.hidden = true;
+        stage.dataset.beat = "";
+        stage.querySelector(".dungeon-prologue-pet").replaceChildren();
+        return;
+      }
+      stage.hidden = false;
+      stage.dataset.beat = beat.visual;
+      stage.querySelector(".dungeon-prologue-line").textContent = beat.line;
+      stage.querySelector(".dungeon-prologue-progress").textContent =
+        `${index + 1} / ${total}`;
+      const art = stage.querySelector(".dungeon-prologue-pet");
+      // The actual Rizo belongs here, not a generic substitute creature.
+      // Pet markup is produced by the trusted hub, just like gameplay/comics.
+      if (!art.childElementCount && pet) art.innerHTML =
+        host.petMarkup(pet, { context: "dungeon", extraClass: "dungeon-prologue-rizo", label: pet.name || "Rizo" });
+      stage.querySelector('[data-prologue-action="next"]').textContent =
+        index === total - 1 ? "BEGIN ▸" : "CONTINUE ▸";
+    }
     function setFade(value) { const next = String(Math.round(value * 100) / 100); if (el.fade.style.opacity !== next) el.fade.style.opacity = next; }
     function setPhase(phase) { el.device.dataset.phase = phase; }
     function setShell(state) { if (el.device.dataset.shell !== state) { el.device.dataset.shell = state; requestAnimationFrame(() => layout()); } }
-    function destroy() { slotObserver?.disconnect(); el.worldstage.style.transform = ""; lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
+    function destroy() { slotObserver?.disconnect(); prologue(null); el.worldstage.style.transform = ""; lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
     // The mode stylesheet and shell transition can change the slot after
@@ -1241,7 +1280,7 @@
     // retaining a short launch canvas that clips the seated crew's heads.
     const slotObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => layout()) : null;
     slotObserver?.observe(el.slot);
-    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
+    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, prologue, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
   return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall });
