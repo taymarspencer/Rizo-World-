@@ -199,26 +199,28 @@
     oval(c, 58, 214, 22, 8, P.wet[0]); oval(c, 54, 212.5, 14, 4.2, P.wet[1]);
     carBody(c);
   }
-  // YOU, small, inside the lit store: no umbrella in here, still never a face.
+  // YOU inside the store: the same coat, scarf and head at the existing scale.
   function youInside(ctx, x, footY, o = {}) {
     ctx.save();
     ctx.translate(x, footY); ctx.scale(0.5, 0.5);
-    const step = o.walking ? Math.sin(o.stride || 0) : 0;
+    // Same measured step phase as YOU outdoors; the store glass no longer
+    // switches to an unrelated gait when the camera follows him indoors.
+    const step = o.walking ? Math.sin((o.stride || 0) * 1.9) : 0;
     for (const side of [-1, 1]) {
       const swing = step * side, x = side * 4.5;
       shape(ctx, [x - 3, -30, x + 3, -30, x + 3 + swing * 3, -14,
-        x + 3 + swing * 5, -2 - Math.max(0, swing) * 3,
-        x - 3 + swing * 5, -2 - Math.max(0, swing) * 3, x - 3 + swing * 3, -14],
+        x + 3 + swing * 3.6, -2 - Math.max(0, swing) * 2,
+        x - 3 + swing * 3.6, -2 - Math.max(0, swing) * 2, x - 3 + swing * 2, -14],
         P.a.denim, { ink: 1, amp: 0.1 });
-      oval(ctx, x + swing * 5 + 1, -1, 4.2, 2, P.ink);
+      oval(ctx, x + swing * 3.6 + 1, -1, 4.2, 2, P.ink);
     }
-    shape(ctx, [-7, -76, 7, -76, 14, -69, 12, -48, 16, -30, -16, -30, -12, -48, -14, -69], P.wood[2], { ink: 1.4, seed: 11, amp: 0.2 });
-    shape(ctx, [-14, -69, -6, -73, -5, -48, -3, -31, -16, -30], P.wood[1], { ink: false, amp: 0.1 });
-    shape(ctx, [-6, -80, 6, -80, 7, -74, -7, -74], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
-    // Back turned (at the counter), the head is only hair. Never a face: facing out, it stays in shadow.
-    oval(ctx, 0, -86, 6.5, 7, o.back ? P.inkSoft : P.skin[0], true, 1.4);
-    oval(ctx, 0, -90, 6.4, 3.6, P.inkSoft);
-    if (!o.back) { ctx.globalAlpha = 0.6; oval(ctx, 0, -85, 6, 4, P.ink); ctx.globalAlpha = 1; }
+    A.youCoat(ctx);
+    if (o.back) {
+      // Back at checkout: show his cropped coils, never eyes through the
+      // back of his head. The car turn and portrait establish the same face.
+      A.cut(ctx,"M-11-81Q-14-88-10-93Q-11-99-5-98Q-2-103 3-99Q9-101 11-94Q14-89 10-82L3-76L-6-78Z",P.inkSoft,1.3);
+      A.cut(ctx,"M-9-93Q-6-97-2-95M1-97Q5-98 8-93",null,1.4,P.wood[1]);
+    } else A.characterHead(ctx,"you",0,-84);
     const lift = o.reach ? 12 : o.counter ? 5 : 0;
     shape(ctx, [10, -70, 15, -68, 19, -56 - lift, 14, -50 - lift, 9, -55 - lift, 12, -59 - lift], P.wood[2], { ink: 1.1, amp: 0.1 });
     if (o.reach) oval(ctx, 17, -61 - lift, 2.5, 2.3, P.skin[1], true, 0.8);
@@ -239,12 +241,12 @@
     if (room.storeDoorOpen) { rect(ctx, P.fluoro[2], 156, 28, 40, 66); rect(ctx, P.fluoro[1], 156, 80, 40, 14); box(ctx, 156, 28, 8, 66, P.metal[2], { ink: 1, amp: 0.2 }); }
     else { rect(ctx, P.fluoro[1], 156, 28, 40, 66); rect(ctx, P.fluoro[0], 156, 76, 40, 18); rect(ctx, P.metal[3], 160, 60, 32, 2.6); rect(ctx, P.ink, 160, 62.6, 32, 0.8); label(ctx, "PULL", 176, 54, { size: 5, color: P.a.red }); }
     oval(ctx, 176, 24, 2.2, 2, P.a.brass, true, 0.8);
-    // Ordinary store life keeps going after the car becomes Rizo's whole
-    // world. One anonymous customer-shadow crosses the far window now and
-    // then; reduced motion leaves the glass still.
-    if (!s.reduced && room.phase !== "taken") {
-      const customer = (t / 1000) % 23;
-      if (customer < 4.4) {
+    // One background customer crosses after YOU has actually entered.
+    // A perpetual 23s ghost loop made the store look like cardboard theatre.
+    // The held shot can simply be still; stillness carries tension.
+    if (!s.reduced && room.phase === "waiting" && Number.isFinite(room.waitStart)) {
+      const customer = (now - room.waitStart) / 1000 - 31;
+      if (customer >= 0 && customer < 4.4) {
         const cx = 34 + (customer / 4.4) * 104;
         A.clip(ctx, 31, 23, 110, 64, () => alpha(ctx, 0.24, () => {
           oval(ctx, cx, 47, 4.5, 5, P.inkSoft);
@@ -2081,8 +2083,14 @@
         A.concrete(c, 0, 0, geo.w, geo.h, "factory", { tone: ["#1c2024", "#24292e", "#2e343a", "#3d444b"], joint: 60 });
         // The stair down from the vent landing.
         for (let y = 96; y < 150; y += 8) { box(c, 22, y, 40, 7, P.metal[1], { ink: 0.9, amp: 0.05 }); rect(c, P.metal[2], 23, y + 1, 38, 1.2); }
-        // Walkways for the staff, painted yellow, and their stencils.
-        for (const y of [112, 272, 424]) { rect(c, P.a.mustard, 64, y - 1, 220, 1.6); rect(c, P.a.mustard, 64, y + 17, 220, 1.6); stencil(c, "WALKWAY", 250, y + 12, { size: 5 }); }
+        // Keep actual yellow walkway boundaries: they teach the safe route.
+        // Only the entrance needs a label; repeating tiny stencil text across
+        // each rail competes with dark collector silhouettes on phone screens.
+        for (const y of [112, 272, 424]) {
+          rect(c, P.a.mustard, 64, y - 1, 220, 1.6);
+          rect(c, P.a.mustard, 64, y + 17, 220, 1.6);
+        }
+        stencil(c, "WALKWAY", 250, 124, { size: 5 });
         // Connecting utility line: all three machines receive from one run.
         const pipe = [[64, 243], [250, 241], [160, 391]];
         for (let k = 1; k < pipe.length; k += 1) {
@@ -2171,7 +2179,7 @@
           const away = Math.max(0, (age - 600) / 800), shake = !s.reduced && age < 300 ? Math.sin(age / 20) * 2 : 0;
           const y = Math.max(gate.y + gate.h + 16, room.slamY - Math.min(age, 300) * 0.1);
           ctx.save(); ctx.globalAlpha = 1 - away;
-          A.collector(ctx, room.slamX + shake - away * 40, y + away * 50, { face: away > 0 ? -1 : 1, state: away > 0 ? "run" : "slam", bob: 0, t });
+          A.collector(ctx, room.slamX + shake - away * 40, y + away * 50, { id: "hall-runner", face: away > 0 ? -1 : 1, state: away > 0 ? "run" : "slam", bob: 0, t });
           ctx.restore();
         }
       }

@@ -1,0 +1,1560 @@
+[
+  {
+    "scene": "walk",
+    "state": {
+      "ui": "scene",
+      "panelKind": "",
+      "holds": [],
+      "unsaved": false,
+      "shell": "open",
+      "lastOutcome": {
+        "status": "committed",
+        "rewardApplied": false,
+        "duplicateReward": false,
+        "backupSynced": true,
+        "reason": ""
+      },
+      "scene": {
+        "id": "opening:parked",
+        "waiting": "time",
+        "control": false
+      },
+      "choice": null,
+      "settings": {
+        "assist": false,
+        "textSpeed": "normal"
+      },
+      "npcs": [
+        {
+          "id": "you-seat",
+          "x": 157,
+          "y": 244,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "keeper",
+          "x": 110,
+          "y": 187,
+          "visible": true,
+          "state": "walk",
+          "face": -1
+        }
+      ],
+      "pose": "press-glass",
+      "sim": {
+        "t": 9566.666666666677,
+        "roomId": "car",
+        "phase": "play",
+        "assist": false,
+        "flags": {
+          "youGone": true
+        },
+        "edges": {
+          "speed": 1.023,
+          "power": 1.045,
+          "instinct": 1.033,
+          "stamina": 0.95
+        },
+        "zones": [],
+        "player": {
+          "x": 203,
+          "y": 252,
+          "flame": 5,
+          "act": null,
+          "fx": -1,
+          "fy": -0.4,
+          "attacks": 0,
+          "tuckReadyAt": 0,
+          "leashed": false
+        },
+        "enemies": []
+      },
+      "data": {
+        "settings": {
+          "assist": false,
+          "textSpeed": "normal"
+        },
+        "campaign": {
+          "id": "threshold-ini5qcycmv",
+          "kind": "proof",
+          "contentRevision": "threshold-v4",
+          "petId": "PET-994B6F2B40E0",
+          "petName": "MOSSY",
+          "status": "active",
+          "chapterId": "threshold"
+        },
+        "world": {
+          "visitedRooms": [
+            "car"
+          ],
+          "openedShortcuts": [],
+          "durableRoomFlags": {},
+          "defeatedEncounters": []
+        },
+        "story": {
+          "facts": {},
+          "choices": {},
+          "committedSceneBeats": [],
+          "resumeScene": null
+        },
+        "npcs": {
+          "latch": {
+            "state": "unmet",
+            "locationAnchor": null,
+            "evidence": []
+          }
+        },
+        "inventory": {
+          "knownLocalItems": []
+        },
+        "checkpoint": {
+          "hearthId": null,
+          "roomId": null,
+          "spawnAnchorId": null
+        },
+        "continuation": {
+          "roomId": "car",
+          "safeAnchorId": "seat",
+          "roomEntryFlame": 5,
+          "resumeKind": "opening"
+        },
+        "legProfile": {
+          "edges": {
+            "speed": 1.023,
+            "power": 1.045,
+            "instinct": 1.033,
+            "stamina": 0.95
+          },
+          "bondBand": "familiar",
+          "cues": {
+            "favoriteFoodId": "crumbs",
+            "favoriteGameId": "rush"
+          }
+        },
+        "journal": {
+          "discoveredEntryIds": []
+        },
+        "pendingRewards": [],
+        "proofComplete": false,
+        "storyComplete": false
+      },
+      "petId": "PET-994B6F2B40E0",
+      "actorMarkup": 1813,
+      "dialogue": null,
+      "barks": [],
+      "depth": {
+        "mood": null,
+        "danger": 0,
+        "home": false,
+        "hush": null,
+        "noticed": [],
+        "beckonAt": null,
+        "firstLookAt": null,
+        "still": 11932.868,
+        "facing": {
+          "x": -1,
+          "y": -0.4
+        },
+        "actors": [
+          {
+            "id": "keeper",
+            "state": "walk",
+            "face": -1
+          }
+        ]
+      },
+      "sceneTime": 86932.86799999987,
+      "silent": false,
+      "fade": 0,
+      "impactAt": null,
+      "music": "dungeon-silence",
+      "transient": {
+        "youGone": true
+      },
+      "comic": null,
+      "objective": null,
+      "lightScale": 1,
+      "actorLight": 1,
+      "thought": null,
+      "opening": {
+        "phase": "leaving",
+        "reactions": [
+          "window"
+        ],
+        "dome": 1,
+        "parkedAt": 4033.2679999999996,
+        "youOutside": false,
+        "hiding": false
+      },
+      "escape": null,
+      "log": [
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:parked"
+        }
+      ]
+    }
+  },
+  {
+    "scene": "door",
+    "state": {
+      "ui": "scene",
+      "panelKind": "",
+      "holds": [],
+      "unsaved": false,
+      "shell": "open",
+      "lastOutcome": {
+        "status": "committed",
+        "rewardApplied": false,
+        "duplicateReward": false,
+        "backupSynced": true,
+        "reason": ""
+      },
+      "scene": {
+        "id": "opening:parked",
+        "waiting": "time",
+        "control": false
+      },
+      "choice": null,
+      "settings": {
+        "assist": false,
+        "textSpeed": "normal"
+      },
+      "npcs": [
+        {
+          "id": "you-seat",
+          "x": 157,
+          "y": 244,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "keeper",
+          "x": 163,
+          "y": 108,
+          "visible": true,
+          "state": "idle",
+          "face": 1
+        }
+      ],
+      "pose": "press-glass",
+      "sim": {
+        "t": 9566.666666666677,
+        "roomId": "car",
+        "phase": "play",
+        "assist": false,
+        "flags": {
+          "youGone": true
+        },
+        "edges": {
+          "speed": 1.023,
+          "power": 1.045,
+          "instinct": 1.033,
+          "stamina": 0.95
+        },
+        "zones": [],
+        "player": {
+          "x": 203,
+          "y": 252,
+          "flame": 5,
+          "act": null,
+          "fx": 0,
+          "fy": -1,
+          "attacks": 0,
+          "tuckReadyAt": 0,
+          "leashed": false
+        },
+        "enemies": []
+      },
+      "data": {
+        "settings": {
+          "assist": false,
+          "textSpeed": "normal"
+        },
+        "campaign": {
+          "id": "threshold-ini5qcycmv",
+          "kind": "proof",
+          "contentRevision": "threshold-v4",
+          "petId": "PET-994B6F2B40E0",
+          "petName": "MOSSY",
+          "status": "active",
+          "chapterId": "threshold"
+        },
+        "world": {
+          "visitedRooms": [
+            "car"
+          ],
+          "openedShortcuts": [],
+          "durableRoomFlags": {},
+          "defeatedEncounters": []
+        },
+        "story": {
+          "facts": {},
+          "choices": {},
+          "committedSceneBeats": [],
+          "resumeScene": null
+        },
+        "npcs": {
+          "latch": {
+            "state": "unmet",
+            "locationAnchor": null,
+            "evidence": []
+          }
+        },
+        "inventory": {
+          "knownLocalItems": []
+        },
+        "checkpoint": {
+          "hearthId": null,
+          "roomId": null,
+          "spawnAnchorId": null
+        },
+        "continuation": {
+          "roomId": "car",
+          "safeAnchorId": "seat",
+          "roomEntryFlame": 5,
+          "resumeKind": "opening"
+        },
+        "legProfile": {
+          "edges": {
+            "speed": 1.023,
+            "power": 1.045,
+            "instinct": 1.033,
+            "stamina": 0.95
+          },
+          "bondBand": "familiar",
+          "cues": {
+            "favoriteFoodId": "crumbs",
+            "favoriteGameId": "rush"
+          }
+        },
+        "journal": {
+          "discoveredEntryIds": []
+        },
+        "pendingRewards": [],
+        "proofComplete": false,
+        "storyComplete": false
+      },
+      "petId": "PET-994B6F2B40E0",
+      "actorMarkup": 1813,
+      "dialogue": null,
+      "barks": [],
+      "depth": {
+        "mood": null,
+        "danger": 0,
+        "home": false,
+        "hush": null,
+        "noticed": [],
+        "beckonAt": null,
+        "firstLookAt": null,
+        "still": 12416.268,
+        "facing": {
+          "x": 0,
+          "y": -1
+        },
+        "actors": [
+          {
+            "id": "keeper",
+            "state": "idle",
+            "face": 1
+          }
+        ]
+      },
+      "sceneTime": 89816.26799999988,
+      "silent": false,
+      "fade": 0,
+      "impactAt": null,
+      "music": "dungeon-silence",
+      "transient": {
+        "youGone": true
+      },
+      "comic": null,
+      "objective": null,
+      "lightScale": 1,
+      "actorLight": 1,
+      "thought": null,
+      "opening": {
+        "phase": "leaving",
+        "reactions": [
+          "window"
+        ],
+        "dome": 1,
+        "parkedAt": 4033.2679999999996,
+        "youOutside": false,
+        "hiding": false
+      },
+      "escape": null,
+      "log": [
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:parked"
+        }
+      ]
+    }
+  },
+  {
+    "scene": "window",
+    "state": {
+      "ui": "play",
+      "panelKind": "",
+      "holds": [],
+      "unsaved": false,
+      "shell": "open",
+      "lastOutcome": {
+        "status": "committed",
+        "rewardApplied": false,
+        "duplicateReward": false,
+        "backupSynced": true,
+        "reason": ""
+      },
+      "scene": {
+        "id": "opening:waiting",
+        "waiting": "pred",
+        "control": true
+      },
+      "choice": null,
+      "settings": {
+        "assist": false,
+        "textSpeed": "normal"
+      },
+      "npcs": [
+        {
+          "id": "you-seat",
+          "x": 157,
+          "y": 244,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "keeper",
+          "x": 176,
+          "y": 92,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        }
+      ],
+      "pose": null,
+      "sim": {
+        "t": 9683.33333333334,
+        "roomId": "car",
+        "phase": "play",
+        "assist": false,
+        "flags": {
+          "youGone": true
+        },
+        "edges": {
+          "speed": 1.023,
+          "power": 1.045,
+          "instinct": 1.033,
+          "stamina": 0.95
+        },
+        "zones": [],
+        "player": {
+          "x": 203,
+          "y": 252,
+          "flame": 5,
+          "act": null,
+          "fx": 0,
+          "fy": -1,
+          "attacks": 0,
+          "tuckReadyAt": 0,
+          "leashed": false
+        },
+        "enemies": []
+      },
+      "data": {
+        "settings": {
+          "assist": false,
+          "textSpeed": "normal"
+        },
+        "campaign": {
+          "id": "threshold-ini5qcycmv",
+          "kind": "proof",
+          "contentRevision": "threshold-v4",
+          "petId": "PET-994B6F2B40E0",
+          "petName": "MOSSY",
+          "status": "active",
+          "chapterId": "threshold"
+        },
+        "world": {
+          "visitedRooms": [
+            "car"
+          ],
+          "openedShortcuts": [],
+          "durableRoomFlags": {},
+          "defeatedEncounters": []
+        },
+        "story": {
+          "facts": {},
+          "choices": {},
+          "committedSceneBeats": [
+            "opening:left"
+          ],
+          "resumeScene": null
+        },
+        "npcs": {
+          "latch": {
+            "state": "unmet",
+            "locationAnchor": null,
+            "evidence": []
+          }
+        },
+        "inventory": {
+          "knownLocalItems": []
+        },
+        "checkpoint": {
+          "hearthId": null,
+          "roomId": null,
+          "spawnAnchorId": null
+        },
+        "continuation": {
+          "roomId": "car",
+          "safeAnchorId": "seat",
+          "roomEntryFlame": 5,
+          "resumeKind": "opening"
+        },
+        "legProfile": {
+          "edges": {
+            "speed": 1.023,
+            "power": 1.045,
+            "instinct": 1.033,
+            "stamina": 0.95
+          },
+          "bondBand": "familiar",
+          "cues": {
+            "favoriteFoodId": "crumbs",
+            "favoriteGameId": "rush"
+          }
+        },
+        "journal": {
+          "discoveredEntryIds": []
+        },
+        "pendingRewards": [],
+        "proofComplete": false,
+        "storyComplete": false
+      },
+      "petId": "PET-994B6F2B40E0",
+      "actorMarkup": 1813,
+      "dialogue": null,
+      "barks": [],
+      "depth": {
+        "mood": null,
+        "danger": 0,
+        "home": false,
+        "hush": null,
+        "noticed": [],
+        "beckonAt": null,
+        "firstLookAt": null,
+        "still": 12882.768,
+        "facing": {
+          "x": 0,
+          "y": -1
+        },
+        "actors": []
+      },
+      "sceneTime": 92482.76799999988,
+      "silent": false,
+      "fade": 0,
+      "impactAt": null,
+      "music": "dungeon-silence",
+      "transient": {
+        "youGone": true
+      },
+      "comic": null,
+      "objective": "WAIT FOR YOU",
+      "lightScale": 1,
+      "actorLight": 1,
+      "thought": null,
+      "opening": {
+        "phase": "waiting",
+        "reactions": [
+          "window"
+        ],
+        "dome": 1,
+        "seenYou": false,
+        "waitStart": 91449.56799999987,
+        "parkedAt": 4033.2679999999996,
+        "youOutside": false,
+        "hiding": false,
+        "domeOut": false,
+        "cartDone": false,
+        "you": {
+          "x": 139.2576404014394,
+          "visible": true,
+          "walking": true,
+          "stride": 7.34847191971212,
+          "back": true,
+          "wave": false,
+          "waveTime": 0
+        }
+      },
+      "escape": null,
+      "log": [
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:parked"
+        },
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:waiting"
+        }
+      ]
+    }
+  },
+  {
+    "scene": "reach",
+    "state": {
+      "ui": "play",
+      "panelKind": "",
+      "holds": [],
+      "unsaved": false,
+      "shell": "open",
+      "lastOutcome": {
+        "status": "committed",
+        "rewardApplied": false,
+        "duplicateReward": false,
+        "backupSynced": true,
+        "reason": ""
+      },
+      "scene": {
+        "id": "opening:waiting",
+        "waiting": "pred",
+        "control": true
+      },
+      "choice": null,
+      "settings": {
+        "assist": false,
+        "textSpeed": "normal"
+      },
+      "npcs": [
+        {
+          "id": "you-seat",
+          "x": 157,
+          "y": 244,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "keeper",
+          "x": 176,
+          "y": 92,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "cart",
+          "x": -50,
+          "y": 126,
+          "visible": true,
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "van",
+          "x": 238,
+          "y": 452,
+          "visible": true,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "driver",
+          "x": 292,
+          "y": 452,
+          "visible": true,
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "x": 250,
+          "y": 260,
+          "visible": true,
+          "state": "brace",
+          "face": -1
+        },
+        {
+          "id": "hood-small",
+          "x": 272,
+          "y": 302,
+          "visible": true,
+          "state": "cup",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "x": 252,
+          "y": 286,
+          "visible": true,
+          "state": "brace",
+          "face": -1
+        }
+      ],
+      "pose": null,
+      "sim": {
+        "t": 26083.3333333338,
+        "roomId": "car",
+        "phase": "play",
+        "assist": false,
+        "flags": {
+          "youGone": true,
+          "threat": true
+        },
+        "edges": {
+          "speed": 1.023,
+          "power": 1.045,
+          "instinct": 1.033,
+          "stamina": 0.95
+        },
+        "zones": [],
+        "player": {
+          "x": 203,
+          "y": 252,
+          "flame": 5,
+          "act": null,
+          "fx": 0,
+          "fy": 1,
+          "attacks": 0,
+          "tuckReadyAt": 0,
+          "leashed": false
+        },
+        "enemies": []
+      },
+      "data": {
+        "settings": {
+          "assist": false,
+          "textSpeed": "normal"
+        },
+        "campaign": {
+          "id": "threshold-ini5qcycmv",
+          "kind": "proof",
+          "contentRevision": "threshold-v4",
+          "petId": "PET-994B6F2B40E0",
+          "petName": "MOSSY",
+          "status": "active",
+          "chapterId": "threshold"
+        },
+        "world": {
+          "visitedRooms": [
+            "car"
+          ],
+          "openedShortcuts": [],
+          "durableRoomFlags": {},
+          "defeatedEncounters": []
+        },
+        "story": {
+          "facts": {},
+          "choices": {},
+          "committedSceneBeats": [
+            "opening:left"
+          ],
+          "resumeScene": null
+        },
+        "npcs": {
+          "latch": {
+            "state": "unmet",
+            "locationAnchor": null,
+            "evidence": []
+          }
+        },
+        "inventory": {
+          "knownLocalItems": []
+        },
+        "checkpoint": {
+          "hearthId": null,
+          "roomId": null,
+          "spawnAnchorId": null
+        },
+        "continuation": {
+          "roomId": "car",
+          "safeAnchorId": "seat",
+          "roomEntryFlame": 5,
+          "resumeKind": "opening"
+        },
+        "legProfile": {
+          "edges": {
+            "speed": 1.023,
+            "power": 1.045,
+            "instinct": 1.033,
+            "stamina": 0.95
+          },
+          "bondBand": "familiar",
+          "cues": {
+            "favoriteFoodId": "crumbs",
+            "favoriteGameId": "rush"
+          }
+        },
+        "journal": {
+          "discoveredEntryIds": []
+        },
+        "pendingRewards": [],
+        "proofComplete": false,
+        "storyComplete": false
+      },
+      "petId": "PET-994B6F2B40E0",
+      "actorMarkup": 1813,
+      "dialogue": null,
+      "barks": [],
+      "depth": {
+        "mood": null,
+        "danger": 0,
+        "home": false,
+        "hush": null,
+        "noticed": [],
+        "beckonAt": null,
+        "firstLookAt": null,
+        "still": 29282.168,
+        "facing": {
+          "x": 0,
+          "y": 1
+        },
+        "actors": [
+          {
+            "id": "cart",
+            "state": "idle",
+            "face": -1
+          },
+          {
+            "id": "van",
+            "state": "idle",
+            "face": 1
+          },
+          {
+            "id": "driver",
+            "state": "idle",
+            "face": -1
+          },
+          {
+            "id": "hood-tall",
+            "state": "brace",
+            "face": -1
+          },
+          {
+            "id": "hood-small",
+            "state": "cup",
+            "face": 1
+          },
+          {
+            "id": "hood-cap",
+            "state": "brace",
+            "face": -1
+          }
+        ]
+      },
+      "sceneTime": 211082.06800000367,
+      "silent": false,
+      "fade": 0,
+      "impactAt": null,
+      "music": "dungeon-silence",
+      "transient": {
+        "youGone": true,
+        "threat": true
+      },
+      "comic": null,
+      "objective": null,
+      "lightScale": 1,
+      "actorLight": 1,
+      "thought": null,
+      "opening": {
+        "phase": "taken",
+        "reactions": [
+          "window"
+        ],
+        "dome": 0,
+        "seenYou": false,
+        "waitStart": 91449.56799999987,
+        "parkedAt": 4033.2679999999996,
+        "sweepAt": 185548.8680000022,
+        "vanParked": 188548.86800000243,
+        "storeCheckAt": 197015.46800000282,
+        "doorTeamAt": 208548.76800000345,
+        "youOutside": false,
+        "tapAt": 207848.7680000034,
+        "passengerDoor": 209398.76800000353,
+        "flares": 0,
+        "hiding": false,
+        "domeOut": true,
+        "cartDone": true,
+        "you": {
+          "x": 292,
+          "visible": true,
+          "back": true,
+          "counter": true,
+          "wave": false,
+          "waveTime": 0
+        },
+        "hands": {
+          "x": 236,
+          "y": 248
+        }
+      },
+      "escape": null,
+      "log": [
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:parked"
+        },
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:waiting"
+        }
+      ]
+    }
+  },
+  {
+    "scene": "comic",
+    "state": {
+      "ui": "scene",
+      "panelKind": "",
+      "holds": [],
+      "unsaved": false,
+      "shell": "open",
+      "lastOutcome": {
+        "status": "committed",
+        "rewardApplied": false,
+        "duplicateReward": false,
+        "backupSynced": true,
+        "reason": ""
+      },
+      "scene": {
+        "id": "opening:waiting",
+        "waiting": "comic",
+        "control": false
+      },
+      "choice": null,
+      "settings": {
+        "assist": false,
+        "textSpeed": "normal"
+      },
+      "npcs": [
+        {
+          "id": "you-seat",
+          "x": 157,
+          "y": 244,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "keeper",
+          "x": 176,
+          "y": 92,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "cart",
+          "x": -50,
+          "y": 126,
+          "visible": true,
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "van",
+          "x": 238,
+          "y": 452,
+          "visible": true,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "driver",
+          "x": 292,
+          "y": 452,
+          "visible": true,
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "x": 250,
+          "y": 260,
+          "visible": true,
+          "state": "brace",
+          "face": -1
+        },
+        {
+          "id": "hood-small",
+          "x": 272,
+          "y": 302,
+          "visible": true,
+          "state": "cup",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "x": 252,
+          "y": 286,
+          "visible": true,
+          "state": "grab",
+          "face": -1
+        }
+      ],
+      "pose": "held",
+      "sim": {
+        "t": 26500.0000000005,
+        "roomId": "car",
+        "phase": "play",
+        "assist": false,
+        "flags": {
+          "youGone": true,
+          "threat": true
+        },
+        "edges": {
+          "speed": 1.023,
+          "power": 1.045,
+          "instinct": 1.033,
+          "stamina": 0.95
+        },
+        "zones": [],
+        "player": {
+          "x": 203,
+          "y": 252,
+          "flame": 5,
+          "act": null,
+          "fx": 0,
+          "fy": 1,
+          "attacks": 0,
+          "tuckReadyAt": 0,
+          "leashed": false
+        },
+        "enemies": []
+      },
+      "data": {
+        "settings": {
+          "assist": false,
+          "textSpeed": "normal"
+        },
+        "campaign": {
+          "id": "threshold-ini5qcycmv",
+          "kind": "proof",
+          "contentRevision": "threshold-v4",
+          "petId": "PET-994B6F2B40E0",
+          "petName": "MOSSY",
+          "status": "active",
+          "chapterId": "threshold"
+        },
+        "world": {
+          "visitedRooms": [
+            "car"
+          ],
+          "openedShortcuts": [],
+          "durableRoomFlags": {},
+          "defeatedEncounters": []
+        },
+        "story": {
+          "facts": {},
+          "choices": {},
+          "committedSceneBeats": [
+            "opening:left",
+            "comic:grab"
+          ],
+          "resumeScene": null
+        },
+        "npcs": {
+          "latch": {
+            "state": "unmet",
+            "locationAnchor": null,
+            "evidence": []
+          }
+        },
+        "inventory": {
+          "knownLocalItems": []
+        },
+        "checkpoint": {
+          "hearthId": null,
+          "roomId": null,
+          "spawnAnchorId": null
+        },
+        "continuation": {
+          "roomId": "car",
+          "safeAnchorId": "seat",
+          "roomEntryFlame": 5,
+          "resumeKind": "opening"
+        },
+        "legProfile": {
+          "edges": {
+            "speed": 1.023,
+            "power": 1.045,
+            "instinct": 1.033,
+            "stamina": 0.95
+          },
+          "bondBand": "familiar",
+          "cues": {
+            "favoriteFoodId": "crumbs",
+            "favoriteGameId": "rush"
+          }
+        },
+        "journal": {
+          "discoveredEntryIds": []
+        },
+        "pendingRewards": [],
+        "proofComplete": false,
+        "storyComplete": false
+      },
+      "petId": "PET-994B6F2B40E0",
+      "actorMarkup": 1813,
+      "dialogue": null,
+      "barks": [],
+      "depth": {
+        "mood": null,
+        "danger": 0,
+        "home": false,
+        "hush": null,
+        "noticed": [],
+        "beckonAt": null,
+        "firstLookAt": null,
+        "still": 29715.468,
+        "facing": {
+          "x": 0,
+          "y": 1
+        },
+        "actors": [
+          {
+            "id": "cart",
+            "state": "idle",
+            "face": -1
+          },
+          {
+            "id": "van",
+            "state": "idle",
+            "face": 1
+          },
+          {
+            "id": "driver",
+            "state": "idle",
+            "face": -1
+          },
+          {
+            "id": "hood-tall",
+            "state": "brace",
+            "face": -1
+          },
+          {
+            "id": "hood-small",
+            "state": "cup",
+            "face": 1
+          },
+          {
+            "id": "hood-cap",
+            "state": "grab",
+            "face": -1
+          }
+        ]
+      },
+      "sceneTime": 212998.7680000039,
+      "silent": false,
+      "fade": 0,
+      "impactAt": null,
+      "music": "dungeon-silence",
+      "transient": {
+        "youGone": true,
+        "threat": true
+      },
+      "comic": "grab",
+      "objective": null,
+      "lightScale": 1,
+      "actorLight": 1,
+      "thought": null,
+      "opening": {
+        "phase": "taken",
+        "reactions": [
+          "window"
+        ],
+        "dome": 0,
+        "seenYou": false,
+        "waitStart": 91449.56799999987,
+        "parkedAt": 4033.2679999999996,
+        "sweepAt": 185548.8680000022,
+        "vanParked": 188548.86800000243,
+        "storeCheckAt": 197015.46800000282,
+        "doorTeamAt": 208548.76800000345,
+        "youOutside": false,
+        "tapAt": 207848.7680000034,
+        "passengerDoor": 209398.76800000353,
+        "grabbed": true,
+        "carryAt": 212998.7680000039,
+        "flares": 0,
+        "hiding": false,
+        "domeOut": true,
+        "cartDone": true,
+        "you": {
+          "x": 292,
+          "visible": true,
+          "back": true,
+          "counter": true,
+          "wave": false,
+          "waveTime": 0
+        },
+        "hands": {
+          "x": 209,
+          "y": 242
+        }
+      },
+      "escape": null,
+      "log": [
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:parked"
+        },
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:waiting"
+        },
+        {
+          "commit": "committed",
+          "reward": false
+        }
+      ]
+    }
+  },
+  {
+    "scene": "grip",
+    "state": {
+      "ui": "scene",
+      "panelKind": "",
+      "holds": [],
+      "unsaved": false,
+      "shell": "open",
+      "lastOutcome": {
+        "status": "committed",
+        "rewardApplied": false,
+        "duplicateReward": false,
+        "backupSynced": true,
+        "reason": ""
+      },
+      "scene": {
+        "id": "opening:waiting",
+        "waiting": "time",
+        "control": false
+      },
+      "choice": null,
+      "settings": {
+        "assist": false,
+        "textSpeed": "normal"
+      },
+      "npcs": [
+        {
+          "id": "you-seat",
+          "x": 157,
+          "y": 244,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "keeper",
+          "x": 176,
+          "y": 92,
+          "visible": false,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "cart",
+          "x": -50,
+          "y": 126,
+          "visible": true,
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "van",
+          "x": 238,
+          "y": 452,
+          "visible": true,
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "driver",
+          "x": 292,
+          "y": 452,
+          "visible": true,
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "x": 250,
+          "y": 260,
+          "visible": true,
+          "state": "brace",
+          "face": -1
+        },
+        {
+          "id": "hood-small",
+          "x": 272,
+          "y": 302,
+          "visible": true,
+          "state": "cup",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "x": 252,
+          "y": 286,
+          "visible": true,
+          "state": "grab",
+          "face": -1
+        }
+      ],
+      "pose": "held",
+      "sim": {
+        "t": 26500.0000000005,
+        "roomId": "car",
+        "phase": "play",
+        "assist": false,
+        "flags": {
+          "youGone": true,
+          "threat": true
+        },
+        "edges": {
+          "speed": 1.023,
+          "power": 1.045,
+          "instinct": 1.033,
+          "stamina": 0.95
+        },
+        "zones": [],
+        "player": {
+          "x": 203,
+          "y": 252,
+          "flame": 5,
+          "act": null,
+          "fx": 0,
+          "fy": 1,
+          "attacks": 0,
+          "tuckReadyAt": 0,
+          "leashed": false
+        },
+        "enemies": []
+      },
+      "data": {
+        "settings": {
+          "assist": false,
+          "textSpeed": "normal"
+        },
+        "campaign": {
+          "id": "threshold-ini5qcycmv",
+          "kind": "proof",
+          "contentRevision": "threshold-v4",
+          "petId": "PET-994B6F2B40E0",
+          "petName": "MOSSY",
+          "status": "active",
+          "chapterId": "threshold"
+        },
+        "world": {
+          "visitedRooms": [
+            "car"
+          ],
+          "openedShortcuts": [],
+          "durableRoomFlags": {},
+          "defeatedEncounters": []
+        },
+        "story": {
+          "facts": {},
+          "choices": {},
+          "committedSceneBeats": [
+            "opening:left",
+            "comic:grab"
+          ],
+          "resumeScene": null
+        },
+        "npcs": {
+          "latch": {
+            "state": "unmet",
+            "locationAnchor": null,
+            "evidence": []
+          }
+        },
+        "inventory": {
+          "knownLocalItems": []
+        },
+        "checkpoint": {
+          "hearthId": null,
+          "roomId": null,
+          "spawnAnchorId": null
+        },
+        "continuation": {
+          "roomId": "car",
+          "safeAnchorId": "seat",
+          "roomEntryFlame": 5,
+          "resumeKind": "opening"
+        },
+        "legProfile": {
+          "edges": {
+            "speed": 1.023,
+            "power": 1.045,
+            "instinct": 1.033,
+            "stamina": 0.95
+          },
+          "bondBand": "familiar",
+          "cues": {
+            "favoriteFoodId": "crumbs",
+            "favoriteGameId": "rush"
+          }
+        },
+        "journal": {
+          "discoveredEntryIds": []
+        },
+        "pendingRewards": [],
+        "proofComplete": false,
+        "storyComplete": false
+      },
+      "petId": "PET-994B6F2B40E0",
+      "actorMarkup": 1813,
+      "dialogue": null,
+      "barks": [],
+      "depth": {
+        "mood": null,
+        "danger": 0,
+        "home": false,
+        "hush": null,
+        "noticed": [],
+        "beckonAt": null,
+        "firstLookAt": null,
+        "still": 30465.468,
+        "facing": {
+          "x": 0,
+          "y": 1
+        },
+        "actors": [
+          {
+            "id": "cart",
+            "state": "idle",
+            "face": -1
+          },
+          {
+            "id": "van",
+            "state": "idle",
+            "face": 1
+          },
+          {
+            "id": "driver",
+            "state": "idle",
+            "face": -1
+          },
+          {
+            "id": "hood-tall",
+            "state": "brace",
+            "face": -1
+          },
+          {
+            "id": "hood-small",
+            "state": "cup",
+            "face": 1
+          },
+          {
+            "id": "hood-cap",
+            "state": "grab",
+            "face": -1
+          }
+        ]
+      },
+      "sceneTime": 214032.16800000402,
+      "silent": false,
+      "fade": 0,
+      "impactAt": null,
+      "music": "dungeon-silence",
+      "transient": {
+        "youGone": true,
+        "threat": true
+      },
+      "comic": null,
+      "objective": null,
+      "lightScale": 1,
+      "actorLight": 1,
+      "thought": null,
+      "opening": {
+        "phase": "taken",
+        "reactions": [
+          "window"
+        ],
+        "dome": 0,
+        "seenYou": false,
+        "waitStart": 91449.56799999987,
+        "parkedAt": 4033.2679999999996,
+        "sweepAt": 185548.8680000022,
+        "vanParked": 188548.86800000243,
+        "storeCheckAt": 197015.46800000282,
+        "doorTeamAt": 208548.76800000345,
+        "youOutside": false,
+        "tapAt": 207848.7680000034,
+        "passengerDoor": 209398.76800000353,
+        "grabbed": true,
+        "carryAt": 212998.7680000039,
+        "youCounter": true,
+        "flares": 0,
+        "hiding": false,
+        "domeOut": true,
+        "cartDone": true,
+        "you": {
+          "x": 292,
+          "visible": true,
+          "back": true,
+          "counter": true,
+          "wave": false,
+          "waveTime": 0
+        },
+        "hands": {
+          "x": 209,
+          "y": 242
+        }
+      },
+      "escape": null,
+      "log": [
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:parked"
+        },
+        {
+          "commit": "committed",
+          "reward": false
+        },
+        {
+          "scene": "opening:waiting"
+        },
+        {
+          "commit": "committed",
+          "reward": false
+        }
+      ]
+    }
+  }
+]

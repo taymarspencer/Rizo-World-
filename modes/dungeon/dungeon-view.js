@@ -42,6 +42,111 @@
   const callerSymbol = () => `<span class="dungeon-caller-glass"><svg class="dungeon-caller-symbol" data-caller-symbol="CALLER_SYMBOL" data-mark="boss" viewBox="0 0 40 40" aria-hidden="true">${Art.markSvg("#eef5f9", "#ffffff", 2)}</svg><i class="dungeon-drop d1"></i><i class="dungeon-drop d2"></i><i class="dungeon-drop d3"></i><i class="dungeon-glare"></i></span>`;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
+  // Presentation-only stage directions. Actors follow the actual dialogue,
+  // nearby speakers and their assigned jobs; no scripted telepathy, hidden
+  // player tracking, or changes to collisions/enemy logic. Pure so QA can
+  // verify the priority of every response without booting the whole scene.
+  const bounded = n => Math.max(-1, Math.min(1, n));
+  function performanceForActor(actor, frame = {}) {
+    const { player, actors = [], barks = [], speaker = "",
+      reduced = false, flare = false } = frame;
+    const still = { look: { x: 0, y: 0 }, addressed: false,
+      listening: false, startled: false, cue: "job" };
+    if (!actor || actor.visible === false || !player) return still;
+    const near = (target, radius) => target && Math.hypot(target.x - actor.x, target.y - actor.y) <= radius;
+    const liveSpeech = barks.find(line => line.id === actor.id);
+    const reading = speaker === actor.id ||
+      (actor.kind === "keeper" && speaker === "you");
+    const speakingNow = Boolean(liveSpeech || reading);
+    const hood = ["hood-tall", "hood-small", "hood-cap"].includes(actor.kind);
+    // The observer looks at the actual current speaker, not always at Rizo.
+    // This is only relevant when close and available, never during travel.
+    const conversation = [...barks].reverse().find(line => line.id !== actor.id &&
+      actors.some(other => other.id === line.id && other.visible !== false &&
+        near(other, 150)));
+    // Portrait dialogue is even more important than ambient chatter. Everyone
+    // else in the room can acknowledge its *real* speaker while Rizo reads.
+    // Otherwise actors become mannequins the moment a dialogue box opens.
+    const portraitSpeaker = speaker && actors.find(other =>
+      other.visible !== false && other.id !== actor.id &&
+      (other.id === speaker || (speaker === "you" && other.kind === "keeper")) &&
+      near(other, 150));
+    const other = portraitSpeaker ||
+      (conversation && actors.find(entry => entry.id === conversation.id));
+    let target = null, cue = "job", addressed = false, listening = false;
+    const threatened = hood && flare && near(player, 125);
+    if (threatened) { target = player; cue = "flinch"; }
+    else if (actor.state === "chase" && near(player, 160)) {
+      target = player; cue = "pursue";
+    } else if (speakingNow && near(player, 195)) {
+      target = player; cue = "address"; addressed = true;
+    } else if (!actor.walking && other) {
+      target = other; cue = "listen"; listening = true;
+    } else if (actor.walking) {
+      const dest = Number.isFinite(actor.toX) && Number.isFinite(actor.toY)
+        ? { x: actor.toX, y: actor.toY } : null;
+      if (dest && !near(dest, 6)) { target = dest; cue = "travel"; }
+    }
+    // Their resting pose belongs to their job. Stop directing the eyes with
+    // artificial idle timers; we only animate attention for actual events.
+    if (reduced && cue === "travel") {
+      target = null; cue = "job";
+    }
+    // Actual heads are not at characters' feet. When two NPCs speak, they
+    // meet each other's eyes; when they address small Rizo, they naturally
+    // glance down to his flame. Movement still follows the destination.
+    const eyeHeight = (kind) => Art.HEIGHT?.[kind] ?? 70;
+    const targetIsCast = target && target !== player && cue === "listen";
+    const lookY = cue === "travel" ? target?.y :
+      targetIsCast ? target.y - eyeHeight(target.kind) * .72 :
+      target ? target.y - 11 : 0;
+    const originY = cue === "travel" ? actor.y : actor.y - eyeHeight(actor.kind) * .72;
+    return {
+      look: target ? {
+        x: bounded((target.x - actor.x) / 42) * (actor.face || 1),
+        y: bounded((lookY - originY) / 65)
+      } : still.look,
+      addressed, listening, startled: Boolean(threatened), cue
+    };
+  }
+
+  // A character who has left the shot must not draw, illuminate, catch the
+  // player's gaze or anchor a speech bubble. Keep one common rule for all of
+  // those presentation paths, rather than checking it inconsistently.
+  const visibleActors = actors => (actors || []).filter(actor => actor && actor.visible !== false);
+
+  // World sprites can receive a short CSS optical camera push. Speech and HUD
+  // stay outside that plane so their text remains legible. Project only
+  // speech-anchor coordinates through the *current* transformed bounds,
+  // including the easing frames; don't let bubbles jump ahead of a zoom.
+  const projectStagePoint = (point, stage, screen, cssWidth) => {
+    const outerScale = screen.width / Math.max(1, cssWidth);
+    const zoom = stage.width / Math.max(1, screen.width);
+    return [
+      (stage.left - screen.left) / Math.max(.001, outerScale) + point[0] * zoom,
+      (stage.top - screen.top) / Math.max(.001, outerScale) + point[1] * zoom
+    ];
+  };
+
+  // Rendering tracks actual footsteps separately from pursuit AI. No global
+  // clock can animate a planted foot, and a scripted offscreen teleport is
+  // not mistaken for twenty steps of running.
+  function nextRunnerMotion(was, runner, simTime, phase = "play") {
+    const continuous = was && simTime >= was.t && runner.state === "run";
+    const traveledRaw = continuous ? Math.hypot(runner.x - was.x, runner.y - was.y) : 0;
+    const traveled = traveledRaw > 28 ? 0 : traveledRaw;
+    const lastMoved = traveled > .15 ? simTime : continuous ? was.lastMoved : -Infinity;
+    const moving = runner.state === "run" && phase === "play" &&
+      simTime - lastMoved < 110;
+    const stride = (continuous ? was.stride : 0) + traveled / 7;
+    return { x: runner.x, y: runner.y, t: simTime, lastMoved, stride, moving };
+  }
+
+  // Distance-driven leg cycle, shared by authored travel and chase poses.
+  // Replaying the same path at a different frame rate produces the same feet.
+  const footfall = (actor, reduced = false) =>
+    actor?.walking && !reduced ? Math.sin((actor.stride || 0) * 1.9) * 2 : 0;
+
   function deviceMarkup() {
     return `<div class="dungeon-device" data-phase="enter" data-shell="locked">
   <div class="dungeon-shell">
@@ -49,9 +154,11 @@
     <div class="dungeon-bezel">
       <div class="dungeon-slot">
       <div class="dungeon-screen" aria-label="Rizo Dungeon screen">
-        <canvas class="dungeon-canvas" aria-hidden="true"></canvas>
-        <div class="dungeon-actors" aria-hidden="true"><div class="dungeon-actor"><div class="dungeon-pose"></div></div></div>
-        <canvas class="dungeon-front" aria-hidden="true"></canvas>
+        <div class="dungeon-worldstage" aria-hidden="true">
+          <canvas class="dungeon-canvas"></canvas>
+          <div class="dungeon-actors"><div class="dungeon-actor"><div class="dungeon-pose"></div></div></div>
+          <canvas class="dungeon-front"></canvas>
+        </div>
         <div class="dungeon-barks" aria-live="polite"></div>
         <div class="dungeon-thought" hidden aria-live="polite"></div>
         <div class="dungeon-hud" aria-hidden="true"><span class="dungeon-flame"></span><b class="dungeon-room-name"></b></div>
@@ -62,6 +169,24 @@
         <div class="dungeon-dialogue" data-dungeon-ui hidden role="dialog" aria-live="polite"><div class="dungeon-portrait" aria-hidden="true"></div><div class="dungeon-speech"><b class="dungeon-speaker"></b><p class="dungeon-line"><span class="dungeon-line-text"></span></p></div><span class="dungeon-more" aria-hidden="true"></span></div>
         <div class="dungeon-choice" data-dungeon-ui hidden role="group" aria-label="Choose"></div>
         <div class="dungeon-fade" aria-hidden="true"></div>
+        <section class="dungeon-prologue" hidden role="dialog" aria-modal="true" aria-label="A little flame — story opening">
+          <div class="dungeon-prologue-art" aria-hidden="true">
+            <i class="dungeon-prologue-night"></i>
+            <i class="dungeon-prologue-window"></i>
+            <i class="dungeon-prologue-person"></i>
+            <i class="dungeon-prologue-glass"></i>
+            <div class="dungeon-prologue-pet"></div>
+          </div>
+          <div class="dungeon-prologue-story">
+            <span class="dungeon-prologue-chapter">RIZO DUNGEON · BEFORE THE RAIN</span>
+            <p class="dungeon-prologue-line"></p>
+            <span class="dungeon-prologue-progress" aria-hidden="true"></span>
+            <div class="dungeon-prologue-actions">
+              <button type="button" data-prologue-action="skip" aria-label="Skip introduction">SKIP</button>
+              <button type="button" data-prologue-action="next" class="primary">CONTINUE ▸</button>
+            </div>
+          </div>
+        </section>
         <canvas class="dungeon-fallfx" aria-hidden="true"></canvas>
         <div class="dungeon-phone" hidden aria-hidden="true"></div>
         <div class="dungeon-panel" data-dungeon-ui hidden role="dialog" aria-modal="false"></div>
@@ -85,11 +210,11 @@
     arena.innerHTML = deviceMarkup();
     const $ = selector => arena.querySelector(selector);
     const el = {
-      device: $(".dungeon-device"), slot: $(".dungeon-slot"), screen: $(".dungeon-screen"), canvas: $(".dungeon-canvas"), actors: $(".dungeon-actors"),
+      device: $(".dungeon-device"), slot: $(".dungeon-slot"), screen: $(".dungeon-screen"), worldstage: $(".dungeon-worldstage"), canvas: $(".dungeon-canvas"), actors: $(".dungeon-actors"),
       actor: $(".dungeon-actor"), pose: $(".dungeon-pose"), hud: $(".dungeon-hud"), objective: $(".dungeon-objective"), flame: $(".dungeon-flame"), roomName: $(".dungeon-room-name"),
       prompt: $(".dungeon-prompt"), cue: $(".dungeon-cue"), banner: $(".dungeon-banner"), dialogue: $(".dungeon-dialogue"), line: $(".dungeon-line"), lineText: $(".dungeon-line-text"), more: $(".dungeon-more"),
       portrait: $(".dungeon-portrait"), speaker: $(".dungeon-speaker"), choice: $(".dungeon-choice"), barks: $(".dungeon-barks"),
-      fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), dpad: $(".dungeon-dpad"),
+      fade: $(".dungeon-fade"), panel: $(".dungeon-panel"), prologue: $(".dungeon-prologue"), dpad: $(".dungeon-dpad"),
       thought: $(".dungeon-thought"), phone: $(".dungeon-phone"), fallfx: $(".dungeon-fallfx"), front: $(".dungeon-front"),
       keys: { primary: $('[data-dungeon-key="primary"]'), secondary: $('[data-dungeon-key="secondary"]'), system: $('[data-dungeon-key="system"]') }
     };
@@ -100,6 +225,10 @@
     let frontLive = false;
     const metrics = { cssW: 0, cssH: 0, dpr: 1, scale: 1, viewW: CAMERA_WIDTH, viewH: 200 };
     const camera = { x: 0, y: 0, ready: false };
+    // A presentation-only camera move for a named character speaking.
+    // World, canonical Rizo and foreground props share one plane. HUD, barks
+    // and reading cards remain full-sized and tappable outside that plane.
+    let storyShot = "";
     const effects = [];
     const barkNodes = new Map();
     // Only an oversized modal card scrolls. The page and game retain their
@@ -147,6 +276,9 @@
       el.front.style.height = `${cssH}px`;
       frontLive = true;
       camera.ready = false;
+      storyShot = "";
+      el.worldstage.style.transform = "";
+      el.worldstage.style.transformOrigin = "";
       el.dialogue.dataset.placed = "";
       sizeActor();
       return true;
@@ -195,12 +327,83 @@
       // A room may ask to keep one line in view when the screen is short (the
       // car keeps the store window), as long as the Rizo still fits below it.
       if (roomGeo.cameraKeep && maxY > 0 && !peek) targetY = Math.max(0, Math.min(maxY, Math.max(py - metrics.viewH + 16, Math.min(targetY, roomGeo.cameraKeep.y))));
+      // Intake's crew stands against the north wall. Their redesigned heads
+      // extend above it; frame that opening tableau below the HUD at the
+      // same scale. Once Rizo moves south, ordinary following takes over.
+      if (roomGeo.id === "intake" && py < 260 && !peek) targetY = Math.min(targetY, -90);
       if (!camera.ready) { camera.x = targetX; camera.y = targetY; camera.ready = true; return; }
       const k = reducedMotion ? 1 : Math.min(1, dt * (peek ? 3 : 7));
       camera.x += (targetX - camera.x) * k;
       camera.y += (targetY - camera.y) * k;
     }
     const toScreen = (x, y) => [(x - camera.x) * metrics.scale, (y - camera.y) * metrics.scale];
+
+    // Let character conversations briefly carry the composition, instead of
+    // showing every story beat from the same distant room camera. This is a
+    // restrained optical push on the rendered world; simulation, hitboxes,
+    // buttons and text never scale. No cut if either actor would be cropped.
+    function directConversation(geo, pos, extras) {
+      // A scene-directed insert takes priority over automatic conversation
+      // framing. It never changes the camera scale used by game geometry or
+      // hitboxes, only the shared rendered world plane.
+      const cut = extras.cinematic && !reducedMotion &&
+        extras.room?.storyShot && extras.sceneTime < extras.room.storyShot.until
+        ? extras.room.storyShot : null;
+      if (cut) {
+        const key = `directed:${geo.id}:${cut.until}`;
+        if (storyShot !== key) {
+          storyShot = key;
+          el.worldstage.style.transformOrigin = "50% 50%";
+          el.worldstage.style.transform = `scale(${Math.max(1, Math.min(1.13, cut.zoom))})`;
+        }
+        return;
+      }
+      const id = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
+      const actor = id && !extras.peek && !reducedMotion && !extras.comic &&
+        !(extras.barks || []).length && el.choice.hidden && el.phone.hidden
+        ? visibleActors(extras.npcs).find(entry =>
+            (entry.id === id || (id === "you" && ["keeper", "you-seat"].includes(entry.kind))))
+        : null;
+      const height = actor ? (Art.HEIGHT[actor.kind] || 0) : 0;
+      // Special scenes, the Boss's radio and unnamed narration keep the wide
+      // composition. Meaningful nearby, visible exchanges get a closer shot.
+      const dist = actor ? Math.hypot(actor.x - pos.x, actor.y - pos.y) : Infinity;
+      const [sx, sy] = actor ? toScreen(actor.x, actor.y - height * .55) : [0, 0];
+      const [px, py] = toScreen(pos.x, pos.y);
+      const inside = height > 0 && dist < 205 &&
+        sx > 42 && sx < metrics.cssW - 42 &&
+        sy > 65 && sy < metrics.cssH - 98 &&
+        px > 25 && px < metrics.cssW - 25 &&
+        py > 35 && py < metrics.cssH - 35;
+      // Project both subjects through the proposed optical move. If either
+      // would be pushed under a bezel/HUD edge, keep the wider shot.
+      // In a narrow room Rizo may be close to the left bezel while Nell is
+      // across the table. Frame BOTH, not the actor alone; a small downward
+      // truck preserves the head beneath the HUD without moving gameplay.
+      const x = Math.max(38, Math.min(metrics.cssW - 38, sx * .45 + px * .55));
+      const y = Math.max(52, Math.min(metrics.cssH - 62, sy * .82 + py * .18));
+      const zoom = 1.19, pushY = 12;
+      const project = (v, origin) => origin + (v - origin) * zoom;
+      const bodyTop = toScreen(actor?.x || 0, (actor?.y || 0) - height)[1];
+      const safe = inside &&
+        project(px, x) > 23 && project(px, x) < metrics.cssW - 23 &&
+        project(sx, x) > 30 && project(sx, x) < metrics.cssW - 30 &&
+        project(bodyTop, y) + pushY > 37 &&
+        project(sy, y) + pushY < metrics.cssH - 95 &&
+        project(py, y) + pushY > 35 && project(py, y) + pushY < metrics.cssH - 30;
+      // Never re-anchor an active conversation every frame as camera easing
+      // settles; that turns a quiet shot into an unwanted tracking loop.
+      const key = safe ? `${geo.id}:${id}` : "";
+      if (key === storyShot) return;
+      storyShot = key;
+      if (!safe) {
+        el.worldstage.style.transform = "";
+        el.worldstage.style.transformOrigin = "";
+        return;
+      }
+      el.worldstage.style.transformOrigin = `${Math.round(x)}px ${Math.round(y)}px`;
+      el.worldstage.style.transform = `translate3d(0, ${pushY}px, 0) scale(${zoom})`;
+    }
 
     // ---- the cached room layer: static scenery painted once per room and layout
     const layer = { key: "", canvas: null, mx: 0, my: 0, w: 0, h: 0 };
@@ -224,12 +427,17 @@
 
     const inShelter = (geo, x, y) => (geo.shelters || []).some(rect => x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h);
     // Rain: two streak lengths on a slant, rings where it lands; never under a roof.
-    function rain(geo, time, intensity, wind = 0.25) {
+    function rain(geo, time, intensity, wind = 0.25, layer = "back") {
       if (intensity <= 0 || reducedMotion) return;
-      const count = Math.round(80 * intensity);
-      ctx.strokeStyle = P.rain; ctx.lineWidth = 0.9; ctx.lineCap = "round";
+      // Storms have depth. Most rain falls between the street and the cast;
+      // only one quarter crosses faces. The total number of streaks is unchanged.
+      // Floor ripples belong behind the actors, never pasted onto clothing.
+      const count = Math.round(80 * intensity), split = Math.ceil(count * 0.75);
+      const first = layer === "front" ? split : 0, last = layer === "front" ? count : split;
+      ctx.strokeStyle = P.rain; ctx.lineWidth = layer === "front" ? 0.65 : 0.9;
+      ctx.lineCap = "round";
       ctx.beginPath();
-      for (let index = 0; index < count; index += 1) {
+      for (let index = first; index < last; index += 1) {
         const speed = 0.42 + hash(index) * 0.2, long = index % 3 === 0 ? 12 : 7;
         const x = camera.x + ((hash(index + 9) * metrics.viewW * 1.2 + time * speed * wind) % (metrics.viewW * 1.2)) - metrics.viewW * 0.1;
         const y = camera.y + ((hash(index + 3) * (metrics.viewH + 40) + time * speed) % (metrics.viewH + 40)) - 20;
@@ -237,6 +445,7 @@
         ctx.moveTo(x, y); ctx.lineTo(x - long * wind, y - long);
       }
       ctx.stroke();
+      if (layer === "front") return;
       ctx.strokeStyle = "rgba(176,196,222,.26)"; ctx.lineWidth = 0.7;
       for (let index = 0; index < Math.round(14 * intensity); index += 1) {
         const k = ((time / 600) + hash(index + 40)) % 1;
@@ -246,18 +455,60 @@
       }
     }
 
+    // Both passes use identical weather and world positions so a storm
+    // still reads as one continuous event, not two overlapping animations.
+    function paintWeather(geo, pos, time, layer) {
+      if (geo.world && geo.theme !== "drain" && geo.theme !== "van") {
+        const worse = geo.theme === "road" ? Math.max(0, 1 - pos.y / 700) * 0.6 : 0;
+        rain(geo, time, (geo.rain || 0) + worse, 0.25 + worse * 0.4, layer);
+      } else if (geo.theme === "van") rain({ shelters: Scenery.shelterOf(geo) }, time, 0.8, 1.5, layer);
+      else if (geo.theme === "drain") rain({ shelters: [{ x: 0, y: 0, w: geo.w, h: geo.h - 12 }] }, time, 0.7, 0.6, layer);
+    }
+
     // ===== ACTORS (Art cutouts; feet at x,y) =====
-    let extrasTime = 0, lastRoom = {}, speaking = new Set(), lastBarks = [], lastNpcs = [], crewRizo = { x: 0, y: 0 };
-    const walkBob = (actor, time) => (actor.walking && !reducedMotion ? Math.sin(time / 110) * 2 : 0);
+    let extrasTime = 0, lastRoom = {}, speaking = new Set(), lastBarks = [], lastNpcs = [], lastFlare = false, crewRizo = { x: 0, y: 0 };
+    // Feet move with measured distance, not a free-running global clock.
+    // Stopping mid-step now plants the feet instead of sliding in place.
+    const walkBob = actor => footfall(actor, reducedMotion);
+    // One scale rule for scripted collectors AND the same collector as an
+    // active enemy. Otherwise the character suddenly gains 20% height on
+    // entering gameplay. Every sprite stays anchored at its original feet.
+    function drawWorldActor(kind, x, y, draw) {
+      const scale = Art.WORLD_SCALE?.[kind] ?? 1;
+      ctx.save();
+      try {
+        if (scale !== 1) {
+          ctx.translate(x, y);
+          ctx.scale(scale, scale);
+          ctx.translate(-x, -y);
+        }
+        draw();
+      } finally { ctx.restore(); }
+    }
     function paintNpc(actor, time) {
+      if (!actor || actor.visible === false) return;
       const t = reducedMotion ? 0 : time;
-      const o = { face: actor.face || 1, bob: walkBob(actor, time), t, state: actor.state, expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated };
+      const acting = performanceForActor(actor, {
+        player: crewRizo, actors: lastNpcs, barks: lastBarks,
+        speaker: !el.dialogue.hidden ? el.dialogue.dataset.speaker : "",
+        t: extrasTime, reduced: reducedMotion,
+        flare: lastFlare
+      });
+      const o = {
+        face: actor.face || 1, bob: walkBob(actor), t, state: actor.state,
+        expr: actor.expr, pinned: actor.pinned, pulling: actor.pulling, seated: actor.seated,
+        addressed: acting.addressed, listening: acting.listening,
+        look: acting.look
+      };
+      // Comics keep the authored close-up; the world and all encounter
+      // appearances share the same compact physical scale.
+      drawWorldActor(actor.kind, actor.x, actor.y, () => {
       switch (actor.kind) {
         case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0 }); break;
         case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
         case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
         case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;
-        case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, reaching: actor.kind === "hood-cap" && Boolean(lastRoom.hands), flinch: Boolean(actor.flinchUntil && extrasTime < actor.flinchUntil) }); break;
+        case "hood-tall": case "hood-small": case "hood-cap": Art.hood(ctx, actor.kind, actor.x, actor.y, { ...o, reaching: actor.kind === "hood-cap" && Boolean(lastRoom.hands), flinch: Boolean((actor.flinchUntil && extrasTime < actor.flinchUntil) || acting.startled) }); break;
         case "van-seat": case "driver-seat": case "passenger-seat": Art.seated(ctx, actor.kind, actor.x, actor.y, crewOptions(actor, t)); break;
         case "taillights": {
           // Far off they are two red points; braking, they flare.
@@ -273,9 +524,10 @@
         case "nell": Art.nell(ctx, actor.x, actor.y, o); break;
         case "orr": Art.orr(ctx, actor.x, actor.y, o); break;
         // v0.5: a collector as a figure in a scene (held at the counter by Nell).
-        case "collector": Art.collector(ctx, actor.x, actor.y, { face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor, time), t }); break;
+        case "collector": Art.collector(ctx, actor.x, actor.y, { id: actor.id, face: actor.face || 1, state: actor.state || "patrol", bob: walkBob(actor), moving: Boolean(actor.walking && !reducedMotion), stride: actor.stride || 0, t }); break;
         default: break;
       }
+      });
     }
 
     // The van crew: who each of them is looking at, as a world point. Whoever
@@ -283,13 +535,16 @@
     // talker; nobody talking, they watch Rizo (they can't help it). The
     // driver watches the road. When the phone rings, everyone looks at it;
     // "stare", everyone looks at him.
-    const crewTalk = { current: null, previous: null };
+    const crewTalk = { current: null, previous: null, signature: "", startedAt: 0 };
+    let lastCrewRoom = "";
     const headOf = actor => ({ x: actor.x, y: actor.y - (Art.CREW_HEIGHT[actor.id] || 56) + 8 });
     function crewOptions(actor, t) {
       const npcs = lastNpcs, rizo = { x: crewRizo.x, y: crewRizo.y - 8 };
       const byId = id => npcs.find(entry => entry.id === id);
       const bark = lastBarks.find(entry => entry.id === actor.id);
       const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;
+      const emphasis = Boolean(bark && !bark.quiet &&
+        extrasTime - crewTalk.startedAt < 1050);
       const small = byId("hood-small");
       let look = rizo;
       if (actor.state === "stare") look = rizo;
@@ -300,13 +555,32 @@
       const shook = lastRoom.shake != null ? Math.max(0, 1 - (extrasTime - lastRoom.shake) / 450) : 0;
       return {
         who: actor.id, t, state: actor.state, look, talking: Boolean(bark), quiet: Boolean(bark?.quiet),
-        point: actor.id === "hood-cap" && (Boolean(bark) || actor.state === "stare"),
+        // Cap's pointing is a single forceful gesture at the START of his
+        // line; he does not mechanically point for every frame of dialogue.
+        point: actor.id === "hood-cap" && (emphasis || actor.state === "stare"),
+        talkAge: bark ? Math.max(0, extrasTime - crewTalk.startedAt) : 0,
         phone: actor.id === "hood-small" ? lastRoom.phoneLight || null : null,
         ride: Art.vanRide(t, reducedMotion), bump: reducedMotion ? 0 : shook
       };
     }
 
     // ===== ENEMIES: bodies (lit with the room), then telegraphs (above the dark) =====
+    // Gameplay owns the chase. The camera only remembers how far a runner
+    // really traveled so the feet cannot sprint in place against a wall.
+    // This local state never touches saves, attack timing or pathfinding.
+    const runnerSteps = new Map();
+    let runnerRoom = null;
+    function runnerPose(enemy, sim) {
+      if (runnerRoom !== sim.roomId) {
+        runnerSteps.clear();
+        runnerRoom = sim.roomId;
+      }
+      const key = enemy.id || "runner";
+      const was = runnerSteps.get(key);
+      const pose = nextRunnerMotion(was, enemy, sim.t, sim.phase);
+      runnerSteps.set(key, pose);
+      return pose;
+    }
     function paintEnemy(enemy, sim, time) {
       const flash = sim.t < enemy.flashUntil, t = reducedMotion ? 0 : time, p = sim.player;
       // A hit knocks the body back a little (presentation only; the sim never moves).
@@ -345,11 +619,19 @@
         Art.cooler(ctx, cx, cy, { wobble: enemy.state === "windup" && !reducedMotion ? Math.sin(sim.t / 40) * 1.2 : 0 });
       } else if (enemy.kind === "collector") {
         const walking = enemy.state === "patrol" && sim.t >= (enemy.pauseUntil || 0);
-        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: sim.roomId === "factory" && walking ? "watch-down" : enemy.state, bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t });
+        drawWorldActor("collector", x, y, () =>
+          Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1,
+            state: sim.roomId === "factory" && walking ? "watch-down" : enemy.state,
+            bob: walking && !reducedMotion ? Math.sin(sim.t / 150) * 2 : 0, t }));
       } else if (enemy.kind === "runner") {
         // On his trail: not drawn until it is through the door, or while it goes round.
         if (enemy.state === "waiting" || enemy.state === "detour") return;
-        Art.collector(ctx, x, y, { face: enemy.aimX < -0.05 ? -1 : 1, state: enemy.state === "caught" ? "grab" : "run", bob: !reducedMotion ? Math.sin(sim.t / 70) * 2.6 : 0, t });
+        const pose = runnerPose(enemy, sim);
+        drawWorldActor("collector", x, y, () =>
+          Art.collector(ctx, x, y, { id: enemy.id, face: enemy.aimX < -0.05 ? -1 : 1,
+            state: enemy.state === "caught" ? "grab" : "run",
+            bob: pose.moving && !reducedMotion ? Math.sin(pose.stride * 1.9) * 2 : 0,
+            moving: pose.moving && !reducedMotion, stride: pose.stride, t }));
       } else if (enemy.kind === "porter") {
         const open = enemy.state === "open" ? Math.min(1, (sim.t - enemy.stateAt) / 160) : 0;
         const lean = enemy.state === "charge-tell" ? Math.min(1, (sim.t - enemy.stateAt) / 400) * Math.sign(enemy.aimX || 1) : enemy.state === "charge" ? Math.sign(enemy.aimX || 1) : 0;
@@ -659,12 +941,30 @@
         pos = { x: from.x + (228 - from.x) * eased, y: from.y + (248 - from.y) * eased };
       }
       speaking = new Set((extras.barks || []).map(item => item.id));
-      lastBarks = extras.barks || []; lastNpcs = extras.npcs || [];
-      const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;
-      if (talker && talker !== crewTalk.current) { crewTalk.previous = crewTalk.current; crewTalk.current = talker; }
+      lastBarks = extras.barks || []; lastNpcs = visibleActors(extras.npcs);
+      if (lastCrewRoom !== geo.id) {
+        crewTalk.current = null; crewTalk.previous = null;
+        crewTalk.signature = ""; crewTalk.startedAt = extrasTime;
+        lastCrewRoom = geo.id;
+      }
+      const activeBark = lastBarks.at(-1);
+      const talker = activeBark?.id || null;
+      const signature = activeBark ? `${activeBark.id}:${activeBark.text}` : "";
+      if (signature && signature !== crewTalk.signature) {
+        if (talker !== crewTalk.current) crewTalk.previous = crewTalk.current;
+        crewTalk.current = talker; crewTalk.signature = signature;
+        crewTalk.startedAt = extrasTime;
+      } else if (!signature && crewTalk.signature) {
+        // A silent interval ends the turn; another line even from the SAME
+        // crew member will get a fresh gesture, not a stale pointing loop.
+        crewTalk.previous = crewTalk.current;
+        crewTalk.current = null; crewTalk.signature = "";
+      }
       const p = sim.player;
       crewRizo = { x: pos.x, y: pos.y };
+      lastFlare = p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active";
       follow(pos.x, pos.y, geo, dt, extras.peek, p.moving ? { x: p.fx || 0, y: p.fy || 0 } : null);
+      directConversation(geo, pos, extras);
       const shake = extras.shake && !reducedMotion ? extras.shake * 2 : 0;
       const ox = shake ? (Math.sin(time / 23) * shake) : 0, oy = shake ? (Math.cos(time / 29) * shake) : 0;
       const s = metrics.scale * metrics.dpr;
@@ -677,6 +977,9 @@
       const room = roomLayer(geo);
       ctx.drawImage(room.canvas, -room.mx, -room.my, room.w, room.h);
       Scenery.paintDynamic(ctx, geo, scene);
+      // Behind-camera rain builds the weather without washing out the actors'
+      // new facial art. A lighter foreground pass finishes the depth cue.
+      paintWeather(geo, pos, time, "back");
       // The Rizo's contact with the ground: a hard shadow, and outside, his light on the wet.
       const sheltered = inShelter(geo, pos.x, pos.y);
       if (geo.world && !sheltered && geo.theme !== "van") { ctx.save(); ctx.globalAlpha = 0.22; Art.rect(ctx, P.wet[3], pos.x - 2, pos.y + 9, 4, 3); Art.rect(ctx, P.wet[3], pos.x - 1.5, pos.y + 13.5, 3, 2); ctx.restore(); }
@@ -686,7 +989,7 @@
       // Actors and enemy bodies in depth order: whoever stands lower is in front.
       const bodies = [];
       // The van's sort point is its near side, so people climbing out stand in front of it.
-      for (const actor of extras.npcs || []) bodies.push({ y: actor.kind === "van" ? actor.y - 30 : actor.y, draw: () => paintNpc(actor, time) });
+      for (const actor of lastNpcs) bodies.push({ y: actor.kind === "van" ? actor.y - 30 : actor.y, draw: () => paintNpc(actor, time) });
       for (const enemy of sim.enemies) bodies.push({ y: enemy.y + (enemy.kind === "porter" ? 20 : enemy.r), draw: () => paintEnemy(enemy, sim, time) });
       for (const body of Scenery.bodies(geo, scene)) bodies.push({ y: body.y, draw: () => body.draw(ctx) });
       if (geo.theme === "van") {
@@ -695,16 +998,28 @@
       }
       bodies.sort((a, b) => a.y - b.y);
       for (const body of bodies) body.draw();
-      if (geo.world && geo.theme !== "drain" && geo.theme !== "van") {
-        const worse = geo.theme === "road" ? Math.max(0, 1 - pos.y / 700) * 0.6 : 0;
-        rain(geo, time, (geo.rain || 0) + worse, 0.25 + worse * 0.4);
-      } else if (geo.theme === "van") rain({ shelters: Scenery.shelterOf(geo) }, time, 0.8, 1.5);
-      else if (geo.theme === "drain") rain({ shelters: [{ x: 0, y: 0, w: geo.w, h: geo.h - 12 }] }, time, 0.7, 0.6);
+      paintWeather(geo, pos, time, "front");
       // The dark, and what cuts it.
       const lit = Scenery.lights(geo, scene);
       const flame = Math.max(0, p.flame);
       const lightScale = extras.lightScale ?? 1;
       if (lightScale > 0) lit.list.push({ x: pos.x, y: pos.y - 2, r: ((geo.world ? 30 : 46) + flame * 8) * lightScale, strength: geo.world ? 0.75 : 1, warm: geo.world ? 0.3 : 0.6 });
+      // In close, player-paced conversations a little of Rizo's warmth
+      // reaches the speaker's face. This is bounced firelight, not an
+      // unmotivated spotlight: it vanishes with his flame and never follows
+      // distant radio calls, collectors, or active stealth gameplay.
+      const speakerId = !el.dialogue.hidden ? el.dialogue.dataset.speaker : "";
+      const closeSpeaker = speakerId && lastNpcs.find(actor =>
+        actor.id === speakerId &&
+        ["nell", "orr", "latch"].includes(actor.kind));
+      if (closeSpeaker && lightScale > 0 && flame > 0) {
+        const distance = Math.hypot(closeSpeaker.x - pos.x, closeSpeaker.y - pos.y);
+        if (distance < 115) {
+          const bounce = (1 - distance / 115) * Math.min(1, flame / 2);
+          lit.list.push({ x: closeSpeaker.x, y: closeSpeaker.y - (Art.HEIGHT[closeSpeaker.kind] || 70) * .62,
+            r: 40 + 12 * bounce, strength: .23 * bounce, warm: .55 * bounce });
+        }
+      }
       // Fire briefly lights what it reaches, using the existing bounded light
       // pass. A dying flame still shortens the ordinary pool after the action.
       if (lightScale > 0 && p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active") lit.list.push({ x: pos.x + p.act.fx * 18, y: pos.y + p.act.fy * 18, r: geo.world ? 38 : 64, strength: 0.65, warm: 1 });
@@ -750,7 +1065,7 @@
       if (!el.dialogue.hidden && !el.dialogue.dataset.placed) {
         const height = el.dialogue.offsetHeight || 72;
         const protectedBodies = [{ x: ax - size / 2, y: ay - size * 0.84, w: size, h: size, weight: 3 }];
-        const speaker = (extras.npcs || []).find(actor => actor.id === el.dialogue.dataset.speaker);
+        const speaker = lastNpcs.find(actor => actor.id === el.dialogue.dataset.speaker);
         if (speaker) {
           const [sx, sy] = toScreen(speaker.x, speaker.y);
           const h = (Art.HEIGHT[speaker.kind] || 54) * metrics.scale;
@@ -760,7 +1075,7 @@
         el.dialogue.classList.toggle("at-top", cost(30) < cost(metrics.cssH - height - 8));
         el.dialogue.dataset.placed = "1";
       }
-      renderBarks(extras.barks || [], extras.npcs || [], { x: ax - size / 2 - 4, y: ay - size * 0.84 - 4, w: size + 8, h: size + 8 });
+      renderBarks(extras.barks || [], lastNpcs, { x: ax - size / 2 - 4, y: ay - size * 0.84 - 4, w: size + 8, h: size + 8 });
       renderThought(extras.thought, pos);
     }
     // Reachable things share a quiet pair of brackets. Fire still has its own
@@ -855,7 +1170,27 @@
     function renderBarks(list, actors, rizo) {
       if (!list.length && !barkNodes.size) return;
       const seen = new Set();
-      const occupied = [rizo];
+      const screenBounds = el.screen.getBoundingClientRect();
+      const stageBounds = el.worldstage.getBoundingClientRect();
+      const cssWidth = el.screen.offsetWidth || metrics.cssW;
+      const project = (x, y) => projectStagePoint(
+        toScreen(x, y), stageBounds, screenBounds, cssWidth);
+      const stageZoom = stageBounds.width / Math.max(1, screenBounds.width);
+      const [rx, ry] = projectStagePoint(
+        [rizo.x, rizo.y], stageBounds, screenBounds, cssWidth);
+      const occupied = [{ x: rx, y: ry, w: rizo.w * stageZoom, h: rizo.h * stageZoom }];
+      // Dialogue may cover a hem or the floor; it should not erase the new
+      // faces. Use the existing head-height contracts for standing/seated
+      // actors, including Latch, when choosing a bubble attachment.
+      for (const actor of actors) {
+        if (!actor.visible) continue;
+        const seated = ["van-seat", "driver-seat", "passenger-seat"].includes(actor.kind);
+        const h = seated ? Art.CREW_HEIGHT[actor.id] : Art.HEIGHT[actor.kind];
+        if (!h || actor.kind === "van" || actor.kind === "porter") continue;
+        const [hx, hy] = project(actor.x, actor.y - h);
+        const w = Math.min(34, h * .7) * metrics.scale, height = Math.min(30, h * .6) * metrics.scale;
+        occupied.push({ x: hx - w / 2, y: hy, w, h: height });
+      }
       if (!el.dialogue.hidden) { const h = el.dialogue.offsetHeight; occupied.push({ x: 8, y: el.dialogue.classList.contains("at-top") ? 30 : metrics.cssH - h - 8, w: metrics.cssW - 16, h }); }
       // The goal line under the HUD is read at a glance; a bubble never sits on it.
       if (!el.objective.hidden) occupied.push({ x: el.objective.offsetLeft, y: el.objective.offsetTop, w: el.objective.offsetWidth, h: el.objective.offsetHeight + 4 });
@@ -869,9 +1204,15 @@
         node.classList.toggle("is-quiet", Boolean(item.quiet));
         if (node.dataset.speaker !== (item.speaker || "")) node.dataset.speaker = item.speaker || "";
         // Seated figures (the van) are short; they say where their heads are.
-        const lift = actor.barkLift ?? (Art.HEIGHT[actor.kind] || 54) + 4;
+        const worldScale = Art.WORLD_SCALE?.[actor.kind] ?? 1;
+        // Scene authors specified lifts before the world cast was made small.
+        // Convert those offsets into the same Latch-sized visual coordinate
+        // system; van-seat bubbles and offstage radios remain untouched.
+        const lift = actor.barkLift == null
+          ? (Art.HEIGHT[actor.kind] || 54) + 4
+          : actor.barkLift * worldScale;
         // Off screen (someone calling from up the road), the bubble waits at the edge nearest them.
-        let [x, y] = toScreen(actor.x + (actor.barkDx || 0), actor.y - lift);
+        let [x, y] = project(actor.x + (actor.barkDx || 0), actor.y - lift);
         const width = node.offsetWidth || 120, height = node.offsetHeight || 30, edge = 8;
         const off = x < 0 || x > metrics.cssW || y < height + 30 || y > metrics.cssH - 10;
         // Try the natural head position first, then beside it. Clamp each
@@ -879,7 +1220,7 @@
         // Someone sitting under somebody else (the driver, under the tall one)
         // speaks from below, so the tail can only mean them.
         const below = y + height + lift * metrics.scale + 12;
-        const candidates = actor.barkBelow ? [[x, below], [x + width * 0.55, below], [x - width * 0.55, below], [x, y]] : [[x, y], [x + width * 0.55, y], [x - width * 0.55, y], [x, y - height - 12], [x, below]];
+        const candidates = actor.barkBelow ? [[x, below], [x + width * 0.55, below], [x - width * 0.55, below], [x, y], [x, below + height + 16]] : [[x, y], [x + width * 0.55, y], [x - width * 0.55, y], [x, y - height - 12], [x, below], [x, below + height + 16]];
         let best = null;
         for (const [cx, cy] of candidates) {
           const bx = Math.min(metrics.cssW - width / 2 - edge, Math.max(width / 2 + edge, cx));
@@ -893,7 +1234,7 @@
         if (node.dataset.tail !== String(tail)) { node.dataset.tail = String(tail); node.style.setProperty("--tail", `${tail}px`); }
         x = best.x; y = best.y; occupied.push(best.bounds);
         node.classList.toggle("is-edge", off);
-        node.classList.toggle("is-below", y > toScreen(actor.x, actor.y)[1]);
+        node.classList.toggle("is-below", y > project(actor.x, actor.y)[1]);
         node.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -100%)`;
       }
       for (const [id, node] of barkNodes) if (!seen.has(id)) { node.remove(); barkNodes.delete(id); }
@@ -1001,14 +1342,40 @@
       el.device.classList.add("panel-open");
       el.panel.querySelector("button")?.focus({ preventScroll: true });
     }
+    function prologue(beat, index = 0, total = 1, pet = null) {
+      const stage = el.prologue;
+      if (!beat) {
+        stage.hidden = true;
+        stage.dataset.beat = "";
+        stage.querySelector(".dungeon-prologue-pet").replaceChildren();
+        return;
+      }
+      stage.hidden = false;
+      stage.dataset.beat = beat.visual;
+      stage.querySelector(".dungeon-prologue-line").textContent = beat.line;
+      stage.querySelector(".dungeon-prologue-progress").textContent =
+        `${index + 1} / ${total}`;
+      const art = stage.querySelector(".dungeon-prologue-pet");
+      // The actual Rizo belongs here, not a generic substitute creature.
+      // Pet markup is produced by the trusted hub, just like gameplay/comics.
+      if (!art.childElementCount && pet) art.innerHTML =
+        host.petMarkup(pet, { context: "dungeon", extraClass: "dungeon-prologue-rizo", label: pet.name || "Rizo" });
+      stage.querySelector('[data-prologue-action="next"]').textContent =
+        index === total - 1 ? "BEGIN ▸" : "CONTINUE ▸";
+    }
     function setFade(value) { const next = String(Math.round(value * 100) / 100); if (el.fade.style.opacity !== next) el.fade.style.opacity = next; }
     function setPhase(phase) { el.device.dataset.phase = phase; }
     function setShell(state) { if (el.device.dataset.shell !== state) { el.device.dataset.shell = state; requestAnimationFrame(() => layout()); } }
-    function destroy() { lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
+    function destroy() { slotObserver?.disconnect(); prologue(null); el.worldstage.style.transform = ""; lastPhone = ""; lastActorLight = -1; effects.length = 0; steps.length = 0; barkNodes.clear(); layer.canvas = null; layer.key = ""; arena.innerHTML = ""; }
 
     layout();
-    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
+    // The mode stylesheet and shell transition can change the slot after
+    // launch's first frame. Keep cutouts at the real phone size instead of
+    // retaining a short launch canvas that clips the seated crew's heads.
+    const slotObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => layout()) : null;
+    slotObserver?.observe(el.slot);
+    return { el, layout, setPet, setWear, render, phone, fallFx, setPose, setFlame, setRoomName, setObjective, setKeys, setActionLabel, pulseKey, showPrompt, showCue, banner, dialogue, choice, panel, setFade, setPhase, setShell, prologue, addEffect, addDraft, toScreen, metrics, camera, destroy, esc };
   }
 
-  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc });
+  return Object.freeze({ create, CAMERA_WIDTH, DPR_CAP, esc, performanceForActor, footfall, visibleActors, nextRunnerMotion, projectStagePoint });
 });

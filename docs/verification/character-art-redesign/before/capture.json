@@ -1,0 +1,1744 @@
+[
+  {
+    "scene": "you-car",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "car",
+    "actors": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 2349.9359999999997,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 1749.936,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "you-seat",
+          "state": "idle",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 4,
+      "y": 4,
+      "width": 312,
+      "height": 372
+    }
+  },
+  {
+    "scene": "van-crew",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 4933.168,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2333.168,
+      "facing": {
+        "x": -0.9079593845004517,
+        "y": 0.41905817746174695
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "driver",
+        "text": "I thought you said he didn't do that fire shit.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 4,
+      "y": 4,
+      "width": 312,
+      "height": 372
+    }
+  },
+  {
+    "scene": "van-quiet",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 85083.30200000003,
+    "depth": {
+      "mood": "fear",
+      "danger": 0,
+      "home": false,
+      "hush": "wipers",
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2383.302,
+      "facing": {
+        "x": -0.9469787003150827,
+        "y": -0.3212963447497602
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 4,
+      "y": 4,
+      "width": 312,
+      "height": 372
+    }
+  },
+  {
+    "scene": "latch",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hem",
+    "actors": [
+      {
+        "id": "latch",
+        "x": 190,
+        "y": 232,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 9,
+      "lines": 2,
+      "speaker": "latch",
+      "expr": "procedural",
+      "text": "Latch is frozen. I'm Latch. Like the door bit. Different problem."
+    },
+    "sceneTime": 2417.4000000002793,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2317.4000000002793,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "latch",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "nell",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 4949.902000000002,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2349.902,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "nell",
+        "text": "Warm room's here.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "nell-dialogue",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 7051.000000000189,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2451.0000000001864,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "orr-hatch",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "eyelet",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2616.502,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2416.502,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "meal",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 4966.501999999999,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2366.502,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "meal-dialogue",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 23,
+      "lines": 7,
+      "speaker": "nell",
+      "expr": "irritated",
+      "text": "Not on the cleared bit."
+    },
+    "sceneTime": 7049.836,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2449.836,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "intake-crew",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "intake",
+    "actors": [
+      {
+        "id": "hood-small",
+        "x": 186,
+        "y": 132,
+        "visible": true,
+        "state": "phone-watch",
+        "face": -1
+      },
+      {
+        "id": "hood-cap",
+        "x": 262,
+        "y": 88,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "boss",
+        "x": 104,
+        "y": 26,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": 140,
+        "y": 96,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 4166.602000000001,
+    "depth": {
+      "mood": null,
+      "danger": 0.09,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2366.602,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "hood-small",
+          "state": "phone-watch",
+          "face": -1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "hood-small",
+        "text": "It's IT. It's the one from the van!",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "queue-collector",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "queue",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2473.199999999814,
+    "depth": {
+      "mood": null,
+      "danger": 0.13,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2373.199999999814,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "row-collector",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hangrow",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2533.236,
+    "depth": {
+      "mood": null,
+      "danger": 0.14,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2433.236,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "hall-runner",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "longhall",
+    "actors": [
+      {
+        "id": "radio",
+        "x": 98,
+        "y": 439,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 2383.236,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.5,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2283.236,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "radio",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "factory-sentry",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "factory",
+    "actors": [
+      {
+        "id": "boss",
+        "x": 160,
+        "y": 36,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 2517.8,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.72,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2417.8,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "boss",
+        "text": "Everyone. Lamps up.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "porter",
+    "viewport": [
+      320,
+      568
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "porter",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2499.87,
+    "depth": {
+      "mood": null,
+      "danger": 0.05,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2399.87,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 18,
+      "y": 18,
+      "width": 284,
+      "height": 350
+    }
+  },
+  {
+    "scene": "you-car",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "car",
+    "actors": [
+      {
+        "id": "you-seat",
+        "x": 157,
+        "y": 244,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 2487.799999999907,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 1887.799999999907,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "you-seat",
+          "state": "idle",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 8,
+      "y": 24,
+      "width": 374,
+      "height": 561
+    }
+  },
+  {
+    "scene": "van-crew",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 5056.59999999972,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2456.5999999997207,
+      "facing": {
+        "x": -0.9079593845004517,
+        "y": 0.41905817746174695
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "driver",
+        "text": "I thought you said he didn't do that fire shit.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 8,
+      "y": 24,
+      "width": 374,
+      "height": 561
+    }
+  },
+  {
+    "scene": "van-quiet",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "van",
+    "actors": [
+      {
+        "id": "driver",
+        "x": -4,
+        "y": 134,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": -4,
+        "y": 60,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-small",
+        "x": 44,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "hood-cap",
+        "x": 183,
+        "y": 46,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 85249.90400000001,
+    "depth": {
+      "mood": "fear",
+      "danger": 0,
+      "home": false,
+      "hush": "wipers",
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2549.9039999999995,
+      "facing": {
+        "x": -0.9469787003150827,
+        "y": -0.3212963447497602
+      },
+      "actors": [
+        {
+          "id": "driver",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-small",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 8,
+      "y": 24,
+      "width": 374,
+      "height": 561
+    }
+  },
+  {
+    "scene": "latch",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hem",
+    "actors": [
+      {
+        "id": "latch",
+        "x": 190,
+        "y": 232,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 13,
+      "lines": 2,
+      "speaker": "latch",
+      "expr": "procedural",
+      "text": "Latch is frozen. I'm Latch. Like the door bit. Different problem."
+    },
+    "sceneTime": 2666.536,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2566.536,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "latch",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "nell",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 5033.302,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2433.302,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "nell",
+        "text": "Warm room's here.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "nell-dialogue",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "point",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 7069.799999999908,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2469.799999999907,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "point",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "orr-hatch",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "eyelet",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2716.636,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2516.636,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "meal",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 4969.900000000278,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2369.9000000002793,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "meal-dialogue",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "drytable",
+    "actors": [
+      {
+        "id": "nell",
+        "x": 168,
+        "y": 104,
+        "visible": true,
+        "state": "work",
+        "face": -1
+      },
+      {
+        "id": "orr",
+        "x": 104,
+        "y": 150,
+        "visible": true,
+        "state": "tray",
+        "face": 1
+      }
+    ],
+    "dialogue": {
+      "index": 0,
+      "shown": 23,
+      "lines": 7,
+      "speaker": "nell",
+      "expr": "irritated",
+      "text": "Not on the cleared bit."
+    },
+    "sceneTime": 7300.59999999963,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2700.5999999996275,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "nell",
+          "state": "work",
+          "face": -1
+        },
+        {
+          "id": "orr",
+          "state": "tray",
+          "face": 1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "intake-crew",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "intake",
+    "actors": [
+      {
+        "id": "hood-small",
+        "x": 186,
+        "y": 132,
+        "visible": true,
+        "state": "phone-watch",
+        "face": -1
+      },
+      {
+        "id": "hood-cap",
+        "x": 262,
+        "y": 88,
+        "visible": true,
+        "state": "idle",
+        "face": 1
+      },
+      {
+        "id": "boss",
+        "x": 104,
+        "y": 26,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      },
+      {
+        "id": "hood-tall",
+        "x": 140,
+        "y": 96,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 4166.502,
+    "depth": {
+      "mood": null,
+      "danger": 0.07,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2366.502,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "hood-small",
+          "state": "phone-watch",
+          "face": -1
+        },
+        {
+          "id": "hood-cap",
+          "state": "idle",
+          "face": 1
+        },
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        },
+        {
+          "id": "hood-tall",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "hood-small",
+        "text": "It's IT. It's the one from the van!",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "queue-collector",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "queue",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2402.8999999998136,
+    "depth": {
+      "mood": null,
+      "danger": 0.13,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2302.8999999998136,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "row-collector",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "hangrow",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2452.3999999998136,
+    "depth": {
+      "mood": null,
+      "danger": 0.14,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2352.3999999998136,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "hall-runner",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "longhall",
+    "actors": [
+      {
+        "id": "radio",
+        "x": 98,
+        "y": 439,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 2403.8,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.5,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2303.8,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "radio",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "factory-sentry",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "factory",
+    "actors": [
+      {
+        "id": "boss",
+        "x": 160,
+        "y": 36,
+        "visible": true,
+        "state": "idle",
+        "face": -1
+      }
+    ],
+    "dialogue": null,
+    "sceneTime": 2449.8340000000003,
+    "depth": {
+      "mood": "fear",
+      "danger": 0.68,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2349.834,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": [
+        {
+          "id": "boss",
+          "state": "idle",
+          "face": -1
+        }
+      ]
+    },
+    "barks": [
+      {
+        "id": "boss",
+        "text": "Everyone. Lamps up.",
+        "quiet": false
+      }
+    ],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  },
+  {
+    "scene": "porter",
+    "viewport": [
+      390,
+      844
+    ],
+    "passed": true,
+    "errors": [],
+    "room": "porter",
+    "actors": [],
+    "dialogue": null,
+    "sceneTime": 2449.868,
+    "depth": {
+      "mood": null,
+      "danger": 0,
+      "home": false,
+      "hush": null,
+      "noticed": [],
+      "beckonAt": null,
+      "firstLookAt": null,
+      "still": 2349.868,
+      "facing": {
+        "x": 0,
+        "y": -1
+      },
+      "actors": []
+    },
+    "barks": [],
+    "screen": {
+      "x": 30,
+      "y": 60,
+      "width": 330,
+      "height": 495
+    }
+  }
+]

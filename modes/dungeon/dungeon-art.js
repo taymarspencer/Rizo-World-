@@ -96,8 +96,24 @@
     scale: Object.freeze({ rizo: 28, latch: 38, keeper: 94, "hood-tall": 98, "hood-small": 66, "hood-cap": 84, porter: 84, draftling: 20, needle: 30, door: 40, collector: 76 }),
     minDetail: 1.5
   });
-  // How far above its feet an actor's head is (speech bubbles, prompts).
-  const HEIGHT = Object.freeze({ keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88, latch: 42, van: 84, porter: 90, nell: 86, orr: 82, collector: 80 });
+  // Gameplay is a little diorama, not a character-sheet showcase. Latch
+  // established the right read: compact, clear, and lovable. Keep full-size
+  // authored drawings for comic/portrait close-ups, but draw the world cast
+  // at the following authored scale. Sizes never affect collision or AI.
+  const WORLD_SCALE = Object.freeze({
+    keeper: .77, "hood-tall": .76, "hood-small": .82, "hood-cap": .78,
+    latch: 1, nell: .65, orr: .67, collector: .83
+  });
+  const BASE_HEIGHT = Object.freeze({
+    keeper: 100, "hood-tall": 100, "hood-small": 76, "hood-cap": 88,
+    latch: 42, van: 84, porter: 90, nell: 86, orr: 82, collector: 80
+  });
+  // Visible world height—not unscaled concept-art size—for camera, bubbles
+  // and Rizo's bounced lighting. Anchor is always the feet.
+  const HEIGHT = Object.freeze(Object.fromEntries(
+    Object.entries(BASE_HEIGHT).map(([kind, height]) =>
+      [kind, Math.round(height * (WORLD_SCALE[kind] ?? 1))])
+  ));
 
   // ===== 6. WOBBLE: seeded, never per frame =====
   function seedOf(value) {
@@ -451,64 +467,377 @@
     }
   };
 
-  // YOU: the person who said "Be good." Never a face: a long coat and the blue umbrella.
+  // Character cutouts use a few confident curves, without changing the room
+  // materials or the time/pose contracts. Heads have ONE geometry source for
+  // world actors, seated actors, dialogue portraits and comic close-ups.
+  const characterPaths = new Map();
+  function cut(ctx, d, fill, width = CH, stroke = P.ink) {
+    let path = characterPaths.get(d);
+    if (!path) {
+      path = new Path2D(d);
+      // Some garment hems follow an existing stride. Keep their path cache
+      // bounded during long sessions rather than retaining every walk frame.
+      if (characterPaths.size >= 384) characterPaths.delete(characterPaths.keys().next().value);
+      characterPaths.set(d, path);
+    }
+    if (fill) { ctx.fillStyle = fill; ctx.fill(path); }
+    if (width) { ctx.lineWidth = width; ctx.strokeStyle = stroke; ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.stroke(path); }
+  }
+  const vp = (d, fill, width = 1.25, stroke = P.ink, gaze = false) => ({ d, fill, width, stroke, gaze });
+  const ve = (x, y, rx, ry, fill, width = 0, gaze = false) => vp(`M${x-rx} ${y}a${rx} ${ry} 0 1 0 ${rx*2} 0a${rx} ${ry} 0 1 0 ${-rx*2} 0`, fill, width, P.ink, gaze);
+  function headDesign(who, expr = "neutral") {
+    const parts = [], add = (...p) => parts.push(...p);
+    if (who === "you") {
+      add(vp("M-6 6L-5 14L3 16L8 11L7 5Z", P.skin[0]));
+      add(vp("M-11-5Q-10-14 0-14Q11-14 12-5L11 0L14 3L10 6Q8 12 2 13L-6 9L-10 3Z", P.skin[1]));
+      add(vp("M-9-5L-4-8L-4 4L0 10L2 13L-6 9L-10 3Z", P.skin[0], 0));
+      add(vp("M2-8L8-8L10-3L10 2L6 3L4 0Z", P.skin[2], 0));
+      add(vp("M-10-3Q-16-4-15 2Q-13 7-9 4Z", P.skin[1], 1));
+      add(vp("M-13 0Q-10-2-10 2", null, .9, P.skin[0]));
+      // Three cut coil masses over tapered temples, a broad cheek and a
+      // close-cut beard. A person in rain, not a little face in a big coat.
+      add(vp("M-12-4Q-15-9-11-12Q-12-18-6-17Q-3-22 2-18Q8-20 11-15Q15-13 13-7L10-4L8-8Q4-7 0-9L-7-8L-8 0L-11 0Z", P.inkSoft));
+      add(vp("M-10-12Q-7-16-3-14M0-16Q5-17 8-13", null, 1.5, P.wood[1]));
+      add(vp("M-9 2L-6 4L-4 8L1 10L7 8L11 4L10 9L3 14L-5 11L-8 8Z", P.inkSoft, .9));
+      add(vp("M-5-4Q-2-6 1-4M5-5Q8-7 11-4", null, 1.7));
+      add(vp("M-5-1Q-2-3 1-1L0 2L-3 2Z M5-1Q8-3 10-1L9 2L6 2Z", P.paper[2], .7));
+      add(ve(-1.5, .1, .95, 1.2, P.ink, 0, true), ve(8, .2, .9, 1.1, P.ink, 0, true));
+      add(vp("M3-1L2 3Q4 5 7 3", null, 1, P.skin[0]));
+      add(vp("M-1 6Q3 9 8 5L6 8L2 9Z", P.wood[0], .8));
+      add(vp("M0 6.5Q4 8 7 5.8", null, 1.25, P.paper[2]));
+    } else if (who === "nell") {
+      const amused = expr === "amused", tired = expr === "tired", measuring = expr === "measuring", irritated = expr === "irritated";
+      const listening = expr === "listening";
+      // A narrow chin and strong cheek plane, framed by a heavy swept twist.
+      // The wrap holds hair out of the job; the chalk is her only small prop.
+      add(vp("M-11-10Q-20-9-19-1Q-22 4-15 8L-9 7L-7-9Z", P.wood[0]));
+      add(vp("M-16-6Q-20-2-16 3M-12-6Q-16 0-12 5", null, 1.5, P.wood[1]));
+      add(vp("M-5 7L-6 14L3 17L8 11L6 4Z", P.skin[0]));
+      add(vp(amused ? "M-10-5Q-7-14 2-13L10-9L11-2L15 1L11 4Q10 9 3 12L-3 10L-9 4Z" : "M-10-5Q-7-14 2-13L10-9L11-2L15 1L11 4L9 9L2 12L-4 9L-9 3Z", P.skin[1]));
+      add(vp("M-8-3L-4-7L-4 3L-1 8L2 12L-4 9L-9 3Z", P.skin[0], 0));
+      add(vp("M1-8L7-7L9-2L12 1L8 2L7 6L1 5Z", P.skin[2], 0));
+      add(vp("M-9-3Q-15-5-14 1Q-12 6-8 3Z", P.skin[1], 1));
+      add(vp("M-12 0Q-9-2-9 2", null, .9, P.skin[0]));
+      add(vp("M-11-5Q-16-13-7-18Q3-21 11-13L13-5L7-9Q3-5-3-8L-7-3L-7 2L-10 1Z", P.wood[0]));
+      add(vp("M-5-13Q1-17 8-12L6-10Q0-11-3-10Z", P.wood[1], 0));
+      add(vp("M-10-8L-8-10L-7-3L-9 0Z", P.paper[0], 0));
+      // The wrap is a folded crescent, with one knot behind the temple.
+      add(vp("M-15-8Q-18-18-8-21L1-20L11-15L7-12Q-1-17-9-13L-11-5Z", P.a.maroon));
+      add(vp("M-13-16Q-6-21 1-17L6-14Q-4-18-11-11Z", P.a.maroonLight, 0));
+      add(vp("M-14-12L-20-14L-21-8L-16-5L-12-8Z", P.a.maroon, 1.1));
+      add(vp("M-17-7L-20 4L-14 1L-12-8Z", P.a.maroon, 1));
+      add(vp("M-12-2L-6-5", null, 2.1, P.paper[3]));
+      // Six different eye planes, cheeks and mouths; none is a brow swap.
+      if (amused) {
+        add(vp("M-4 0Q-1-3 2 0M5-1Q8-4 11-1", null, 1.4));
+        add(vp("M-5 3L-2 4M8 3L11 2", null, 1.1, P.skin[0]));
+        add(vp("M-1 5Q5 7 10 3Q8 12 2 10Z", P.wood[0], 1));
+        add(vp("M0 5.5Q5 7 9 4.5L7 7L2 7Z", P.paper[3], 0));
+      } else if (tired) {
+        add(vp("M-4 0Q-1 2 2 0M5 0Q8 2 10 0", null, 1.3));
+        add(vp("M-4 3L1 4M6 4L10 2", null, .9, P.skin[0]));
+        add(vp("M1 8Q5 6 8 8", null, 1.2));
+      } else {
+        add(vp(measuring ? "M-4 0L2 0L0 1Z" : irritated ? "M-4-1L2 0Q0 3-3 2Z" : listening ? "M-4 0Q-1-4 2-1Q3 3-2 3Z" : "M-4 0Q-1-2 2-1Q2 3-2 2Z", P.paper[3], .8));
+        add(vp(irritated ? "M5 0L10-2L11 1Q8 3 6 2Z" : listening ? "M5-1Q8-5 11-2Q12 2 8 2Z" : "M5-1Q8-3 11-2L10 1Q7 2 5 1Z", P.paper[3], .8));
+        if (!measuring) add(ve(listening ? -1.7 : -.1, .5, 1.05, 1.25, P.ink, 0, true));
+        add(ve(listening ? 7 : 8.4, -.4, 1, 1.2, P.ink, 0, true));
+        add(vp(irritated ? "M1 8L8 6L9 7" : listening ? "M2 7Q5 5 7 7L6 9L3 9Z" : measuring ? "M0 7L5 7L7 5" : "M0 6Q4 9 8 5", listening ? P.wood[0] : null, 1.15));
+      }
+      add(vp(irritated ? "M-4-4L2-2M5-2L10-5" : tired ? "M-4-4L1-3M5-3L10-4" : listening ? "M-4-5Q-1-7 2-4M5-5L10-6" : "M-4-4Q-1-6 2-4M5-5L10-5", null, 1.4));
+      add(vp("M4 0L4 3L7 3", null, 1, P.skin[0]));
+    } else if (who === "orr") {
+      const dry = expr === "dry", irritated = expr === "irritated";
+      // Low horizontal face, broad bridge and a hanging horseshoe moustache.
+      // Hospitality lives in the cheek; stubbornness lives in the lower jaw.
+      add(vp("M-7 6L-8 14Q0 19 9 13L9 4Z", P.skin[0]));
+      add(vp("M-12-7Q-7-14 5-11L12-6L12 2L15 5L12 11L6 14L-3 14L-11 10Z", P.skin[0]));
+      add(vp("M0-7Q9-7 11 0L13 5L9 10L1 11L-2 5Z", P.skin[1], 0));
+      add(vp("M-11-4Q-18-6-17 1Q-16 7-11 6L-9 2Z", P.skin[0], 1));
+      add(vp("M-15-1L-12 0L-14 3", null, 1, P.wood[0]));
+      add(vp("M-12-6L-8-5L-8 5L-11 7Z", P.inkSoft, 0));
+      add(vp(irritated ? "M-6-2L0-1L-1 2L-5 2Z" : dry ? "M-6-2Q-2-5 0-2L-1 2L-5 1Z" : "M-6-2Q-3-4 0-2L-1 1L-5 1Z", P.paper[2], .75));
+      add(vp(irritated ? "M6-1L12-3L12 0L7 1Z" : "M6-2L11-3L12 0L7 1Z", P.paper[2], .75));
+      add(ve(-2.5, -.7, .85, 1.05, P.ink, 0, true), ve(9, -1, .85, 1, P.ink, 0, true));
+      add(vp(irritated ? "M-7-5L0-3M6-4L12-6" : dry ? "M-7-6Q-3-9 0-6M6-4H12" : "M-7-5Q-4-6 0-5M6-5L12-5", null, 1.6));
+      add(vp("M1-3Q4-5 6-1Q10-1 10 3Q9 6 4 6Q-1 5-1 2Z", P.skin[1], 1));
+      add(vp("M2 1Q4-1 6 1", null, 1.2, P.skin[2]));
+      add(vp("M1 5Q-5 3-7 8L-8 12L-4 10L-2 7L1 8L5 8L9 7L11 11L13 12L13 7Q10 3 6 5Z", P.inkSoft, 1));
+      add(vp("M-5 7L-6 10M10 7L11 10", null, 1.25, P.paper[0]));
+      // Serving is an open, welcoming grin; dry is a compressed, sceptical
+      // mouth. Formerly both reduced to virtually the same mark at 46 px.
+      if (irritated) {
+        add(vp("M-1 11L8 9",null,1.9,P.inkSoft));
+      } else if (dry) {
+        add(vp("M-1 10Q3 11 9 9",null,1.8,P.inkSoft));
+        add(vp("M11 7L13 6",null,1.1,P.skin[2]));
+      } else {
+        add(vp("M-1 9Q4 15 10 8Q8 15 3 15Q0 14-1 9Z",P.inkSoft,1));
+        add(vp("M0 10Q4 13 8 10L7 12L2 13Z",P.paper[3],0));
+        add(vp("M-9 5Q-7 7-5 6M10 4Q12 6 13 4",null,1.2,P.skin[2]));
+      }
+      add(vp("M-2 16Q2 17 5 16", null, 1.3, P.inkSoft));
+      // Soft sloping cap, not another rounded helmet. A single old repair.
+      add(vp("M-15-6L-14-13Q-10-20 0-18L9-15L14-8L9-5Z", P.cloth[2]));
+      add(vp("M-12-13Q-5-18 4-15L9-10L-3-11Z", P.cloth[3], 0));
+      add(vp("M-14-8L15-8L18-5L12-3L-9-4Z", P.cloth[1], 1.1));
+      add(vp("M-9-15L-4-16L-3-12L-8-11Z", P.paper[0], .8));
+    } else if (who === "hood-tall") {
+      // An overhanging hood and long, off-centre face: a sliver of person
+      // hiding inside too much cloth. Nose and eye line point the same way.
+      add(vp("M-10 14L-16 1L-14-12L-7-18L3-16L12-9L16-1L11 13L1 18Z", P.cloth[2]));
+      add(vp("M-14-9L-8-15L-7 5L-1 16L-10 12L-15 0Z", P.cloth[1], 0));
+      add(vp("M-5-9L7-8L10-1L15 5L9 7L8 12L3 15L-3 7Z", P.skin[0], 1));
+      add(vp("M2-7L7-6L9 0L13 4L8 5L5 2Z", P.skin[1], 0));
+      add(vp("M-7-6L3-12L15-4L10-1L5-6L-3-3Z", P.cloth[3], 1));
+      if (expr === "quiet") add(vp("M-1-1L3 0M5-2L9-2", null, 1.1));
+      else {
+        add(vp(expr === "scared" ? "M-1-2Q2-5 4-1L3 2L0 2Z" : "M-1-1L4-2L3 1L0 1Z", P.paper[2], .7));
+        add(vp(expr === "scared" ? "M6-3Q9-6 11-2L10 1L7 1Z" : "M6-2L11-3L10 0L7 0Z", P.paper[2], .7));
+        add(ve(2, -.4, .75, .9, P.ink, 0, true), ve(8.8, -1.4, .75, .9, P.ink, 0, true));
+      }
+      add(vp("M-2-4L3-4M6-5L10-6", null, 1.3));
+      add(vp("M-4 6L2 8L8 6L10 8L7 14L3 17L-2 12Z", P.cloth[0], 1));
+      add(vp("M-1 8L5 11L8 9", null, 1.2, P.cloth[2]));
+      add(vp("M-7 12L-8 20", null, 1.5, P.paper[1]));
+    } else if (who === "hood-small") {
+      // Folded mask at the chin, ears out, a sideways beanie and one uneven
+      // front tooth. Small talks with his entire face, unlike the quiet Cap.
+      add(vp("M-10-6L9-6L13 0L11 8L5 13L-5 12L-11 6Z", P.skin[1]));
+      add(vp("M-10 1L-5 0L-5 7L0 12L-5 12L-11 6Z", P.skin[0], 0));
+      add(vp("M-11-1Q-18-5-17 1Q-16 6-11 5Z M11-1Q17-4 17 2L12 6Z", P.skin[1], 1));
+      add(vp("M-14 0L-12 2M14 0L13 3", null, .9, P.skin[0]));
+      add(vp("M-12-5Q-16-18-5-20Q5-22 12-12L11-6Z", P.a.mustard));
+      add(vp("M-11-12Q-6-18 4-15L8-10Z", P.paper[1], 0));
+      add(vp("M-13-8L12-11L14-4L-12-1Z", P.a.mustard, 1.2));
+      add(vp("M-7-6L-6-2M-2-7L-1-3M3-8L4-4", null, .9, P.wood[2]));
+      add(ve(-7, -22, 3.6, 3.3, P.a.mustard, 1));
+      const scared = expr === "scared" || expr === "stare";
+      if (expr === "quiet") add(vp("M-7 2L-2 3M4 1L9 0", null, 1.3));
+      else {
+        add(vp(scared ? "M-7 2Q-5-2-2 1Q0 5-4 5Z" : "M-7 2Q-4-1-1 1L-2 4L-5 4Z", P.paper[3], .8));
+        add(vp(scared ? "M4 0Q7-3 10 0L9 4L6 4Z" : "M4 1L10-1L10 2L6 3Z", P.paper[3], .8));
+        add(ve(-3.5, 2.3, .9, 1.2, P.ink, 0, true), ve(7.6, .7, .9, 1.1, P.ink, 0, true));
+      }
+      add(vp("M0 2L-1 5L3 5", null, .9, P.skin[0]));
+      add(vp(scared ? "M1 7Q4 5 6 8L5 10L2 10Z" : expr === "quiet" ? "M-2 8L5 7" : "M-4 6Q1 9 8 5L6 10L0 11Z", P.wood[0], 1));
+      if (!scared && expr !== "quiet") add(vp("M-2 7L1 8L1 10L-1 9Z M2 8L5 7L5 9L2 9Z", P.paper[3], 0));
+      add(vp("M-11 7L-5 11L4 12L10 8L12 13L5 17L-6 15L-12 12Z", P.cloth[0], 1));
+      add(vp("M-8 11Q0 15 9 11", null, 1.2, P.cloth[2]));
+    } else if (who === "hood-cap") {
+      // A low, broad skull with a squared brow. The backwards brim and
+      // tied bandana pull opposite ways; his head is not inside Tall's hood.
+      add(vp("M-13-9L7-10L13-6L15 3L11 11L-10 10L-15 2Z", P.skin[0]));
+      add(vp("M1-7L9-7L13-1L10 3L3 2Z", P.skin[1], 0));
+      add(vp("M-13-3L-9-1L-9 7L-13 5Z", P.inkSoft, 0));
+      add(vp("M-13-9L-13-17L2-19L11-15L14-8Z", P.cloth[0]));
+      add(vp("M-11-16L1-17L9-14L8-12L-10-12Z", P.cloth[2], 0));
+      add(vp("M-13-14L-24-10L-23-5L-13-8Z", P.cloth[0], 1.1));
+      add(vp("M-9-6L-2-4M4-4L11-7", null, 2.3));
+      add(vp("M-9-2L-2-2L-3 1L-7 1Z M4-2L11-4L10 0L6 1Z", P.paper[2], .7));
+      add(ve(-4.5, -.6, .85, .85, P.ink, 0, true), ve(8, -1.2, .85, .9, P.ink, 0, true));
+      add(vp("M8-7L9-4", null, 1.1, P.paper[1]));
+      add(vp("M0 0L2 3L5 3", null, 1.1, P.skin[1]));
+      add(vp("M-13 3L0 4L13 1L12 10L1 15L-10 11Z", P.a.red));
+      add(vp("M-10 5L1 7L11 4L2 12Z", P.a.stamp, 0));
+      add(vp("M-13 7L-21 9L-18 14L-12 11Z", P.a.red, 1));
+    } else if (who === "driver") {
+      // Long weathered face, driving glasses, wool cap and a low moustache.
+      // The large hooked nose and visible jaw make him a person, not goggles
+      // on the same ski mask as the other three.
+      add(vp("M-8-8L8-8L10-1L16 5L10 7L9 13L3 16L-5 13L-9 5Z", P.skin[0]));
+      add(vp("M1-5L7-4L9 1L13 5L8 5L6 10L3 11Z", P.skin[1], 0));
+      add(vp("M-9-3Q-15-5-14 2L-10 6L-7 3Z", P.skin[0], 1));
+      add(vp("M-11-3L-8-2L-7 7L-10 7Z", P.inkSoft, 0));
+      add(vp("M-11-6L-11-14Q-7-20 2-18L10-14L11-7Z", P.cloth[0]));
+      add(vp("M-12-11Q0-15 12-11L12-5Q1-8-12-5Z", P.cloth[1], 1));
+      add(vp("M-8-11L-8-7M-3-12L-3-8M2-12L2-8M7-11L7-7", null, .85, P.cloth[2]));
+      add(vp("M-11-3L0-4L1 2L-8 3Z M3-4L11-3L12 2L4 2Z", P.cold[0], 1.2));
+      add(vp("M-9-1L-3-2M5-2L9-1", null, 1.5, P.cold[2]));
+      add(vp("M0-1L3-1", null, 1.2, P.metal[2]));
+      // Behind the driving glasses he normally gives nothing away. The
+      // worried variant shows a real fear response in the lower face, not
+      // merely a second identical portrait labelled "scared".
+      if (expr === "scared") {
+        add(vp("M-9-3L-3-4M5-4L10-5",null,1.35,P.paper[1]));
+        add(vp("M0 8Q4 6 9 8L8 14Q4 17 1 13Z",P.inkSoft,1));
+        add(vp("M2 9L7 9L6 11L3 11Z",P.paper[2],.4));
+        add(vp("M-5 9Q-3 14 1 16L7 15",null,1.2,P.inkSoft));
+      } else {
+        add(vp("M-1 8L4 7L9 8L8 10L-1 10Z", P.inkSoft, .7));
+        add(vp("M0 12L7 12L5 14L2 14Z", P.skin[1], 0));
+        add(vp("M-5 9L-3 14L2 16L7 14", null, 1.2, P.inkSoft));
+      }
+    } else if (who.startsWith("collector")) {
+      const marshal = who.endsWith("marshal"), runner = who.endsWith("runner"), gatherer = who.endsWith("gatherer");
+      // One faction, four working constructions. These are protective cloth
+      // and cold glass, not interchangeable combat helmets with colour swaps.
+      if (marshal) {
+        add(vp("M-10 13L-14-7L-8-22L4-21L11-11L13 11L5 16Z", P.metal[0]));
+        add(vp("M-9-18L1-18L8-10L7-5L-10-7Z", P.metal[1], 0));
+        add(vp("M-9-6L10-7L11-1L-8 0Z", P.suit[0], 1));
+        add(vp("M-7-5L8-5L8-2L-7-2Z", P.cold[2], .6));
+        add(vp("M1-5V-2", null, 1.1, P.metal[0]));
+        add(vp("M-7 1L8 0L13 9L5 14L-6 10Z", P.metal[2], 1));
+        add(vp("M-4 5L7 4M-3 8L8 7", null, 1.3, P.suit[1]));
+        add(vp("M-12 7L-8 10L-4 19L-10 15Z", P.metal[1], 1));
+      } else if (gatherer) {
+        add(vp("M-17 4Q-20-13-8-17Q5-21 15-9L17 7L9 15L-10 13Z", P.metal[0]));
+        add(vp("M-14-9Q-5-17 7-11L12-6L-5-8Z", P.metal[1], 0));
+        add(vp("M-13-4L14-6L15 1L-13 3Z", P.suit[1], 1));
+        add(ve(-7, -.5, 4, 3.6, P.cold[1], 1));
+        add(ve(7, -1.5, 6, 5.4, P.cold[2], 1.2));
+        add(vp("M5-3L9-4L8-1", null, 1.1, P.cold[3]));
+        add(vp("M-5 5L9 3L13 8L7 14L-5 12L-10 8Z", P.metal[1], 1));
+        add(ve(-8, 7, 4.2, 4.2, P.metal[2], 1.1));
+        add(vp("M-10 6L-6 6M-10 8L-6 8", null, 1.2, P.suit[0]));
+        add(vp("M1 7L7 6L7 10L1 11Z", P.suit[1], .7));
+      } else if (runner) {
+        add(vp("M-16 5L-17-6L-10-18L4-16L15-7L18 3L12 10L0 15Z", P.metal[0]));
+        add(vp("M-14-8L-8-14L5-13L12-7L3-8Z", P.metal[1], 0));
+        add(vp("M-9-4L14-5L16 0L-3 4L-9 1Z", P.suit[0], 1));
+        add(vp("M-7-3L12-4L13-1L-3 2Z", P.cold[1], .7));
+        add(vp("M2-2L10-3", null, 1.3, P.cold[2]));
+        add(vp("M-3 5L15 1L19 7L9 15L0 11Z", P.metal[2], 1.1));
+        add(vp("M6 7L13 5M7 10L14 8", null, 1.2, P.suit[1]));
+        add(vp("M-14 2L-9 3L-7 12L-13 10Z", P.metal[1], 1));
+      } else {
+        // Flat factory hood with a vertical glass shutter and side filter.
+        // The rigid square reads like a machine operator even over a rail.
+        add(vp("M-14 9L-15-11L-10-17L10-17L15-11L14 12L-8 14Z", P.metal[0]));
+        add(vp("M-11-13L8-13L10-9L-10-9Z", P.metal[2], 0));
+        add(vp("M-10-7L9-7L10 9L-8 10Z", P.suit[0], 1));
+        add(vp("M-7-5L6-5L7 1L-6 2Z", P.cold[1], 1));
+        add(vp("M-5-3L4-3", null, 1.3, P.cold[2]));
+        add(vp("M-5 4L6 3L6 8L-4 9Z", P.metal[2], .8));
+        add(vp("M-2 5V8M2 5V8", null, 1, P.suit[1]));
+        add(ve(12, 5, 3.9, 4.6, P.metal[1], 1));
+        add(vp("M11 3L14 3M11 6L14 6", null, .9, P.suit[0]));
+      }
+    }
+    return parts;
+  }
+  const headSets = new Map();
+  function headParts(who, expr) {
+    const key = `${who}:${expr}`;
+    if (!headSets.has(key)) headSets.set(key, headDesign(who, expr));
+    return headSets.get(key);
+  }
+  function characterHead(ctx, who, x, y, o = {}) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(o.tilt || 0);
+    for (const p of headParts(who, o.expr || "neutral")) {
+      ctx.save();
+      if (p.gaze) {
+          // A quiet quarter-pixel glance only when the story asks for it; no
+          // exaggerated pupil sliding over an otherwise still character.
+          ctx.translate((o.look?.x || 0) * .55, (o.look?.y || 0) * .32);
+        }
+      cut(ctx, p.d, p.fill, p.width, p.stroke); ctx.restore();
+    }
+    ctx.restore();
+  }
+  function characterHeadSvg(who, expr = "neutral") {
+    return headParts(who, expr).map(p => `<path d="${p.d}" fill="${p.fill || "none"}" stroke="${p.width ? p.stroke : "none"}" stroke-width="${p.width}"/>`).join("");
+  }
+  // The original pose gives shoulder, elbow and wrist. Tailor a sleeve
+  // around it: a shaped shoulder and tapered cuff, not a constant-width rod.
+  function sleeve(ctx, pts, color, width, hand) {
+    const [sx, sy, ex, ey, wx, wy] = pts;
+    const lenA = Math.hypot(ex-sx, ey-sy) || 1, lenB = Math.hypot(wx-ex, wy-ey) || 1;
+    const ax = -(ey-sy)/lenA, ay = (ex-sx)/lenA, bx = -(wy-ey)/lenB, by = (wx-ex)/lenB;
+    const nx = (ax+bx)*.5, ny = (ay+by)*.5, sh = width*.8, elbow = width*.65, cuff = width*.45;
+    shape(ctx, [sx+ax*sh,sy+ay*sh, ex+nx*elbow,ey+ny*elbow,wx+bx*cuff,wy+by*cuff,
+      wx-bx*cuff,wy-by*cuff,ex-nx*elbow,ey-ny*elbow,sx-ax*sh,sy-ay*sh], color, {ink:1.25,amp:.12,seed:width+sx});
+    line(ctx, wx-bx*cuff, wy-by*cuff, wx+bx*cuff, wy+by*cuff, P.inkSoft, .9, width, .05);
+    if (hand) {
+      oval(ctx, wx, wy, Math.max(2.6,width*.6), Math.max(2.3,width*.5), hand, true, .9);
+      oval(ctx, wx-bx*1.8, wy-by*1.8, 1.2, 1.6, hand);
+    }
+  }
+  function workLegs(ctx, top, spread, width, color, bob, shoe, sock) {
+    for (const side of [-1,1]) {
+      const lift = side === -1 ? bob : -bob, hx = side*spread;
+      const knee = hx + side*1.5, ankle = hx + side*2;
+      shape(ctx, [hx-width*.6,top, hx+width*.6,top, knee+width*.55,top*.46,
+        ankle+width*.4,-5-Math.max(0,lift)*.6, ankle-width*.4,-5-Math.max(0,lift)*.6,
+        knee-width*.55,top*.46], color, {ink:1.2,amp:.15,seed:side+top});
+      if (sock) box(ctx,ankle-width*.43,-8-lift*.4,width*.86,5,sock,{ink:.65,amp:.1});
+      const y = -2-Math.max(0,lift)*.6;
+      cut(ctx, `M${ankle-width*.6} ${y-3}L${ankle+width*.5} ${y-3}Q${ankle+width*1.2} ${y-2} ${ankle+width*1.3} ${y+1}L${ankle-width*.65} ${y+1}Z`, shoe, 1);
+      line(ctx,ankle-width*.5,y+1,ankle+width*1.1,y+1,P.paper[0],.7);
+    }
+  }
+
+  // The same tailored coat in the street and behind the store glass.
+  function youCoat(ctx) {
+    cut(ctx,"M-7-75Q-17-74-20-67L-18-58L-14-48L-19-25L-6-23L1-27L8-24L19-28L14-49L18-64Q16-72 7-75Z",P.wood[2]);
+    cut(ctx,"M-17-66L-11-70L-6-57L-6-29L-10-25L-18-26L-14-48Z",P.wood[1],0);
+    cut(ctx,"M-5-69L8-69L9-29L1-27L-4-28Z",P.a.maroon,1);
+    cut(ctx,"M-8-74L-14-67L-7-62L-10-55L-2-49L-3-67Z",P.wood[3],1.2);
+    cut(ctx,"M7-73L14-66L8-61L12-56L4-47L3-67Z",P.wood[3],1.2);
+    cut(ctx,"M-1-49L0-28M6-40L14-44L13-39L6-36",null,1.2,P.wood[1]);
+    cut(ctx,"M-12-43L-5-40L-6-35L-13-38Z",P.wood[1],.9);
+    // At the world camera two pearl buttons flickered as noise: one coat
+    // clasp is a stronger cue, with the maroon front still the silhouette.
+    oval(ctx,-2,-44,1.6,1.6,P.paper[0],true,.6);
+    cut(ctx,"M-9-76Q0-80 10-74L8-68Q0-66-9-71Z",P.a.maroon,1.2);
+    cut(ctx,"M-5-70L1-69L-1-56L-8-58Z",P.a.maroon,1);
+  }
+  // YOU: broad raincoat, cropped coils, a warm face and a worn scarf. The
+  // camera still sees his back in the car; the turn finally reveals a person.
   function keeper(ctx, x, y, o = {}) {
     const bob = o.bob || 0, t = o.t || 0, state = o.state || "idle";
     drop(ctx, x, y, 14, 3.6);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (state === "look-back") ctx.rotate(-0.055);
-    const step = o.walking ? Math.sin(o.stride || 0) : 0;
+    // One gait clock for hips, feet and sleeves. Dividing them across sine
+    // waves made the arms swing while the planted leg was standing still.
+    const step = o.walking ? Math.sin((o.stride || 0) * 1.9) : 0;
     // Bent knees and alternating planted heels; no sliding trouser columns.
     for (const side of [-1, 1]) {
       const swing = step * side, hip = side * 4.5;
-      const heel = hip + swing * 5.5, knee = hip + swing * 3;
-      const lift = Math.max(0, swing) * 3;
+      const heel = hip + swing * 3.8, knee = hip + swing * 2.1;
+      const lift = Math.max(0, swing) * 2.4;
       shape(ctx, [hip - 3, -30, hip + 3, -30, knee + 3, -15,
         heel + 2.8, -3 - lift, heel - 2.8, -3 - lift, knee - 3, -15],
         P.a.denim, { ink: 1.1, amp: 0.12 });
       oval(ctx, heel + 1.5, -2 - lift, 4.6, 2.3, P.ink, true, 0.8);
     }
     ctx.translate(0, o.walking ? -Math.abs(step) * 0.9 : 0);
-    // Coat: long, camel, one pocket flap; the back half falls into the dark band.
-    shape(ctx, [-7, -73, 7, -73, 14, -67, 12, -49, 16 + step, -28, 1, -27, -16 + step, -28, -12, -49, -14, -67], P.wood[2], { ink: CH, seed: 11, amp: CA });
-    shape(ctx, [-7, -73, -3, -70, -5, -48, -3, -28, -16 + step, -28, -12, -49, -14, -67], P.wood[1], { ink: false, seed: 12, amp: CA });
-    line(ctx, 2, -69, 3, -30, P.inkSoft, 0.9);
-    box(ctx, 5, -50, 6, 2.4, P.wood[1], { ink: 0.8, amp: 0.2 });
-    line(ctx, -7, -71, -3, -63, P.wood[3], 1.4); line(ctx, 7, -71, 3, -63, P.wood[3], 1.4);
-    // Scarf and chin, the umbrella's shadow over everything above it.
-    shape(ctx, [-6, -78, 6, -78, 8, -71, -8, -71], P.a.maroon, { ink: 1.1, seed: 13, amp: 0.3 });
-    oval(ctx, 1, -81, 6.4, 6, P.skin[1], true, 1.1);
-    ctx.globalAlpha = 0.55; oval(ctx, 1, -85, 6, 3, P.ink); ctx.globalAlpha = 1;
+    youCoat(ctx);
+    characterHead(ctx, "you", 0, -84, {
+      tilt: state === "look-back" ? -.12 : o.addressed ? -.06 : -.015,
+      look: o.look
+    });
     // Arm up to the shaft. The free arm carries the tiny acting beats: a
     // glance back toward the car, then a hand toward the store door.
-    shape(ctx, [9, -69, 14, -66, 14, -58, 8, -54, 4, -59, 9, -61], P.wood[2], { ink: 1.2, seed: 14, amp: 0.3 });
-    oval(ctx, 7, -58, 2.7, 2.3, P.skin[1], true, 0.9);
+    cut(ctx, "M12-69Q19-67 18-60L12-54L5-56L4-62L11-61Z", P.wood[2], 1.3);
+    cut(ctx, "M6-61Q10-63 10-59L9-56L5-56L3-59Z", P.skin[1], .9);
     line(ctx, 7, -58, 4, -96, P.ink, 1.3, 15, 0.1);
     if (state === "look-back") {
-      shape(ctx, [-7, -72, -11, -69, -19, -61, -16, -58], P.wood[2], { ink: 1.1, seed: 141, amp: 0.25 });
-      oval(ctx, -19, -60, 2.2, 2, P.skin[1], true, 0.8);
+      cut(ctx, "M-14-68Q-18-68-20-62L-17-57L-12-59L-10-64Z", P.wood[1], 1.2);
+      oval(ctx, -19, -60, 3, 2.4, P.skin[1], true, .9);
     } else if (state === "door") {
-      shape(ctx, [-6, -73, -10, -70, -15, -79, -11, -81], P.wood[2], { ink: 1.1, seed: 142, amp: 0.25 });
-      oval(ctx, -14, -80, 2.2, 2, P.skin[1], true, 0.8);
+      cut(ctx, "M-11-70Q-17-72-17-79L-12-82L-8-76Z", P.wood[2], 1.2);
+      oval(ctx, -14, -80, 2.7, 2.3, P.skin[1], true, .9);
     } else {
-      const swing = step * 3;
-      shape(ctx, [-10, -69, -15, -65, -17 - swing, -51,
-        -13 - swing, -43, -9 - swing, -46, -12 - swing, -53, -8, -64],
-        P.wood[1], { ink: 1.1, amp: 0.16 });
-      oval(ctx, -11 - swing, -44, 2.7, 2.4, P.skin[1], true, 0.8);
+      const swing = step * 1.4;
+      cut(ctx, `M-13-69Q-20-68-20-61L${-19-swing}-51L${-14-swing}-42L${-8-swing}-45L${-12-swing}-53L-10-63Z`, P.wood[1], 1.2);
+      oval(ctx, -11 - swing, -44, 3, 2.8, P.skin[1], true, .9);
     }
     // The umbrella: eight panels, a lit top band, a bent rib (it has been through weather before).
-    const canopy = [-24, -90, -18, -97, -9, -102, 4, -104, 16, -101, 26, -95, 30, -89];
-    const rim = [30, -89, 25, -91, 20, -88, 14, -91, 8, -88, 2, -91, -4, -88, -10, -91, -16, -88, -21, -91, -24, -90];
+    const canopy = [-24, -103, -18, -110, -9, -115, 4, -117, 16, -114, 26, -108, 30, -102];
+    const rim = [30, -102, 25, -104, 20, -101, 14, -104, 8, -101, 2, -104, -4, -101, -10, -104, -16, -101, -21, -104, -24, -103];
     shape(ctx, [...canopy, ...rim.slice(2)], P.a.umbrella, { ink: CH, seed: 16, amp: 0.3 });
-    shape(ctx, [-18, -97, -9, -102, 4, -104, 16, -101, 12, -98, 2, -100, -8, -98], P.a.umbrellaLight, { ink: false, seed: 17, amp: 0.3 });
-    for (const rx of [-10, 2, 14]) line(ctx, 4, -104, rx, -89, P.ink, 0.7, rx, 0.3);
-    line(ctx, 4, -104, 24, -93, P.ink, 0.7, 99, 0.9);
-    line(ctx, 4, -104, 4, -108, P.ink, 1.4);
+    shape(ctx, [-18, -110, -9, -115, 4, -117, 16, -114, 12, -111, 2, -113, -8, -111], P.a.umbrellaLight, { ink: false, seed: 17, amp: 0.3 });
+    for (const rx of [-10, 2, 14]) line(ctx, 4, -117, rx, -102, P.ink, 0.7, rx, 0.3);
+    line(ctx, 4, -117, 24, -106, P.ink, 0.7, 99, 0.9);
+    line(ctx, 4, -117, 4, -121, P.ink, 1.4);
+    line(ctx, 4, -102, 5, -96, P.ink, 1.3, 15, .1);
     // Drops rolling off the rim (time-based, not random).
     for (let index = 0; index < 3; index += 1) {
       const k = ((t / 700) + index * 0.37) % 1, dx = [-22, 28, 9][index];
-      ctx.globalAlpha = 0.8 * (1 - k); rect(ctx, P.wet[3], dx, -88 + k * 14, 0.9, 2.2); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.8 * (1 - k); rect(ctx, P.wet[3], dx, -101 + k * 14, 0.9, 2.2); ctx.globalAlpha = 1;
     }
     ctx.restore();
   }
@@ -545,113 +874,85 @@
     ctx.restore();
   }
 
-  // The three. Not ninjas: a tall one in slides and socks, a small one filming
-  // on his phone, a wide one with a pillowcase. You know them by shape.
+  // Same three kidnappers, same possessions: a blade-shaped tall hood,
+  // a short padded silhouette, and a broad capped bagman. Their clothing
+  // belongs to one crew, but their bodies and faces cannot be swapped.
   function hood(ctx, kind, x, y, o = {}) {
-    const bob = o.bob || 0, t = o.t || 0, grab = o.state === "grab";
-    ctx.save(); ctx.translate(x, y);
-    if (o.flinch) ctx.rotate(-0.14 * (o.face || 1));
-    ctx.scale(o.face || 1, 1);
+    const bob = o.bob || 0, grab = o.state === "grab";
+    ctx.save(); ctx.translate(x,y);
+    if (o.flinch) ctx.rotate(-.075*(o.face || 1));
+    ctx.scale(o.face || 1,1);
+    const scared = Boolean(o.flinch), expr = scared ? "scared" : o.state === "phone-away" ? "quiet" : "neutral";
     if (kind === "hood-tall") {
-      drop(ctx, 0, 0, 12, 3.4);
-      // Slides and socks; sweatpants a size too short.
-      legs(ctx, 0, 0, -44, 3.4, 5.2, P.cloth[1], bob, P.ink, P.a.sock);
-      ctx.save(); ctx.rotate(0.07);
-      shape(ctx, [-13, -86, -5, -90, 9, -88, 13, -69, 10, -42, -13, -42, -15, -65], P.cloth[2], { ink: CH, seed: 31, amp: CA });
-      shape(ctx, [-12, -86, -4, -87, -7, -42, -13, -42], P.cloth[1], { ink: false, seed: 32, amp: CA });
-      // Kangaroo pocket with both hands in it; a faded print.
-      box(ctx, -7, -58, 15, 9, P.cloth[1], { ink: 1, amp: 0.3 });
-      ctx.globalAlpha = 0.55; oval(ctx, 1, -72, 5, 4, P.cloth[3]); ctx.globalAlpha = 1;
-      if (grab) {
-        limb(ctx,[8,-80,19,-69,25,-61],P.cloth[2],5.5,P.skin[1]);
-        line(ctx,25,-61,28,-58,P.skin[1],1.6);
-      } else {
-        limb(ctx,[-11,-80,-14,-66,-6,-55],P.cloth[2],5,null);
-        oval(ctx,-6,-55,2.6,1.8,P.skin[1],true,.7);
-      }
-      line(ctx,-10,-44,9,-44,P.cloth[3],1.4);
-      stitches(ctx,-8,-65,-3,-65,P.paper[0],2,.8,.65);
-      // Hood up, peak drooping forward over a ski mask; uneven drawstrings.
-      shape(ctx, [-11, -88, -12, -100, -4, -108, 6, -107, 13, -100, 12, -88], P.cloth[2], { ink: CH, seed: 34, amp: CA });
-      oval(ctx, 4, -96, 6.5, 6, P.ink);
-      rect(ctx, P.cloth[0], -1, -99, 10, 3.6);
-      line(ctx, 1, -97.4, 3.4, -97.6, P.paper[2], 1.1); line(ctx, 5.4, -97.6, 7.8, -97.2, P.paper[2], 1.1);
-      line(ctx, 0, -88, -1, -78, P.paper[2], 0.8); line(ctx, 5, -88, 6, -82, P.paper[2], 0.8);
+      drop(ctx,0,0,14,3.6);
+      workLegs(ctx,-44,4.5,7,P.cloth[1],bob,P.ink,P.a.sock);
+      ctx.save(); ctx.rotate(.07);
+      sleeve(ctx,[-12,-79,-18,-66,-6,-55],P.cloth[1],6,P.skin[1]);
+      // Long dropped shoulder, diagonal storm flap, split low hem. The
+      // empty cloth on his left makes the small face even more unsettling.
+      cut(ctx,"M-7-90L-18-85L-17-73L-12-57L-16-39L-4-36L1-43L12-40L13-60L17-77L11-86L6-88Z",P.cloth[2]);
+      cut(ctx,"M-17-83L-10-83L-7-61L-11-39L-16-40L-12-57Z",P.cloth[1],0);
+      cut(ctx,"M-13-86L5-87L13-77L6-67L-7-60L-11-62L1-75Z",P.cloth[3],1);
+      cut(ctx,"M-9-61L7-68L9-54L-5-51Z",P.cloth[1],1);
+      // Replace two dark hem scratches with one readable shoulder seam.
+      // Tall's enormous asymmetric coat remains the defining silhouette.
+      line(ctx,-16,-82,-15,-67,P.cloth[3],1.5,811,0);
+      oval(ctx,3,-75,1.6,1.5,P.paper[0],true,.6);
+      if (grab) sleeve(ctx,[9,-80,19,-69,25,-61],P.cloth[2],6.6,P.skin[1]);
+      else sleeve(ctx,[11,-80,16,-65,7,-55],P.cloth[2],6.6,P.skin[1]);
+      characterHead(ctx,kind,1,-95,{expr,look:o.look});
       ctx.restore();
     } else if (kind === "hood-small") {
-      drop(ctx, 0, 0, 11, 3.4);
-      legs(ctx, 0, 0, -26, 3.6, 5.4, P.cloth[1], bob, P.a.white);
-      // Puffer jacket: three quilted bands, the top one lit.
-      shape(ctx, [-12, -57, 10, -57, 16, -51, 17, -37, 13, -25, -13, -25, -17, -38, -16, -49], P.a.maroon, { ink: CH, seed: 41, amp: CA });
-      rect(ctx, P.a.maroonLight, -11, -55, 22, 3);
-      for (const qy of [-46, -36]) line(ctx, -13, qy, 13, qy + 0.6, P.ink, 0.9, qy);
-      line(ctx, 0, -55, 0, -27, P.ink, 1.1);
-      limb(ctx,[-12,-50,-17,-38,-12,-30],P.a.maroon,5,P.skin[1]);
-      // Arm up with the phone until the roadside panic. After he drops it,
-      // the hand stays empty and low so the lost object is physically legible.
-      if (o.state === "phone-dropped") {
-        shape(ctx, [6, -50, 11, -49, 9, -35, 4, -33], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
-        oval(ctx, 4, -32, 2.1, 2, P.skin[1], true, 0.8);
-      } else {
-        // In Intake the torch stays at the same world-space point as its beam.
-        // He changes *how he holds it*: stretched out while watching, tucked
-        // against his mask when he reads, half raised during the look-back tell.
+      drop(ctx,0,0,14,3.6);
+      workLegs(ctx,-26,5.5,8,P.cloth[1],bob,P.a.white);
+      sleeve(ctx,[-14,-49,-20,-37,-13,-29],P.a.maroon,6.2,P.skin[1]);
+      // Inflated shoulders over a cropped waist, with an asymmetric raised
+      // collar. Two large padded chambers matter more than ten tiny seams.
+      cut(ctx,"M-10-59Q-22-58-24-46L-21-33Q-18-22-3-24L13-25Q22-30 21-43Q22-57 9-60Z",P.a.maroon);
+      cut(ctx,"M-20-46Q-20-55-13-53L-9-39L-12-27L-18-28Z",P.a.maroonLight,0);
+      cut(ctx,"M-14-59L-12-64L-3-58L7-63L14-58L7-49L-6-50Z",P.cloth[0],1.1);
+      cut(ctx,"M-3-51L2-49L5-26L0-24Z",P.a.maroonLight,0);
+      line(ctx,1,-51,3,-27,P.inkSoft,1.6);
+      // One padded shoulder line, not three near-parallel ink scratches.
+      cut(ctx,"M-21-43Q-9-39-1-42M5-43Q12-40 20-43",null,1.2,P.inkSoft);
+      cut(ctx,"M-19-39L-9-36L-10-29L-17-30Z",P.cloth[0],1);
+      if (o.state === "phone-dropped") sleeve(ctx,[11,-50,12,-39,4,-32],P.a.maroon,6,P.skin[1]);
+      else {
         const away = o.state === "phone-away", tell = o.state === "phone-tell";
-        const elbowY = away ? -42 : tell ? -48 : -52;
-        shape(ctx, [6, -50, 12, elbowY, 19, -47, 14, -42], P.a.maroon, { ink: 1.2, seed: 42, amp: 0.3 });
-        if (away) limb(ctx, [7, -50, 12, -40, 17, -49], P.a.maroon, 4.1, P.skin[1]);
-        else if (tell) limb(ctx, [7, -50, 15, -44, 19, -49], P.a.maroon, 4.1, P.skin[1]);
-        box(ctx, 15, -54, 5, 8, P.ink, { ink: 1, amp: 0.1 });
-        rect(ctx, o.phoneOff ? P.cloth[2] : P.fluoro[2], 16, -53, 3, 6);
-        oval(ctx,16.5,-46.5,2.3,1.8,P.skin[1],true,.7);
+        sleeve(ctx,[11,-50,away ? 13 : 17,away ? -38 : tell ? -44 : -42,17,-49],P.a.maroon,6,P.skin[1]);
+        box(ctx,15,-54,5,8,P.ink,{ink:1,amp:.1});
+        rect(ctx,o.phoneOff ? P.cloth[2] : P.fluoro[2],16,-53,3,6);
+        // The sleeve's drawn thumb grips the phone; no second floating hand.
       }
-      line(ctx,-7,-72,6,-72,P.paper[0],.8);
-      // Beanie with a fold and a pom; the mask's eye slot is on crooked.
-      oval(ctx, 0, -63, 9.5, 8, P.ink);
-      ctx.save(); ctx.rotate(-0.12); rect(ctx, P.cloth[0], -6, -65, 13, 4); ctx.restore();
-      if (o.state === "phone-away") {
-        // Eyes down to the screen; no extra face detail at phone scale.
-        line(ctx, -4.3, -63.8, -1, -62.8, P.paper[3], 1);
-        line(ctx, 1.6, -63.8, 4.6, -62.8, P.paper[3], 1);
-      } else if (o.state === "phone-tell") {
-        // A glance up before the light lands (the existing tell still drives timing).
-        oval(ctx, -2.5, -64.6, 1.4, 1.4, P.paper[3]);
-        line(ctx, 1, -65.8, 4.5, -65.8, P.paper[3], 1.1);
-      } else {
-        oval(ctx, -2.5, -64.6, 1.4, 1.4, P.paper[3]);
-        oval(ctx, 3, -65.4, 1.4, 1.4, P.paper[3]);
-      }
-      shape(ctx, [-9.5, -66, -8, -74, 0, -77, 8, -74, 9.5, -66], P.a.mustard, { ink: 1.3, seed: 43, amp: 0.3 });
-      rect(ctx, P.ink, -9, -68, 18, 0.8);
-      oval(ctx, 1, -78.5, 2.6, 2.4, P.a.mustard, true, 1);
+      characterHead(ctx,kind,0,-62,{expr: o.state === "phone-tell" ? "scared" : expr,look:o.look});
     } else {
-      // The wide one: track jacket with a stripe, backwards cap over the hood,
-      // a pillowcase over one shoulder for what they came to take.
-      drop(ctx, 0, 0, 14, 3.8);
-      legs(ctx, 0, 0, -36, 4.6, 6.4, P.cloth[0], bob, P.ink);
-      shape(ctx, [-17, -70, -10, -77, 9, -76, 18, -68, 19, -47, 14, -35, -16, -35, -20, -49], P.a.track, { ink: CH, seed: 51, amp: CA });
-      shape(ctx, [-16, -72, -8, -73, -9, -35, -16, -35], "#24472f", { ink: false, seed: 52, amp: CA });
-      rect(ctx, P.a.white, 12, -72, 2, 30);
-      line(ctx, 0, -74, 0, -36, P.ink, 0.9);
-      if (!o.reaching) {
-        limb(ctx,[13,-69,20,-53,12,-45],P.a.track,6,P.skin[0]);
-        line(ctx,17,-67,19,-54,P.a.white,1.8);
-      }
-      // The pillowcase.
+      drop(ctx,0,0,18,4);
+      workLegs(ctx,-35,7,9,P.cloth[0],bob,P.ink);
+      // Every state needs two actual arms: previously the shoulder-to-hand
+      // shapes vanished completely when the grab overlay entered.
+      // Keep elbows close, with a clear single reaching arm on the near side.
+      sleeve(ctx, o.reaching || grab
+        ? [-16,-66,-21,-57,-15,-49]
+        : [-16,-66,-24,-54,-17,-43], P.a.track,7,P.skin[0]);
+      // Heavy shoulder yoke and short, boxy track jacket; broad hips and
+      // proper trouser knees. The white stripe is one continuous garment cue.
+      cut(ctx,"M-10-78L-24-77L-28-67L-24-48L-18-34L18-34L25-51L25-71L14-78Z",P.a.track);
+      cut(ctx,"M-24-72L-15-71L-13-49L-17-35L-23-42Z",P.service[0],0);
+      cut(ctx,"M-24-76L-8-73L-3-65L8-67L19-77L24-73L13-59L-6-60L-21-69Z",P.a.trackLight,1);
+      cut(ctx,"M-8-77L0-69L8-77L10-71L1-61L-7-70Z",P.cloth[0],1);
+      line(ctx,2,-62,2,-36,P.inkSoft,1.5);
+      cut(ctx,"M-23-73L-24-61M22-72L22-60",null,2.8,P.a.white);
+      cut(ctx,"M-19-37H18L17-33H-17Z",P.service[0],1);
+      cut(ctx,"M7-50L19-53L18-43L8-40Z",P.service[0],1);
       if (!grab) {
-        shape(ctx, [-14, -76, -24, -70, -28, -52, -22, -44, -14, -50], P.a.white, { ink: 1.3, seed: 53, amp: 0.6 });
-        rect(ctx, P.a.denim, -26, -60, 10, 2);
-        if (!o.reaching) limb(ctx,[-13,-68,-20,-73,-17,-77],P.a.track,5.5,P.skin[0]);
-        line(ctx,-25,-56,-20,-49,P.paper[0],1);
-      } else {
-        shape(ctx, [10, -66, 26, -58, 30, -40, 18, -38], P.a.white, { ink: 1.3, seed: 54, amp: 0.6 });
-      }
-      // Head: hood under a backwards cap, bandana over the face.
-      oval(ctx, 0, -83, 9, 8.5, P.cloth[1], true, CH);
-      shape(ctx, [-8, -82, 8, -82, 6, -75, -6, -75], P.a.red, { ink: 1, seed: 55, amp: 0.3 });
-      oval(ctx, -2.6, -85, 1.3, 1, P.paper[3]); oval(ctx, 2.8, -85, 1.3, 1, P.paper[3]);
-      shape(ctx, [-8, -88, -6, -94, 6, -94, 8, -88], P.cloth[0], { ink: 1.2, seed: 56, amp: 0.3 });
-      box(ctx, -15, -90, 8, 3, P.cloth[0], { ink: 1, amp: 0.2 });
+        cut(ctx,"M-18-77Q-25-77-28-67L-30-50L-24-43L-15-49L-15-66Z",P.paper[2],1.3);
+        line(ctx,-28,-59,-16,-59,P.a.denim,2);
+        line(ctx,-26,-53,-23,-46,P.paper[0],1);
+      } else cut(ctx,"M12-66Q26-62 29-54L31-40L20-37L14-44Z",P.paper[2],1.3);
+      sleeve(ctx, o.reaching || grab
+        ? [17,-67,25,-55,31,-43]
+        : [17,-67,22,-54,15,-44], P.a.track,8,P.skin[0]);
+      characterHead(ctx,"hood-cap",0,-82,{expr,look:o.look});
     }
     ctx.restore();
   }
@@ -690,11 +991,17 @@
     rect(ctx, P.wood[3], x - 9, y - 8, 18, 1.4);
     oval(ctx, x, y - 6 + breathe * 0.2, 7.4, 4.6, P.a.maroon, true, 1.2);
     oval(ctx, x - 2, y - 7, 3, 1.6, P.a.maroonLight);
-    // The head turns where YOU looks. Never a face: hair, and an ear when turned.
+    // The same cropped coils from above; a cheek and ear on the turn.
     const turn = state === "reach" || state === "turn" ? 3.2 : state === "look" ? 1.4 : state === "look-back" ? -3.2 : 0;
     const hy = y - 10 - (state === "look" ? 3 : 0);
-    oval(ctx, x + turn, hy, 7.6, 8, P.inkSoft, true, CH);
-    oval(ctx, x + turn - 1.8, hy - 2.4, 3.4, 2.8, P.wood[1]);
+    ctx.save();ctx.translate(x+turn,hy);
+    cut(ctx,"M-10 3Q-13-3-10-7Q-11-13-5-12Q-2-17 3-13Q9-15 11-8Q14-3 10 4L3 10L-6 8Z",P.inkSoft,1.4);
+    cut(ctx,"M-8-7Q-5-11-1-9M2-11Q6-12 9-7",null,1.4,P.wood[1]);
+    if(turn>0) {
+      cut(ctx,"M6-4L10-2L12 3L9 6L6 4Z",P.skin[1],.8);
+      line(ctx,8,0,10,1,P.ink,1);
+    }
+    ctx.restore();
     if (turn) oval(ctx, x + turn * 2.3, hy + 1, 1.7, 2.6, P.skin[1], true, 0.8);
     ctx.restore();
   }
@@ -748,7 +1055,10 @@
       // Bodies sway with the van; frozen, they hold themselves rigid against it.
       lean: ride.surge * (still ? 0.6 : 1.8) + (still ? 0 : ride.shiver * 0.3),
       hop: -(o.bump || 0) * 3.4,
-      talk: o.talking && !still && t ? Math.sin(t / 95) * 0.8 + Math.sin(t / 37) * 0.3 : 0,
+      // One articulated emphasis per turn, rather than a hand flapping with
+      // multiple fast oscillators all the time somebody is speaking.
+      talk: o.talking && !still && t && Number.isFinite(o.talkAge)
+        ? Math.sin(Math.PI * Math.min(1, o.talkAge / 1200)) * 1.1 : 0,
       talking: Boolean(o.talking) && !still,
       idle: still || !t ? 0 : Math.sin(t / 1100 + x * 0.1) * 0.4
     };
@@ -761,17 +1071,6 @@
     else if (who === "hood-small") crewSmall(ctx, k);
     else crewCap(ctx, k);
     ctx.restore();
-  }
-  // Eyes in a mask: whites that read at phone size, pupils toward the look.
-  function crewEyes(ctx, ex, ey, gap, k, o = {}) {
-    const wide = k.state === "stare" || o.wide, r = wide ? 1.9 : 1.55;
-    const px = k.look.x * (wide ? 0.5 : 0.75), py = k.look.y * 0.45;
-    if (k.quiet) { line(ctx, ex - gap - 1.4, ey + 0.4, ex - gap + 1.4, ey + 0.8, P.paper[2], 1); line(ctx, ex + gap - 1.4, ey + 0.8, ex + gap + 1.4, ey + 0.4, P.paper[2], 1); return; }
-    for (const side of [-1, 1]) {
-      oval(ctx, ex + side * gap, ey + (o.crooked ? side * 0.5 : 0), r, r * 0.9, P.paper[3]);
-      oval(ctx, ex + side * gap + px, ey + (o.crooked ? side * 0.5 : 0) + py, wide ? 0.6 : 0.8, wide ? 0.6 : 0.8, P.ink);
-    }
-    if (k.state === "stare") { rect(ctx, "#ffffff", ex - gap - 1, ey - 1.2, 0.9, 0.9); rect(ctx, "#ffffff", ex + gap - 1, ey - 1.2, 0.9, 0.9); }
   }
   // The small one: puffer jacket, mustard beanie and pom, on a milk crate,
   // the phone in his hand. Facing the floor (and us).
@@ -790,18 +1089,18 @@
     const sx = k.lean * 0.5, sy = k.hop * 0.5 + (k.quiet ? 1.6 : 0);
     ctx.save(); ctx.translate(sx, sy);
     // Off arm: on his knee, or up and open while he talks.
-    if (k.talking && k.phone !== "call") limb(ctx, [-11, -37, -16, -31, -17, -38 + k.talk * 2], P.a.maroon, 4.4, P.skin[1]);
-    else if (k.phone !== "call") limb(ctx, [-11, -37, -12, -28, -6, -22], P.a.maroon, 4.4, P.skin[1]);
-    // Puffer: three quilted bands, the top one lit, a zip.
-    shape(ctx, [-12, -43, 10, -43, 15, -37, 16, -28, 12, -22, -12, -22, -16, -29, -16, -36], P.a.maroon, { ink: CH, seed: 144, amp: CA });
-    ctx.globalAlpha = 0.28; shape(ctx, [-13, -42, -6, -42, -7, -23, -14, -23], P.ink, { ink: false, seed: 145, amp: CA }); ctx.globalAlpha = 1;
-    rect(ctx, P.a.maroonLight, -11, -41, 22, 3);
-    for (const qy of [-35, -29]) line(ctx, -13.5, qy, 13.5, qy + 0.5, P.ink, 0.9, qy);
-    line(ctx, 0.4, -41, 0.4, -24, P.inkSoft, 0.8, 146, 0.1);
+    if (k.talking && k.phone !== "call") sleeve(ctx, [-11, -37, -16, -31, -17, -38 + k.talk * 2], P.a.maroon, 6.2, P.skin[1]);
+    else if (k.phone !== "call") sleeve(ctx, [-11, -37, -12, -28, -6, -22], P.a.maroon, 6.2, P.skin[1]);
+    cut(ctx,"M-10-44Q-23-43-24-34L-20-26Q-14-20-2-22L14-24Q22-28 21-35Q20-44 9-45Z",P.a.maroon);
+    cut(ctx,"M-20-36Q-20-42-13-41L-9-29L-14-24L-19-26Z",P.a.maroonLight,0);
+    cut(ctx,"M-14-44L-12-49L-3-43L8-48L14-42L7-36L-6-36Z",P.cloth[0],1);
+    cut(ctx,"M-20-33Q-8-28-2-31M5-32Q12-30 20-34",null,1.1);
+    line(ctx,1,-38,3,-24,P.inkSoft,1.5);
+    cut(ctx,"M-17-30L-9-28L-11-24L-16-25Z",P.cloth[0],.8);
     // The phone: held out at what he films, held close when it rings, or in his lap.
     if (k.phone === "film") {
       const ax = 12 + Math.max(-2, k.look.x * 13), ay = -35 + k.look.y * 6;
-      limb(ctx, [10, -38, ax - 2, ay + 2, ax, ay - 1], P.a.maroon, 4.4, null);
+      sleeve(ctx, [10, -38, ax - 2, ay + 2, ax, ay - 1], P.a.maroon, 6.2, null);
       box(ctx, ax - 2, ay - 8, 6, 9, P.ink, { ink: 1, amp: 0.1 });
       rect(ctx, P.metal[3], ax + 1.6, ay - 6.6, 1.4, 1.4);
       rect(ctx, P.fluoro[2], ax - 2.8, ay - 7.4, 1, 8);
@@ -809,33 +1108,23 @@
     } else if (k.phone === "call") {
       if (k.state === "phone-stopped") {
         // He starts to answer; Tall's hand forces the phone back toward his lap.
-        limb(ctx, [-11, -37, -10, -29, -5, -25], P.a.maroon, 4.4, P.skin[1]);
-        limb(ctx, [11, -37, 8, -29, 1, -25], P.a.maroon, 4.4, P.skin[1]);
+        sleeve(ctx, [-11, -37, -10, -29, -5, -25], P.a.maroon, 6.2, P.skin[1]);
+        sleeve(ctx, [11, -37, 8, -29, 1, -25], P.a.maroon, 6.2, P.skin[1]);
         box(ctx, -5, -30, 8, 11, P.ink, { ink: 1, amp: 0.1 });
         rect(ctx, P.fluoro[2], -4.5, -30.6, 7, 1);
       } else {
-        limb(ctx, [-11, -37, -9, -28, -3, -29], P.a.maroon, 4.4, P.skin[1]);
-        limb(ctx, [11, -37, 9, -28, 4, -29], P.a.maroon, 4.4, P.skin[1]);
+        sleeve(ctx, [-11, -37, -9, -28, -3, -29], P.a.maroon, 6.2, P.skin[1]);
+        sleeve(ctx, [11, -37, 9, -28, 4, -29], P.a.maroon, 6.2, P.skin[1]);
         box(ctx, -3.5, -38, 8, 11, P.ink, { ink: 1, amp: 0.1 });
         rect(ctx, P.fluoro[2], -3, -38.6, 7, 1);
       }
     } else {
-      limb(ctx, [11, -37, 12, -28, 7, -22], P.a.maroon, 4.4, P.skin[1]);
+      sleeve(ctx, [11, -37, 12, -28, 7, -22], P.a.maroon, 6.2, P.skin[1]);
       box(ctx, 3, -25, 7, 4, P.ink, { ink: 0.8, amp: 0.1 });
     }
-    // Head: ski mask under the beanie; the eye slot on crooked.
-    const hx = k.lean + k.look.x * 1.3 + k.talk * 0.2, hy = -47 + k.hop + k.idle + (k.quiet ? 2.6 : 0) - sy;
-    oval(ctx, hx, hy, 8.4, 8, P.ink, true, CH);
-    ctx.save(); ctx.translate(hx, hy - 0.4); ctx.rotate(-0.12); rect(ctx, P.cloth[0], -6.8, -2.8, 13.6, 4.6); ctx.restore();
-    crewEyes(ctx, hx + k.look.x * 0.8, hy - 0.6, 2.8, k, { crooked: true, wide: k.phone === "call" });
-    if (k.talking) oval(ctx, hx + k.look.x, hy + 4.4, 1.5, 0.8 + Math.abs(k.talk) * 0.6, P.cloth[1]);
-    // The screen's cold light on the mask when the phone is up.
-    if (k.phone) { ctx.globalAlpha = k.phone === "call" ? 0.5 : 0.3; oval(ctx, hx + (k.phone === "film" ? 3 : 0), hy + 3, 6, 3.6, P.fluoro[1]); ctx.globalAlpha = 1; }
-    shape(ctx, [hx - 8.7, hy - 2.6, hx - 7.8, hy - 9.4, hx, hy - 12.6, hx + 7.8, hy - 9.4, hx + 8.7, hy - 2.6], P.a.mustard, { ink: 1.3, seed: 147, amp: 0.25 });
-    rect(ctx, P.ink, hx - 8.4, hy - 5, 16.8, 0.8);
-    for(const bx of [-5,-1,3,6]) line(ctx,hx+bx,hy-9,hx+bx,hy-5.6,P.paper[0],.55);
-    box(ctx,hx+3,hy-5.4,3.3,2.5,P.paper[1],{ink:.5,amp:.1});
-    oval(ctx, hx + 1, hy - 13.8, 2.8, 2.6, P.a.mustard, true, 1);
+    const hx = k.lean + k.look.x * 1.3 + k.talk * .2, hy = -47 + k.hop + k.idle + (k.quiet ? 2.6 : 0) - sy;
+    characterHead(ctx,"hood-small",hx,hy,{expr:k.quiet ? "quiet" : k.state === "stare" || k.phone === "call" ? "scared" : "neutral",look:k.look,tilt:-.06});
+    if(k.talking) oval(ctx,hx+2,hy+8,1.6,.8+Math.abs(k.talk)*.6,P.wood[0]);
     ctx.restore();
   }
   // The capped one: wide, track jacket with the white stripe, cap on
@@ -851,37 +1140,29 @@
     box(ctx, -13, -26, 26, 8, P.cloth[0], { ink: 1.1, amp: 0.2, seed: 153 });
     const sx = k.lean * 0.5, sy = k.hop * 0.5;
     ctx.save(); ctx.translate(sx, sy);
-    // Hunched: shoulders forward and down.
-    shape(ctx, [-17, -39, -11, -45, 10, -44, 18, -37, 17, -26, 11, -23, -14, -24], P.a.track, { ink: CH, seed: 154, amp: CA });
-    shape(ctx, [-16, -42, -8, -43, -9, -24, -14, -24], "#24472f", { ink: false, seed: 155, amp: CA });
-    line(ctx, 0, -42, 0, -25, P.ink, 0.9);
+    cut(ctx,"M-11-46L-24-45L-27-35L-21-24L-5-21L18-23L26-35L23-45L10-46Z",P.a.track);
+    cut(ctx,"M-23-40L-14-42L-11-24L-20-24Z",P.service[0],0);
+    cut(ctx,"M-23-44L-8-41L-3-35L8-37L19-45L23-41L12-30L-5-31L-21-37Z",P.a.trackLight,1);
+    cut(ctx,"M-7-46L0-41L8-46L10-40L1-35L-7-40Z",P.cloth[0],1);
+    line(ctx,0,-36,0,-23,P.inkSoft,1.1);
     // Pointing: the arm on Rizo's side goes straight out at him, one finger;
     // the pillowcase drops at his feet. Otherwise elbows on knees, the cloth in his hands.
     const side = k.look.x < 0 ? -1 : 1;
     const ax = side * 14 + k.look.x * 13 + side * 8, ay = -38 + k.look.y * 13;
     if (!k.point) {
-      limb(ctx, [-14, -39, -9, -26, -2, -27], P.a.track, 4.8, P.skin[0]);
+      sleeve(ctx, [-14, -39, -9, -26, -2, -27], P.a.track, 7, P.skin[0]);
       shape(ctx, [-6, -31, 5, -32, 7, -24, 1, -21, -6, -23], P.a.white, { ink: 1.1, seed: 156, amp: 0.7 });
-      limb(ctx, [14, -39, 9, -26, 3, -27], P.a.track, 4.8, P.skin[0]);
+      sleeve(ctx, [14, -39, 9, -26, 3, -27], P.a.track, 7, P.skin[0]);
     } else {
       shape(ctx, [-4, -6, 8, -7, 10, -1, -3, 0], P.a.white, { ink: 1.1, seed: 157, amp: 0.7 });
-      limb(ctx, [-side * 14, -39, -side * 9, -26, -side * 2, -27], P.a.track, 4.8, P.skin[0]);
-      limb(ctx, [side * 14, -39, (side * 14 + ax) / 2, (-39 + ay) / 2 - 1, ax, ay], P.a.track, 4.8, P.skin[0]);
+      sleeve(ctx, [-side * 14, -39, -side * 9, -26, -side * 2, -27], P.a.track, 7, P.skin[0]);
+      sleeve(ctx, [side * 14, -39, (side * 14 + ax) / 2, (-39 + ay) / 2 - 1, ax, ay], P.a.track, 7, P.skin[0]);
       line(ctx, ax, ay, ax + k.look.x * 5.5, ay + k.look.y * 5.5, P.ink, 2.8);
       line(ctx, ax, ay, ax + k.look.x * 5.5, ay + k.look.y * 5.5, P.skin[0], 1.3);
     }
     rect(ctx, P.a.white, -15, -38, 1.6, 9); rect(ctx, P.a.white, 13, -38, 1.6, 9);
-    // Head: hood, the backwards cap's flat brim standing up behind, bandana.
     const hx = k.lean + k.look.x * 1.3, hy = -47 + k.hop + k.idle - sy;
-    oval(ctx, hx, hy, 9.4, 8.8, P.cloth[1], true, CH);
-    shape(ctx, [hx - 6.4, hy - 7.6, hx + 6.4, hy - 7.6, hx + 5.6, hy - 12.4, hx - 5.6, hy - 12.4], P.ink, { ink: 1, seed: 158, amp: 0.15 });
-    oval(ctx, hx, hy - 4.6, 8.4, 4.6, P.ink, true, 1);
-    oval(ctx, hx, hy - 3.6, 2.4, 1.2, P.cloth[1]);
-    shape(ctx, [hx - 8.2, hy + 0.4, hx + 8.2, hy + 0.4, hx + 6.4, hy + 6.8, hx, hy + 9, hx - 6.4, hy + 6.8], P.a.red, { ink: 1.1, seed: 159, amp: 0.25 });
-    line(ctx, hx - 5, hy + 3.4, hx + 5, hy + 3.2, P.a.stamp, 0.8);
-    shape(ctx,[hx+7,hy+4,hx+13,hy+6,hx+10,hy+10,hx+6,hy+7],P.a.red,{ink:.8,seed:160,amp:.2});
-    line(ctx,hx-5,hy-8,hx+4,hy-8,P.cloth[2],1.2);
-    crewEyes(ctx, hx + k.look.x * 0.8, hy - 1.2, 3, k);
+    characterHead(ctx,"hood-cap",hx,hy,{expr:k.quiet ? "quiet" : k.state === "stare" ? "stare" : "neutral",look:k.look});
     ctx.restore();
   }
   // The tall one, in the passenger seat: long legs out to the dash in socks
@@ -890,39 +1171,28 @@
   function crewTall(ctx, k) {
     const sx = k.lean * 0.6, sy = k.hop * 0.5;
     // Legs to the dash; socks and slides.
-    limb(ctx, [-1, -21, -12, -33, -21, -30], P.cloth[2], 5, null);
+    sleeve(ctx, [-1, -21, -12, -33, -21, -30], P.cloth[2], 5, null);
     box(ctx, -25.5, -33, 5.4, 5.6, P.a.sock, { ink: 0.9, amp: 0.1 });
     shape(ctx, [-30, -31, -24, -32.4, -23.4, -27.4, -30.4, -26.8], P.ink, { ink: false, seed: 161, amp: 0.1 });
     ctx.save(); ctx.translate(sx, sy);
     // Far arm on his knee.
-    limb(ctx, [-4, -47, -8, -38, -11, -33], P.cloth[1], 4.4, P.skin[1]);
-    shape(ctx, [-8, -51, 6, -53, 8, -21, -8, -19], P.cloth[3], { ink: CH, seed: 162, amp: CA });
-    shape(ctx, [1, -52, 6, -53, 8, -21, 2, -20], P.cloth[2], { ink: false, seed: 163, amp: CA });
-    box(ctx, -5, -34, 11, 7, P.cloth[1], { ink: 1, amp: 0.3, seed: 164 });
-    line(ctx,-6,-23,7,-24,P.paper[0],.7);
-    stitches(ctx,-6,-40,-1,-40,P.paper[0],2,.8,.65);
-    line(ctx,3,-49,5,-37,P.cloth[1],1);
-    ctx.globalAlpha = 0.5; oval(ctx, 0, -43, 4, 3.4, P.cloth[3]); ctx.globalAlpha = 1;
+    sleeve(ctx, [-4, -47, -8, -38, -11, -33], P.cloth[1], 5.8, P.skin[1]);
+    cut(ctx,"M-6-54L-15-49L-13-36L-12-21L-4-18L1-22L11-20L12-37L10-48L4-54Z",P.cloth[2]);
+    cut(ctx,"M-13-48L-8-49L-6-34L-9-21L-12-22Z",P.cloth[1],0);
+    cut(ctx,"M-11-51L3-53L10-46L5-39L-6-33L-9-36L0-44Z",P.cloth[3],1);
+    cut(ctx,"M-7-34L6-39L8-29L-4-26Z",P.cloth[1],.9);
+    oval(ctx,2,-44,1.4,1.3,P.paper[0],true,.6);
     // Near arm over the seatback; lifted off it while he talks. When Small
     // starts to answer the Boss call, Tall reaches across and pushes the phone
     // back down instead of merely saying not to pick up.
-    if (k.state === "stop-phone") limb(ctx, [4, -48, 22, -50, 43, -40], P.cloth[3], 4.6, P.skin[1]);
-    else if (k.talking) limb(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[3], 4.6, P.skin[1]);
-    else limb(ctx, [4, -48, 12, -53, 18, -49], P.cloth[3], 4.6, P.skin[1]);
-    // Head: the peak droops toward where he looks; a slot of mask, lazy eyes.
-    const f = k.look.x < -0.3 ? -1 : 1;
-    const hx = 3 + k.lean + k.talk * 0.3, hy = -59 + k.hop + k.idle - sy + (k.quiet ? 1.5 : 0);
-    ctx.save(); ctx.translate(hx, hy); ctx.scale(f, 1);
-    shape(ctx, [-9, 7, -10, -4, -4, -11, 5, -11, 10, -5, 12, 1, 7, -1, 6, 8], P.cloth[3], { ink: CH, seed: 165, amp: CA });
-    line(ctx, -6, -6, 4, -10, P.paper[0], 1, 166, 0.2);
-    oval(ctx, 3, 1, 5.8, 5.6, P.ink);
-    rect(ctx, P.cloth[0], 0, -1.4, 8.6, 3.6);
-    if (k.state === "stare") { oval(ctx, 5.6, 0.4, 1.6, 1.3, P.paper[3]); oval(ctx, 6.2, 0.4, 0.6, 0.6, P.ink); rect(ctx, "#ffffff", 4.6, -0.5, 0.8, 0.8); }
-    else if (k.quiet) line(ctx, 3.6, 0.8, 7.4, 1.2, P.paper[2], 1.1);
-    else { line(ctx, 3.4, 0.2, 7.6, 0.4, P.paper[2], 1.3); rect(ctx, P.ink, 5.6 + Math.max(0, k.look.x) * 0.8, -0.1, 1.1, 1); }
-    line(ctx, 4, 7, 3.4, 15, P.paper[2], 0.8); line(ctx, 6.4, 6.4, 7, 11, P.paper[2], 0.8);
-    ctx.restore();
-    ctx.restore();
+    if (k.state === "stop-phone") sleeve(ctx, [4, -48, 22, -50, 43, -40], P.cloth[2], 6.2, P.skin[1]);
+    else if (k.talking) sleeve(ctx, [4, -48, 12, -53, 17, -58 + k.talk * 2], P.cloth[2], 6.2, P.skin[1]);
+    else sleeve(ctx, [4, -48, 12, -53, 18, -49], P.cloth[2], 6.2, P.skin[1]);
+    const f = k.look.x < -.3 ? -1 : 1;
+    const hx = 3 + k.lean + k.talk * .3, hy = -59 + k.hop + k.idle - sy + (k.quiet ? 1.5 : 0);
+    ctx.save();ctx.translate(hx,hy);ctx.scale(f,1);
+    characterHead(ctx,"hood-tall",0,0,{expr:k.quiet ? "quiet" : k.state === "stare" ? "scared" : "neutral",look:{x:k.look.x*f,y:k.look.y}});
+    ctx.restore();ctx.restore();
   }
   // The driver: heavy shoulders over the wheel in a rust chore coat with a
   // cream fleece collar, gloves, a black ski mask and wraparound sunglasses at
@@ -931,7 +1201,7 @@
     const turn = k.state === "stare" ? 0.85 : k.talking ? 0.5 : k.quiet ? 0.2 : 0;
     const sx = k.lean * 0.5, sy = k.hop * 0.4;
     // Legs down to the pedals; work boots.
-    limb(ctx, [2, -21, -9, -25, -14, -6], P.cloth[0], 5.4, null);
+    sleeve(ctx, [2, -21, -9, -25, -14, -6], P.cloth[0], 5.4, null);
     oval(ctx, -16, -4, 4, 2.2, P.ink, true, 1);
     ctx.save(); ctx.translate(sx, sy);
     // The wheel, edge-on: a tilted ring and its column to the dash.
@@ -941,32 +1211,30 @@
     ctx.strokeStyle = P.cloth[2]; ctx.lineWidth = 1.4; ctx.stroke();
     ctx.restore();
     // Far arm to the top of the wheel.
-    limb(ctx, [2, -46, -8, -40, -19, -47], P.a.rust, 4.8, null);
+    sleeve(ctx, [2, -46, -8, -40, -19, -47], P.a.rust, 7, null);
     oval(ctx, -19.5, -47.5, 2.6, 2.4, P.ink, true, 0.9);
     line(ctx,-20,-49,-18,-46,P.cloth[3],1.1);
-    // The coat: rust canvas, a dark side, a chest pocket, the fleece collar.
-    shape(ctx, [-11, -48, -6, -53, 8, -53, 13, -46, 12, -20, -10, -19], P.a.rust, { ink: CH, seed: 171, amp: CA });
-    shape(ctx, [3, -51, 8, -52, 10, -20, 4, -20], P.wood[1], { ink: false, seed: 172, amp: CA });
-    box(ctx, -6, -40, 7, 6, P.wood[1], { ink: 0.8, amp: 0.2, seed: 173 });
-    shape(ctx, [-7, -50, 8, -53, 9, -47, -6, -45], P.paper[2], { ink: 1.1, seed: 174, amp: 0.5 });
+    // Heavy fleece collar, full shoulder and work-coat waist. The driver
+    // carries a different shape from the bagman's wide track jacket.
+    cut(ctx,"M-5-54L-17-51Q-22-47-20-37L-16-21L12-20L19-29L19-46L9-54Z",P.a.rust);
+    cut(ctx,"M8-50L17-44L12-21L4-21Z",P.wood[1],0);
+    cut(ctx,"M-12-52L-5-59L1-54L7-57L15-49L11-40L2-47L-7-39Z",P.paper[2],1.2);
+    cut(ctx,"M-15-38L-5-40L-4-31L-12-28Z",P.wood[1],1);
     // Worn canvas seams and the seat belt reinforce a road-facing driver.
     line(ctx,7,-47,-6,-22,P.inkSoft,3.2);
     line(ctx,7,-47,-6,-22,P.cloth[2],1.4);
     box(ctx,-8,-24,4,3,P.metal[2],{ink:.6,amp:.1});
     line(ctx,-8,-39,-8,-27,P.paper[0],.65);
     // Near arm: on the wheel, or off it to make a point.
-    if (k.talking) { limb(ctx, [-3, -46, -9, -37, -11, -48 + k.talk * 2.4], P.a.rust, 4.8, null); oval(ctx, -11, -48.4 + k.talk * 2.4, 2.6, 2.4, P.ink, true, 0.9); }
-    else { limb(ctx, [-3, -46, -11, -35, -21, -31], P.a.rust, 4.8, null); oval(ctx, -21, -31, 2.6, 2.4, P.ink, true, 0.9); }
-    // Head: black knit mask with a rolled cuff, the glasses' band moving round as he turns.
-    const hx = -1 + k.lean * 0.8, hy = -57 + k.hop + k.idle - sy + (k.quiet ? 1.2 : 0);
-    oval(ctx, hx, hy, 7.6, 7.8, P.ink, true, CH);
-    rect(ctx, P.cloth[1], hx - 7.2, hy - 6.8, 14.4, 2.8);
-    oval(ctx, hx + 5.4 - turn * 6, hy + 0.6, 1.5, 2.3, P.cloth[0]);
-    const lx = hx - 4.8 + turn * 7.2;
-    box(ctx, lx - 3.4, hy - 2.4, 6.8 - turn * 1.2, 3.2, P.metal[3], { ink: 0.9, amp: 0.1 });
-    rect(ctx, "#ffffff", lx - 2.4, hy - 1.8, 2, 0.9);
-    oval(ctx, hx - 5.6 + turn * 6.6, hy + 4, 1.3, k.talking ? 0.8 + Math.abs(k.talk) * 0.5 : 0.5, P.cloth[1]);
-    ctx.restore();
+    if (k.talking) { sleeve(ctx, [-3, -46, -9, -37, -11, -48 + k.talk * 2.4], P.a.rust, 7, null); oval(ctx, -11, -48.4 + k.talk * 2.4, 2.6, 2.4, P.ink, true, 0.9); }
+    else { sleeve(ctx, [-3, -46, -11, -35, -21, -31], P.a.rust, 7, null); oval(ctx, -21, -31, 2.6, 2.4, P.ink, true, 0.9); }
+    const hx = -1 + k.lean * .8, hy = -57 + k.hop + k.idle - sy + (k.quiet ? 1.2 : 0);
+    ctx.save();ctx.translate(hx,hy);ctx.scale(-1,1);
+    // The head still turns with the existing talk/stare poses.
+    ctx.rotate(turn*.13);
+    characterHead(ctx,"driver",0,0,{expr:k.state === "stare" ? "scared" : k.quiet ? "quiet" : "neutral",look:k.look});
+    if(k.talking) oval(ctx,3,12,1.5,.8+Math.abs(k.talk)*.5,P.wood[0]);
+    ctx.restore();ctx.restore();
   }
 
   // LATCH. A stranded courier: a folded-paper coat with the collar turned
@@ -1017,6 +1285,8 @@
     // Face strip: skin between collar and brim; the eyes carry the expression.
     oval(ctx, 1, -31 + lift, 5.4, 4.4, P.skin[2], true, 1.1);
     const ey = -31.6 + lift;
+    // His narrow eye strip is intentional. Do not puppet the eyes around
+    // every frame; the existing startled/soft/dry expressions do the acting.
     ctx.strokeStyle = P.ink; ctx.fillStyle = P.ink; ctx.lineWidth = 1; ctx.lineCap = "round";
     if (expr === "startled") { oval(ctx, -0.8, ey, 1.4, 1.5, P.paper[3], true, 0.7); oval(ctx, 3.4, ey, 1.4, 1.5, P.paper[3], true, 0.7); oval(ctx, -0.6, ey, 0.6, 0.6, P.ink); oval(ctx, 3.6, ey, 0.6, 0.6, P.ink); }
     else if (expr === "soft") { ctx.beginPath(); ctx.arc(-0.8, ey - 0.4, 1.1, 0.2, Math.PI - 0.2); ctx.moveTo(4.5, ey - 0.4); ctx.arc(3.4, ey - 0.4, 1.1, 0.2, Math.PI - 0.2); ctx.stroke(); }
@@ -1075,7 +1345,7 @@
     const planted = ["brace", "support", "lift"].includes(state);
     const expr = state === "tired" ? "tired" : o.expr || (state === "listen" ? "listening" : "work");
     const quiet = !walking && !["support", "lift", "brace"].includes(state);
-    const breath = quiet ? Math.sin(t / 920) * 0.45 : 0;
+    const breath = quiet ? Math.sin(t / 1200) * 0.27 : 0;
     drop(ctx, x, y, 15, 3.8);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (seated) {
@@ -1096,7 +1366,7 @@
         limb(ctx, [5, -29, spread + (low ? 4 : 0), -17, spread, -3], P.cloth[1], 6, null);
         for (const side of [-1, 1]) oval(ctx, side * spread + 1.5, -2, 5.8, 2.6, P.wood[0], true, 1.2);
         line(ctx, spread - 2, -4, spread + 3, -4, P.paper[0], .8);
-      } else legs(ctx, 0, 0, -31, 3.7, 5.5, P.cloth[1], bob, P.wood[0]);
+      } else workLegs(ctx, -31, 5.5, 7.5, P.cloth[1], bob, P.wood[0]);
       // One repaired knee is readable even when the upper-body detail is lost.
       box(ctx, -7.4, -18, 5.5, 5.2, P.service[1], { ink: 0.7, amp: 0.2, seed: 78 });
       stitches(ctx, -6.8, -15.4, -2.5, -15.4, P.paper[1], 2.2, 0.7, 0.55);
@@ -1107,9 +1377,11 @@
     const slump = state === "tired" ? 3 : 0;
     ctx.translate(0, slump);
     const arms = NELL_ARMS[state];
-    const swing = walking ? Math.sin(t / 110) * 3 : 0;
+    // Legs and sleeves follow the same travel phase: no independent
+    // fast arm oscillator while the worker glides toward a job.
+    const swing = walking ? bob * .7 : 0;
     const far = arms[1].map((value, index) => (index >= 2 && index % 2 === 0 && state === "walk" ? value + swing : value));
-    limb(ctx, far, P.service[0], 4.4, P.skin[0]);
+    sleeve(ctx, far, P.service[0], 6.3, P.skin[0]);
 
     // Work always has weight or material. Nell never pantomimes a job.
     if (state === "lift") {
@@ -1120,7 +1392,12 @@
     }
     if (state === "work" || state === "fix") {
       const cy = state === "fix" ? -50 : -49;
-      const lift = state === "work" ? Math.sin(t / 410) * 1.15 : 0;
+      // A real worker takes a stitch, draws the thread through, then checks
+      // the material. One brief wrist action followed by a deliberate pause.
+      // The tool is always visibly in her hand, never an endless buzzing loop.
+      const stitch = (t % 3300) / 3300;
+      const lift = state === "work" && stitch < 0.29
+        ? Math.sin(Math.PI * stitch / 0.29) * 1.15 : 0;
       // A folded repair in her hands: patched corner, seam, needle and loose
       // thread. At small scale this becomes one pale rectangle plus red seam.
       shape(ctx, [7, cy - 2, 24, cy - 1, 23, cy + 11, 8, cy + 10], P.paper[1], { ink: 0.9, amp: 0.3, seed: 79 });
@@ -1131,38 +1408,30 @@
       ctx.moveTo(18, cy + 4 + lift); ctx.quadraticCurveTo(13, cy + 10, 9, cy + 7); ctx.stroke(); ctx.restore();
     }
 
-    // Broad service coat: squared shoulders, softened hem, one darker side.
-    shape(ctx, [-14, -62, -6, -65, 9, -63, 16, -43, 15, -32, 9, -24, -12, -25, -18, -38], P.service[2], { ink: CH, seed: 84, amp: CA });
-    shape(ctx, [-12, -61, -3, -62, -5, -27, -12, -25, -16, -38], P.service[1], { ink: false, seed: 85, amp: CA });
-    rect(ctx, P.service[3], -8, -63, 16, 1.8);
-    line(ctx, 1, -61, 2, -29, P.inkSoft, 0.8, 86, 0.2);
-
-    // The apron panel is her strongest body-language cue: useful, repaired,
-    // a little heavy. It makes her unmistakable beside Latch and Orr.
-    shape(ctx, [-8, -43, 10, -42, 11, -19, 4, -16, -7, -18, -10, -31], P.service[0], { ink: 1.15, seed: 184, amp: 0.35 });
-    line(ctx, -7, -40, 9, -39, P.a.maroon, 1.4, 185, 0.15);
-    box(ctx, 2, -34, 9, 8, P.service[3], { ink: 0.8, amp: 0.25, seed: 87 });
-    stitches(ctx, 2, -34, 11, -34, P.paper[1], 2.5, 0.9, 0.65);
-    line(ctx, 5.5, -35, 5.5, -41, P.paper[2], 1.2, 186, 0.05);
-    line(ctx, 8.5, -35, 10.5, -40, P.metal[3], 1, 187, 0.05);
-    // A pale measuring/repair strap crosses the green mass and stays readable
-    // against BELOW without making her decorative.
-    line(ctx, -9.5, -58.5, 8.5, -36.5, P.ink, 5, 188, 0.1);
-    line(ctx, -9.5, -58.5, 8.5, -36.5, P.paper[0], 2.7, 188, 0.1);
-    for (let k = 0; k < 3; k += 1) line(ctx, -5 + k * 4, -53 + k * 5, -3.5 + k * 4, -54.2 + k * 5, P.inkSoft, 0.65, 190 + k, 0.02);
-    // A spool at the waist and the open bow of her shears read as tools,
-    // even when the tiny stitches disappear at actual phone scale.
-    box(ctx, -18, -40, 5, 9, P.a.maroon, { ink: .8, amp: .2, seed: 198 });
-    line(ctx, -19, -40, -12, -40, P.paper[1], 1.6);
-    line(ctx, -19, -31, -12, -31, P.paper[1], 1.6);
-    oval(ctx, 11, -31, 2.2, 2.8, null, true, .9);
-    oval(ctx, 15, -31, 2.2, 2.8, null, true, .9);
-    line(ctx, 12, -28, 16, -21, P.metal[2], 1.1);
-    // Belt, rag and repaired hip patch.
-    rect(ctx, P.wood[1], -13, -41, 26, 2.5);
-    shape(ctx, [-10, -41, -5, -41, -4, -27, -10, -30], P.paper[2], { ink: 0.8, seed: 88, amp: 0.4 });
-    box(ctx, -8, -30, 7, 6, P.paper[0], { ink: 0.8, amp: 0.25, seed: 189 });
-    stitches(ctx, -8, -27, -1, -27, P.a.maroon, 2.2, 0.8, 0.6);
+    // Cropped fitted jacket over a bias-cut work apron. Shoulder → narrow
+    // waist → weighted hip makes a complete silhouette without tool noise.
+    cut(ctx,"M-7-65Q-17-64-18-57L-16-46L-20-34L-13-30L-8-35L11-33L19-37L14-48L15-58Q13-64 7-65Z",P.service[2]);
+    cut(ctx,"M-16-57L-9-60L-8-43L-14-34L-19-35Z",P.service[1],0);
+    cut(ctx,"M-10-62L-5-65L0-58L8-64L13-60L7-48L0-53L-6-49Z",P.service[0],1.1);
+    cut(ctx,"M-8-60L-4-63L0-57L-3-53Z M8-62L11-59L6-51L3-54Z",P.service[3],0);
+    cut(ctx,"M-10-42L12-43L22-24L12-18L5-20L-4-16L-18-22L-19-29Z",P.service[0],1.2);
+    cut(ctx,"M-9-41L10-42L14-27L5-22L-4-17L-16-22L-15-32Z",P.paper[1],1.1);
+    cut(ctx,"M-14-33L-7-38L-7-24L-4-18L-16-22Z",P.paper[0],0);
+    cut(ctx,"M10-38L20-24L12-20L7-22Z",P.service[1],0);
+    cut(ctx,"M-14-45L13-45L14-40L-13-39Z",P.a.maroon,1);
+    cut(ctx,"M-14-43L-20-38L-17-33L-12-40Z M-15-39L-20-26L-13-28L-11-39Z",P.a.maroon,1);
+    // A single patched pocket and the scissor holster are used in her work.
+    cut(ctx,"M-10-32L1-34L3-25L-7-23Z",P.service[2],1);
+    line(ctx,-9,-30,1,-32,P.paper[2],1.1);
+    cut(ctx,"M11-38L19-35L16-26L10-28Z",P.wood[1],1);
+    oval(ctx,14,-36,2.4,2.6,null,true,1.1);
+    oval(ctx,18,-35,2.2,2.4,null,true,1.1);
+    line(ctx,16,-33,15,-27,P.metal[3],1.3);
+    // The broad tape gives the jacket one readable diagonal, then hangs free.
+    cut(ctx,"M-13-59Q-11-66-7-61L0-43L5-34L3-30",null,4.7,P.ink);
+    cut(ctx,"M-13-59Q-11-66-7-61L0-43L5-34L3-30",null,3.1,P.paper[2]);
+    // The diagonal strap is the read. Individual <1px stitch scratches on
+    // top of it fought the silhouette at 320px; the repaired pocket remains.
 
     // Holding a board steady for him: out in front at her hands, where it
     // meets whatever she is holding (the table's support, the grille, the press).
@@ -1178,51 +1447,19 @@
     // Near arm: one sleeve always rolled higher; the wood tool cuff and skin
     // break the coat silhouette into a useful-worker read rather than a blob.
     const near = arms[0].map((value, index) => (index >= 2 && index % 2 === 0 && state === "walk" ? value - swing : value));
-    limb(ctx, near.slice(0, 4), P.service[2], 4.8, null);
-    limb(ctx, near.slice(2), P.skin[1], 3.3, P.skin[1]);
-    const cx = (near[2] + near[4]) / 2, cy = (near[3] + near[5]) / 2;
-    oval(ctx, cx, cy, 2.5, 1.7, P.wood[2], true, 0.8);
-    oval(ctx, near[2], near[3], 2.9, 2.3, P.service[3], true, 0.8);
-    // Palm and thumb wrap around the job, rather than ending in a joint bead.
-    oval(ctx, near[4] + 1, near[5], 2.9, 2.1, P.skin[1], true, .8);
-    line(ctx, near[4] - 1, near[5] - 1, near[4] + 1.4, near[5] - 2.4, P.skin[0], 1.1);
+    // One continuous sleeve, one glove-sized hand. Previously a second
+    // skin-colored limb AND two extra hand ovals sat over the same wrist,
+    // reading as monster anatomy at phone scale.
+    sleeve(ctx, near, P.service[2], 6.5, P.skin[1]);
+    oval(ctx, near[2], near[3], 3.2, 2.4, P.service[3], true, 0.9);
 
-    // Head: tied wrap first, then tired hairline, chalk and a small face. The
-    // wrap knot/tail is intentionally oversized because it is her phone-scale
-    // head silhouette.
-    const tilt = expr === "listening" ? -0.14 : expr === "tired" ? 0.12 : expr === "measuring" ? .09 : expr === "amused" ? -.06 : 0;
-    ctx.save(); ctx.translate(1, -69); ctx.rotate(tilt);
-    shape(ctx, [-6.5,-2,-5.5,-6,1,-7,6,-4,7,1,5,5,0,6.8,-4.5,4], P.skin[1], {ink:1.2,seed:197,amp:.18});
-    oval(ctx, -5.5, 1, 1.5, 2, P.skin[0]);
-    line(ctx, -3.5, 3.1, -1.5, 4, P.skin[0], .75);
-    shape(ctx, [-6.7, -1, -5.7, -7.2, 1, -9, 6.2, -6.4, 4.2, -4, -1, -4.2, -3.6, 1], P.wood[0], { ink: 1.1, seed: 89, amp: 0.2 });
-    shape(ctx, [-8.8, -6, -5.4, -11.2, 1.8, -11.8, 5.2, -8.5, 1.8, -6.8, -5.8, -3.6], P.a.maroon, { ink: 1.2, seed: 90, amp: 0.25 });
-    line(ctx, -5.4, -8.3, 3.8, -9.2, P.a.maroonLight, 1.1, 193, 0.08);
-    oval(ctx, -8, -8.2, 2.8, 3, P.a.maroon, true, 0.95);
-    shape(ctx, [-9.5, -6.3, -7.1, -5.8, -9.2, 1.3, -11.1, 0.2], P.a.maroon, { ink: 0.8, seed: 194, amp: 0.2 });
-    line(ctx, -5.5, -3.8, -4.5, -.4, P.paper[0], 1.15);
-    // Chalk behind the ear, pale enough to pop once without becoming jewelry.
-    rect(ctx, P.paper[3], -4.8, -2.8, 3.8, 1.3);
-    const eyeY = -0.6;
-    if (expr === "tired") {
-      line(ctx, 1.3, eyeY + 0.4, 3.5, eyeY + 0.5, P.ink, 0.9);
-      line(ctx, 4.6, eyeY + 0.5, 6.5, eyeY + 0.2, P.ink, 0.9);
-      line(ctx, 1.5, 1.2, 3.2, 1.4, P.skin[0], 0.55);
-    } else if (expr === "measuring") {
-      line(ctx,1.3,eyeY,3.8,eyeY+.2,P.ink,1.2);
-      oval(ctx,5.4,eyeY,.85,.95,P.ink);
-    } else {
-      oval(ctx, 2.5, eyeY, state === "listen" ? 0.85 : 0.75, 0.9, P.ink);
-      oval(ctx, 5.4, eyeY, state === "listen" ? 0.82 : 0.7, 0.85, P.ink);
-      if (state === "listen") line(ctx, 1.5, -2.3, 3.3, -2.6, P.inkSoft, 0.55);
-    }
-    line(ctx, 4.1, 0.2, 3.7, 1.7, P.skin[0], 0.55, 195, 0.04);
-    if (state === "eat") oval(ctx, 5.1, 3.3, 1, 0.8, P.ink);
-    else if (expr === "amused") { oval(ctx, 4.3, 3.2, 1.7, 1.2, P.wood[0]); }
-    else if (expr === "irritated") { line(ctx, 1.2, -2.4, 3.7, -1.5, P.ink, 1); line(ctx, 3.2, 3.4, 5.8, 3.4, P.ink, .9); }
-    else if (state === "listen" || expr === "listening") { ctx.save(); ctx.strokeStyle = P.inkSoft; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(3.1, 3.1); ctx.quadraticCurveTo(4.3, 3.9, 5.6, 3); ctx.stroke(); ctx.restore(); }
-    else line(ctx, 3.1, 3.4, 5.5, 3.2, P.inkSoft, 0.7);
-    ctx.restore();
+    // Broad cheek, open eye plane and a swept tied wrap: the warm face is
+    // legible at the same camera distance as her work. Every expression is
+    // also the exact geometry in the dialogue portrait.
+    const tilt = expr === "listening" ? -.14 : expr === "tired" ? .12 : expr === "measuring" ? .09 : expr === "amused" ? -.06 : 0;
+    // The actual character listens when her portrait speaks. Keep the tool
+    // and shoulders attached to their job rather than rotating the whole body.
+    characterHead(ctx,"nell",1,-67,{expr,tilt:tilt+(o.addressed ? -.045 : 0),look:o.look});
     ctx.restore();
   }
 
@@ -1242,7 +1479,7 @@
       limb(ctx, [5,-28,free ? 11 : 7,-16,free ? 13 : 10,-3], P.cloth[0], 6.3, null);
       oval(ctx,-7,-2,5.5,2.6,P.wood[0],true,1);
       oval(ctx,free ? 15 : 11,-2,6,2.6,P.wood[0],true,1);
-    } else legs(ctx, 0, 0, -27, 4.4, 5.4, P.cloth[0], bob, P.wood[0]);
+    } else workLegs(ctx,-27,6.5,8.5,P.cloth[0],bob,P.wood[0]);
     rect(ctx, P.paper[0], -8.2, -14.5, 5.2, 3.2);
     line(ctx, -7.7, -13.1, -3.5, -13.1, P.wood[1], 0.7, 201, 0.1);
 
@@ -1252,39 +1489,32 @@
     ctx.rotate(carrying ? -0.08 : free ? -0.095 : 0.07);
     ctx.translate(0, 27);
 
-    limb(ctx, state === "carry" ? [-7, -57, -11, -45, -9, -34] : [-7, -57, 0, -48, 10, -46], P.a.mustard, 4.4, P.skin[0]);
+    sleeve(ctx, state === "carry" ? [-7, -57, -11, -45, -9, -34] : [-7, -57, 0, -48, 10, -46], P.a.mustard, 6.4, P.skin[0]);
 
-    // Rolled service shirt with an uneven shoulder instead of a round blob.
-    shape(ctx, [-15, -57, -8, -61, 7, -61, 16, -53, 17, -39, 10, -28, -12, -27, -18, -39], P.a.mustard, { ink: CH, seed: 91, amp: CA });
-    shape(ctx, [-14, -56, -6, -59, -7, -29, -12, -27, -16, -39], P.wood[2], { ink: false, seed: 92, amp: 0.35 });
-    rect(ctx, P.paper[0], -11, -56.8, 8, 2.2);
+    // Low sloping shoulders and a pear-shaped kitchen smock. The apron is
+    // one broad, squared plane; Nell's wrap has a completely different cut.
+    cut(ctx,"M-9-59Q-19-59-21-50L-22-38Q-24-23-11-21L10-20Q23-23 24-36L21-49Q18-59 8-60Z",P.a.mustard);
+    cut(ctx,"M-18-52L-11-55L-9-36L-14-22Q-23-24-21-37Z",P.wood[2],0);
+    cut(ctx,"M-9-59L-4-60L0-54L8-59L11-55L5-49L-2-50Z",P.paper[1],1);
+    cut(ctx,"M-11-52L8-52L16-38L18-18L-17-18L-18-35Z",P.paper[2],1.3);
+    // One clear bib, one offset shadow and a broad waist band. The old
+    // stack of five pale apron patches collapsed into noise in the room.
+    cut(ctx,"M-12-48L-7-49L-7-34L-14-20L-17-19L-18-34Z",P.paper[0],0);
+    cut(ctx,"M-5-49L7-49L9-35L-8-35Z",P.paper[1],0);
+    cut(ctx,"M-18-34Q-3-37 17-33L17-29L-18-29Z",P.wood[1],1);
+    cut(ctx,"M-5-27L11-27L10-21L-4-21Z",P.paper[0],0.9);
+    // The long striped kitchen towel has its own mass on his low shoulder.
+    cut(ctx,"M7-62Q15-66 19-59L17-42L13-33L6-35L8-47Z",P.paper[3],1.2);
+    // Two stripes survive at world scale; three fine ones read as static.
+    for(const sy of [-53,-42]) line(ctx,9,sy,16,sy+1,P.a.red,1.65);
+    oval(ctx,-18,-29,2.7,2.7,null,true,1);
+    line(ctx,-18,-26,-20,-19,P.metal[2],1.6);
+    oval(ctx,-20,-17,2.8,3.4,P.metal[2],true,.9);
 
-    // Off-center apron: repaired, stained by use, heavier at one corner.
-    shape(ctx, [-8, -51, 7, -50, 10, -17, 2, -13, -11, -17, -10, -46], P.paper[1], { ink: 1.2, seed: 93, amp: 0.4 });
-    shape(ctx, [-8, -51, -2, -50, -3, -17, -11, -17, -10, -46], P.paper[0], { ink: false, seed: 94, amp: 0.25 });
-    line(ctx, -7, -49, -2, -58, P.paper[3], 1, 95, 0.1);
-    line(ctx, 7, -49, 3, -59, P.paper[3], 1, 96, 0.1);
-    box(ctx, 2, -28, 7, 7, P.wood[1], { ink: 0.8, amp: 0.25, seed: 97 });
-    stitches(ctx, 2, -28, 9, -28, P.paper[0], 2.3, 0.9, 0.5);
-
-    // Belt and one practical service signature: a spoon clipped at the hip.
-    rect(ctx, P.wood[0], -12, -31, 24, 2.6);
-    oval(ctx, -12.5, -28.5, 2.4, 2.4, null, true, 1);
-    line(ctx, -12.5, -26, -13.6, -18.5, P.metal[2], 1.2, 98, 0.1);
-    oval(ctx, -14, -16.8, 2.1, 3, P.metal[2], true, 0.8);
-
-    // Long striped towel is the identifying cloth shape, always on one shoulder.
-    shape(ctx, [3, -63, 11, -61, 12, -44, 9, -36, 4, -35, 1, -44], P.paper[3], { ink: 1, seed: 99, amp: 0.3 });
-    for (const sy of [-56, -50, -44]) line(ctx, 3.4, sy, 8.8, sy + 0.5, P.a.red, 0.9, sy + 200, 0.1);
-
-    // Apron creases converge where the tray presses against him.
-    line(ctx, -7,-40,-3,-22,P.wood[2],.8,202,.1);
-    line(ctx, 3,-38,7,-20,P.paper[3],1,203,.1);
-    oval(ctx,-3,-31,2.2,1.3,P.paper[0]);
     // Near arm and the object he is responsible for.
     if (state === "tray") {
-      limb(ctx, [6, -56, 13, -44, 24, -47], P.a.mustard, 5.2, P.skin[0]);
-      oval(ctx,24,-48,3.4,1.8,P.skin[0],true,.8);
+      // sleeve() already draws the supporting palm at the tray edge.
+      sleeve(ctx, [6, -56, 13, -44, 24, -47], P.a.mustard, 7.2, P.skin[0]);
       box(ctx, 0, -51, 37, 3.4, P.metal[2], { ink: 1.1, amp: 0.2, seed: 100 });
       rect(ctx, P.metal[3], 1, -50.6, 35, 0.8);
       oval(ctx, 11, -53.3, 5, 2.2, P.paper[3], true, 0.9);
@@ -1292,44 +1522,25 @@
       oval(ctx, 11, -54.2, 3, 1.2, P.ember[1]);
       oval(ctx, 26, -54.2, 3, 1.2, P.ember[1]);
       shape(ctx, [18, -56, 25, -56, 28, -52, 20, -51], P.paper[1], { ink: 0.7, seed: 101, amp: 0.25 });
-      ctx.save();ctx.globalAlpha=.45;
-      for(const px of [10,26]) { const sway=Math.sin(t/700+px)*.8; line(ctx,px,-57,px-1+sway,-61,P.paper[3],.85);line(ctx,px-1+sway,-61,px+sway,-64,P.paper[3],.7); }
-      ctx.restore();
+      // The two warm dishes and the tray edge tell the story without
+      // hairline steam fighting Orr's silhouette at native phone scale.
     } else if (state === "carry") {
-      limb(ctx, [6, -56, 10, -45, 8, -35], P.a.mustard, 4.5, P.skin[0]);
+      sleeve(ctx, [6, -56, 10, -45, 8, -35], P.a.mustard, 7, P.skin[0]);
       box(ctx, 4, -43, 5, 27, P.metal[1], { ink: 1.1, amp: 0.2, seed: 102 });
       rect(ctx, P.metal[3], 5, -41, 1, 23);
       oval(ctx, 6.5, -38, 0.8, 0.8, P.a.brass);
     } else {
       // Hands free: thumb hooked into his belt, elbow out, weight on one leg.
-      limb(ctx, [6,-56,18,-43,10,-32], P.a.mustard, 5.2, P.skin[0]);
+      sleeve(ctx, [6,-56,18,-43,10,-32], P.a.mustard, 7.2, P.skin[0]);
       line(ctx,10,-33,7,-35,P.skin[0],1.5);
     }
 
-    // Narrow asymmetric face: long nose, tired lids, short beard edge.
+    // Wide jaw, a proper nose and a blunt beard under the soft patched cap.
+    // The cap stays low, but it no longer consumes his entire face.
     const headTilt = expr === "dry" ? -.16 : expr === "irritated" ? .13 : carrying ? .12 : free ? -.09 : -.045;
-    ctx.save(); ctx.translate(1, -67); ctx.rotate(headTilt);
-    shape(ctx, [-6.2, -1, -5.2, -7.2, -1.2, -10, 4.8, -8.8, 7, -4.2, 6.2, 2.2, 2.4, 6.2, -2.8, 5.2, -5.8, 2.2], P.skin[0], { ink: 1.2, seed: 103, amp: 0.22 });
-    oval(ctx, -5.9, -1, 1.8, 2.2, P.skin[0], true, 0.8);
-
-    // Low patched cap with a long forward brim.
-    shape(ctx, [-6.4, -6.2, -4.7, -11.2, 1.6, -12.2, 6.4, -9.4, 7.2, -6.3], P.cloth[2], { ink: 1.2, seed: 104, amp: 0.2 });
-    rect(ctx, P.cloth[3], -3.8, -11.2, 5.4, 1.4);
-    shape(ctx, [1.8, -7, 11.4, -6.1, 10.2, -4.2, 1.6, -5.2], P.cloth[1], { ink: 1, seed: 105, amp: 0.15 });
-    box(ctx, -2.8, -10.8, 3.3, 2.5, P.paper[0], { ink: 0.6, amp: 0.15, seed: 106 });
-
-    line(ctx, -1.4, -1.8, 1.2, -1.5, P.ink, 1.1);
-    oval(ctx, 0.1, -0.7, 0.7, 0.75, P.ink);
-    line(ctx, 3, -1.2, 5.3, -1.5, P.ink, 0.9);
-    oval(ctx, 4.2, -0.5, 0.65, 0.75, P.ink);
-    line(ctx, 2.3, 0.1, 3.4, 2.5, P.inkSoft, 0.7, 107, 0.1);
-    line(ctx, .4, expr === "irritated" ? 4.5 : 4.1, 4.6, expr === "dry" ? 2.6 : expr === "irritated" ? 4.6 : 3.6, P.ink, 1, 108, .1);
-    if(expr === "dry") line(ctx,-1.5,-3,1.5,-4.4,P.ink,1.1);
-    if(expr === "irritated") line(ctx,-2,-3,1.5,-1.3,P.ink,1.3);
-    line(ctx, -1.8, 4.8, 1.2, 5.6, P.wood[0], 0.8, 109, 0.15);
-    line(ctx, 2.1, 5.5, 4.4, 4.8, P.wood[0], 0.8, 110, 0.15);
-    ctx.restore();
-
+    characterHead(ctx,"orr",1,-63,{expr,
+      tilt:headTilt+(o.addressed ? .065 : o.listening ? -.075 : 0),
+      look:o.look});
     ctx.restore();
     ctx.restore();
   }
@@ -1522,22 +1733,34 @@
   }
   // A collector: a cold, careful worker in a grey coverall with a hood and
   // goggles, a glass jar on his back and a lamp on a pole held out in front.
-  // No face: the goggles are the only light that is his. ~76u. States:
+  // No face: cold glass goggles above a respirator. ~86u. States:
   // patrol (walking), spot (lamp up, leaning in), search (lamp swinging).
+  // Stable encounter identity: no random wardrobe, no changes to patrols,
+  // spotting or collision. The queue marshal, Rows gatherer, chase runner
+  // and factory sentries remain one uniformed faction with different masses.
+  function collectorProfile(id = "", state = "") {
+    if (/runner|held|queue/.test(id) || state === "slam") return /runner/.test(id) || state === "slam" ? "runner" : "marshal";
+    if (/row|clatter/.test(id)) return "gatherer";
+    return "sentry";
+  }
   function collector(ctx, x, y, o = {}) {
     const bob = o.bob || 0, t = o.t || 0, state = o.state || "patrol";
-    drop(ctx, x, y, 12, 3.4);
+    const profile = o.profile || collectorProfile(o.id || "",state);
+    drop(ctx, x, y, profile === "gatherer" ? 17 : 14, 3.8);
     ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
     if (state === "run") {
       // Two separate, planted boots: a real stride rather than a sliding body.
-      // No animation when t=0 (reduced motion), but the silhouette still runs.
-      const stride = Math.sin(t / 96 + 0.75) * 8;
+      // A running state is not proof that the body actually moved. Track
+      // traveled distance from the renderer instead of cycling giant legs
+      // whenever a runner is blocked, caught or the story is paused.
+      const stride = o.moving ? Math.sin((o.stride || 0) * 1.9) * 4.8 : 0;
       limb(ctx, [-6, -30, -10 + stride * 0.35, -16, -11 + stride, -2], P.metal[1], 5.5);
       limb(ctx, [6, -30, 8 - stride * 0.35, -17, 9 - stride, -2 - Math.max(0, stride) * 0.45], P.metal[0], 5.5);
       oval(ctx, -9 + stride, -1, 5.7, 2.4, P.suit[0], true, 0.8);
       oval(ctx, 11 - stride, -1 - Math.max(0, stride) * 0.45, 5.7, 2.4, P.suit[0], true, 0.8);
     } else {
-      legs(ctx, 0, 0, -30, 3.8, 5.6, P.metal[1], bob, P.suit[1]);
+      workLegs(ctx,-30,profile === "gatherer" ? 8 : profile === "sentry" ? 7 : 5.5,
+        profile === "gatherer" ? 9 : profile === "marshal" ? 6.5 : 8,P.metal[0],bob,P.suit[1]);
     }
     if (state === "spot" || state === "grab" || state === "watch-down") {
       ctx.translate(0, -30);
@@ -1546,46 +1769,108 @@
     }
     if (state === "slam") { ctx.translate(0, -30); ctx.rotate(-0.1); ctx.translate(0, 30); }
     // Running (the Long Hall): a forward lean and a visibly swinging jar.
-    if (state === "run") { ctx.translate(0, -30); ctx.rotate(0.24 + Math.sin(t / 70) * 0.04); ctx.translate(0, 30); }
-    // The jar on his back: what he came to fill.
-    ctx.globalAlpha = 0.62;
-    shape(ctx, [-21, -38, -21, -56, -18, -63, -12, -63, -9, -56, -9, -38], P.cold[0], { ink: 1.1, seed: 224, amp: 0.2, inkColor: P.cold[2] });
-    ctx.globalAlpha = 1;
-    line(ctx, -18, -58, -18, -44, P.cold[3], 0.9);
-    box(ctx, -23, -38, 16, 4, P.metal[2], { ink: 0.9, amp: 0.1, seed: 225 });
-    oval(ctx, -15, -64.5, 1.6, 1.4, P.metal[3]);
-    // Coverall: grey, a dark side, a belt, his mark on the chest.
-    shape(ctx, [-11, -61, 9, -61, 12, -37, 9, -28, -10, -28, -13, -38], P.metal[1], { ink: CH, seed: 221, amp: CA });
-    shape(ctx, [-11, -59, -3, -61, -5, -29, -10, -28, -13, -38], P.metal[0], { ink: false, seed: 222, amp: CA });
-    rect(ctx, P.suit[1], -12, -37, 24, 2.6);
-    line(ctx, -9, -61, 4, -38, P.suit[1], 1.6);
-    mark(ctx, 4, -49, 9, P.cold[3]);
-    // Hood and goggles: a shadowed face with two cold lenses.
-    shape(ctx, [-9, -60, -10, -72, -4, -80, 5, -80, 11, -72, 10, -60], P.suit[2], { ink: CH, seed: 223, amp: CA });
-    oval(ctx, 3, -69, 6.6, 6.2, P.suit[0]);
-    oval(ctx, 1, -70.5, 2.2, 1.9, P.cold[3], true, 0.8); oval(ctx, 6.4, -70.5, 2.2, 1.9, P.cold[3], true, 0.8);
-    box(ctx, 1.5, -66, 6.5, 4, P.metal[2], { ink: 0.8, amp: 0.1, seed: 226 });
+    if (state === "run") {
+      ctx.translate(0, -30);
+      ctx.rotate(o.moving ? .18 + Math.sin((o.stride || 0) * 1.9) * .022 : .065);
+      ctx.translate(0, 30);
+    }
+    const gatherer = profile === "gatherer", marshal = profile === "marshal", runner = profile === "runner";
+    // The vessel is part of the role's silhouette. None is a weapon or a
+    // decorative backpack: slender queue tube, full Rows retort, flat chase
+    // flask, squared factory reservoir. Lamp endpoints below stay unchanged.
+    if (gatherer) {
+      cut(ctx,"M-34-37Q-41-48-37-64Q-34-75-25-72Q-18-70-17-56L-13-37Z",P.cold[0],1.2,P.cold[1]);
+      cut(ctx,"M-33-63Q-38-49-31-42",null,1.8,P.cold[2]);
+      cut(ctx,"M-36-41L-14-42L-13-36L-34-35Z",P.metal[1],1);
+      oval(ctx,-28,-74,3,1.7,P.metal[2],true,.8);
+    } else if (runner) {
+      cut(ctx,"M-24-63L-15-66L-10-37L-20-35L-27-58Z",P.cold[0],1.1,P.cold[1]);
+      line(ctx,-22,-58,-17,-41,P.cold[2],1.3);
+      cut(ctx,"M-22-40L-11-43L-10-36L-20-33Z",P.metal[1],1);
+    } else if (marshal) {
+      cut(ctx,"M-23-36V-60Q-23-69-19-69Q-14-69-14-60V-36Z",P.cold[0],1.1,P.cold[1]);
+      line(ctx,-21,-61,-21,-43,P.cold[2],1.2);
+      cut(ctx,"M-25-41H-12V-36H-25Z",P.metal[1],1);
+    } else {
+      cut(ctx,"M-26-62L-23-67H-14L-11-62L-12-36H-26Z",P.cold[0],1.1,P.cold[1]);
+      cut(ctx,"M-25-59H-15V-44H-25Z",P.cold[1],.8);
+      line(ctx,-23,-57,-23,-47,P.cold[2],1.2);
+      cut(ctx,"M-28-41H-11V-36H-28Z",P.metal[1],1);
+    }
+    if(marshal) {
+      cut(ctx,"M-7-66L-17-61L-16-48L-10-36L-17-13L-7-10L0-19L7-10L18-15L10-37L15-56L9-65Z",P.metal[1]);
+      cut(ctx,"M-14-59L-8-61L-5-37L-10-15L-16-14L-10-36Z",P.metal[0],0);
+      cut(ctx,"M-9-64L0-56L9-65L13-60L6-48L0-52L-6-47L-12-59Z",P.metal[2],1);
+      cut(ctx,"M-5-49L6-49L8-32L-5-32Z",P.metal[0],1);
+      line(ctx,2,-45,3,-37,P.cold[1],1.4);
+      cut(ctx,"M-10-37L11-37L11-33L-11-32Z",P.suit[1],1);
+    } else if(gatherer) {
+      cut(ctx,"M-9-64Q-23-63-26-53L-22-41L-20-26Q-1-17 21-26L24-39L24-50Q22-61 9-64Z",P.metal[1]);
+      cut(ctx,"M-24-54L-14-58L-10-38L-13-24L-20-26L-23-42Z",P.metal[0],0);
+      cut(ctx,"M-17-58L-9-63L2-54L12-62L20-57L12-44L1-48L-10-42Z",P.metal[2],1.1);
+      cut(ctx,"M-12-44L14-46L20-27Q3-21-15-28Z",P.metal[0],1.2);
+      cut(ctx,"M-12-39L13-40L16-34L-10-32Z",P.metal[1],1);
+      line(ctx,-17,-50,-9,-29,P.suit[0],3.5);
+    } else if(runner) {
+      cut(ctx,"M-8-63L-19-55L-13-42L-11-29L1-24L13-29L14-48L18-56L7-65Z",P.metal[1]);
+      cut(ctx,"M-17-55L-10-57L-6-39L-6-27L-11-29L-13-42Z",P.metal[0],0);
+      cut(ctx,"M-10-61L-2-54L9-62L13-56L5-45L-5-46Z",P.metal[2],1);
+      cut(ctx,"M-10-34L12-34L13-29L1-24L-10-28Z",P.suit[2],1);
+      cut(ctx,"M0-49L10-53L9-38L2-37Z",P.metal[0],1);
+    } else {
+      cut(ctx,"M-9-63L-22-60L-22-45L-18-30L17-30L21-46L21-60L9-63Z",P.metal[1]);
+      cut(ctx,"M-20-57L-13-57L-10-33L-17-31L-21-45Z",P.metal[0],0);
+      // The factory silhouette gets ONE cold chest bar and a single apron
+      // plate. The earlier nested armor patches resembled background rails.
+      cut(ctx,"M-15-58H14V-49H-15Z",P.metal[2],1);
+      cut(ctx,"M-11-48L12-48L15-31L-14-31Z",P.metal[0],1.2);
+      cut(ctx,"M-18-35H17V-29H-18Z",P.suit[1],1);
+    }
+    line(ctx,-11,-60,7,-38,P.suit[0],3.4);
+    line(ctx,-11,-60,7,-38,P.metal[2],1.35);
+    mark(ctx,gatherer ? 7 : 5,-47,8,P.cold[2]);
+    // Collector behavior has a legible head direction: methodical scanning
+    // during SEARCH, a committed downward watch from factory rails, an
+    // immediate lock when SPOT occurs, and a forward drive during RUN.
+    // This changes no detection cone or enemy timing—only the actor's pose.
+    const headIntent = state === "search"
+      ? (t ? Math.sin(t / 950 + (gatherer ? .9 : .1)) * .065 : 0)
+      : state === "watch-down" ? .13
+      : state === "spot" ? -.17
+      : state === "grab" ? -.12
+      : state === "run" ? -.15 : 0;
+    characterHead(ctx,`collector-${profile}`,1,gatherer ? -61 : -67,{
+      tilt:headIntent + (runner && state === "patrol" ? -.06 : 0)
+    });
+    // A tiny real metal edge below the helmet rim defines the dark figure
+    // against the factory's identical charcoal railings. Not a fake glow,
+    // giant outline, or a gameplay "spotted" indicator.
+    const headY = gatherer ? -61 : -67;
+    line(ctx, -8, headY - 10, 3, headY - 11,
+      P.cold[1], 1.4, profile.length * 37, 0);
     // The lamp on its pole, out in front. Up when he has seen something.
-    const raise = state === "spot" ? -9 : state === "watch-down" ? 24 : state === "run" ? 4 + Math.sin(t / 70) * 2 : state === "search" ? Math.sin(t / 240) * 5 : Math.sin(t / 700) * 1.2;
+    const raise = state === "spot" ? -9 : state === "watch-down" ? 24
+      : state === "run" ? 4 + (o.moving ? Math.sin((o.stride || 0) * 1.9) * 1.2 : 0)
+      : state === "search" ? Math.sin(t / 350) * 2.4 : Math.sin(t / 900) * .8;
     if (state === "watch-down") {
       // Factory catwalk sentries peer over the railing at the moving floor.
       // Light geometry stays owned by the core; this is a drawing-only pose.
-      limb(ctx, [6, -57, 17, -47, 20, -38], P.metal[1], 4.6, P.suit[1]);
+      sleeve(ctx, [6, -57, 17, -47, 20, -38], P.metal[1], 6.5, P.suit[1]);
       line(ctx, 20, -39, 30, -60 + raise, P.metal[3], 1.7);
     } else {
-      limb(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 4.6, P.suit[1]);
+      sleeve(ctx, [6, -57, 14, -49, 19, -50 + raise * 0.3], P.metal[1], 6.5, P.suit[1]);
       line(ctx, 17, -46, 30, -60 + raise, P.metal[3], 1.7);
     }
     box(ctx, 28, -65 + raise, 7, 6, P.suit[1], { ink: 1, amp: 0.1, seed: 227 });
     oval(ctx, 34.5, -62 + raise, 2.4, 2.8, P.cold[3]);
     if (state === "grab") {
       // Reaches across the actual catch ring; never changes that ring's size.
-      limb(ctx, [9, -51, 24, -48, 37, -42], P.metal[1], 5, P.suit[2]);
+      sleeve(ctx, [9, -51, 24, -48, 37, -42], P.metal[1], 7, P.suit[2]);
       line(ctx, 35, -44, 42, -45, P.metal[3], 1);
     } else if (state === "slam") {
       // Both hands collide with the shutter; the face stays concealed.
-      limb(ctx, [7, -56, 22, -61, 36, -60], P.metal[1], 6, P.suit[2]);
-      limb(ctx, [8, -47, 24, -44, 36, -42], P.metal[1], 5.5, P.suit[2]);
+      sleeve(ctx, [7, -56, 22, -61, 36, -60], P.metal[1], 7.5, P.suit[2]);
+      sleeve(ctx, [8, -47, 24, -44, 36, -42], P.metal[1], 7, P.suit[2]);
     }
     ctx.restore();
   }
@@ -1821,132 +2106,54 @@
   // asymmetrical wrap, tired eyes, chalk behind the ear, repaired workwear and
   // a measuring strap. Expressions stay restrained; capability is the default.
   function nellPortrait(expr) {
-    // Each expression changes a large shape so it reads at 46 px (as Latch's
-    // eye strip does): measuring holds a ruler to one squinting eye; listening
-    // is the only one with open eye-whites, glancing aside, head tipped;
-    // amused laughs with an open mouth; irritated has a brow bar and a huff;
-    // tired droops. Work is her ordinary face.
-    const tilt = expr === "listening" ? -10 : expr === "tired" ? 6 : expr === "measuring" ? 4 : expr === "irritated" ? -2 : 0;
-    const ground = expr === "irritated"
-      ? ["#121814", "#1b2721", "#26382f"]
-      : expr === "amused" || expr === "listening"
-        ? ["#17120e", "#2a2016", "#3c2d1e"]
-        : expr === "tired"
-          ? ["#121512", "#20261f", "#30382d"]
-          : ["#101713", "#1b2722", "#2b3c34"];
-    const eyes = {
-      work: `<circle cx="27" cy="32.8" r="1.8" fill="${P.ink}"/><circle cx="39" cy="32.5" r="1.8" fill="${P.ink}"/><path d="M23.5 28.2 q3.2 -1 6.4 .2 M35.6 28 q3.2 -1.4 6.6 -.2" stroke="${P.ink}" stroke-width="1.9" fill="none"/>`,
-      measuring: `<path d="M23.6 33 h6.2" stroke="${P.ink}" stroke-width="2.8"/><circle cx="39" cy="32.7" r="2" fill="${P.ink}"/><path d="M23 30 h7 M35.4 27.3 l7 -1.4" stroke="${P.ink}" stroke-width="2"/>`,
-      listening: `<ellipse cx="27" cy="32.4" rx="3.3" ry="2.7" fill="${P.paper[3]}" ${ink} stroke-width="1.2"/><ellipse cx="39" cy="32.2" rx="3.3" ry="2.7" fill="${P.paper[3]}" ${ink} stroke-width="1.2"/><circle cx="25" cy="32.6" r="1.6" fill="${P.ink}"/><circle cx="37" cy="32.4" r="1.6" fill="${P.ink}"/><path d="M22.6 26.6 q3.6 -2.6 7.4 -.4 M35.2 26.2 q3.8 -2.6 7.4 .1" stroke="${P.ink}" stroke-width="1.9" fill="none"/>`,
-      amused: `<path d="M23.5 33.4 q3.2 -3.6 6.5 0 M35.5 33.4 q3.2 -3.6 6.5 0" stroke="${P.ink}" stroke-width="2.4" fill="none"/><path d="M23.2 28 q3.2 -1.4 6.5 0 M35.5 27.8 q3.2 -1.4 6.5 0" stroke="${P.ink}" stroke-width="1.8" fill="none"/>`,
-      irritated: `<path d="M21.5 27.6 L30.5 30.6 L30.5 28.4 L22 25.4 Z M44.5 27.6 L35.5 30.6 L35.5 28.4 L44 25.4 Z" fill="${P.ink}" ${ink} stroke-width="1"/><circle cx="27" cy="33.3" r="1.8" fill="${P.ink}"/><circle cx="39" cy="33.2" r="1.8" fill="${P.ink}"/>`,
-      tired: `<path d="M24 33.5 q3 1.5 6 0 M36 33.5 q3 1.5 6 0" stroke="${P.ink}" stroke-width="2.1" fill="none"/><path d="M23 29.8 h7 M35.5 29.8 h7" stroke="${P.ink}" stroke-width="1.7"/><path d="M24 36 q3 1 6 0 M36 36 q3 1 6 0" stroke="${P.skin[0]}" stroke-width="1" fill="none"/>`
-    }[expr] || "";
-    const mouth = expr === "amused"
-      ? `<path d="M27.5 39.6 q5.5 6.6 11 0 Z" fill="${P.wood[0]}" stroke="${P.ink}" stroke-width="1.8"/><path d="M28.6 40.3 h8.8" stroke="${P.paper[3]}" stroke-width="1.6"/>`
-      : expr === "irritated"
-        ? `<path d="M29 42 h7" stroke="${P.ink}" stroke-width="2.4"/>`
-        : expr === "tired"
-          ? `<path d="M30 42.5 q3 -1.2 6 -.1" stroke="${P.ink}" stroke-width="1.8" fill="none"/>`
-          : expr === "listening"
-            ? `<path d="M29.5 41.2 q3.5 1.7 7 0" stroke="${P.ink}" stroke-width="1.8" fill="none"/>`
-            : `<path d="M29.5 41.5 q3.5 1.1 7 0" stroke="${P.ink}" stroke-width="1.8" fill="none"/>`;
-    const cheek = expr === "tired" ? `<path d="M23 38 q2 1 4 .4" stroke="${P.skin[0]}" stroke-width="1" fill="none"/>` : "";
-    // Big props outside the face: the ruler at her eye; a huff of breath.
-    const extra = expr === "measuring"
-      ? `<g transform="rotate(-24 20 40)"><rect x="2" y="36" width="34" height="6.5" fill="${P.paper[2]}" ${ink} stroke-width="1.6"/><path d="M7 36 v3 M12 36 v2 M17 36 v3 M22 36 v2 M27 36 v3 M32 36 v2" stroke="${P.ink}" stroke-width="1.1"/></g><circle cx="12" cy="47" r="3.2" fill="${P.skin[1]}" ${ink} stroke-width="1.4"/>`
-      : expr === "irritated"
-        ? `<path d="M41 44 q6 -1 7 2 q4 -1 5 3 q-3 3 -7 1 q-4 2 -6 -1 Z" fill="${P.paper[3]}" opacity=".8"/>`
-        : "";
-    return svg(`${disc(...ground)}
-<path d="M1 64 L4 53 Q8 46 18 44 L47 44 Q58 46 61 53 L63 64 Z" fill="${P.service[2]}" ${ink}/>
-<path d="M34 45 L32 64 L63 64 L61 53 Q58 46 47 44 Z" fill="${P.service[1]}"/>
-<!-- apron bib and one repaired pocket: broad, practical shapes -->
-<path d="M21 47 L31 52 L42 47 L45 64 L18 64 Z" fill="${P.service[0]}" ${ink} stroke-width="1.8"/>
-<rect x="44" y="52" width="11" height="8" fill="${P.paper[1]}" ${ink} stroke-width="1.5"/><path d="M45 52.8 h9" stroke="${P.a.maroon}" stroke-width="1.1" stroke-dasharray="2 1.5"/>
-<!-- measuring/repair strap creates the same diagonal read as the world sprite -->
-<path d="M15 48 L29 64" stroke="${P.ink}" stroke-width="5"/><path d="M15 48 L29 64" stroke="${P.paper[0]}" stroke-width="2.6"/>
-<path d="M18 51 l2 -1 M21 55 l2 -1 M24 59 l2 -1" stroke="${P.inkSoft}" stroke-width="1"/>
-<path d="M28 43 L28 47 L38 47 L38 43" fill="${P.skin[1]}" ${ink} stroke-width="1.5"/>
-<g transform="rotate(${tilt} 33 30)">
-<!-- slightly long, grounded face; one shadow plane keeps it lived-in -->
-<path d="M20 29 Q20 17 33 17 Q46 17 46 29 Q46 43 33 45 Q20 43 20 29 Z" fill="${P.skin[1]}" ${ink}/>
-<path d="M20 30 Q21 38 25 42" stroke="${P.skin[0]}" stroke-width="3.2" fill="none"/>
-<path d="M33 31 q-1.2 4 .7 6" stroke="${P.skin[0]}" stroke-width="1.2" fill="none"/>
-${eyes}${mouth}${cheek}
-<path d="M21.5 35.5 l3 1 M41.5 36 l2.5 -1 M23 39 l2 1" stroke="${P.skin[0]}" stroke-width="1.1" fill="none"/>
-<!-- hair mass stays quiet; the tied wrap owns the silhouette -->
-<path d="M19 27 Q18 13 33 11 Q47 12 48 25 Q41 20 33 21 Q25 20 19 27 Z" fill="${P.wood[0]}" ${ink} stroke-width="2"/>
-<path d="M16 20 Q16 8 29 5 Q44 4 50 14 Q43 12 34 13 Q24 13 16 20 Z" fill="${P.a.maroon}" ${ink} stroke-width="2"/>
-<path d="M20 12 Q31 7 43 9" stroke="${P.a.maroonLight}" stroke-width="2.2" fill="none"/>
-<path d="M20 16 Q31 12 45 14" stroke="${P.inkSoft}" stroke-width="1" stroke-dasharray="2 2" fill="none"/>
-<circle cx="14.5" cy="14.5" r="5" fill="${P.a.maroon}" ${ink} stroke-width="1.8"/>
-<path d="M12 18 L17 18 L14 29 L10 26 Z" fill="${P.a.maroon}" ${ink} stroke-width="1.3"/>
-<path d="M20 24 l1.5 5 M23 23 l1 3" stroke="${P.paper[0]}" stroke-width="1.5"/>
-<!-- chalk behind the ear: Nell can lose it later because it is visibly hers now -->
-<rect x="44" y="21" width="10" height="3.2" fill="${P.paper[3]}" ${ink} stroke-width="1.1" transform="rotate(-18 49 22.6)"/>
-</g>${extra}`);
+    const tilt = expr === "listening" ? -9 : expr === "tired" ? 6 : expr === "measuring" ? 4 : expr === "amused" ? -4 : 0;
+    const ruler = expr === "measuring" ? `<g transform="rotate(-20 18 48)"><path d="M2 45H34V51H2Z" fill="${P.paper[2]}" ${ink} stroke-width="1.4"/><path d="M7 45v3M13 45v2M19 45v3M25 45v2M31 45v3" stroke="${P.ink}" stroke-width="1.2"/></g>` : "";
+    return svg(`${disc(P.below[1],P.service[0],P.service[1])}
+<path d="M2 64L5 54Q10 46 20 46L43 47Q57 46 61 64Z" fill="${P.service[2]}" ${ink}/>
+<path d="M6 64L10 52L20 47L17 64Z" fill="${P.service[1]}"/>
+<path d="M21 48L30 55L43 47L48 53L39 64L30 59L23 64L16 54Z" fill="${P.service[0]}" ${ink} stroke-width="1.5"/>
+<path d="M22 49L29 55L25 60L20 54Z M44 49L46 53L39 61L35 57Z" fill="${P.service[3]}"/>
+<path d="M9 53Q13 45 18 50L25 64" stroke="${P.ink}" stroke-width="5.4" fill="none"/>
+<path d="M9 53Q13 45 18 50L25 64" stroke="${P.paper[2]}" stroke-width="3.2" fill="none"/>
+<path d="M17 55L21 54M20 61L24 60" stroke="${P.inkSoft}" stroke-width="1"/>
+<g transform="translate(35 33) rotate(${tilt}) scale(1.38)">${characterHeadSvg("nell",expr)}</g>${ruler}`);
   }
-
-  // Orr portrait: low patched cap, long nose, dropped towel shoulder.
-  // Three reads: matter-of-fact service, irritation, and dry humor.
   function orrPortrait(expr) {
-    // Each expression moves a big shape, not a 1 px brow, so it survives 46 px:
-    // serving: level cap, open face, steam off the food he's carrying;
-    // irritated: cap yanked low, head down, a heavy brow bar;
-    // dry: head tipped, cap pushed back, one brow up, a lopsided mouth.
-    const irritated = expr === "irritated", dry = expr === "dry";
-    const ground = irritated
-      ? ["#1d100b", "#341a10", "#4a2414"]
-      : dry ? ["#15130f", "#252019", "#342a20"]
-      : ["#1a140c", "#2e2214", "#46331c"];
-    const head = irritated ? 'transform="translate(0 2.5) rotate(3 32 40)"' : dry ? 'transform="rotate(-9 32 42)"' : "";
-    const capShift = irritated ? 4.5 : dry ? -3.5 : 0;
-    const eyes = irritated
-      ? `<path d="M19 30.5 L30 34 L30 31 L20 27.5 Z M45 29.5 L35 33.5 L35 30.5 L44 26.5 Z" fill="${P.ink}" ${ink} stroke-width="1.2"/><circle cx="26.5" cy="36" r="1.6" fill="${P.ink}"/><circle cx="39" cy="35.5" r="1.6" fill="${P.ink}"/><path d="M32 30 v4" stroke="${P.wood[0]}" stroke-width="1.4"/>`
-      : dry
-        ? `<path d="M20 27 q5 -6 10 -1" stroke="${P.ink}" stroke-width="2.6" fill="none"/><circle cx="25.5" cy="33" r="1.8" fill="${P.ink}"/><path d="M35 33.5 h8" stroke="${P.ink}" stroke-width="3"/><path d="M35 31 h8" stroke="${P.ink}" stroke-width="1.4"/>`
-        : `<path d="M21 32 q3.5 -2.6 7 0 M36 31.6 q3.5 -2.6 7 0" stroke="${P.ink}" stroke-width="2.2" fill="none"/><circle cx="24.6" cy="34" r="1.6" fill="${P.ink}"/><circle cx="39.4" cy="33.6" r="1.6" fill="${P.ink}"/><circle cx="22" cy="39" r="2.4" fill="${P.skin[1]}" opacity=".7"/><circle cx="42" cy="38.6" r="2.4" fill="${P.skin[1]}" opacity=".7"/>`;
-    const mouth = irritated
-      ? `<path d="M27 45.5 q5 -3.4 10 0" stroke="${P.ink}" stroke-width="2.4" fill="none"/>`
-      : dry
-        ? `<path d="M27 43.5 q6 1.6 10 -2.6" stroke="${P.ink}" stroke-width="2.2" fill="none"/><path d="M37.5 40 l1.5 -1" stroke="${P.ink}" stroke-width="1.6"/>`
-        : `<path d="M27 42.4 q5 4.4 10 0" stroke="${P.ink}" stroke-width="2.2" fill="${P.wood[0]}"/>`;
-    const steam = expr === "serving" || (!irritated && !dry)
-      ? `<path d="M8 50 q-3 -6 1 -11 q4 -5 0 -11 M13 52 q-3 -5 1 -9 q3 -4 0 -9" stroke="${P.paper[3]}" stroke-width="2" fill="none" opacity=".75"/>`
-      : "";
-    return svg(`${disc(...ground)}
-<path d="M2 64 L5 53 Q10 47 20 45 L43 45 Q55 46 60 53 L62 64 Z" fill="${P.a.mustard}" ${ink}/>
-<path d="M8 64 L11 49 L22 46 L20 64 Z" fill="${P.wood[2]}" opacity=".9"/>
-<path d="M18 64 L20 49 L45 49 L48 64 Z" fill="${P.paper[1]}" ${ink} stroke-width="1.8"/>
-<path d="M23 54 L42 54" stroke="${P.wood[0]}" stroke-width="2.2"/>
-<path d="M22 58 l2 6 M41 57 l-1 7" stroke="${P.wood[2]}" stroke-width="1.2"/>
-<rect x="26" y="57" width="10" height="7" fill="${P.paper[0]}" stroke="${P.wood[1]}" stroke-width="1" stroke-dasharray="2 1"/>
-<path d="M45 44 L57 47 L56 64 L48 64 Z" fill="${P.paper[3]}" ${ink} stroke-width="1.8"/>
-<path d="M48 51 l8 .8 M48.5 56 l7.5 .8 M49 61 l7 .7" stroke="${P.a.red}" stroke-width="1.8"/>
-${steam}
-<g ${head}>
-<path d="M20 30 Q20 20 25 16 Q32 11 41 15 Q47 20 46 31 L44 39 Q40 46 31 47 Q23 45 20 39 Z" fill="${P.skin[0]}" ${ink}/>
-<path d="M20 35 Q17 35 18 31 Q19 28 22 30" fill="${P.skin[0]}" ${ink} stroke-width="1.6"/>
-${eyes}
-<path d="M21 37 l3 1 M39 38 l4 -1" stroke="${P.wood[1]}" stroke-width="1.2"/>
-<path d="M32 35 l2 4 l-2 1" stroke="${P.inkSoft}" stroke-width="1.6" fill="none"/>
-${mouth}
-<path d="M23 41 q4 5 11 5 q6 0 10 -5" stroke="${P.wood[0]}" stroke-width="1.5" fill="none"/>
-<g transform="translate(0 ${capShift})">
-<path d="M18 27 Q18 15 30 12 Q40 10 47 17 L48 25 Z" fill="${P.cloth[2]}" ${ink}/>
-<path d="M22 16 Q31 13 42 17" stroke="${P.cloth[3]}" stroke-width="2" fill="none"/>
-<rect x="25" y="13" width="7" height="4" fill="${P.paper[0]}" ${ink} stroke-width="1"/>
-<path d="M35 24 L58 23 Q61 26 56 29 L35 29 Z" fill="${P.cloth[1]}" ${ink} stroke-width="1.8"/>
-</g>
-</g>
-<path d="M12 57 q-1 5 1 7 M15 56 q-1 5 1 8" stroke="${P.metal[2]}" stroke-width="1.4"/>`);
+    const tilt = expr === "dry" ? -8 : expr === "irritated" ? 5 : 0;
+    return svg(`${disc(P.below[1],P.wood[1],P.wood[2])}
+<path d="M0 64L4 54Q7 49 17 48L43 48Q56 49 61 57L64 64Z" fill="${P.a.mustard}" ${ink}/>
+<path d="M17 48L27 55L40 48L45 52L34 60L23 59Z" fill="${P.paper[1]}" ${ink} stroke-width="1.3"/>
+<path d="M17 52L19 59L16 64H47L44 58L42 52L37 56L24 56Z" fill="${P.paper[2]}" ${ink} stroke-width="1.5"/>
+<path d="M46 44Q57 43 58 52L55 64H45Z" fill="${P.paper[3]}" ${ink} stroke-width="1.6"/>
+<path d="M48 52L56 53M48 58L55 59" stroke="${P.a.red}" stroke-width="1.8"/>
+<g transform="translate(31 29) rotate(${tilt}) scale(1.42)">${characterHeadSvg("orr",expr)}</g>`);
+  }
+  function youPortrait() {
+    return svg(`${disc(P.night[0],P.night[1],P.night[2],34,20)}${rainLines}
+<path d="M0 18Q10 0 35 0Q56 0 64 18L56 16L47 19L36 16L25 19L14 16L4 20Z" fill="${P.a.umbrella}" ${ink} stroke-width="1.8"/>
+<path d="M3 64Q4 50 20 46H44Q59 48 62 64Z" fill="${P.wood[2]}" ${ink}/>
+<path d="M25 47H41L44 64H21Z" fill="${P.a.maroon}" ${ink} stroke-width="1.3"/>
+<path d="M20 47L13 53L23 56L19 60L26 64L31 53Z M44 47L53 54L44 58L49 61L39 64L35 53Z" fill="${P.wood[3]}" ${ink} stroke-width="1.3"/>
+<path d="M23 48L40 48L43 54L25 56L22 64H17L21 54Z" fill="${P.a.maroon}" ${ink} stroke-width="1.5"/>
+<g transform="translate(32 32) scale(1.42)">${characterHeadSvg("you")}</g>`);
+  }
+  function hoodPortrait(who, expr = "neutral") {
+    const tilt = expr === "scared" ? -7 : 0;
+    const small = who === "hood-small", cap = who === "hood-cap", driver = who === "driver";
+    const cloth = small ? P.a.maroon : cap ? P.a.track : driver ? P.a.rust : P.cloth[2];
+    const garment = driver
+      ? `<path d="M10 49L21 43L32 51L42 43L54 49L46 61L33 55L20 61Z" fill="${P.paper[2]}" ${ink} stroke-width="1.5"/><path d="M12 63L43 48" stroke="${P.cloth[0]}" stroke-width="3.5"/>`
+      : cap
+        ? `<path d="M9 47L22 52L29 59L43 55L55 46L60 53L44 63H24L7 54Z" fill="${P.a.trackLight}" ${ink} stroke-width="1.3"/><path d="M22 48L33 56L43 48L45 54L33 63L22 56Z" fill="${P.cloth[0]}" ${ink} stroke-width="1.3"/><path d="M8 52L7 62M57 52L59 61" stroke="${P.paper[3]}" stroke-width="3"/>`
+        : small
+          ? `<path d="M7 56Q20 61 29 58M35 58Q46 61 57 55" stroke="${P.ink}" stroke-width="1.6" fill="none"/><path d="M47 64L49 49L59 50L57 64Z" fill="${P.ink}" ${ink} stroke-width="1.3"/><path d="M51 52L57 52L56 62H50Z" fill="${P.fluoro[2]}"/>`
+          : `<path d="M13 46L31 48L43 57L27 64H10L29 53Z" fill="${P.cloth[3]}" ${ink} stroke-width="1.4"/><circle cx="30" cy="54" r="1.7" fill="${P.paper[0]}" ${ink} stroke-width=".8"/>`;
+    return svg(`${disc(P.night[0],P.night[1],P.sodium[0],46,14)}${rainLines}
+<path d="M2 64Q1 48 19 45H45Q60 48 62 64Z" fill="${cloth}" ${ink}/>
+${small || cap ? `<path d="M32 48V64" stroke="${P.ink}" stroke-width="1.3"/>` : ""}${garment}
+<g transform="translate(${cap ? 34 : 32} ${small ? 35 : 30}) rotate(${tilt}) scale(${small ? 1.4 : cap ? 1.35 : 1.45})">${characterHeadSvg(who,expr)}</g>`);
   }
 
-
-  // A frightened version of a hood's bust: sweat at the temple, the eyes
-  // pulled wide, a shake line. Same person, same light; only the fear is added.
-  const scared = (body, eyes) => `${body}<path d="${eyes}" stroke="${P.paper[3]}" stroke-width="1.4" fill="none"/><path d="M50 18 q2 4 0 6 q-2 -2 0 -6 Z M13 22 q2 4 0 6 q-2 -2 0 -6 Z" fill="${P.cold[3]}" stroke="${P.ink}" stroke-width=".8"/><path d="M8 40 l-3 2 l3 2 M56 40 l3 2 l-3 2" stroke="${P.paper[2]}" stroke-width="1.2" fill="none"/>`;
   // THE BOSS: a voice before he is anything else. His "face" is his caller
   // ID: the mark on a dark phone screen. calm = the glow held steady; cold =
   // the screen flares white-blue and the signal shakes.
@@ -1960,82 +2167,15 @@ ${mouth}
 ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4 13 0 26" stroke="${P.cold[2]}" stroke-width="1.3" fill="none" opacity=".8"/>` : `<path d="M22 49 h20" stroke="${P.cold[1]}" stroke-width="1" opacity=".6"/>`}`);
   // CAPPED HOOD: the quiet one. Backwards black cap over the hood, red
   // bandana over his mouth, a nicked eyebrow, eyes that do not blink.
-  const capPortrait = svg(`${disc("#120f0d", "#2a1c10", P.sodium[0], 46, 14)}${rainLines}
-<path d="M4 64 L8 50 Q16 43 32 43 Q48 43 56 50 L60 64 Z" fill="${P.a.track}" ${ink}/>
-<path d="M4 64 L8 50 Q14 45 22 44 L24 64 Z" fill="#24472f"/>
-<path d="M45 46 L47 64" stroke="${P.a.white}" stroke-width="2.6"/><path d="M32 44 V64" stroke="${P.ink}" stroke-width="1.2"/>
-<circle cx="32" cy="29" r="15" fill="${P.cloth[1]}" ${ink}/>
-<path d="M17 25 Q18 11 32 10 Q46 11 47 25 Z" fill="${P.cloth[0]}" ${ink}/>
-<path d="M17 24 L6 27 L7 22 L18 19 Z" fill="${P.cloth[0]}" ${ink} stroke-width="1.8"/>
-<path d="M20 31 Q32 27 44 31 L42 43 Q32 48 22 43 Z" fill="${P.a.red}" ${ink} stroke-width="1.9"/>
-<path d="M24 37 Q32 35 40 37" stroke="${P.a.stamp}" stroke-width="1.2" fill="none"/>
-<path d="M42 40 L50 44 L46 48 Z" fill="${P.a.red}" ${ink} stroke-width="1.4"/>
-<path d="M22 26.5 L29 27.5 M35 27.5 L42 26" stroke="${P.ink}" stroke-width="2.2"/>
-<path d="M24 29.6 h4 M36 29.6 h4" stroke="${P.paper[3]}" stroke-width="1.6"/>
-<circle cx="26.5" cy="29.6" r=".9" fill="${P.ink}"/><circle cx="38.5" cy="29.6" r=".9" fill="${P.ink}"/>
-<path d="M38 24.5 L40 28" stroke="${P.paper[2]}" stroke-width="1.1"/>`);
+  const capPortrait = hoodPortrait("hood-cap");
   const PORTRAITS = Object.freeze({
-    // YOU: the person who left. Never a face: the umbrella, a scarf, the night.
-    you: Object.freeze({
-      neutral: svg(`${disc(P.night[0], P.night[1], P.night[2], 34, 20)}${rainLines}
-<path d="M10 64 L14 50 Q20 44 32 44 Q44 44 50 50 L54 64 Z" fill="${P.wood[2]}" ${ink}/>
-<path d="M32 44 Q44 44 50 50 L54 64 L36 64 Z" fill="${P.wood[1]}"/>
-<path d="M22 46 Q32 52 42 46 L41 41 Q32 45 23 41 Z" fill="${P.a.maroon}" ${ink} stroke-width="1.8"/>
-<path d="M24 41 Q24 32 33 32 Q41 32 41 41 Q33 44 24 41 Z" fill="${P.skin[1]}" ${ink} stroke-width="1.8"/>
-<path d="M22 37 Q33 30 43 37 L43 33 Q33 26 22 33 Z" fill="${P.ink}" opacity=".7"/>
-<path d="M2 30 Q10 8 33 5 Q56 8 63 30 L57 28 L51 31 L45 28 L39 31 L33 28 L27 31 L21 28 L15 31 L9 28 Z" fill="${P.a.umbrella}" ${ink}/>
-<path d="M12 18 Q22 9 33 8 Q45 9 54 18 Q44 13 33 13 Q22 13 12 18 Z" fill="${P.a.umbrellaLight}"/>
-<path d="M33 5 L21 28 M33 5 L33 28 M33 5 L45 28" stroke="${P.ink}" stroke-width="1.2"/><path d="M33 5 L33 1" ${ink}/>
-<path d="M33 28 L33 52" stroke="${P.ink}" stroke-width="2.6"/><circle cx="35" cy="52" r="3" fill="${P.skin[1]}" ${ink} stroke-width="1.6"/>
-<path d="M9 31 v3 M57 31 v4" stroke="#8fa6b8" stroke-width="1.4"/>`)
-    }),
-    nell: Object.freeze({ work: nellPortrait("work"), measuring: nellPortrait("measuring"), listening: nellPortrait("listening"), amused: nellPortrait("amused"), irritated: nellPortrait("irritated"), tired: nellPortrait("tired") }),
-    orr: Object.freeze({ serving: orrPortrait("serving"), irritated: orrPortrait("irritated"), dry: orrPortrait("dry") }),
+    you: Object.freeze({neutral:youPortrait()}),
+    nell: Object.freeze(Object.fromEntries(["work","measuring","listening","amused","irritated","tired"].map(expr => [expr,nellPortrait(expr)]))),
+    orr: Object.freeze(Object.fromEntries(["serving","irritated","dry"].map(expr => [expr,orrPortrait(expr)]))),
     latch: Object.freeze({ procedural: latchPortrait("procedural"), startled: latchPortrait("startled"), dry: latchPortrait("dry"), soft: latchPortrait("soft"), urgent: latchPortrait("urgent") }),
-    // TALL HOOD: droopy hood, lazy eyes in the mask's slot, strings uneven.
-    "hood-tall": Object.freeze({
-      neutral: svg(`${disc("#120f0d", "#2a1c10", P.sodium[0], 46, 14)}${rainLines}
-<path d="M4 64 L8 50 Q14 44 24 43 L42 43 Q52 45 56 52 L60 64 Z" fill="${P.cloth[2]}" ${ink}/>
-<path d="M36 43 L42 43 Q52 45 56 52 L60 64 L40 64 Z" fill="${P.cloth[1]}"/>
-<path d="M14 48 Q8 26 20 12 Q30 4 42 8 Q52 14 50 30 Q49 40 46 46 L16 47 Z" fill="${P.cloth[2]}" ${ink}/>
-<path d="M18 46 Q16 30 24 22 Q34 16 44 22 Q48 32 44 46 Z" fill="${P.ink}"/>
-<path d="M22 31 H44 V36 H22 Z" fill="${P.cloth[0]}"/>
-<path d="M25 34 q3 -2 6 0 M34 34 q3 -2 6 0" stroke="${P.paper[2]}" stroke-width="2.2" fill="none"/>
-<path d="M24 33 h7 M34 33 h7" stroke="${P.cloth[1]}" stroke-width="1.6"/>
-<path d="M26 47 L25 60 M36 47 L37 52" stroke="${P.paper[2]}" stroke-width="1.6"/>
-<path d="M40 8 Q48 12 52 22" stroke="${P.cloth[3]}" stroke-width="2" fill="none"/>`)
-    }),
-    // SMALL HOOD: beanie and pom, crooked slot, wide eyes lit by his own phone.
-    "hood-small": Object.freeze({
-      neutral: svg(`${disc("#120f0d", "#2a1c10", P.sodium[0], 46, 14)}${rainLines}
-<path d="M6 64 L9 50 Q16 44 32 44 Q48 44 55 50 L58 64 Z" fill="${P.a.maroon}" ${ink}/>
-<path d="M9 52 H56 M8 60 H58" stroke="${P.ink}" stroke-width="1.4"/><path d="M14 47 Q32 43 50 47" stroke="${P.a.maroonLight}" stroke-width="2.4" fill="none"/>
-<circle cx="31" cy="31" r="14" fill="${P.ink}" ${ink}/>
-<path d="M19 28 L44 25 L45 31 L20 34 Z" fill="${P.cloth[0]}"/>
-<circle cx="26" cy="30.5" r="3" fill="${P.paper[3]}"/><circle cx="37.5" cy="29.5" r="3" fill="${P.paper[3]}"/>
-<circle cx="26.4" cy="31" r="1.2" fill="${P.ink}"/><circle cx="37.9" cy="30" r="1.2" fill="${P.ink}"/>
-<path d="M16 24 Q16 9 31 8 Q46 9 46 24 Z" fill="${P.a.mustard}" ${ink}/>
-<path d="M15 24 H47 V20 H15 Z" fill="${P.a.mustard}" ${ink} stroke-width="1.8"/><circle cx="31" cy="6" r="4" fill="${P.a.mustard}" ${ink} stroke-width="1.8"/>
-<path d="M45 64 L48 44 L58 45 L56 64 Z" fill="${P.ink}" ${ink} stroke-width="1.6"/><path d="M48.5 47 L56.5 47.6 L55 62 L47 62 Z" fill="${P.fluoro[2]}"/>
-<path d="M22 37 Q31 41 40 36" stroke="${P.fluoro[1]}" stroke-width="1.6" opacity=".55" fill="none"/>`)
-    }),
-    // DRIVER: as he sits in the van: rust chore coat, cream fleece collar,
-    // black ski mask with a rolled cuff, sunglasses at night, a gloved hand on the wheel.
-    driver: Object.freeze({
-      neutral: svg(`${disc(P.night[0], P.service[0], P.service[1], 32, 28)}
-<path d="M4 64 L8 50 Q16 43 32 43 Q48 43 56 50 L60 64 Z" fill="${P.a.rust}" ${ink}/>
-<path d="M40 44 Q50 46 56 50 L60 64 L44 64 Z" fill="${P.wood[1]}"/>
-<path d="M11 53 L21 43 L31 46 L25 61 Z" fill="${P.paper[2]}" ${ink} stroke-width="1.8"/><path d="M53 53 L43 43 L33 46 L39 61 Z" fill="${P.paper[2]}" ${ink} stroke-width="1.8"/>
-<path d="M17 51 h.1 M22 48 h.1 M21 54 h.1 M46 51 h.1 M41 48 h.1 M42 54 h.1" stroke="${P.paper[0]}" stroke-width="2" stroke-linecap="round"/>
-<circle cx="32" cy="28" r="15" fill="${P.ink}" ${ink}/>
-<path d="M17 21 Q32 10 47 21 L46 16 Q32 6 18 16 Z" fill="${P.cloth[1]}" ${ink} stroke-width="1.6"/>
-<path d="M15 26 H49 L48 33 Q41 35 36 32 L28 32 Q23 35 16 33 Z" fill="${P.metal[3]}" ${ink} stroke-width="1.8"/>
-<path d="M20 28 h6 M38 28 h6" stroke="#ffffff" stroke-width="1.6"/>
-<ellipse cx="32" cy="38.5" rx="3.4" ry="1.8" fill="${P.cloth[1]}"/>
-<path d="M2 64 Q14 52 30 54 Q46 56 58 64" stroke="${P.ink}" stroke-width="5" fill="none"/><path d="M2 64 Q14 52 30 54 Q46 56 58 64" stroke="${P.cloth[2]}" stroke-width="2.4" fill="none"/>
-<circle cx="47" cy="58" r="3.8" fill="${P.ink}" ${ink} stroke-width="1.6"/><path d="M45 56.5 h4" stroke="${P.cloth[2]}" stroke-width="1.2"/>
-<path d="M20 50 Q32 46 44 50" stroke="${P.service[3]}" stroke-width="1.4" opacity=".5" fill="none"/>`)
-    })
+    "hood-tall": Object.freeze({neutral:hoodPortrait("hood-tall")}),
+    "hood-small": Object.freeze({neutral:hoodPortrait("hood-small")}),
+    driver: Object.freeze({neutral:hoodPortrait("driver")})
   });
 
   const coatPortrait = svg(`${disc("#0e1418", "#1d2a33", "#2c3d48", 32, 44)}
@@ -2048,12 +2188,11 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
 <path d="M0 0 H64 V6 H0 Z" fill="#0e1418"/>`);
   // v0.4: the hoods can be scared (of him); the capped hood has a face; the
   // Boss has only his caller ID.
-  const fear = (art, brows) => art.replace("</svg>", `${scared("", brows)}</svg>`);
   const CAST_PORTRAITS = Object.freeze({
     ...PORTRAITS,
-    "hood-tall": Object.freeze({ ...PORTRAITS["hood-tall"], scared: fear(PORTRAITS["hood-tall"].neutral, "M21 21 q4 -5 9 -1 M34 20 q5 -4 9 1") }),
-    "hood-small": Object.freeze({ ...PORTRAITS["hood-small"], scared: fear(PORTRAITS["hood-small"].neutral, "M20 24 q5 -6 10 -2 M33 23 q5 -5 10 0") }),
-    driver: Object.freeze({ ...PORTRAITS.driver, scared: fear(PORTRAITS.driver.neutral, "M18 23 q5 -5 10 -1 M36 22 q5 -4 10 1") }),
+    "hood-tall": Object.freeze({ ...PORTRAITS["hood-tall"], scared: hoodPortrait("hood-tall","scared") }),
+    "hood-small": Object.freeze({ ...PORTRAITS["hood-small"], scared: hoodPortrait("hood-small","scared") }),
+    driver: Object.freeze({ ...PORTRAITS.driver, scared: hoodPortrait("driver","scared") }),
     "hood-cap": Object.freeze({ neutral: capPortrait }),
     boss: Object.freeze({ calm: bossPortrait(false), cold: bossPortrait(true) }),
     // v0.5: a white coat seen through a grate: lapels, a pen, a clipboard with
@@ -2062,12 +2201,13 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
   });
 
   return Object.freeze({
-    P, RULES, HEIGHT, rng, seedOf, trace, inkStroke, shape, box, oval, line, rect, drop,
+    characterHead, characterHeadSvg, cut,
+    P, RULES, HEIGHT, WORLD_SCALE, rng, seedOf, trace, inkStroke, shape, box, oval, line, rect, drop,
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
-    keeper, van, hood, seated, vanRide, CREW_HEIGHT, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
-    mark, markSvg, callingCard, collector, jar, jarLight, cage, beltCrate, jarTray, speaker,
+    keeper, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
+    mark, markSvg, callingCard, collector, collectorProfile, jar, jarLight, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });
 });

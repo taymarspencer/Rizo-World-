@@ -105,6 +105,16 @@
     beat(step, play) { if (step % 8 === 0) play(31, 2.4, 0.022, 0, "triangle"); if (step % 8 === 4) play(30, 1.3, 0.011, 0, "triangle"); if (step % 16 === 10) play(55, 0.5, 0.009, 0, "sine"); dangerLayer(step, play); } });
   // Outside there is almost no music: rain, a hum, one low note now and then.
   const STREET_TRACK = Object.freeze({ id: "dungeon-street", tempo: 1400, lead: [null, null, null, null, null, null, null, null], bass: [31, null, null, null, null, null, null, null, 33, null, null, null, null, null, null, null], wave: "sine" });
+  // A small original five-note motif introduces the creature's warmth
+  // before the same night turns it into danger. No samples, licensed themes,
+  // or constant busy accompaniment; the player can hear the silences.
+  const PROLOGUE_LEAD = [57, null, 60, null, 64, null, 62, null, 57, null, null, null, 55, null, null, null];
+  const PROLOGUE_TRACK = Object.freeze({ id: "dungeon-little-flame", tempo: 690, lead: PROLOGUE_LEAD, bass: [33, null, null, null, null, null, null, null], wave: "sine",
+    beat(step, play) {
+      const melody = PROLOGUE_LEAD[step % PROLOGUE_LEAD.length];
+      if (melody != null) play(melody, 1.3, .018, 0, "sine");
+      if (step % 8 === 0) play(step % 16 === 0 ? 33 : 36, 2.1, .009, 0, "triangle");
+    } });
   // Designed silence: the mode keeps the music, and plays nothing.
   const SILENT_TRACK = Object.freeze({ id: "dungeon-silence", tempo: 2000, lead: [null], bass: [null], wave: "sine" });
   // The headlights: one held low tone, no melody.
@@ -154,6 +164,17 @@
     for (const byte of bytes) id += "abcdefghijklmnopqrstuvwxyz0123456789"[byte % 36];
     return `threshold-${id}`;
   }
+
+  // The mythology is told in small, player-paced tableaux before the FIRST
+  // journey. It doesn't explain BELOW or spoil The Boss: it gives the player
+  // something to love before the kidnappers arrive. No borrowed dialogue.
+  const PROLOGUE_BEATS = Object.freeze([
+    { visual: "dark", line: "Some creatures are born to survive the dark." },
+    { visual: "home", line: "A Rizo is born to light it." },
+    { visual: "belong", line: "Give one a home, and you'll have a companion who remembers your kindness." },
+    { visual: "taken", line: "But some people see a little flame and think only of what they could take." },
+    { visual: "warning", line: "If you're lucky enough to have a Rizo... protect your little flame." }
+  ]);
 
   // Scene steps. A scene is a short list; branching lives in the room logic.
   const S = {
@@ -227,6 +248,7 @@
     let dirty = false, lastCommitAt = 0, unsaved = false, lastOutcome = null;
     let dialogueState = null, choiceState = null, scene = null;
     let sceneTime = 0;
+    let intro = null; // unsaved presentation. Completion is one committed beat.
     let exitState = null;
     let facingLeft = false;
     let cue = { moved: false, flare: false, tuck: false, noticed: false };
@@ -463,7 +485,7 @@
         body: esc(`${waiting || updateNote || perf || `${pet?.name || "Your Rizo"} waits. Nothing moves until you resume.`}${unsaved && !updateNote ? " The last moment isn't saved yet; GO HOME tries again." : ""}`) + (objectiveNow() ? `<span class="dungeon-pause-goal">NOW: ${esc(objectiveNow())}</span>` : ""),
         actions: `<button type="button" class="primary" data-dungeon-action="resume" ${external.length ? "disabled" : ""}>RESUME</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
         fine: esc(Core.belowReached(data) ? "GO HOME saves the journey here. You'll come back to this spot." : "GO HOME saves. The night picks up from here next time."),
-        tools: restartTool(external.length > 0),
+        tools: `<button type="button" class="quiet" data-dungeon-action="watch-intro" ${external.length ? "disabled" : ""}>WATCH INTRO</button>` + restartTool(external.length > 0),
         menu: true
       }));
     }
@@ -528,7 +550,7 @@
       acc = 0; lastFrame = now();
       refreshPet();
       enterSim(Content.START_ROOM, Content.ROOMS[Content.START_ROOM].entryAnchor, Core.T.FLAME_MAX);
-      onEnterRoom(Content.START_ROOM, "new");
+      beginPrologue();
       log({ restart: data.campaign.id });
     }
     function renderSaveFailedPanel(context) {
@@ -692,7 +714,7 @@
     // keeps moving; nobody has to press through it. Its clock only runs while
     // the player is in play, so a LOOK never hides a line: the talk waits, and
     // the line on screen stays up. Items: a line, { hold }, { pose, ms }, { call }.
-    function talk(items) {
+    function talk(items, { pace = 1, gapMs = TALK_GAP_MS } = {}) {
       let state = null;
       return S.until(() => {
         if (!state) state = { index: 0, clock: 0, next: 0, last: sceneTime };
@@ -708,11 +730,11 @@
           if (item.call) { item.call(); continue; }
           if (item.pose) { setPose(item.pose, item.ms); state.next += item.ms || 0; continue; }
           // A weighted line stays up longer; a quiet one is set smaller. Neither changes the words.
-          const ms = Math.round(barkMs(item.text) * (item.weight || 1));
+          const ms = Math.max(1600, Math.round(barkMs(item.text) * (item.weight || 1) * pace));
           if (item.speaker && npcs.has(item.speaker)) npcs.get(item.speaker).expr = item.expr;
           barks = barks.filter(entry => entry.id !== item.speaker);
           barks.push({ id: item.speaker, text: item.text, speaker: item.speaker, until: sceneTime + Math.max(0, ms - late), talk: true, quiet: Boolean(item.quiet) });
-          state.next += ms + TALK_GAP_MS;
+          state.next += ms + gapMs;
         }
         return state.index >= items.length && state.clock >= state.next;
       });
@@ -735,8 +757,6 @@
           actor.walking = k < 1;
           if (k >= 1) actor.moveMs = 0;
         } else actor.walking = false;
-        // Footfalls follow distance, including the ease into a doorway.
-        actor.stride = (actor.stride || 0) + Math.hypot(actor.x - oldX, actor.y - oldY) / 7;
         // Work and conversation have a physical subject. Travel follows the
         // route; listening turns toward Rizo only while he is nearby. Neither
         // changes the simulation or steals his heading.
@@ -751,6 +771,9 @@
           const speed = actor.speed || 30;
           if (distance > 10) { actor.x += (dx / distance) * speed * dt; actor.y += (dy / distance) * speed * dt; actor.walking = true; actor.face = dx < 0 ? -1 : 1; }
         }
+        // Update the step phase AFTER movement, including authored chases:
+        // the feet follow actual traveled distance, not wall-clock sine loops.
+        actor.stride = (actor.stride || 0) + Math.hypot(actor.x - oldX, actor.y - oldY) / 7;
       }
       // Overheard talk waits with its line on screen while play is paused (a LOOK).
       barks = barks.filter(entry => entry.until > sceneTime || (entry.talk && ui !== "play"));
@@ -837,7 +860,14 @@
     function keeperState(state, ms = 0) { const keeper = npcs.get("keeper"); if (keeper) { keeper.state = state; keeper.stateUntil = ms ? sceneTime + ms : 0; } }
     // Cinematic framing is deliberately brief. Reduced-motion players keep the
     // stable gameplay composition instead of being snapped to a new subject.
-    function cameraBeat(x, y, ms) { if (!reducedMotion()) room.peek = { x, y, until: sceneTime + ms }; }
+    // Cinematic beat: actual eased map pan, optionally a short optical push.
+    // Only scripted noninteractive scenes may enlarge the world plane. Rizo's
+    // hitboxes, dialogue, screen controls and HUD are never scaled.
+    function cameraBeat(x, y, ms, zoom = 1) {
+      if (reducedMotion()) return;
+      room.peek = { x, y, until: sceneTime + ms };
+      room.storyShot = zoom > 1 ? { x, y, zoom, until: sceneTime + ms } : null;
+    }
     function tickRoom() {
       if (!sim) return;
       const dt = Math.max(0, sceneTime - roomTickAt);
@@ -901,7 +931,10 @@
           cameraBeat(154, 240, 1800);
         }),
         S.wait(850),
-        S.call(() => keeperState("look-back", BEAT.YOU_CINEMATIC_SAFETY_MS + 1800)),
+        S.call(() => {
+          keeperState("look-back", BEAT.YOU_CINEMATIC_SAFETY_MS + 1800);
+          cameraBeat(146, 230, 1800, 1.1);
+        }),
         S.say(L.beGood, BEAT.YOU_CINEMATIC_SAFETY_MS),
         S.wait(BEAT.BE_GOOD_HOLD_MS),
         S.call(() => {
@@ -920,6 +953,7 @@
         // One half-beat of body language in the rain before the store takes YOU.
         S.call(() => { const keeper = npcs.get("keeper"); if (keeper) { keeper.face = 1; keeperState("look-back", 500); } sim.player.fx = 0; sim.player.fy = -1; }),
         S.wait(450),
+        S.call(() => cameraBeat(177, 118, 2200, 1.1)),
         S.move("keeper", 176, 104, 2000),
         S.call(() => { keeperState("door", 700); room.storeDoorOpen = true; sound("chime"); }),
         // Cross the threshold before disappearing into the interior layer.
@@ -977,7 +1011,7 @@
     // ---- 4 Headlights, 5 Taken. Nothing Rizo does changes what happens here.
     function headlightSteps() {
       return [
-        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); cameraBeat(180, 336, 1800); }),
+        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); cameraBeat(180, 336, 1800, 1.09); }),
         S.wait(1500),
         // He knows first: the flame pulls in, he turns to the rear window.
         S.call(() => { setPose("pull-in", 2500); room.sensedAt = sceneTime; sim.player.fx = 0; sim.player.fy = 1; sound("bass"); }),
@@ -1015,13 +1049,13 @@
           { call: () => stageDoorTeam() }, { hold: 900 }
         ]),
         // The door is forced: cold air, the rain loud.
-        S.call(() => { room.phase = "taken"; room.passengerDoor = sceneTime; room.rainLoud = true; sound("crack"); room.shake = sceneTime; }),
+        S.call(() => { room.phase = "taken"; room.passengerDoor = sceneTime; room.rainLoud = true; sound("crack"); room.shake = sceneTime; cameraBeat(250, 260, 1500); }),
         S.wait(1500),
         // The hands come in at the door and pause, then come for him: long enough to flinch from a Flare.
         S.call(() => { room.hands = { x: 236, y: 248, start: sceneTime, flinchUntil: sceneTime + 900 }; room.flares = 0; }),
         S.until(() => room.grabbed || sceneTime - room.hands.start >= BEAT.GRAB_MAX_MS),
         S.control(false),
-        S.call(() => grab()),
+        S.call(() => { grab(); cameraBeat(221, 250, 1100, 1.12); }),
         S.comic("grab"),
         // Do not cut away on contact: physically drag him across the passenger
         // seat toward the forced door so the player sees the abduction happen.
@@ -2494,35 +2528,46 @@
             S.wait(1000),
             // Movement one: idiots doing a job. "Boss" is said once, lightly, and lands.
             talk([
-              ...L.vanArgue, { hold: 1000 },
-              weighted(L.vanTouch[0], 1.5), { hold: 300 }, ...L.vanTouch.slice(1), { pose: "look-up", ms: 1500 },
+              ...L.vanArgue, { hold: 550 },
+              weighted(L.vanTouch[0], 1.5), { hold: 200 }, ...L.vanTouch.slice(1), { pose: "look-up", ms: 900 },
               { call: () => { room.phoneLight = "film"; } }, ...L.vanFilm, { call: () => { room.phoneLight = null; } },
-              { hold: 1000 }
-            ]),
+              { hold: 450 }
+            ], { pace: .91, gapMs: 180 }),
             // The pothole: the cooler slides, and Tuck is learned here, as before.
             S.call(() => vanBump()),
             S.until(() => room.cargoResolved),
-            S.wait(900),
+            S.wait(600),
             S.call(() => { if (!room.dodged) { room.cargoResolved = false; vanBump(); } }),
             S.until(() => room.cargoResolved),
             // Movement two: the number nobody says. Then a phone nobody answers.
             // Movement three: the humor dies. The screen faces the cabin, not us.
             talk([
-              { hold: 900 },
-              ...L.vanCooler, { hold: 1000 },
+              { hold: 500 },
+              ...L.vanCooler, { hold: 500 },
               ...L.vanNumber.slice(0, 3), weighted(L.vanNumber[3], 1.4), ...L.vanNumber.slice(4),
               // What he wants, said once, as a fear joke. Why he wants it stays unsaid.
-              { hold: 500 }, ...L.vanEvery.slice(0, 1), weighted(L.vanEvery[1], 1.3), ...L.vanEvery.slice(2),
+              { hold: 300 }, ...L.vanEvery.slice(0, 1), weighted(L.vanEvery[1], 1.3), ...L.vanEvery.slice(2),
               // The job has a clock. Missing the check-in turns "Boss" from
               // vague talk into pressure that can reach the van.
-              { hold: 650 }, ...L.vanCheckin,
+              { hold: 450 }, ...L.vanCheckin,
               // Nobody laughs. Wipers only. He feels the joke end before anyone says so.
-              { call: () => { vanHush("wipers"); flameMood("fear", 2800); } }, { hold: 2600 },
+              { call: () => { vanHush("wipers"); flameMood("fear", 2200); } }, { hold: 1700 },
               quietly(L.vanAsk[0]),
               // Nobody answers. Rain.
-              { call: () => vanHush("rain") }, { hold: 2200 },
+              { call: () => vanHush("rain") }, { hold: 1400 },
               // His phone: cold light fills the van, and everyone freezes. The ring is his presence.
-              { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); vanHush("phone"); vanFreeze(true); flameMood("fear", 9000); } }, { hold: 1200 },
+              { call: () => {
+                  // The longest van scene gets ONE directed picture:
+                  // the phone lights up, everyone freezes, and the image
+                  // gently closes in. No arbitrary body flailing or cut
+                  // while the cargo timing challenge is active.
+                  room.phoneLight = "call";
+                  room.phoneRinging = true;
+                  room.phoneBuzzAt = -Infinity;
+                  room.storyShot = { x: 46, y: 55, zoom: 1.10, until: sceneTime + 1050 };
+                  setPose("recoil", 900);
+                  vanHush("phone"); vanFreeze(true); flameMood("fear", 9000);
+                } }, { hold: 1000 },
               weighted(L.vanPhone[0], 1.4), L.vanPhone[1], L.vanPhone[2],
               // Small starts to lift the phone. Tall physically stops the answer.
               { call: () => {
@@ -2531,17 +2576,17 @@
                   if (tall) tall.state = "stop-phone";
                   sound("cloth");
                 } },
-              L.vanPhone[3], { hold: 1100 },
-              { call: () => { vanFreeze(true); setPose("tremble", 4000); } }, { hold: 2900 },
+              L.vanPhone[3], { hold: 750 },
+              { call: () => { vanFreeze(true); setPose("tremble", 2700); } }, { hold: 1850 },
               // It goes dark. In the silence he looks at the one who's scared: they are afraid too.
-              { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 1200 },
-              { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("stare", 1800); } }, { hold: 1800 },
+              { call: () => { room.phoneLight = null; room.phoneRinging = false; vanHush("rain"); } }, { hold: 850 },
+              { call: () => { vanFreeze(false); vanFaceToward("hood-small"); setPose("stare", 1350); } }, { hold: 1200 },
               weighted(L.vanLost[0], 1.3), ...L.vanLost.slice(1),
               // The capped one's only words. Everyone turns to him. He looks back. Rain only.
-              { call: () => vanHush("rain") }, { hold: 400 },
-              weighted(L.vanListening[0], 1.4), { call: () => { vanStare(true); setPose("stare", 3000); flameMood("fear", 3000); } }, { hold: 3000 },
+              { call: () => vanHush("rain") }, { hold: 250 },
+              weighted(L.vanListening[0], 1.4), { call: () => { vanStare(true); setPose("stare", 2200); flameMood("fear", 2200); } }, { hold: 1900 },
               { call: () => vanStare(false) }
-            ]),
+            ], { pace: .91, gapMs: 180 }),
             S.call(() => { vanHush(null); setTransient("vanDoorLoose", true); room.doorLoose = true; sound("door"); room.shake = sceneTime; room.looseAt = sceneTime; }),
             S.until(() => inZone("van-door-zone") || sceneTime - room.looseAt > BEAT.GAP_AUTO_MS),
             // At the gap: black and rushing rain. He leans back; a held push carries him through.
@@ -3256,6 +3301,10 @@
       // A press belongs to whatever had the input when it happened: the menu,
       // a dialogue line, a choice, or play. The press that closes a line never Flares.
       const playHadInput = ui === "play" && holds.length === 0;
+      if (ui === "prologue" && edges.primaryPressed) {
+        advancePrologue();
+        edges.primaryPressed = false;
+      }
       if (edges.systemPressed) {
         if (ui === "panel" && panelKind === "pause") playerResume();
         // MENU from the restart question is "keep my journey".
@@ -3264,7 +3313,7 @@
       }
       if (holds.length === 0 && !exitState && comic?.playing()) {
         if (edges.primaryPressed) comic.skip(); else comic.tick(Math.min(dt, 100));
-      } else if (holds.length === 0 && !exitState) {
+      } else if (holds.length === 0 && !exitState && ui !== "prologue") {
         sceneTime += Math.min(dt, 100);
         tickNpcs(Math.min(dt, 100) / 1000);
         tickScene();
@@ -3384,7 +3433,10 @@
         lightScale: lightScaleNow(),
         actorLight: actorLightNow(),
         thought: thoughtNow(),
-        focus: target
+        focus: target,
+        cinematic: Boolean((scene && !scene.control && !comic?.playing()) ||
+          (sim.roomId === "van" && room.phoneLight === "call" &&
+            room.storyShot && sceneTime < room.storyShot.until && !comic?.playing()))
       });
       // The phone's screen up close: only the caller's symbol, and a call timer once connected.
       const phone = sim.roomId === "roadside" ? room.phone : null;
@@ -3432,6 +3484,53 @@
     }
 
     // ===== ENTRY =====
+    function beginPrologue(replay = false) {
+      if (!replay && (host.debug || beats().includes("opening:little-flame"))) {
+        onEnterRoom("car", "new");
+        return;
+      }
+      intro = { index: 0, replay };
+      if (!replay) {
+        scene = null; dialogueState = null; choiceState = null;
+        view.setShell("open");
+        view.dialogue(null);
+        view.choice(null);
+        // Original synth music, honoring the hub's sound setting.
+        setMusic(PROLOGUE_TRACK);
+      } else {
+        // Replay is purely presentation. Keep the existing pause hold,
+        // current room, music and save exactly where they were.
+        panelKind = ""; view.panel(null);
+      }
+      ui = "prologue"; input.clear("prologue");
+      pending = { primary: false, secondary: false };
+      view.prologue(PROLOGUE_BEATS[0], 0, PROLOGUE_BEATS.length, pet);
+    }
+    function advancePrologue(skip = false) {
+      if (!intro) return;
+      const next = skip ? PROLOGUE_BEATS.length : intro.index + 1;
+      if (next < PROLOGUE_BEATS.length) {
+        intro.index = next;
+        view.prologue(PROLOGUE_BEATS[next], next, PROLOGUE_BEATS.length, pet);
+        try { host.audio?.tone?.(next === 3 ? 207.65 : 392, 0.18, "triangle", 0.018); } catch (error) {}
+        return;
+      }
+      const replay = intro.replay;
+      intro = null;
+      view.prologue(null);
+      ui = "play";
+      input.clear("prologue-end"); pending = { primary: false, secondary: false };
+      if (replay) { renderPausePanel(); return; }
+      // The beat is idempotent; restarting cannot make the narrator repeat
+      // during a previously completed journey.
+      const outcome = commitData(nextData => addBeat(nextData, "opening:little-flame"));
+      if (outcome.status !== "committed") { renderSaveFailedPanel("moment"); return; }
+      try {
+        host.audio?.tone?.(329.63, .3, "sine", .024);
+        host.audio?.tone?.(392, .35, "sine", .018, .16);
+      } catch (error) {}
+      onEnterRoom("car", "new");
+    }
     function refreshPet() {
       pet = host.pet();
       view.setPet(pet);
@@ -3463,7 +3562,8 @@
         setContinuation(next, roomId, anchorId, cont.roomEntryFlame, opening ? "opening" : cont.resumeKind || "room-entry");
       });
       if (outcome.status === "failed" || (fromMigration && outcome.status !== "committed")) renderSaveFailedPanel("moment");
-      onEnterRoom(roomId, context);
+      if (roomId === "car" && context === "new") beginPrologue();
+      else onEnterRoom(roomId, context);
     }
     function openingResume(cont) {
       const done = beat => beats().includes(beat);
@@ -3490,6 +3590,7 @@
       input.bind();
       view.el.panel.addEventListener("click", onPanelClick);
       view.el.choice.addEventListener("click", onChoiceClick);
+      view.el.prologue.addEventListener("click", onPrologueClick);
       // Action moments cut to a comic page drawn over the screen (story spine v0.4).
       const ComicKit = root?.RizoDungeonComic;
       if (ComicKit) comic = ComicKit.create({ mount: view.el.screen, reducedMotion: reducedMotion(), petMarkup: () => (pet ? host.petMarkup(pet, { context: "dungeon", extraClass: "comic-rizo-art", label: pet.name || "Rizo" }) : ""), lines: Content.LINES, speakers: Content.SPEAKERS, onPanel: (id, index) => { const hit = COMIC_HITS[id]?.[index]; if (hit) sound(hit); } });
@@ -3511,8 +3612,8 @@
         data = { ...Core.newCampaign({ pet, id: campaignId() }), settings: { ...settings } };
         enterSim(Content.START_ROOM, Content.ROOMS[Content.START_ROOM].entryAnchor, Core.T.FLAME_MAX);
         const outcome = commit(sliceWithSettings(data));
-        onEnterRoom(Content.START_ROOM, "new");
         if (outcome.status !== "committed") renderSaveFailedPanel("moment");
+        else beginPrologue();
       } else {
         data = result.data;
         settings = { ...settings, ...data.settings };
@@ -3565,11 +3666,18 @@
       try { host.event("chapterComplete", { boundaryId: "homecoming", campaignId: data.campaign.id, tone: "protected", interruption: "none" }); } catch (error) {}
       beginExit("homecoming", "", { homecoming: true });
     }
+    function onPrologueClick(event) {
+      const button = event.target.closest("[data-prologue-action]");
+      if (!intro || !button || !view.el.prologue.contains(button)) return;
+      event.preventDefault(); event.stopPropagation();
+      advancePrologue(button.dataset.prologueAction === "skip");
+    }
     function onPanelClick(event) {
       const action = event.target.closest("[data-dungeon-action]")?.dataset.dungeonAction;
       if (!action) return;
       sound("ui");
       if (action === "resume") playerResume();
+      else if (action === "watch-intro" && panelKind === "pause" && !Core.externalHolds(holds).length) beginPrologue(true);
       else if (action === "stay") closePanel();
       else if (action === "onward" && ui === "blocked" && data?.proofComplete) { view.panel(null); sim = null; ui = "play"; resumeJourney(false); }
       else if (action === "home") goHome();
@@ -3608,6 +3716,7 @@
       comic = null;
       view?.el.panel.removeEventListener("click", onPanelClick);
       view?.el.choice.removeEventListener("click", onChoiceClick);
+      view?.el.prologue.removeEventListener("click", onPrologueClick);
       view?.destroy();
       releasePage?.();
       releasePage = null;
@@ -3805,7 +3914,7 @@
       dungeonSummaryForQA: () => Modes.summary(MODE_ID),
       // The notes an adaptive track would play over some steps, as data (no sound).
       dungeonTrackForQA: (id, from = 0, count = 16) => {
-        const track = [DUNGEON_TRACK, VAN_TRACK, DRAIN_TRACK, HEARTH_TRACK, PORTER_TRACK, HOME_TRACK].find(item => item.id === id);
+        const track = [PROLOGUE_TRACK, DUNGEON_TRACK, VAN_TRACK, DRAIN_TRACK, HEARTH_TRACK, PORTER_TRACK, HOME_TRACK].find(item => item.id === id);
         if (!track) return null;
         const notes = [];
         for (let step = from; step < from + count; step += 1) track.beat(step, (note, duration, volume, delay, type) => notes.push({ step, note, volume, type }));

@@ -980,7 +980,10 @@ console.log(JSON.stringify(Save.createEnvelope({state:v.state,modes:{dungeon:{sc
     page.evaluate(f"RizoRuntimeQA.dungeonTeleportForQA({ph['x'] + 12},{ph['y']})"); page.wait_for_timeout(150); page.keyboard.press("z"); page.wait_for_timeout(300)
     page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500); jump(page, 3000); page.wait_for_timeout(150)
     st = page.evaluate(ST); s = page.evaluate(STORED)
-    check("reload after the call: the walk, no phone again; callerConnected kept", st["sim"]["roomId"] == "roadside" and st["opening"].get("phone") is None and st["opening"].get("walkMode") and s["slice"]["story"]["facts"].get("callerConnected") is True and st["music"] == "dungeon-street")
+    check("reload after the call: the walk, no phone again; callerConnected kept", st["sim"]["roomId"] == "roadside" and st["opening"].get("phone") is None and st["opening"].get("walkMode") and s["slice"]["story"]["facts"].get("callerConnected") is True and st["music"] == "dungeon-street",
+          str({"room": st["sim"]["roomId"], "phone": st["opening"].get("phone"), "walkMode": st["opening"].get("walkMode"),
+               "callerConnected": s["slice"]["story"]["facts"].get("callerConnected"), "music": st["music"],
+               "scene": st.get("scene"), "beats": s["slice"]["story"]["committedSceneBeats"][-8:]}))
     page.evaluate("RizoRuntimeQA.dungeonTeleportForQA(100,70)"); hold(page, "w", 700); page.wait_for_timeout(500)
     page.reload(); page.wait_for_timeout(1300); st = launch(page); page.wait_for_timeout(500)
     check("reload in the drain: the drain's mouth", st["sim"]["roomId"] == "drain")
