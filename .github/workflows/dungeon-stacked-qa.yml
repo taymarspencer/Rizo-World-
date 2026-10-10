@@ -26,85 +26,113 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Dungeon browser and character continuity
+  node-and-build:
+    name: Dungeon Node suites + production build
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 12
     steps:
-      - name: Checkout candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
           package-manager-cache: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-
       - name: Parse Dungeon JavaScript and run all Node tests
         shell: bash
         run: |
           for file in modes/dungeon/*.js; do node --check "$file"; done
-          mkdir -p "$RUNNER_TEMP/dungeon-qa"
           status=0
           for suite in tests/*.test.js; do
-            if ! node "$suite" > "$RUNNER_TEMP/dungeon-qa/$(basename "$suite").log" 2>&1; then
-              cat "$RUNNER_TEMP/dungeon-qa/$(basename "$suite").log"
-              status=1
+            if ! node "$suite" > /tmp/dungeon-node.log 2>&1; then
+              echo "FAILED: $suite"; cat /tmp/dungeon-node.log; status=1
             fi
           done
           exit "$status"
-
-      - name: Build real production website
+      - name: Build production website
         run: python tools/build-site.py --out dist
 
-      - name: Install Chromium for browser tests
+  browser:
+    name: Dungeon browser / ${{ matrix.suite }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - browser-dungeon
+          - browser-dungeon-controls
+          - browser-dungeon-cohesion
+          - browser-dungeon-depth
+          - browser-dungeon-gamefeel
+          - browser-dungeon-escape
+          - browser-dungeon-reading
+          - browser-dungeon-character-lab
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install Chromium
         run: |
           python -m pip install playwright==1.51.0
           python -m playwright install --with-deps chromium
-
-      - name: Run player-critical Dungeon browser suites
+      - name: Run actual game browser checks
         shell: bash
         run: |
-          set +e
-          status=0
-          for suite in browser-dungeon browser-dungeon-controls browser-dungeon-cohesion browser-dungeon-depth browser-dungeon-gamefeel browser-dungeon-escape browser-dungeon-reading browser-dungeon-character-lab; do
-            extra_args=()
-            case "$suite" in
-              browser-dungeon-cohesion|browser-dungeon-depth|browser-dungeon-gamefeel|browser-dungeon-escape|browser-dungeon-character-lab)
-                extra_args=(--evidence "$RUNNER_TEMP/dungeon-qa/$suite")
-                ;;
-            esac
-            python "tests/$suite.py" "${extra_args[@]}" > "$RUNNER_TEMP/dungeon-qa/$suite.log" 2>&1
-            result=$?
-            tail -n 12 "$RUNNER_TEMP/dungeon-qa/$suite.log"
-            if [[ $result -ne 0 ]]; then echo "FAILED: $suite"; status=1; fi
-          done
-          exit "$status"
-
-      - name: Capture real 320px and 390px characters and opening
-        if: always()
-        shell: bash
-        run: |
-          if [[ -d dist ]]; then
-            python tests/capture-dungeon-character-art.py --directory dist --evidence "$RUNNER_TEMP/dungeon-qa/live-character-captures"
-            python tests/capture-dungeon-opening-direction.py --directory dist --evidence "$RUNNER_TEMP/dungeon-qa/live-opening-captures"
-          else
-            echo "No dist directory; production build failed"
-            exit 1
-          fi
-
-      - name: Keep logs and phone-size scene evidence
+          mkdir -p "$RUNNER_TEMP/dungeon-qa"
+          suite="${{ matrix.suite }}"
+          extra_args=()
+          case "$suite" in
+            browser-dungeon-cohesion|browser-dungeon-depth|browser-dungeon-gamefeel|browser-dungeon-escape|browser-dungeon-character-lab)
+              extra_args=(--evidence "$RUNNER_TEMP/dungeon-qa/$suite")
+              ;;
+          esac
+          python "tests/$suite.py" "${extra_args[@]}" 2>&1 | tee "$RUNNER_TEMP/dungeon-qa/$suite.log"
+      - name: Upload browser results, including failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: dungeon-stacked-qa-${{ github.sha }}
+          name: dungeon-${{ matrix.suite }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/dungeon-qa
+          retention-days: 7
+          if-no-files-found: warn
+
+  captures:
+    name: Dungeon live phone-size captures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build production website
+        run: python tools/build-site.py --out dist
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright==1.51.0
+          python -m playwright install --with-deps chromium
+      - name: Capture real phone scenes
+        run: |
+          python tests/capture-dungeon-character-art.py --directory dist --evidence "$RUNNER_TEMP/dungeon-qa/live-character-captures"
+          python tests/capture-dungeon-opening-direction.py --directory dist --evidence "$RUNNER_TEMP/dungeon-qa/live-opening-captures"
+      - name: Upload phone-size frames
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dungeon-phone-captures-${{ github.run_id }}
           path: ${{ runner.temp }}/dungeon-qa
           retention-days: 7
           if-no-files-found: warn
