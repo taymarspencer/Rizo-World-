@@ -440,13 +440,16 @@
     // talker; nobody talking, they watch Rizo (they can't help it). The
     // driver watches the road. When the phone rings, everyone looks at it;
     // "stare", everyone looks at him.
-    const crewTalk = { current: null, previous: null };
+    const crewTalk = { current: null, previous: null, startedAt: 0 };
+    let lastCrewRoom = "";
     const headOf = actor => ({ x: actor.x, y: actor.y - (Art.CREW_HEIGHT[actor.id] || 56) + 8 });
     function crewOptions(actor, t) {
       const npcs = lastNpcs, rizo = { x: crewRizo.x, y: crewRizo.y - 8 };
       const byId = id => npcs.find(entry => entry.id === id);
       const bark = lastBarks.find(entry => entry.id === actor.id);
       const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;
+      const emphasis = Boolean(bark && !bark.quiet &&
+        extrasTime - crewTalk.startedAt < 1050);
       const small = byId("hood-small");
       let look = rizo;
       if (actor.state === "stare") look = rizo;
@@ -457,7 +460,10 @@
       const shook = lastRoom.shake != null ? Math.max(0, 1 - (extrasTime - lastRoom.shake) / 450) : 0;
       return {
         who: actor.id, t, state: actor.state, look, talking: Boolean(bark), quiet: Boolean(bark?.quiet),
-        point: actor.id === "hood-cap" && (Boolean(bark) || actor.state === "stare"),
+        // Cap's pointing is a single forceful gesture at the START of his
+        // line; he does not mechanically point for every frame of dialogue.
+        point: actor.id === "hood-cap" && (emphasis || actor.state === "stare"),
+        talkAge: bark ? Math.max(0, extrasTime - crewTalk.startedAt) : 0,
         phone: actor.id === "hood-small" ? lastRoom.phoneLight || null : null,
         ride: Art.vanRide(t, reducedMotion), bump: reducedMotion ? 0 : shook
       };
@@ -817,8 +823,19 @@
       }
       speaking = new Set((extras.barks || []).map(item => item.id));
       lastBarks = extras.barks || []; lastNpcs = extras.npcs || [];
+      if (lastCrewRoom !== geo.id) {
+        crewTalk.current = null; crewTalk.previous = null;
+        crewTalk.startedAt = extrasTime; lastCrewRoom = geo.id;
+      }
       const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;
-      if (talker && talker !== crewTalk.current) { crewTalk.previous = crewTalk.current; crewTalk.current = talker; }
+      if (talker && talker !== crewTalk.current) {
+        crewTalk.previous = crewTalk.current;
+        crewTalk.current = talker; crewTalk.startedAt = extrasTime;
+      } else if (!talker && crewTalk.current) {
+        // A silent interval ends the turn. Repeated lines by the same person
+        // later still get their own gesture, not a stale conversation clock.
+        crewTalk.previous = crewTalk.current; crewTalk.current = null;
+      }
       const p = sim.player;
       crewRizo = { x: pos.x, y: pos.y };
       lastFlare = p.act?.kind === "flare" && Core.flarePhase(p.act, sim.t) === "active";
