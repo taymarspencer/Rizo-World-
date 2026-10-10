@@ -461,7 +461,7 @@
     // talker; nobody talking, they watch Rizo (they can't help it). The
     // driver watches the road. When the phone rings, everyone looks at it;
     // "stare", everyone looks at him.
-    const crewTalk = { current: null, previous: null, startedAt: 0 };
+    const crewTalk = { current: null, previous: null, signature: "", startedAt: 0 };
     let lastCrewRoom = "";
     const headOf = actor => ({ x: actor.x, y: actor.y - (Art.CREW_HEIGHT[actor.id] || 56) + 8 });
     function crewOptions(actor, t) {
@@ -846,16 +846,21 @@
       lastBarks = extras.barks || []; lastNpcs = extras.npcs || [];
       if (lastCrewRoom !== geo.id) {
         crewTalk.current = null; crewTalk.previous = null;
-        crewTalk.startedAt = extrasTime; lastCrewRoom = geo.id;
+        crewTalk.signature = ""; crewTalk.startedAt = extrasTime;
+        lastCrewRoom = geo.id;
       }
-      const talker = lastBarks.length ? lastBarks[lastBarks.length - 1].id : null;
-      if (talker && talker !== crewTalk.current) {
+      const activeBark = lastBarks.at(-1);
+      const talker = activeBark?.id || null;
+      const signature = activeBark ? `${activeBark.id}:${activeBark.text}` : "";
+      if (signature && signature !== crewTalk.signature) {
+        if (talker !== crewTalk.current) crewTalk.previous = crewTalk.current;
+        crewTalk.current = talker; crewTalk.signature = signature;
+        crewTalk.startedAt = extrasTime;
+      } else if (!signature && crewTalk.signature) {
+        // A silent interval ends the turn; another line even from the SAME
+        // crew member will get a fresh gesture, not a stale pointing loop.
         crewTalk.previous = crewTalk.current;
-        crewTalk.current = talker; crewTalk.startedAt = extrasTime;
-      } else if (!talker && crewTalk.current) {
-        // A silent interval ends the turn. Repeated lines by the same person
-        // later still get their own gesture, not a stale conversation clock.
-        crewTalk.previous = crewTalk.current; crewTalk.current = null;
+        crewTalk.current = null; crewTalk.signature = "";
       }
       const p = sim.player;
       crewRizo = { x: pos.x, y: pos.y };
