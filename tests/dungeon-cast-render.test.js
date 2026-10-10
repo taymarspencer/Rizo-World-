@@ -58,6 +58,25 @@ try {
       checkDraw("collector " + profile + "/" + state, ctx => Art.collector(ctx, 120, 180, { profile, state, t: 900, face: -1 }));
     }
   }
+  // Existing game characters matter as much as newly redesigned ones.
+  // Confirm their speaking, reaction and van poses still produce a complete
+  // Canvas frame after animation-direction edits (not a visual beauty grade).
+  for (const expr of ["soft", "startled", "dry", "urgent"]) {
+    checkDraw("Latch " + expr, ctx => Art.latch(ctx, 120, 180,
+      { t: 1000, expr, look: { x: -1, y: .5 }, face: 1 }));
+  }
+  for (const who of ["hood-tall", "hood-small", "hood-cap", "driver"]) {
+    checkDraw("Van " + who + " speaking", ctx => Art.seated(ctx,
+      who === "driver" ? "driver-seat" : "van-seat", 120, 180,
+      { who, t: 1400, talking: true, talkAge: 600,
+        look: { x: 130, y: 90 }, state: "idle" }));
+  }
+  checkDraw("Driver afraid", ctx => Art.seated(ctx, "driver-seat", 120, 180,
+    { who: "driver", t: 1400, state: "stare", look: { x: 130, y: 90 } }));
+  checkDraw("YOU seated / turn", ctx => Art.youSeated(ctx, 120, 180,
+    { t: 1400, state: "turn" }));
+  checkDraw("YOU seated / look back", ctx => Art.youSeated(ctx, 120, 180,
+    { t: 1400, state: "look-back" }));
   checkDraw("YOU walking", ctx => Art.keeper(ctx, 120, 180, { t: 900, walking: true, stride: 4, face: 1 }));
   checkDraw("YOU looking back", ctx => Art.keeper(ctx, 120, 180, { t: 900, state: "look-back", face: -1 }));
   assert.ok(Art.PORTRAITS.orr.serving.includes("<svg"), "Orr has a portrait");
