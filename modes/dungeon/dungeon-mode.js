@@ -485,7 +485,7 @@
         body: esc(`${waiting || updateNote || perf || `${pet?.name || "Your Rizo"} waits. Nothing moves until you resume.`}${unsaved && !updateNote ? " The last moment isn't saved yet; GO HOME tries again." : ""}`) + (objectiveNow() ? `<span class="dungeon-pause-goal">NOW: ${esc(objectiveNow())}</span>` : ""),
         actions: `<button type="button" class="primary" data-dungeon-action="resume" ${external.length ? "disabled" : ""}>RESUME</button><button type="button" data-dungeon-action="home">GO HOME</button>`,
         fine: esc(Core.belowReached(data) ? "GO HOME saves the journey here. You'll come back to this spot." : "GO HOME saves. The night picks up from here next time."),
-        tools: restartTool(external.length > 0),
+        tools: `<button type="button" class="quiet" data-dungeon-action="watch-intro" ${external.length ? "disabled" : ""}>WATCH INTRO</button>` + restartTool(external.length > 0),
         menu: true
       }));
     }
@@ -3471,23 +3471,27 @@
     }
 
     // ===== ENTRY =====
-    function beginPrologue() {
-      if (host.debug || beats().includes("opening:little-flame")) {
+    function beginPrologue(replay = false) {
+      if (!replay && (host.debug || beats().includes("opening:little-flame"))) {
         onEnterRoom("car", "new");
         return;
       }
-      intro = { index: 0 };
-      scene = null; dialogueState = null; choiceState = null;
+      intro = { index: 0, replay };
+      if (!replay) {
+        scene = null; dialogueState = null; choiceState = null;
+        view.setShell("open");
+        view.dialogue(null);
+        view.choice(null);
+        // Original synth music, honoring the hub's sound setting.
+        setMusic(PROLOGUE_TRACK);
+      } else {
+        // Replay is purely presentation. Keep the existing pause hold,
+        // current room, music and save exactly where they were.
+        panelKind = ""; view.panel(null);
+      }
       ui = "prologue"; input.clear("prologue");
       pending = { primary: false, secondary: false };
-      view.setShell("open");
-      view.dialogue(null);
-      view.choice(null);
       view.prologue(PROLOGUE_BEATS[0], 0, PROLOGUE_BEATS.length, pet);
-      // The score is original and respects the host's music/mute setting.
-      // On browsers blocking autoplay, the first CONTINUE gesture unlocks the
-      // short responding notes; gameplay still works perfectly without audio.
-      setMusic(PROLOGUE_TRACK);
     }
     function advancePrologue(skip = false) {
       if (!intro) return;
@@ -3498,10 +3502,12 @@
         try { host.audio?.tone?.(next === 3 ? 207.65 : 392, 0.18, "triangle", 0.018); } catch (error) {}
         return;
       }
+      const replay = intro.replay;
       intro = null;
       view.prologue(null);
       ui = "play";
       input.clear("prologue-end"); pending = { primary: false, secondary: false };
+      if (replay) { renderPausePanel(); return; }
       // The beat is idempotent; restarting cannot make the narrator repeat
       // during a previously completed journey.
       const outcome = commitData(nextData => addBeat(nextData, "opening:little-flame"));
@@ -3658,6 +3664,7 @@
       if (!action) return;
       sound("ui");
       if (action === "resume") playerResume();
+      else if (action === "watch-intro" && panelKind === "pause" && !Core.externalHolds(holds).length) beginPrologue(true);
       else if (action === "stay") closePanel();
       else if (action === "onward" && ui === "blocked" && data?.proofComplete) { view.panel(null); sim = null; ui = "play"; resumeJourney(false); }
       else if (action === "home") goHome();
