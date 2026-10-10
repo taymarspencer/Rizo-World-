@@ -922,7 +922,7 @@
         sleeve(ctx,[11,-50,away ? 13 : 17,away ? -38 : tell ? -44 : -42,17,-49],P.a.maroon,6,P.skin[1]);
         box(ctx,15,-54,5,8,P.ink,{ink:1,amp:.1});
         rect(ctx,o.phoneOff ? P.cloth[2] : P.fluoro[2],16,-53,3,6);
-        oval(ctx,16.5,-46.5,2.6,1.9,P.skin[1],true,.8);
+        // The sleeve's drawn thumb grips the phone; no second floating hand.
       }
       characterHead(ctx,kind,0,-62,{expr: o.state === "phone-tell" ? "scared" : expr,look:o.look});
     } else {
@@ -1447,13 +1447,11 @@
     // Near arm: one sleeve always rolled higher; the wood tool cuff and skin
     // break the coat silhouette into a useful-worker read rather than a blob.
     const near = arms[0].map((value, index) => (index >= 2 && index % 2 === 0 && state === "walk" ? value - swing : value));
+    // One continuous sleeve, one glove-sized hand. Previously a second
+    // skin-colored limb AND two extra hand ovals sat over the same wrist,
+    // reading as monster anatomy at phone scale.
     sleeve(ctx, near, P.service[2], 6.5, P.skin[1]);
-    limb(ctx, near.slice(2), P.skin[1], 4.2, P.skin[1]);
-    // At phone scale a chain of dark joint discs looked mechanical. Keep one
-    // rolled cuff and one believable palm; the sleeve already defines elbow.
     oval(ctx, near[2], near[3], 3.2, 2.4, P.service[3], true, 0.9);
-    oval(ctx, near[4] + 1, near[5], 3, 2.4, P.skin[1], true, 0.85);
-    line(ctx, near[4] - 1, near[5] - 1, near[4] + 2, near[5] - 2, P.skin[0], 1.2);
 
     // Broad cheek, open eye plane and a swept tied wrap: the warm face is
     // legible at the same camera distance as her work. Every expression is
@@ -1515,8 +1513,8 @@
 
     // Near arm and the object he is responsible for.
     if (state === "tray") {
+      // sleeve() already draws the supporting palm at the tray edge.
       sleeve(ctx, [6, -56, 13, -44, 24, -47], P.a.mustard, 7.2, P.skin[0]);
-      oval(ctx,24,-48,3.4,1.8,P.skin[0],true,.8);
       box(ctx, 0, -51, 37, 3.4, P.metal[2], { ink: 1.1, amp: 0.2, seed: 100 });
       rect(ctx, P.metal[3], 1, -50.6, 35, 0.8);
       oval(ctx, 11, -53.3, 5, 2.2, P.paper[3], true, 0.9);
