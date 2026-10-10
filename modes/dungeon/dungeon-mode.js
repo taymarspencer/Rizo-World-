@@ -850,7 +850,14 @@
     function keeperState(state, ms = 0) { const keeper = npcs.get("keeper"); if (keeper) { keeper.state = state; keeper.stateUntil = ms ? sceneTime + ms : 0; } }
     // Cinematic framing is deliberately brief. Reduced-motion players keep the
     // stable gameplay composition instead of being snapped to a new subject.
-    function cameraBeat(x, y, ms) { if (!reducedMotion()) room.peek = { x, y, until: sceneTime + ms }; }
+    // Cinematic beat: actual eased map pan, optionally a short optical push.
+    // Only scripted noninteractive scenes may enlarge the world plane. Rizo's
+    // hitboxes, dialogue, screen controls and HUD are never scaled.
+    function cameraBeat(x, y, ms, zoom = 1) {
+      if (reducedMotion()) return;
+      room.peek = { x, y, until: sceneTime + ms };
+      room.storyShot = zoom > 1 ? { x, y, zoom, until: sceneTime + ms } : null;
+    }
     function tickRoom() {
       if (!sim) return;
       const dt = Math.max(0, sceneTime - roomTickAt);
@@ -914,7 +921,10 @@
           cameraBeat(154, 240, 1800);
         }),
         S.wait(850),
-        S.call(() => keeperState("look-back", BEAT.YOU_CINEMATIC_SAFETY_MS + 1800)),
+        S.call(() => {
+          keeperState("look-back", BEAT.YOU_CINEMATIC_SAFETY_MS + 1800);
+          cameraBeat(146, 230, 1800, 1.1);
+        }),
         S.say(L.beGood, BEAT.YOU_CINEMATIC_SAFETY_MS),
         S.wait(BEAT.BE_GOOD_HOLD_MS),
         S.call(() => {
@@ -933,6 +943,7 @@
         // One half-beat of body language in the rain before the store takes YOU.
         S.call(() => { const keeper = npcs.get("keeper"); if (keeper) { keeper.face = 1; keeperState("look-back", 500); } sim.player.fx = 0; sim.player.fy = -1; }),
         S.wait(450),
+        S.call(() => cameraBeat(177, 118, 2200, 1.1)),
         S.move("keeper", 176, 104, 2000),
         S.call(() => { keeperState("door", 700); room.storeDoorOpen = true; sound("chime"); }),
         // Cross the threshold before disappearing into the interior layer.
@@ -990,7 +1001,7 @@
     // ---- 4 Headlights, 5 Taken. Nothing Rizo does changes what happens here.
     function headlightSteps() {
       return [
-        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); cameraBeat(180, 336, 1800); }),
+        S.call(() => { room.phase = "headlights"; room.engineAt = sceneTime; sound("engine"); setTransient("threat", true); cameraBeat(180, 336, 1800, 1.09); }),
         S.wait(1500),
         // He knows first: the flame pulls in, he turns to the rear window.
         S.call(() => { setPose("pull-in", 2500); room.sensedAt = sceneTime; sim.player.fx = 0; sim.player.fy = 1; sound("bass"); }),
@@ -1028,13 +1039,13 @@
           { call: () => stageDoorTeam() }, { hold: 900 }
         ]),
         // The door is forced: cold air, the rain loud.
-        S.call(() => { room.phase = "taken"; room.passengerDoor = sceneTime; room.rainLoud = true; sound("crack"); room.shake = sceneTime; }),
+        S.call(() => { room.phase = "taken"; room.passengerDoor = sceneTime; room.rainLoud = true; sound("crack"); room.shake = sceneTime; cameraBeat(250, 260, 1500); }),
         S.wait(1500),
         // The hands come in at the door and pause, then come for him: long enough to flinch from a Flare.
         S.call(() => { room.hands = { x: 236, y: 248, start: sceneTime, flinchUntil: sceneTime + 900 }; room.flares = 0; }),
         S.until(() => room.grabbed || sceneTime - room.hands.start >= BEAT.GRAB_MAX_MS),
         S.control(false),
-        S.call(() => grab()),
+        S.call(() => { grab(); cameraBeat(221, 250, 1100, 1.12); }),
         S.comic("grab"),
         // Do not cut away on contact: physically drag him across the passenger
         // seat toward the forced door so the player sees the abduction happen.
@@ -3401,7 +3412,8 @@
         lightScale: lightScaleNow(),
         actorLight: actorLightNow(),
         thought: thoughtNow(),
-        focus: target
+        focus: target,
+        cinematic: ui === "scene" && !comic?.playing()
       });
       // The phone's screen up close: only the caller's symbol, and a call timer once connected.
       const phone = sim.roomId === "roadside" ? room.phone : null;
