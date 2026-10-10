@@ -2556,7 +2556,18 @@
               // Nobody answers. Rain.
               { call: () => vanHush("rain") }, { hold: 1400 },
               // His phone: cold light fills the van, and everyone freezes. The ring is his presence.
-              { call: () => { room.phoneLight = "call"; room.phoneRinging = true; room.phoneBuzzAt = -Infinity; setPose("recoil", 900); vanHush("phone"); vanFreeze(true); flameMood("fear", 9000); } }, { hold: 1000 },
+              { call: () => {
+                  // The longest van scene gets ONE directed picture:
+                  // the phone lights up, everyone freezes, and the image
+                  // gently closes in. No arbitrary body flailing or cut
+                  // while the cargo timing challenge is active.
+                  room.phoneLight = "call";
+                  room.phoneRinging = true;
+                  room.phoneBuzzAt = -Infinity;
+                  room.storyShot = { x: 46, y: 55, zoom: 1.10, until: sceneTime + 1050 };
+                  setPose("recoil", 900);
+                  vanHush("phone"); vanFreeze(true); flameMood("fear", 9000);
+                } }, { hold: 1000 },
               weighted(L.vanPhone[0], 1.4), L.vanPhone[1], L.vanPhone[2],
               // Small starts to lift the phone. Tall physically stops the answer.
               { call: () => {
@@ -3423,7 +3434,9 @@
         actorLight: actorLightNow(),
         thought: thoughtNow(),
         focus: target,
-        cinematic: Boolean(scene && !scene.control && !comic?.playing())
+        cinematic: Boolean((scene && !scene.control && !comic?.playing()) ||
+          (sim.roomId === "van" && room.phoneLight === "call" &&
+            room.storyShot && sceneTime < room.storyShot.until && !comic?.playing()))
       });
       // The phone's screen up close: only the caller's symbol, and a call timer once connected.
       const phone = sim.roomId === "roadside" ? room.phone : null;
