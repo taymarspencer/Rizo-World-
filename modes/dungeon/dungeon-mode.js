@@ -964,6 +964,10 @@
         S.call(() => cameraBeat(177, 118, 2200, 1.1)),
         S.move("keeper", 176, 104, 2000),
         S.call(() => { keeperState("door", 700); room.storeDoorOpen = true; sound("chime"); }),
+        // Let his hand actually meet the store door BEFORE the next stride.
+        // Without this short plant, the action state was overwritten by
+        // walking on the same tick; the reach sprite was never visible.
+        S.wait(240),
         // Cross the threshold before disappearing into the interior layer.
         S.move("keeper", 176, 92, 450),
         S.call(() => { const keeper = npcs.get("keeper"); if (keeper) keeper.visible = false; room.storeDoorOpen = false; }),
