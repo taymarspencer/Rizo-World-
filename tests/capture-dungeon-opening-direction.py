@@ -93,6 +93,23 @@ with sync_playwright() as p:
     for width in [320,390,430]:
         ctx,page,errors=boot(browser,seed={},viewport=(width,{320:568,390:844,430:932}[width]))
         page.evaluate(SETUP);launch(page)
+        # Instrument the REAL game canvas, not Character Lab or a mock
+        # renderer: require the production opening to blit the authored PNG.
+        page.evaluate("""() => {
+          window.__keeperGameplay = { frames: [], count: 0 };
+          const proto = CanvasRenderingContext2D.prototype;
+          const old = proto.drawImage;
+          proto.drawImage = function(src,...args) {
+            if (String(src?.src || '').includes('keeper-sprite-atlas.png') &&
+                this.canvas?.classList?.contains('dungeon-canvas')) {
+              window.__keeperGameplay.count++;
+              const frame = Math.round((args[0] || 0) / 120) +
+                  4 * Math.floor((args[1] || 0) / 180);
+              window.__keeperGameplay.frames.push(frame);
+            }
+            return old.call(this,src,...args);
+          };
+        }""")
         captured=set(); checkout=[]; trace=[]
         for i in range(1000):
             st=page.evaluate(ST);room=st.get('opening',{});npcs=st.get('npcs',[])
@@ -113,6 +130,11 @@ with sync_playwright() as p:
             if st.get('dialogue'):page.keyboard.press('z')
             if st.get('scene',{}).get('waiting')=='comic':page.keyboard.press('z')
             jump(page,200);page.wait_for_timeout(20)
+        trace_blits = page.evaluate("window.__keeperGameplay")
+        check(f'{width}: production opening actually draws the new YOU sprite, not old Canvas polygons',
+              trace_blits['count'] > 10 and any(0 <= f < 4 for f in trace_blits['frames'])
+              and 6 in trace_blits['frames'],
+              str(trace_blits['frames'][:45]))
         check(f'{width}: all six opening scenes captured', captured=={'walk','door','window','reach','comic','grip'},str(captured))
         check(f'{width}: shopping ends at a steady checkout, without walking or repeated waves',len(checkout)>2 and len({x for x,_,_ in checkout})==1 and all(not walking and not wave for _,walking,wave in checkout),str(checkout[:3]))
         check(f'{width}: opening has no page errors',not errors,str(errors))
