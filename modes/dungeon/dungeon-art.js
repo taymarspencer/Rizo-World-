@@ -533,18 +533,20 @@
       add(vp(irritated ? "M-5 8L6 6" : dry ? "M-5 7Q1 9 7 6" : "M-5 6Q0 12 7 5Q5 12 0 11Z",irritated || dry ? null : P.wood[0],1.2));
       if(!dry && !irritated) add(vp("M-3 7Q1 9 5 7L3 9H0Z",P.paper[3],0));
     } else if (who === "you") {
-      add(vp("M-5 8L-5 16H6L6 8Z",P.skin[0],1));
-      add(vp("M-11-5Q-11-14 0-14Q12-13 12-3L10 6Q8 12 2 13L-6 10L-11 3Z",P.skin[1],1.4));
-      add(vp("M-10-4L-6-7L-6 3L-2 10L-6 10L-11 3Z",P.skin[0],0));
-      add(ve(-11,0,3,4,P.skin[1],.9));
-      add(vp("M-12-3Q-16-9-11-12Q-12-18-6-16Q-2-22 3-17Q9-20 12-13Q16-11 13-5L9-5L7-9Q1-6-5-9L-8-5L-8 1L-11 0Z",P.inkSoft,1.3));
-      add(vp("M-9-13Q-5-17-1-13M2-15Q6-16 10-12",null,1.2,P.wood[1]));
-      add(vp("M-8 3L-5 5L-2 9L4 10L10 5L10 9L3 14L-4 12L-8 8Z",P.inkSoft,.8));
-      add(vp("M-6-4Q-3-6 0-4M5-4Q8-6 10-4",null,1.6));
-      add(ve(-3,-.5,2.1,2.4,P.paper[2],.7),ve(8,-.5,2,2.3,P.paper[2],.7));
-      add(ve(-2.5,0,1,1.4,P.ink,0,true),ve(8.5,0,1,1.4,P.ink,0,true));
-      add(vp("M3-1L2 4L6 4",null,1,P.skin[0]));
-      add(vp("M-1 7Q4 10 8 6",null,1.4,P.paper[2]));
+      // A compact, tired face. Large white eyeballs made the old face read
+      // startled at every scale; lids and a soft brow carry the expression.
+      add(vp("M-5 8V16H6V8Z",P.skin[0],.8));
+      add(vp("M-12-5Q-13-14 0-14Q13-14 13-4L12 5Q10 14 1 14Q-9 14-12 5Z",P.skin[1],1.2));
+      add(vp("M-12-3Q-9-5-8 0L-7 7L-2 12Q-10 12-12 5Z",P.skin[0],0));
+      add(ve(-12,1,2.4,3.3,P.skin[1],.8));
+      add(vp("M-12-4Q-16-7-12-11Q-14-16-8-16Q-6-20-1-17Q3-21 7-17Q13-18 13-12Q17-9 13-4L9-4L8-9Q1-6-6-9L-8-4L-8 2L-11 2Z",P.inkSoft,1.2));
+      add(vp("M-9-13Q-6-16-3-13M1-15Q4-17 7-14",null,.9,P.wood[1]));
+      add(vp("M-9 3L-6 5Q-2 9 3 7L10 3L11 8Q8 15 1 15Q-7 14-9 8Z",P.inkSoft,.7));
+      add(vp("M-6-3Q-3-5 0-3M5-3Q8-5 10-3",null,1.3));
+      add(vp("M-5 0Q-3-1-1 0M6 0Q8-1 10 0",null,1.3));
+      add(ve(-3,.7,.9,1.1,P.ink),ve(8,.7,.9,1.1,P.ink));
+      add(vp("M3-1L2 4Q4 5 6 3",null,.9,P.skin[0]));
+      add(vp("M0 8Q3 10 6 7",null,1,P.skin[2]));
     } else if (who === "hood-tall") {
       add(vp("M-10 15Q-17 3-15-9L-7-21Q-3-24 4-17L13-9L14 6L9 15Z",P.cloth[2],1.5));
       add(vp("M-14-8L-7-17L-7 5L-10 12L-14 3Z",P.cloth[1],0));
@@ -651,14 +653,16 @@
       add(vp("M-3 14H3",null,1,P.a.red));
       add(vp("M-13 4Q-10 7-9 10",null,1,P.wood[1]));
     } else if(who === "you") {
-      add(vp("M-7-2Q-17-1-19 8L-15 24L-18 48Q-8 53 0 47Q10 53 18 47L14 24L18 9Q16-1 7-2Z",P.wood[2],1.6));
-      add(vp("M-17 8L-10 5L-7 23L-9 49L-18 48L-15 24Z",P.wood[1],0));
-      add(vp("M-6 3H6L8 46L0 47L-4 46Z",P.a.maroon,1));
-      add(vp("M-8-1L-14 8L-4 17L-2 4Z M7-1L14 8L5 17L2 4Z",P.wood[3],1.2));
-      add(vp("M-10 0Q0-7 10 0L8 6Q0 8-9 3Z",P.a.maroon,1.2));
-      add(vp("M-5 5H0L-1 18L-7 16Z",P.a.maroon,1));
-      add(vp("M6 33L14 29L13 34L6 38Z",P.wood[1],.9));
-      add(ve(-2,29,1.6,1.6,P.paper[0],.6));
+      // One raincoat silhouette, a single overlap, two pockets. The scarf
+      // stops at the chest instead of becoming an unexplained third leg.
+      add(vp("M-7-2Q-17-2-18 9L-16 23L-19 38Q-10 43 0 40Q10 43 18 38L15 21L17 9Q17 0 7-2Z",P.wood[2],1.4));
+      add(vp("M-16 8L-10 4L-7 22L-9 40L-18 38L-16 23Z",P.wood[1],0));
+      add(vp("M-7 0L-11 8L-2 13L1 3L8 0L12 8L6 14",null,1,P.wood[1]));
+      add(vp("M-9-1Q0-5 10-1L8 5Q0 9-9 3Z",P.a.maroon,1));
+      add(vp("M1 4L7 4L9 19L3 21Z",P.a.maroon,1));
+      add(vp("M2 6L5 6L7 17",null,1,P.a.maroonLight));
+      add(vp("M0 13L-1 37M7 26L13 24M-12 26L-7 28",null,.85,P.wood[1]));
+      add(ve(1,23,1,1,P.wood[0]),ve(0,32,1,1,P.wood[0]));
     } else if(who === "hood-tall") {
       add(vp("M-6-4Q-15-1-15 9L-10 23L-14 43L-2 46L1 40L10 43L12 22L14 8L7-4Z",P.cloth[2],1.6));
       add(vp("M-13 3L-7 1L-5 23L-8 43L-14 43L-10 23Z",P.cloth[1],0));
@@ -749,64 +753,73 @@
       oval(ctx, wx-bx*1.8, wy-by*1.8, 1.2, 1.6, hand);
     }
   }
-  function youCoat(ctx) { characterBody(ctx,"you",0,-73); }
-  // YOU: broad raincoat, cropped coils, a warm face and a worn scarf. The
-  // camera still sees his back in the car; the turn finally reveals a person.
-  function keeper(ctx, x, y, o = {}) {
-    const bob = o.bob || 0, t = o.t || 0, state = o.state || "idle";
-    drop(ctx, x, y, 14, 3.6);
-    ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
-    if (state === "look-back") ctx.rotate(-0.055);
-    // One gait clock for hips, feet and sleeves. Dividing them across sine
-    // waves made the arms swing while the planted leg was standing still.
-    const step = o.walking ? Math.sin((o.stride || 0) * 1.9) : 0;
-    // Bent knees and alternating planted heels; no sliding trouser columns.
-    for (const side of [-1, 1]) {
-      const swing = step * side, hip = side * 4.5;
-      const heel = hip + swing * 3.8, knee = hip + swing * 2.1;
-      const lift = Math.max(0, swing) * 2.4;
-      shape(ctx, [hip - 3, -30, hip + 3, -30, knee + 3, -15,
-        heel + 2.8, -3 - lift, heel - 2.8, -3 - lift, knee - 3, -15],
-        P.a.denim, { ink: 1.1, amp: 0.12 });
-      oval(ctx, heel + 1.5, -2 - lift, 4.6, 2.3, P.ink, true, 0.8);
-    }
-    ctx.translate(0, o.walking ? -Math.abs(step) * 0.9 : 0);
-    youCoat(ctx);
-    characterHead(ctx, "you", 0, -84, {
-      tilt: state === "look-back" ? -.12 : o.addressed ? -.06 : -.015,
-      look: o.look
+  function youCoat(ctx) { characterBody(ctx,"you",0,-64); }
+
+  // Distance is in WORLD units. During stance, a foot moves backwards by
+  // exactly the actor's displacement; the other foot returns in a short arc.
+  // The renderer converts this once through the actor's display scale.
+  function humanGait(distance = 0, direction = {x:1,y:0}, scale = 1, amount = 1) {
+    const cycle = 28, phase = ((distance / cycle) % 1 + 1) % 1;
+    return [-1,1].map((side,index) => {
+      const p = (phase + index * .5) % 1;
+      const stance = p < .5, u = stance ? p * 2 : (p - .5) * 2;
+      const offset = stance ? 7 - 14 * u : -7 + 14 * (u*u*(3-2*u));
+      const lift = stance ? 0 : Math.sin(Math.PI * u) * 4;
+      return {side, stance, x: side*4.6 + offset*direction.x/scale*amount,
+        y: offset*direction.y/scale*amount, lift:lift*amount};
     });
-    // Arm up to the shaft. The free arm carries the tiny acting beats: a
-    // glance back toward the car, then a hand toward the store door.
-    cut(ctx, "M12-69Q19-67 18-60L12-54L5-56L4-62L11-61Z", P.wood[2], 1.3);
-    cut(ctx, "M6-61Q10-63 10-59L9-56L5-56L3-59Z", P.skin[1], .9);
-    line(ctx, 7, -58, 4, -96, P.ink, 1.3, 15, 0.1);
-    if (state === "look-back") {
-      cut(ctx, "M-14-68Q-18-68-20-62L-17-57L-12-59L-10-64Z", P.wood[1], 1.2);
-      oval(ctx, -19, -60, 3, 2.4, P.skin[1], true, .9);
-    } else if (state === "door") {
-      cut(ctx, "M-11-70Q-17-72-17-79L-12-82L-8-76Z", P.wood[2], 1.2);
-      oval(ctx, -14, -80, 2.7, 2.3, P.skin[1], true, .9);
-    } else {
-      const swing = step * 1.4;
-      cut(ctx, `M-13-69Q-20-68-20-61L${-19-swing}-51L${-14-swing}-42L${-8-swing}-45L${-12-swing}-53L-10-63Z`, P.wood[1], 1.2);
-      oval(ctx, -11 - swing, -44, 3, 2.8, P.skin[1], true, .9);
+  }
+  function youBackHead(ctx, x, y) {
+    ctx.save();ctx.translate(x,y);
+    cut(ctx,"M-9 5L-6 12Q0 16 7 11L11 4Z",P.skin[0],.8);
+    cut(ctx,"M-12 3Q-15-4-12-9Q-13-15-7-15Q-4-20 1-17Q7-20 11-14Q16-12 13-6L12 4Q1 11-12 3Z",P.inkSoft,1.2);
+    cut(ctx,"M-9-11Q-6-15-2-12M2-14Q6-16 9-12",null,.9,P.wood[1]);
+    ctx.restore();
+  }
+  function youFigure(ctx, o = {}) {
+    const state=o.state||"idle", face=o.face||1, scale=o.scale||WORLD_SCALE.keeper;
+    const direction=o.direction||{x:face,y:0};
+    const amount=o.walking ? (o.walkAmount ?? 1) : 0;
+    const back=Boolean(o.back || (amount>.05 && direction.y<-.6 && Math.abs(direction.x)<.5));
+    const feet=humanGait((o.stride||0)*7,direction,scale,amount);
+    // Facing changes the drawing, never the ground-space direction vector.
+    ctx.save();ctx.scale(face,1);
+    for(const f of feet) {
+      const fx=f.x*face, fy=f.y-f.lift, hx=f.side*4.2*face;
+      const kneeX=hx*.6+fx*.4, kneeY=-13+fy*.4;
+      cut(ctx,`M${hx-3} -32L${hx+3} -32Q${kneeX+3} ${kneeY} ${fx+3} ${fy-4}L${fx-3} ${fy-4}Q${kneeX-3} ${kneeY} ${hx-3} -32Z`,f.side<0?P.cloth[1]:P.a.denim,1.1);
+      cut(ctx,`M${fx-3} ${fy-5}Q${fx+1} ${fy-6} ${fx+3} ${fy-3}L${fx+6} ${fy-2}L${fx+6} ${fy}L${fx-3} ${fy}Z`,P.ink,.8);
     }
-    // The umbrella: eight panels, a lit top band, a bent rib (it has been through weather before).
-    const canopy = [-24, -103, -18, -110, -9, -115, 4, -117, 16, -114, 26, -108, 30, -102];
-    const rim = [30, -102, 25, -104, 20, -101, 14, -104, 8, -101, 2, -104, -4, -101, -10, -104, -16, -101, -21, -104, -24, -103];
-    shape(ctx, [...canopy, ...rim.slice(2)], P.a.umbrella, { ink: CH, seed: 16, amp: 0.3 });
-    shape(ctx, [-18, -110, -9, -115, 4, -117, 16, -114, 12, -111, 2, -113, -8, -111], P.a.umbrellaLight, { ink: false, seed: 17, amp: 0.3 });
-    for (const rx of [-10, 2, 14]) line(ctx, 4, -117, rx, -102, P.ink, 0.7, rx, 0.3);
-    line(ctx, 4, -117, 24, -106, P.ink, 0.7, 99, 0.9);
-    line(ctx, 4, -117, 4, -121, P.ink, 1.4);
-    line(ctx, 4, -102, 5, -96, P.ink, 1.3, 15, .1);
-    // Drops rolling off the rim (time-based, not random).
-    for (let index = 0; index < 3; index += 1) {
-      const k = ((t / 700) + index * 0.37) % 1, dx = [-22, 28, 9][index];
-      ctx.globalAlpha = 0.8 * (1 - k); rect(ctx, P.wet[3], dx, -101 + k * 14, 0.9, 2.2); ctx.globalAlpha = 1;
+    const swing=amount*Math.sin((o.stride||0)*7/28*TAU)*3;
+    const reach=state==="door"||o.reach, wave=Boolean(o.wave);
+    const arm=wave?[-14,-58,-20,-65,-18,-81]:reach?[-14,-58,-19,-69,-12,-76]:[-14,-58,-19,-46,-14-swing,-37];
+    sleeve(ctx,arm,P.wood[1],5,P.skin[1]);
+    youCoat(ctx);
+    if(back) {
+      // No front lapels, buttons, or eyes on the back of the coat.
+      cut(ctx,"M-8-64Q0-68 8-64L14-55L15-29Q0-23-16-28L-14-54Z",P.wood[2],1.1);
+      cut(ctx,"M-11-55Q0-51 12-55M0-51V-28",null,.8,P.wood[1]);
+      cut(ctx,"M-9-65Q0-68 9-64L8-60Q0-57-9-61Z",P.a.maroon,1);
+      youBackHead(ctx,0,-76);
+    } else characterHead(ctx,"you",0,-76,{tilt:state==="look-back"?-.08:0,look:o.look});
+    if(o.umbrella!==false) {
+      // The shaft and the gripping hand share an exact attachment point.
+      sleeve(ctx,[13,-57,18,-48,10,-51],P.wood[2],5.3,null);
+      line(ctx,10,-51,10,-103,P.ink,1.3,15,0);
+      cut(ctx,"M10-51Q10-46 6-48",null,1.4,P.ink);
+      oval(ctx,10,-51,2.7,2.8,P.skin[1],true,.8);
+      cut(ctx,"M-17-99Q-12-114 10-116Q32-114 37-99Q29-103 23-99Q16-103 10-99Q3-103-3-99Q-10-103-17-99Z",P.a.umbrella,1.4);
+      cut(ctx,"M-13-104Q-5-114 10-114Q25-113 32-105Q12-111-13-104Z",P.a.umbrellaLight,0);
+      cut(ctx,"M10-115Q0-111-3-100M10-115Q20-110 23-100M10-118V-115",null,.8,P.ink);
+    } else {
+      const lift=o.counter?8:o.reach?14:0;
+      sleeve(ctx,[13,-58,18,-47-lift,13+swing,-38-lift],P.wood[2],5.2,P.skin[1]);
     }
     ctx.restore();
+  }
+  function keeper(ctx, x, y, o = {}) {
+    drop(ctx,x,y,13,3.2);
+    ctx.save();ctx.translate(x,y);youFigure(ctx,o);ctx.restore();
   }
 
   // The van: a dented people-carrier with a primer-grey door somebody swapped in.
@@ -924,14 +937,7 @@
     // The same cropped coils from above; a cheek and ear on the turn.
     const turn = state === "reach" || state === "turn" ? 3.2 : state === "look" ? 1.4 : state === "look-back" ? -3.2 : 0;
     const hy = y - 10 - (state === "look" ? 3 : 0);
-    ctx.save();ctx.translate(x+turn,hy);
-    cut(ctx,"M-10 3Q-13-3-10-7Q-11-13-5-12Q-2-17 3-13Q9-15 11-8Q14-3 10 4L3 10L-6 8Z",P.inkSoft,1.4);
-    cut(ctx,"M-8-7Q-5-11-1-9M2-11Q6-12 9-7",null,1.4,P.wood[1]);
-    if(turn>0) {
-      cut(ctx,"M6-4L10-2L12 3L9 6L6 4Z",P.skin[1],.8);
-      line(ctx,8,0,10,1,P.ink,1);
-    }
-    ctx.restore();
+    youBackHead(ctx,x+turn,hy);
     if (turn) oval(ctx, x + turn * 2.3, hy + 1, 1.7, 2.6, P.skin[1], true, 0.8);
     ctx.restore();
   }
@@ -1766,7 +1772,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
-    keeper, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
+    keeper, youCoat, youFigure, youBackHead, humanGait, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
     mark, markSvg, callingCard, collector, collectorProfile, jar, jarLight, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });

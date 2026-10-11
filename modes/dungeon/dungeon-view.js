@@ -507,7 +507,7 @@
       // appearances share the same compact physical scale.
       drawWorldActor(actor.kind, actor.x, actor.y, () => {
       switch (actor.kind) {
-        case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0 }); break;
+        case "keeper": Art.keeper(ctx, actor.x, actor.y, { ...o, walking: actor.walking && !reducedMotion, stride: actor.stride || 0, direction:actor.direction, walkAmount:actor.walkAmount }); break;
         case "van": Art.van(ctx, actor.x, actor.y, { lights: Boolean(lastRoom.carLights || lastRoom.vanLights), face: actor.face }); break;
         case "you-seated": Art.youSeated(ctx, actor.x, actor.y, { state: actor.state, t }); break;
         case "cart": Art.cart(ctx, actor.x, actor.y, { t, rolling: actor.walking }); break;

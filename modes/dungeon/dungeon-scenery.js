@@ -201,39 +201,8 @@
   }
   // YOU inside the store: the same coat, scarf and head at the existing scale.
   function youInside(ctx, x, footY, o = {}) {
-    ctx.save();
-    ctx.translate(x, footY); ctx.scale(0.5, 0.5);
-    // Same measured step phase as YOU outdoors; the store glass no longer
-    // switches to an unrelated gait when the camera follows him indoors.
-    const step = o.walking ? Math.sin((o.stride || 0) * 1.9) : 0;
-    for (const side of [-1, 1]) {
-      const swing = step * side, x = side * 4.5;
-      shape(ctx, [x - 3, -30, x + 3, -30, x + 3 + swing * 3, -14,
-        x + 3 + swing * 3.6, -2 - Math.max(0, swing) * 2,
-        x - 3 + swing * 3.6, -2 - Math.max(0, swing) * 2, x - 3 + swing * 2, -14],
-        P.a.denim, { ink: 1, amp: 0.1 });
-      oval(ctx, x + swing * 3.6 + 1, -1, 4.2, 2, P.ink);
-    }
-    A.youCoat(ctx);
-    if (o.back) {
-      // Back at checkout: show his cropped coils, never eyes through the
-      // back of his head. The car turn and portrait establish the same face.
-      A.cut(ctx,"M-11-81Q-14-88-10-93Q-11-99-5-98Q-2-103 3-99Q9-101 11-94Q14-89 10-82L3-76L-6-78Z",P.inkSoft,1.3);
-      A.cut(ctx,"M-9-93Q-6-97-2-95M1-97Q5-98 8-93",null,1.4,P.wood[1]);
-    } else A.characterHead(ctx,"you",0,-84);
-    const lift = o.reach ? 12 : o.counter ? 5 : 0;
-    if (!o.wave) {
-      shape(ctx, [10, -70, 15, -68, 19, -56 - lift, 14, -50 - lift, 9, -55 - lift, 12, -59 - lift], P.wood[2], { ink: 1.1, amp: 0.1 });
-      if (o.reach) oval(ctx, 17, -61 - lift, 2.5, 2.3, P.skin[1], true, 0.8);
-    }
-    // Checking on the car: one hand up, a small wave.
-    if (o.wave) {
-      // One restrained greeting, settled hand for the rest of the beat.
-      const age = o.waveTime || 0;
-      const w = age < 1000 ? Math.sin(age / 1000 * TAU) * 3 : 0;
-      shape(ctx, [8, -72, 13, -74, 16 + w * 0.3, -96, 11 + w * 0.3, -97], P.wood[2], { ink: 1.2, amp: 0.2 });
-      oval(ctx, 14 + w, -101, 3.4, 3.6, P.skin[1], true, 1.1);
-    }
+    ctx.save();ctx.translate(x,footY);ctx.scale(.5,.5);
+    A.youFigure(ctx,{...o,umbrella:false,scale:.5,direction:{x:o.face||1,y:0}});
     ctx.restore();
   }
   function carDynamic(ctx, geo, s) {
