@@ -607,6 +607,21 @@
     for (const key of Object.keys(DEFAULTS)) S[key] = next.get(key) ?? DEFAULTS[key];
     render();
   });
+  // A freshly opened Character Lab can paint before the sprite atlas has
+  // decoded. Redraw its real canvases when that single asset becomes ready.
+  // No polling loop or runtime dependency.
+  if (typeof Art.onKeeperImageChange === "function") {
+    Art.onKeeperImageChange(state => {
+      document.documentElement.dataset.labKeeperSprite = state;
+      // A fallback measurement cached during image loading is NOT a measure
+      // of the new sprite. Recompute layouts after decode so the lab and
+      // gameplay have identical dimensions at all phone widths.
+      measures.clear();
+      render();
+      for (const handle of stages) handle.draw(performance.now());
+    });
+    document.documentElement.dataset.labKeeperSprite = Art.keeperSpriteStatus();
+  }
   render();
   hubReady.then(() => { for (const handle of stages) handle.draw(performance.now()); document.documentElement.dataset.labReady = "1"; document.documentElement.dataset.labRizo = hub ? "ok" : `failed: ${hubError}`; });
   requestAnimationFrame(loop);

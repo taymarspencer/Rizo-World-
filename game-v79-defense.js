@@ -2,7 +2,7 @@
 
 (() => {
   "use strict";
-  const RIZO_RUNTIME_BUILD = "v97-dungeon-collection";
+  const RIZO_RUNTIME_BUILD = "v98-keeper-gameplay";
   window.__RIZO_RUNTIME_BUILD__ = RIZO_RUNTIME_BUILD;
 
   /*

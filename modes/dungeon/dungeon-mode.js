@@ -771,6 +771,14 @@
           const speed = actor.speed || 30;
           if (distance > 10) { actor.x += (dx / distance) * speed * dt; actor.y += (dy / distance) * speed * dt; actor.walking = true; actor.face = dx < 0 ? -1 : 1; }
         }
+        // YOU actually turns with his route across the car park. Previously
+        // he faced screen-right throughout the FIRST move leftward, so the
+        // new walking sprites looked like they were moonwalking. Only change
+        // direction while translating; deliberate paused look-back/door cues
+        // remain controlled by the cinematic scene.
+        const travelX = actor.x - oldX;
+        if (actor.kind === "keeper" && actor.walking && Math.abs(travelX) > 0.05)
+          actor.face = travelX > 0 ? 1 : -1;
         // Update the step phase AFTER movement, including authored chases:
         // the feet follow actual traveled distance, not wall-clock sine loops.
         actor.stride = (actor.stride || 0) + Math.hypot(actor.x - oldX, actor.y - oldY) / 7;
@@ -956,6 +964,10 @@
         S.call(() => cameraBeat(177, 118, 2200, 1.1)),
         S.move("keeper", 176, 104, 2000),
         S.call(() => { keeperState("door", 700); room.storeDoorOpen = true; sound("chime"); }),
+        // Let his hand actually meet the store door BEFORE the next stride.
+        // Without this short plant, the action state was overwritten by
+        // walking on the same tick; the reach sprite was never visible.
+        S.wait(240),
         // Cross the threshold before disappearing into the interior layer.
         S.move("keeper", 176, 92, 450),
         S.call(() => { const keeper = npcs.get("keeper"); if (keeper) keeper.visible = false; room.storeDoorOpen = false; }),

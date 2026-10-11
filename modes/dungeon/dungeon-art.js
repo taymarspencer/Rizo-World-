@@ -533,18 +533,28 @@
       add(vp(irritated ? "M-5 8L6 6" : dry ? "M-5 7Q1 9 7 6" : "M-5 6Q0 12 7 5Q5 12 0 11Z",irritated || dry ? null : P.wood[0],1.2));
       if(!dry && !irritated) add(vp("M-3 7Q1 9 5 7L3 9H0Z",P.paper[3],0));
     } else if (who === "you") {
+      // One reusable face at every scale: a strong curl silhouette, patient
+      // half-lidded eyes and a soft uneven beard. No hand-illustrated copies.
       add(vp("M-5 8L-5 16H6L6 8Z",P.skin[0],1));
-      add(vp("M-11-5Q-11-14 0-14Q12-13 12-3L10 6Q8 12 2 13L-6 10L-11 3Z",P.skin[1],1.4));
-      add(vp("M-10-4L-6-7L-6 3L-2 10L-6 10L-11 3Z",P.skin[0],0));
-      add(ve(-11,0,3,4,P.skin[1],.9));
-      add(vp("M-12-3Q-16-9-11-12Q-12-18-6-16Q-2-22 3-17Q9-20 12-13Q16-11 13-5L9-5L7-9Q1-6-5-9L-8-5L-8 1L-11 0Z",P.inkSoft,1.3));
-      add(vp("M-9-13Q-5-17-1-13M2-15Q6-16 10-12",null,1.2,P.wood[1]));
-      add(vp("M-8 3L-5 5L-2 9L4 10L10 5L10 9L3 14L-4 12L-8 8Z",P.inkSoft,.8));
-      add(vp("M-6-4Q-3-6 0-4M5-4Q8-6 10-4",null,1.6));
-      add(ve(-3,-.5,2.1,2.4,P.paper[2],.7),ve(8,-.5,2,2.3,P.paper[2],.7));
-      add(ve(-2.5,0,1,1.4,P.ink,0,true),ve(8.5,0,1,1.4,P.ink,0,true));
-      add(vp("M3-1L2 4L6 4",null,1,P.skin[0]));
-      add(vp("M-1 7Q4 10 8 6",null,1.4,P.paper[2]));
+      add(vp("M-12-4Q-12-15 0-15Q13-15 13-3L11 5Q9 12 3 13L-6 10L-12 3Z",P.skin[1],1.5));
+      add(vp("M-11-3L-7-7L-6 5L-2 10L-7 9L-12 3Z",P.skin[0],0));
+      add(ve(-12,0,3,3.8,P.skin[1],1));
+      // Cropped coils break the hairline in three recognizable staggered
+      // peaks. The left lock falls farther than the right.
+      add(vp("M-12 0Q-18-7-13-12Q-15-17-9-18Q-7-23-1-19Q4-23 8-17Q15-18 15-10L13-4L9-5L8-10Q3-7-2-10L-5-6L-8-8L-9 0Z",P.inkSoft,1.3));
+      add(vp("M-11-12Q-8-17-5-13M-4-17Q0-21 3-16M5-16Q9-18 11-13",null,1.4,P.wood[1]));
+      add(vp("M-13-8Q-10-10-8-6L-8-2",null,.9,P.wood[2]));
+      // Beard and cheek are the same in the portrait and on the sidewalk.
+      add(vp("M-9 3L-5 5Q-1 8 3 8L10 4L11 9Q7 16 2 16Q-5 14-9 9Z",P.inkSoft,1));
+      add(vp("M-6 10Q-2 13 2 13L6 11",null,.8,P.wood[1]));
+      // One raised brow and a quieter, heavier other eye say "keeper"
+      // before the dialogue does. Gaze only moves when stage-directed.
+      add(vp("M-8-5Q-5-7-1-5M4-5Q7-7 11-5",null,1.7));
+      add(vp("M-7-1L-1-1M5-1L10-1",null,.8,P.skin[0]));
+      add(ve(-4,0,2.3,1.8,P.paper[2],.8),ve(7,0,2.2,1.75,P.paper[2],.8));
+      add(ve(-3.3,.45,1.1,1.35,P.ink,0,true),ve(7.7,.45,1.05,1.3,P.ink,0,true));
+      add(vp("M3 0L2 4L5 4",null,1,P.skin[0]));
+      add(vp("M-1 8Q3 10 8 7",null,1.15,P.paper[1]));
     } else if (who === "hood-tall") {
       add(vp("M-10 15Q-17 3-15-9L-7-21Q-3-24 4-17L13-9L14 6L9 15Z",P.cloth[2],1.5));
       add(vp("M-14-8L-7-17L-7 5L-10 12L-14 3Z",P.cloth[1],0));
@@ -651,14 +661,25 @@
       add(vp("M-3 14H3",null,1,P.a.red));
       add(vp("M-13 4Q-10 7-9 10",null,1,P.wood[1]));
     } else if(who === "you") {
-      add(vp("M-7-2Q-17-1-19 8L-15 24L-18 48Q-8 53 0 47Q10 53 18 47L14 24L18 9Q16-1 7-2Z",P.wood[2],1.6));
-      add(vp("M-17 8L-10 5L-7 23L-9 49L-18 48L-15 24Z",P.wood[1],0));
-      add(vp("M-6 3H6L8 46L0 47L-4 46Z",P.a.maroon,1));
-      add(vp("M-8-1L-14 8L-4 17L-2 4Z M7-1L14 8L5 17L2 4Z",P.wood[3],1.2));
-      add(vp("M-10 0Q0-7 10 0L8 6Q0 8-9 3Z",P.a.maroon,1.2));
-      add(vp("M-5 5H0L-1 18L-7 16Z",P.a.maroon,1));
-      add(vp("M6 33L14 29L13 34L6 38Z",P.wood[1],.9));
-      add(ve(-2,29,1.6,1.6,P.paper[0],.6));
+      // Character-first tailoring: one broad raincoat and one unmistakable
+      // maroon scarf, shared verbatim by world and dialogue portrait.
+      // Feet stay anchored; gameplay scale, collision and movement do not move.
+      add(vp("M-8-3Q-19-4-22 8L-19 24L-23 47Q-16 53-6 48L0 46Q9 54 22 48L18 24L21 8Q17-3 8-3Z",P.wood[2],1.65));
+      add(vp("M-19 7L-12 3L-7 24L-9 48L-21 48L-18 24Z",P.wood[1],0));
+      // Dark inside hem and staggered lengths give the coat a readable
+      // outline even when its buttons disappear at 320px.
+      add(vp("M-8 47L-2 42L3 48L8 50L0 47L-6 51Z",P.wood[0],.7));
+      add(vp("M-8-2L-16 7L-5 19L0 6Z",P.wood[3],1.1));
+      add(vp("M7-2L16 8L5 18L1 6Z",P.wood[3],1.1));
+      add(vp("M-12 0Q0-8 11-1L12 6Q1 11-10 6Z",P.a.maroon,1.3));
+      add(vp("M-8 5Q-14 12-12 22L-17 33L-9 35L-5 24L-3 9Z",P.a.maroonLight,1.05));
+      add(vp("M-15 27L-9 29M-16 31L-10 33",null,.85,P.a.maroon));
+      add(vp("M5 12L6 45",null,.8,P.wood[1]));
+      add(ve(5,27,1.5,1.5,P.paper[1],.75));
+      add(ve(5.5,36,1.4,1.4,P.paper[1],.7));
+      // Existing coat repaired at one pocket, not generic ornamental badges.
+      add(vp("M10 30L17 28L16 34L10 36Z",P.wood[1],.9));
+      add(vp("M12 29L13 35",null,.75,P.paper[0]));
     } else if(who === "hood-tall") {
       add(vp("M-6-4Q-15-1-15 9L-10 23L-14 43L-2 46L1 40L10 43L12 22L14 8L7-4Z",P.cloth[2],1.6));
       add(vp("M-13 3L-7 1L-5 23L-8 43L-14 43L-10 23Z",P.cloth[1],0));
@@ -749,62 +770,170 @@
       oval(ctx, wx-bx*1.8, wy-by*1.8, 1.2, 1.6, hand);
     }
   }
-  function youCoat(ctx) { characterBody(ctx,"you",0,-73); }
-  // YOU: broad raincoat, cropped coils, a warm face and a worn scarf. The
-  // camera still sees his back in the car; the turn finally reveals a person.
+  // Reuse the approved head/garment cutouts, but tailor *world* garments to
+  // leg length. Previously the coat covered 50 of YOU's 100 body units,
+  // leaving two 30px matchsticks where thighs and knees should be.
+  // Portraits keep the same underlying garment paths at a closer camera crop.
+  function actorGarment(ctx, who, x, y, vertical = 1) {
+    ctx.save(); ctx.translate(x,y); ctx.scale(1,vertical);
+    paintParts(ctx,garmentParts(who)); ctx.restore();
+  }
+  function youCoat(ctx) { actorGarment(ctx,"you",0,-73,.72); }
+  // Exactly the same planted hip, knee, heel and boot construction indoors
+  // and outdoors. The stride value comes from movement (zero means still).
+  function keeperLegs(ctx, step = 0) {
+    for(const side of [-1,1]) {
+      const gait=side*step, hip=side*7.2;
+      const knee=hip+gait*2.8, heel=hip+gait*5.1;
+      const lift=Math.max(0,gait)*2.3;
+      shape(ctx,[hip-4.3,-45,hip+4.3,-45,knee+3.8,-23,
+        heel+3.8,-4-lift,heel-3.8,-4-lift,knee-3.8,-23],
+        P.a.denim,{ink:1.1,amp:.12});
+      // A small knee fold, not a second limb.
+      line(ctx,knee-2,-22,knee+3,-20,P.cloth[2],.65,hip,.07);
+      oval(ctx,heel+side*1.5,-2-lift,5.8,2.65,P.ink,true,.8);
+    }
+  }
+  // The umbrella is ONE asset in the game's own cutout language. The world
+  // actor and SVG portrait render these identical shapes; no new renderer,
+  // external model, animation engine, download or duplicated illustration.
+  const keeperCanopyParts = Object.freeze([
+    vp("M-28 8Q-23-2-10-8Q4-14 20-5Q27-2 30 8L22 6L14 10L6 6L-3 10L-13 6L-21 10Z",P.a.umbrella,1.6),
+    vp("M-21 1Q-12-7-1-9L6-10Q-5-4-13 6L-21 8Z",P.a.umbrellaLight,0),
+    vp("M0-12L0 8M0-12L-14 6M0-12L14 6M0-12L23 7",null,.85,P.inkSoft),
+    vp("M20-3L25-1L23 2L19 0Z",P.a.tape,.6)
+  ]);
+  function keeperCanopy(ctx, x, y) {
+    ctx.save(); ctx.translate(x,y); paintParts(ctx, keeperCanopyParts); ctx.restore();
+  }
+  // YOU / Keeper — authored 8-frame art sheet (walk x4, idle, look back,
+  // reach, front). The old procedural figure remains a safe loading/offline
+  // fallback, NOT the normal production character. We intentionally reuse
+  // a single sprite atlas instead of re-sculpting body polygons per scene.
+  // The image is 480 × 360, organized in a 4-column × 2-row grid.
+  const KEEPER_ATLAS = Object.freeze({
+    src: typeof document === "object" && document.currentScript?.src
+      ? new URL("assets/keeper-sprite-atlas.png", document.currentScript.src).href
+      : "modes/dungeon/assets/keeper-sprite-atlas.png",
+    columns: 4, rows: 2, cellW: 120, cellH: 180,
+    // At the existing world draw scale: 78 × 117 native world units.
+    width: 78, height: 117
+  });
+  let keeperImage = null, keeperImageState = "unavailable";
+  const keeperImageListeners = new Set();
+  function onKeeperImageChange(callback) {
+    if (typeof callback !== "function") return () => {};
+    keeperImageListeners.add(callback);
+    return () => keeperImageListeners.delete(callback);
+  }
+  function keeperImageUpdate(state) {
+    keeperImageState = state;
+    for (const callback of Array.from(keeperImageListeners)) {
+      try { callback(state); } catch (_) { /* listeners are optional */ }
+    }
+  }
+  function loadKeeperImage() {
+    if (keeperImage || keeperImageState === "error" || typeof Image !== "function") return;
+    keeperImageState = "loading";
+    const img = new Image();
+    // A bundled same-origin asset keeps screenshots, offline play and
+    // save thumbnails functional without contacting another provider.
+    img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      if (img.naturalWidth === 480 && img.naturalHeight === 360) {
+        keeperImage = img;
+        keeperImageUpdate("ready");
+      } else keeperImageUpdate("error");
+    };
+    img.onerror = () => keeperImageUpdate("error");
+    img.src = KEEPER_ATLAS.src;
+  }
+  function keeperSpriteFrame(o = {}) {
+    // Travel-distance driven animation: stopping cannot advance the cycle.
+    if (o.walking) {
+      const cycle = (((((o.stride || 0) * 1.9) / TAU) % 1) + 1) % 1;
+      return Math.min(3, Math.floor(cycle * 4));
+    }
+    const state = String(o.state || "").toLowerCase();
+    if (state === "look-back" || state === "turn" || o.back) return 5;
+    if (state === "reach" || state === "door" || state === "grab" || o.reach) return 6;
+    if (o.addressed || o.front) return 7;
+    return 4;
+  }
+  // The painted frames were authored with slightly different horizontal
+  // centers. Fix that ONCE here, instead of allowing a left/right body wobble
+  // or editing every animation frame and its masks independently.
+  // Top row feet touch the frame edge; bottom row has 14px transparent sole
+  // padding. These offsets keep feet planted on the game's drop shadow.
+  const KEEPER_FRAME_OFFSET_X = Object.freeze([-1, 4, 10, 10, 0, -1, 0, 2]);
+  const KEEPER_FRAME_OFFSET_Y = Object.freeze([0, 0, 0, 0, 9, 9, 9, 9]);
+  function keeperSprite(ctx, x, y, o = {}) {
+    if (!keeperImage || keeperImageState !== "ready" || typeof ctx.drawImage !== "function") return false;
+    const frame = keeperSpriteFrame(o);
+    const { cellW, cellH, width, height, columns } = KEEPER_ATLAS;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(o.face === -1 ? -1 : 1, 1);
+    // All frames retain the original bottom-center foot anchor. Draw
+    // bitmaps in one single pass: no extra arms, knees or overlay limbs.
+    // The authored atlas has a few stray ink strokes in the first 8 px
+    // of its second row. These used to float above YOU's umbrella in real
+    // gameplay (especially over the bright store doorway). Trim only that
+    // source sliver; keep the source/destination scale and FOOT position
+    // identical, so switching from walk to idle never makes him pop.
+    const trimTop = frame >= columns ? 8 : 0;
+    const scaleY = height / cellH;
+    ctx.drawImage(keeperImage, (frame % columns) * cellW,
+      Math.floor(frame / columns) * cellH + trimTop, cellW, cellH - trimTop,
+      -width / 2 + KEEPER_FRAME_OFFSET_X[frame],
+      -height + KEEPER_FRAME_OFFSET_Y[frame] + trimTop * scaleY,
+      width, height - trimTop * scaleY);
+    ctx.restore();
+    return true;
+  }
+  // The image request starts once. Browser animation remains 100% driven by
+  // the game's existing traveled stride; reduced-motion holds the idle frame.
+  loadKeeperImage();
+  // Keep the established walk/interaction state contract; reuse the existing
+  // sleeve rig and shared head/garment rather than another procedural anatomy.
   function keeper(ctx, x, y, o = {}) {
     const bob = o.bob || 0, t = o.t || 0, state = o.state || "idle";
-    drop(ctx, x, y, 14, 3.6);
-    ctx.save(); ctx.translate(x, y); ctx.scale(o.face || 1, 1);
-    if (state === "look-back") ctx.rotate(-0.055);
-    // One gait clock for hips, feet and sleeves. Dividing them across sine
-    // waves made the arms swing while the planted leg was standing still.
-    const step = o.walking ? Math.sin((o.stride || 0) * 1.9) : 0;
-    // Bent knees and alternating planted heels; no sliding trouser columns.
-    for (const side of [-1, 1]) {
-      const swing = step * side, hip = side * 4.5;
-      const heel = hip + swing * 3.8, knee = hip + swing * 2.1;
-      const lift = Math.max(0, swing) * 2.4;
-      shape(ctx, [hip - 3, -30, hip + 3, -30, knee + 3, -15,
-        heel + 2.8, -3 - lift, heel - 2.8, -3 - lift, knee - 3, -15],
-        P.a.denim, { ink: 1.1, amp: 0.12 });
-      oval(ctx, heel + 1.5, -2 - lift, 4.6, 2.3, P.ink, true, 0.8);
-    }
-    ctx.translate(0, o.walking ? -Math.abs(step) * 0.9 : 0);
+    drop(ctx, x, y, 15, 3.6);
+    // The new sprites replace the in-game character; generated art is not
+    // just a separate concept sheet or unused repository attachment.
+    if (keeperSprite(ctx, x, y, o)) return;
+    ctx.save(); ctx.translate(x,y); ctx.scale(o.face || 1,1);
+    if(state === "look-back") ctx.rotate(-.055);
+    const step = o.walking ? Math.sin((o.stride || 0)*1.9) : 0;
+    keeperLegs(ctx,step);
+    ctx.translate(0,o.walking ? -Math.abs(step)*.9 : 0);
+    // Same source that supplies the close-up portrait: no bespoke copy here.
     youCoat(ctx);
-    characterHead(ctx, "you", 0, -84, {
-      tilt: state === "look-back" ? -.12 : o.addressed ? -.06 : -.015,
-      look: o.look
+    characterHead(ctx,"you",0,-84,{
+      tilt:state === "look-back" ? -.12 : o.addressed ? -.06 : -.015,
+      look:o.look
     });
-    // Arm up to the shaft. The free arm carries the tiny acting beats: a
-    // glance back toward the car, then a hand toward the store door.
-    cut(ctx, "M12-69Q19-67 18-60L12-54L5-56L4-62L11-61Z", P.wood[2], 1.3);
-    cut(ctx, "M6-61Q10-63 10-59L9-56L5-56L3-59Z", P.skin[1], .9);
-    line(ctx, 7, -58, 4, -96, P.ink, 1.3, 15, 0.1);
-    if (state === "look-back") {
-      cut(ctx, "M-14-68Q-18-68-20-62L-17-57L-12-59L-10-64Z", P.wood[1], 1.2);
-      oval(ctx, -19, -60, 3, 2.4, P.skin[1], true, .9);
-    } else if (state === "door") {
-      cut(ctx, "M-11-70Q-17-72-17-79L-12-82L-8-76Z", P.wood[2], 1.2);
-      oval(ctx, -14, -80, 2.7, 2.3, P.skin[1], true, .9);
+    // All arms use the existing joint/sleeve primitive. The hand is part of
+    // the sleeve, not a second floating ellipse or an extra overlay limb.
+    if(state === "door") {
+      sleeve(ctx,[-16,-68,-25,-75,-24,-84],P.wood[2],6.4,P.skin[1]);
+    } else if(state === "look-back") {
+      sleeve(ctx,[-16,-68,-24,-60,-22,-52],P.wood[1],6.4,P.skin[1]);
     } else {
-      const swing = step * 1.4;
-      cut(ctx, `M-13-69Q-20-68-20-61L${-19-swing}-51L${-14-swing}-42L${-8-swing}-45L${-12-swing}-53L-10-63Z`, P.wood[1], 1.2);
-      oval(ctx, -11 - swing, -44, 3, 2.8, P.skin[1], true, .9);
+      sleeve(ctx,[-16,-68,-22,-56+step*1.2,-14-step*3,-43],
+        P.wood[1],6.4,P.skin[1]);
     }
-    // The umbrella: eight panels, a lit top band, a bent rib (it has been through weather before).
-    const canopy = [-24, -103, -18, -110, -9, -115, 4, -117, 16, -114, 26, -108, 30, -102];
-    const rim = [30, -102, 25, -104, 20, -101, 14, -104, 8, -101, 2, -104, -4, -101, -10, -104, -16, -101, -21, -104, -24, -103];
-    shape(ctx, [...canopy, ...rim.slice(2)], P.a.umbrella, { ink: CH, seed: 16, amp: 0.3 });
-    shape(ctx, [-18, -110, -9, -115, 4, -117, 16, -114, 12, -111, 2, -113, -8, -111], P.a.umbrellaLight, { ink: false, seed: 17, amp: 0.3 });
-    for (const rx of [-10, 2, 14]) line(ctx, 4, -117, rx, -102, P.ink, 0.7, rx, 0.3);
-    line(ctx, 4, -117, 24, -106, P.ink, 0.7, 99, 0.9);
-    line(ctx, 4, -117, 4, -121, P.ink, 1.4);
-    line(ctx, 4, -102, 5, -96, P.ink, 1.3, 15, .1);
-    // Drops rolling off the rim (time-based, not random).
-    for (let index = 0; index < 3; index += 1) {
-      const k = ((t / 700) + index * 0.37) % 1, dx = [-22, 28, 9][index];
-      ctx.globalAlpha = 0.8 * (1 - k); rect(ctx, P.wet[3], dx, -101 + k * 14, 0.9, 2.2); ctx.globalAlpha = 1;
+    // Umbrella arm and grip remain physically connected during every pose.
+    sleeve(ctx,[16,-68,23,-60,19,-59],P.wood[2],6.7,P.skin[1]);
+    // Shaft stays to the right of his face rather than crossing his eyes.
+    line(ctx,19,-59,13,-101,P.ink,1.5,15,.1);
+    keeperCanopy(ctx,13,-109);
+    for(let i=0;i<3;i++) {
+      const k=((t/700)+i*.37)%1, dx=[-22,28,9][i];
+      ctx.globalAlpha=.8*(1-k);
+      rect(ctx,P.wet[3],dx+13,-101+k*14,.9,2.2);
+      ctx.globalAlpha=1;
     }
     ctx.restore();
   }
@@ -851,37 +980,35 @@
     ctx.save();ctx.translate(x,y);ctx.scale(o.face||1,1);
     if(o.flinch) ctx.rotate(-.065);
     if(kind==="hood-tall") {
-      compactLegs(ctx,-27,4.5,6,bob,P.cloth[1],P.ink,P.a.sock);
-      sleeve(ctx,[-11,-62,-17,-47,-8,-39],P.cloth[1],5.4,P.skin[1]);
-      characterBody(ctx,kind,0,-67);
-      sleeve(ctx,grab?[10,-63,18,-50,25,-44]:[10,-63,15,-49,6,-39],P.cloth[2],5.6,P.skin[1]);
+      compactLegs(ctx,-38,6.2,7.2,bob,P.cloth[1],P.ink,P.a.sock);
+      // Arms descend to opposite sides, not crossed into the same sternum.
+      sleeve(ctx,[-12,-62,-21,-49,-17,-37],P.cloth[1],5.6,P.skin[1]);
+      actorGarment(ctx,kind,0,-67,.78);
+      sleeve(ctx,grab?[11,-63,19,-50,29,-42]:[11,-63,21,-49,17,-37],P.cloth[2],5.7,P.skin[1]);
       characterHead(ctx,kind,0,-78,{expr,look:o.look,tilt:.035});
     } else if(kind==="hood-small") {
-      compactLegs(ctx,-18,5.5,7,bob,P.cloth[1],P.a.white);
+      compactLegs(ctx,-22,6.2,7.2,bob,P.cloth[1],P.a.white);
       sleeve(ctx,[-15,-36,-21,-27,-14,-21],P.a.maroon,6,P.skin[1]);
-      characterBody(ctx,kind,0,-37);
+      actorGarment(ctx,kind,0,-37,.92);
       const off=o.state==="phone-dropped", away=o.state==="phone-away";
       const arm=off?[14,-37,18,-28,8,-23]:[14,-37,away?17:21,away?-27:-31,20,-38];
       sleeve(ctx,arm,P.a.maroon,6.2,P.skin[1]);
       if(!off) {
         cut(ctx,"M18-44H24V-34H18Z",P.ink,1);
         cut(ctx,"M19.3-42.5H22.7V-36H19.3Z",o.phoneOff?P.cloth[2]:P.fluoro[2],0);
-        oval(ctx,19,-36,1.6,1.2,P.skin[1],true,.7);
+        // The existing sleeve hand grips the phone; no extra third hand.
       }
       characterHead(ctx,kind,0,-53,{expr,look:o.look});
     } else {
-      compactLegs(ctx,-28,7,8,bob,P.cloth[0],P.ink);
-      sleeve(ctx,[-20,-48,-25,-38,-18,-31],P.a.track,6.5,P.skin[0]);
-      characterBody(ctx,"hood-cap",0,-52);
-      if(!grab) {
-        cut(ctx,"M-18-54Q-29-55-30-43L-29-31L-17-28L-13-36L-14-50Z",P.paper[2],1.2);
-        line(ctx,-28,-41,-16,-39,P.a.denim,1.8,0,0);
-        cut(ctx,"M-27-38L-20-37L-23-31Z",P.paper[1],0);
-      } else {
-        cut(ctx,"M15-49Q27-47 30-36L31-25L21-24L16-33Z",P.paper[2],1.2);
-        line(ctx,19,-40,28,-35,P.paper[0],1,0,0);
-      }
-      sleeve(ctx,o.reaching||grab?[19,-48,25,-46,31,-43]:[19,-48,25,-37,17,-31],P.a.track,7,P.skin[0]);
+      compactLegs(ctx,-32,8,8.5,bob,P.cloth[0],P.ink);
+      // One left arm, one right arm. The old paper-coloured shapes created
+      // apparent third limbs (especially during the passenger-door grab).
+      sleeve(ctx,[-20,-49,-26,-41,-21,-31],P.a.track,6.6,P.skin[0]);
+      actorGarment(ctx,"hood-cap",0,-52,.91);
+      const rightArm=grab?[19,-49,28,-36,32,-25]
+        :o.reaching?[19,-49,28,-42,35,-40]
+        :[19,-49,25,-38,17,-31];
+      sleeve(ctx,rightArm,P.a.track,7,P.skin[0]);
       characterHead(ctx,"hood-cap",0,-68,{expr,look:o.look});
     }
     ctx.restore();
@@ -916,11 +1043,12 @@
     if (state === "turn") { line(ctx, handR[0], handR[1] - 1, handR[0] + 1, handR[1] - 7, P.ink, 2.6, 3, 0); line(ctx, handR[0], handR[1] - 1, handR[0] + 1, handR[1] - 7, P.skin[1], 1.3, 3, 0); }
     // The camel coat's shoulders from above, the scarf ring, the back of the head.
     ctx.save(); ctx.translate(x, y + 2); ctx.rotate(twist); ctx.translate(-x, -y - 2);
-    shape(ctx, [x - 15, y + 2, x - 12, y - 6, x - 5, y - 9, x + 5, y - 9, x + 12, y - 6, x + 15, y + 2, x + 12, y + 12, x - 12, y + 12], P.wood[2], { ink: CH, seed: 61, amp: CA });
+    shape(ctx, [x - 17, y + 2, x - 14, y - 6, x - 5, y - 9, x + 5, y - 9, x + 14, y - 6, x + 17, y + 2, x + 14, y + 12, x - 14, y + 12], P.wood[2], { ink: CH, seed: 61, amp: CA });
     shape(ctx, [x - 15, y + 2, x - 12, y - 6, x - 5, y - 9, x - 3, y + 12, x - 12, y + 12], P.wood[1], { ink: false, seed: 62, amp: CA });
     rect(ctx, P.wood[3], x - 9, y - 8, 18, 1.4);
     oval(ctx, x, y - 6 + breathe * 0.2, 7.4, 4.6, P.a.maroon, true, 1.2);
     oval(ctx, x - 2, y - 7, 3, 1.6, P.a.maroonLight);
+    line(ctx, x - 10, y + 1, x - 8, y + 9, P.a.maroonLight, 3.2, 92, 0.1);
     // The same cropped coils from above; a cheek and ear on the turn.
     const turn = state === "reach" || state === "turn" ? 3.2 : state === "look" ? 1.4 : state === "look-back" ? -3.2 : 0;
     const hy = y - 10 - (state === "look" ? 3 : 0);
@@ -1017,18 +1145,22 @@
     const shoulderY=hy+17, top=small?-20:cap?-23:driver?-27:-25;
     // The tall passenger stretches a shin; Cap sits planted; Small's shoes dangle.
     for(const side of [-1,1]) {
-      const sx=side*(cap?9:5), knee=sx+(tall?-12:driver?-9:0), heel=knee+(tall?-8:driver?-4:side*2);
-      cut(ctx,`M${sx-3} ${top}Q${knee-4} ${top+6} ${knee-3} ${top+12}L${heel-3} -4L${heel+4} -4L${knee+4} ${top+10}L${sx+4} ${top}Z`,leg,1.1);
+      const sx=side*(cap?10:small?7:7), knee=sx+side*(tall?4:cap?4:3);
+      const heel=knee+side*(tall?3:small?1:2);
+      cut(ctx,`M${sx-3.5} ${top}Q${knee-4} ${top+6} ${knee-3.5} ${top+12}L${heel-3.5} -4L${heel+4} -4L${knee+4} ${top+10}L${sx+3.5} ${top}Z`,leg,1.1);
       if(tall) cut(ctx,`M${heel-3} -8h7v5h-7Z`,P.a.sock,.6);
       oval(ctx,heel+2,-2.5,tall?5:small?4.6:5.5,2.4,small?P.a.white:P.ink,true,.8);
     }
-    const left=driver?[-12,shoulderY+3,-24,-43,-30,-49]:tall?[-11,shoulderY+3,-18,-28,-9,-25]:[-15,shoulderY+3,-22,-23,-14,-19];
+    const left=driver?[-12,shoulderY+3,-24,-32,-33,-31]
+      :tall?[-11,shoulderY+3,-20,-30,-18,-23]
+      :[-15,shoulderY+3,-22,-23,-14,-19];
     sleeve(ctx,left,shirt,5.8,P.skin[driver||cap?0:1]);
-    ctx.save();ctx.translate(0,shoulderY);if(tall)ctx.scale(1,.65);
-    characterBody(ctx,who,0,0);ctx.restore();
+    // Tailor the same garment to its seated shoulder/hip distance. Tall's
+    // previous coat reached BEHIND the floor and swallowed both knees.
+    actorGarment(ctx,who,0,shoulderY,tall?.55:small?.9:cap?.86:.84);
     const age=k.talking?k.talk:0;
     let right;
-    if(driver) right=[12,shoulderY+3,7,-43,-14,-50];
+    if(driver) right=[12,shoulderY+3,0,-32,-18,-31];
     else if(small) right=[14,shoulderY+3,21,-24,18,k.phone? -39:-23-age*4];
     else if(cap&&k.point) right=[19,shoulderY+3,28,-29,34,-34];
     else right=[cap?19:10,shoulderY+3,cap?25:17,-25,cap?16:10,-20-age*5];
@@ -1036,12 +1168,14 @@
     if(small&&k.phone) {
       cut(ctx,"M16-46H23V-36H16Z",P.ink,1);
       cut(ctx,"M17.3-44.5H21.7V-38H17.3Z",k.phone==="call"?P.cold[3]:P.fluoro[2],0);
-      oval(ctx,17,-38,1.5,1.2,P.skin[1],true,.7);
+      // No duplicate skin oval: the phone-holding sleeve already has a hand.
     }
     if(driver) {
-      oval(ctx,-26,-50,12,7,null,true,2.2);
-      line(ctx,-36,-50,-16,-50,P.metal[1],1.8,0,0);
-      line(ctx,-26,-50,-26,-44,P.metal[1],1.8,0,0);
+      // A steering wheel sits below the chin and BETWEEN the two hands.
+      // At neck height the old loop read as a disembodied third arm.
+      oval(ctx,-26,-32,12,7,null,true,2.2);
+      line(ctx,-36,-32,-16,-32,P.metal[1],1.8,0,0);
+      line(ctx,-26,-32,-26,-26,P.metal[1],1.8,0,0);
     }
     characterHead(ctx,who,hx,hy,{expr:k.still?"scared":k.quiet?"quiet":"neutral",look:k.look,tilt:k.quiet?.1:k.talking?-age*.08:0});
     ctx.restore();
@@ -1700,8 +1834,10 @@
 <g transform="translate(0 -30) rotate(${tilt})">${characterHeadSvg("orr",expr)}</g></g>`);
   }
   function youPortrait() {
+    // Portrait and street share exact coat, face and umbrella vector geometry.
+    // The framing is the only change; no separately redrawn "YOU".
     return svg(`${disc(P.night[0],P.night[1],P.night[2],34,20)}${rainLines}
-<path d="M0 18Q12-3 34 0Q55 0 64 18L53 14L42 18L30 14L17 18L5 15Z" fill="${P.a.umbrella}" ${ink} stroke-width="1.5"/>
+<g transform="translate(32 14) scale(1.05)">${partsSvg(keeperCanopyParts)}</g>
 <g transform="translate(32 49) scale(1.3)">${characterBodySvg("you")}</g>
 <g transform="translate(32 29) scale(1.3)">${characterHeadSvg("you")}</g>`);
   }
@@ -1766,7 +1902,7 @@ ${cold ? `<path d="M6 22 q-3 9 0 18 M58 22 q3 9 0 18 M2 18 q-4 13 0 26 M62 18 q4
     tape, stitches, rivet, worn, label,
     concrete, asphalt, tiles, planks, wallFace, block, metalPanel, clip,
     createLighting, flame, hearth,
-    keeper, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
+    keeper, keeperSprite, keeperSpriteFrame, keeperSpriteStatus: () => keeperImageState, onKeeperImageChange, KEEPER_ATLAS, keeperLegs, sleeve, youCoat, van, hood, seated, vanRide, CREW_HEIGHT, CREW_HEAD, youSeated, cart, latch, nell, orr, porter, lantern, draftling, needle, cooler, bowl,
     mark, markSvg, callingCard, collector, collectorProfile, jar, jarLight, cage, beltCrate, jarTray, speaker,
     PORTRAITS: CAST_PORTRAITS
   });
