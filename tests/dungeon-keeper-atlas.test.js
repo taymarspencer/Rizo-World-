@@ -66,13 +66,17 @@ function canvas() {
     const [img,sx,sy,sw,sh,dx,dy,dw,dh]=calls[0];
     assert.equal(img.src,Art.KEEPER_ATLAS.src);
     assert.equal(sx,(frame%4)*120);
-    assert.equal(sy,Math.floor(frame/4)*180);
-    assert.equal(sw,120);assert.equal(sh,180);
+    const trim = frame < 4 ? 0 : 8;
+    assert.equal(sy,Math.floor(frame/4)*180+trim,
+      "discard only the second-row's floating ink marks");
+    assert.equal(sw,120);assert.equal(sh,180-trim);
     // Frame-by-frame torso registration removes x jitter; idle/look/reach
     // frames have padded bottoms, but their shoes still touch world floor.
     assert.equal(dx,-39+[-1,4,10,10,0,-1,0,2][frame]);
-    assert.equal(dy,-117+(frame<4?0:9));
-    assert.equal(dw,78);assert.equal(dh,117);
+    assert.equal(dy,-117+(frame<4?0:9)+trim*117/180);
+    assert.equal(dw,78);assert.equal(dh,117-trim*117/180);
+    assert.ok(Math.abs(dy+dh-(frame<4?0:9))<1e-8,
+      "cutting the top never shifts the shoe contact point");
     assert.equal(depth,0,"balanced Canvas state");
     if(frame<4) assert.ok(transforms.some(x=>x[0]===-1),
       "face left mirrors the sprite rather than redrawing anatomy");
