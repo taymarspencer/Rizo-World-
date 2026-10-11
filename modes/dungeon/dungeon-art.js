@@ -877,10 +877,18 @@
     ctx.scale(o.face === -1 ? -1 : 1, 1);
     // All frames retain the original bottom-center foot anchor. Draw
     // bitmaps in one single pass: no extra arms, knees or overlay limbs.
+    // The authored atlas has a few stray ink strokes in the first 8 px
+    // of its second row. These used to float above YOU's umbrella in real
+    // gameplay (especially over the bright store doorway). Trim only that
+    // source sliver; keep the source/destination scale and FOOT position
+    // identical, so switching from walk to idle never makes him pop.
+    const trimTop = frame >= columns ? 8 : 0;
+    const scaleY = height / cellH;
     ctx.drawImage(keeperImage, (frame % columns) * cellW,
-      Math.floor(frame / columns) * cellH, cellW, cellH,
+      Math.floor(frame / columns) * cellH + trimTop, cellW, cellH - trimTop,
       -width / 2 + KEEPER_FRAME_OFFSET_X[frame],
-      -height + KEEPER_FRAME_OFFSET_Y[frame], width, height);
+      -height + KEEPER_FRAME_OFFSET_Y[frame] + trimTop * scaleY,
+      width, height - trimTop * scaleY);
     ctx.restore();
     return true;
   }
