@@ -773,6 +773,12 @@
         }
         // Update the step phase AFTER movement, including authored chases:
         // the feet follow actual traveled distance, not wall-clock sine loops.
+        const distance = Math.hypot(actor.x-oldX, actor.y-oldY);
+        if(distance>0.0001) actor.direction={x:(actor.x-oldX)/distance,y:(actor.y-oldY)/distance};
+        // Ease into/out of the gait across four world units, independent of FPS.
+        const traveled=Math.hypot(actor.x-actor.fromX,actor.y-actor.fromY);
+        const remaining=Math.hypot(actor.toX-actor.x,actor.toY-actor.y);
+        actor.walkAmount=actor.state==="chase"?1:clamp(Math.min(traveled,remaining)/4,0,1);
         actor.stride = (actor.stride || 0) + Math.hypot(actor.x - oldX, actor.y - oldY) / 7;
       }
       // Overheard talk waits with its line on screen while play is paused (a LOOK).
@@ -973,7 +979,7 @@
       const travel = (from, to, start, end) => {
         const k = clamp((seconds - start) / (end - start), 0, 1);
         const ease = k * k * (3 - 2 * k), x = from + (to - from) * ease;
-        return { x, visible: x < 140 || x > 216, walking: true, stride: Math.abs(x - from) / 5, back: true };
+        return { x, visible: x < 140 || x > 216, walking: k>0 && k<1, stride: Math.abs(x - from) / 7, face:to>from?1:-1, walkAmount:clamp(Math.min(Math.abs(x-from),Math.abs(to-x))/4,0,1), back: true };
       };
       if (seconds < 2) return travel(176, 106, 0, 2);
       if (seconds < 7) return { x: 106, visible: true, back: true, reach: seconds >= 3 && seconds < 5 };
